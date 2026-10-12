@@ -1,0 +1,3 @@
+# Скрипты Windows — всегда с переводом строк Windows (CRLF), иначе cmd может их не понять
+*.cmd text eol=crlf
+*.bat text eol=crlf
