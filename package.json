@@ -1,0 +1,27 @@
+{
+  "name": "nodejs_visual",
+  "version": "0.1.0",
+  "description": "3D-движок VOID на Node.js (своё окно, рендер на видеокарте через WebGPU) и игры на нём",
+  "type": "module",
+  "main": "games/builder/main.js",
+  "scripts": {
+    "start": "node games/builder/main.js",
+    "make:skeleton": "node tools/make-skeleton.js",
+    "make:viewmodels": "node tools/make-viewmodels.js",
+    "update": "node tools/add-update.js",
+    "make:zombie": "node tools/make-zombie.js",
+    "make:boar": "node tools/make-boar.js",
+    "make:items": "node tools/make-items.js",
+    "make:weapons": "node tools/make-weapons.js",
+    "make:models": "node tools/make-skeleton.js && node tools/make-viewmodels.js && node tools/make-zombie.js && node tools/make-boar.js && node tools/make-items.js && node tools/make-weapons.js",
+    "make:app": "node tools/make-mac-app.js"
+  },
+  "dependencies": {
+    "@kmamal/sdl": "1.0.0-3",
+    "@kmamal/gpu": "1.0.0-4"
+  },
+  "allowScripts": {
+    "@kmamal/sdl": true,
+    "@kmamal/gpu": true
+  }
+}
