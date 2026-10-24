@@ -6,6 +6,7 @@
 //  Применяет настройки движка: окно, полный экран, яркость, vsync, громкость, мышь.
 //
 //    const engine = await Engine.create({ title: "МОЯ ИГРА", settingsFile, defaults, actionLabels });
+//    render: { fadeDist: 66 } — необязательно: настройки рендерера (дальность прорисовки и т. п.)
 //    engine.setScene(new MyMenu());
 //    engine.run();
 // ============================================================
@@ -17,6 +18,7 @@ import path from "node:path";
 import { Journal, Watchdog } from "./watchdog.js";
 import { SettingsStore, deepMerge } from "./settings.js";
 import { GPURenderer } from "../graphics/gpu-renderer.js";
+import { locale } from "../ui/i18n.js";
 import { UI } from "../ui/ui.js";
 import { makeTheme } from "../ui/theme.js";
 import { drawToast } from "../ui/widgets.js";
@@ -28,6 +30,7 @@ import { Sound } from "../audio/sound.js";
 export const ENGINE_DEFAULTS = {
   version: 1,
   video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true },
+  interface: { language: "en", showFps: false }, // язык надписей (engine/ui/i18n.js), счётчик FPS слева сверху
   audio: { master: 80, effects: 100 },
   controls: {
     sensitivity: 5, // 1–10
@@ -60,26 +63,26 @@ export const ENGINE_DEFAULTS = {
 
 // Как действия движка называются в настройках
 export const ENGINE_ACTION_LABELS = {
-  forward: "ВПЕРЁД",
-  back: "НАЗАД",
-  left: "ВЛЕВО",
-  right: "ВПРАВО",
-  run: "БЕГ",
-  jump: "ПРЫЖОК",
-  primary: "ДЕЙСТВИЕ",
-  secondary: "ДОП. ДЕЙСТВИЕ",
-  ability1: "СПОСОБНОСТЬ 1",
-  ability2: "СПОСОБНОСТЬ 2",
-  ability3: "СПОСОБНОСТЬ 3",
-  ability4: "СПОСОБНОСТЬ 4",
-  ability5: "СПОСОБНОСТЬ 5",
-  pause: "ПАУЗА",
-  fullscreen: "ПОЛНЫЙ ЭКРАН",
-  skill1: "НАВЫК ОРУЖИЯ 1",
-  skill2: "НАВЫК ОРУЖИЯ 2",
-  reload: "ПЕРЕЗАРЯДКА",
-  shop: "МАГАЗИН",
-  drop: "ВЫБРОСИТЬ",
+  forward: "FORWARD",
+  back: "BACK",
+  left: "LEFT",
+  right: "RIGHT",
+  run: "RUN",
+  jump: "JUMP",
+  primary: "ACTION",
+  secondary: "ALT ACTION",
+  ability1: "ABILITY 1",
+  ability2: "ABILITY 2",
+  ability3: "ABILITY 3",
+  ability4: "ABILITY 4",
+  ability5: "ABILITY 5",
+  pause: "PAUSE",
+  fullscreen: "FULLSCREEN",
+  skill1: "WEAPON SKILL 1",
+  skill2: "WEAPON SKILL 2",
+  reload: "RELOAD",
+  shop: "SHOP",
+  drop: "DROP",
 };
 
 export class Engine {
@@ -87,7 +90,7 @@ export class Engine {
   // logFile — журнал (по умолчанию log.txt рядом с настройками). Его стоит прислать, если игра зависла.
   // theme — своя тема интерфейса: только то, что меняешь (engine/ui/theme.js)
   // changelog — файл записей обновлений (CHANGELOG.json): движок следит за ним и сообщает о новой версии
-  static async create({ title = "VOID", settingsFile, defaults = {}, actionLabels = {}, logFile, theme = {}, changelog = null }) {
+  static async create({ title = "VOID", settingsFile, defaults = {}, actionLabels = {}, logFile, theme = {}, changelog = null, render = {} }) {
     const journal = new Journal(logFile || path.join(path.dirname(settingsFile), "log.txt"));
     const settings = new SettingsStore(settingsFile, deepMerge(ENGINE_DEFAULTS, defaults));
     const v = settings.data.video;
@@ -99,8 +102,8 @@ export class Engine {
       resizable: true,
       webgpu: true,
     });
-    const renderer = await GPURenderer.create(window, { vsync: v.vsync, brightness: v.brightness / 100 });
-    journal.write(`окно ${window.width}x${window.height} (пикселей ${window.pixelWidth}x${window.pixelHeight}), видеокарта готова`);
+    const renderer = await GPURenderer.create(window, { ...render, vsync: v.vsync, brightness: v.brightness / 100 }); // render — свои настройки игры (fadeDist — дальность прорисовки)
+    journal.write(`окно ${window.width}x${window.height} (пикселей ${window.pixelWidth}x${window.pixelHeight}), видеокарта готова: ${renderer.adapterName}${renderer.gpuFlags.length ? ` [${renderer.gpuFlags.join(", ")}]` : ""}`);
     const engine = new Engine({ window, renderer, settings, actionLabels, journal, theme });
     if (changelog) {
       // Новая версия на диске: сообщаем (на любой сцене) и перерисовываем — меню покажет кнопку
@@ -108,7 +111,7 @@ export class Engine {
         file: changelog,
         onAvailable: (u) => {
           engine.log(`доступно обновление ${u.available.version}`);
-          engine.toast(`ОБНОВЛЕНИЕ ${u.available.version}: ОБНОВИТЬ МОЖНО В ГЛАВНОМ МЕНЮ`, 6000);
+          engine.toast(`UPDATE ${u.available.version}: INSTALL FROM THE MAIN MENU`, 6000);
           engine.redraw();
         },
       });
@@ -134,6 +137,7 @@ export class Engine {
     this.toastState = null; // всплывающая надпись: { text, until }
     this.running = false;
     this.closed = false;
+    this.locale = locale; // языки интерфейса: engine.locale.add("ru", словарь) — engine/ui/i18n.js
     this.onStats = null; // игра может показывать FPS: engine.onStats = ({ fps, cpu }) => ...
 
     // Масштаб экрана: пикселей в одной точке (на Retina — 2). См. realSize()
@@ -205,6 +209,16 @@ export class Engine {
     this.redraw();
   }
 
+  // Мир под «живыми» окнами (scene.live): первая сцена с realtime под ними, иначе null
+  liveBelow() {
+    for (let i = this.scenes.length - 2; i >= 0; i--) {
+      const s = this.scenes[i];
+      if (s.realtime) return s;
+      if (!s.live) return null;
+    }
+    return null;
+  }
+
   // Что показывать в 3D: ищем сверху вниз, пока сцены прозрачные
   findView(from = this.scenes.length - 1) {
     for (let i = from; i >= 0; i--) {
@@ -236,6 +250,11 @@ export class Engine {
     this.needsRedraw = false;
     this.ui.begin();
     this.scene?.drawUI(this.ui);
+    // Счётчик кадров слева сверху (настройки → INTERFACE → SHOW FPS) — только в живой сцене
+    if (this.settings.data.interface?.showFps && this.scene?.realtime && this.fps) {
+      this.ui.rect(6, 6, 96, 22, [10, 12, 18], 170);
+      this.ui.text(`FPS ${this.fps}`, 12, 10, 2, this.fps >= 50 ? [120, 220, 130] : this.fps >= 30 ? [240, 196, 80] : [255, 90, 80]);
+    }
     if (this.toastState && this.scene?.showToasts !== false) drawToast(this.ui, this.toastState.text);
   }
 
@@ -262,6 +281,8 @@ export class Engine {
     if ((all || what === "vsync") && this.renderer.vsync !== s.video.vsync) this.renderer.setVsync(s.video.vsync);
     if (all || what === "audio") this.sound.setVolume((s.audio.master / 100) * (s.audio.effects / 100));
     if (all || what === "mouse") this.mouse.sensitivity = 0.0005 * s.controls.sensitivity;
+    if (all || what === "language") locale.set(s.interface?.language);
+    if (what === "language" || what === "fps") this.redraw();
     this.input.bindings = s.controls.bindings; // после «Сбросить» это новый объект
   }
 
@@ -330,7 +351,7 @@ export class Engine {
         if (id) {
           this.log(`кнопка «${id}» (${scene.label})`);
           this.sound.play("click");
-          scene.onButton(id);
+          scene.onButton(id, { right: e.button === sdl.mouse.BUTTON.RIGHT }); // right — правой кнопкой (инвентарь: по одной штуке)
         }
       }
       this.phase(0);
@@ -423,11 +444,25 @@ export class Engine {
     this.schedule(busy === true ? 0 : busy === "soon" ? 16 : 50);
   }
 
+  // Сглаженное время кадра. Цикл меряет время от начала прошлого кадра, а экран показывает кадры
+  // в своём ровном такте: соседние кадры получают «10 мс, 23 мс, 12 мс...», и всё, что движется
+  // относительно камеры (а при ходьбе — весь мир), дёргается взад-вперёд. Среднее за последние 8 кадров
+  // убирает эту дрожь; настоящая заминка (кадр втрое дольше среднего) проходит как есть.
+  smoothDt(raw) {
+    const h = (this.dtHistory ||= []);
+    const avg = h.length ? h.reduce((a, b) => a + b, 0) / h.length : raw;
+    h.push(raw);
+    if (h.length > 8) h.shift();
+    if (raw > avg * 3 || raw < 0.0005) return raw; // заминка или первый кадр — без сглаживания
+    return h.reduce((a, b) => a + b, 0) / h.length;
+  }
+
   // Вернёт true — нужен следующий кадр сразу (мир живёт), "soon" — скоро, false — можно отдыхать
   tick() {
     const start = performance.now();
-    const dt = Math.min((start - this.lastTime) / 1000, 0.1); // секунд с прошлого кадра (не больше 0.1)
+    const raw = Math.min((start - this.lastTime) / 1000, 0.1); // секунд с прошлого кадра (не больше 0.1)
     this.lastTime = start;
+    const dt = this.smoothDt(raw);
     this.syncSize();
 
     if (this.toastState && start > this.toastState.until) {
@@ -442,7 +477,10 @@ export class Engine {
     // После изменения рисуем ещё пару кадров подряд: у окна несколько буферов картинки
     // (пока один на экране, в другой рисуем), и свежая картинка должна попасть в каждый —
     // иначе на экран может вылезти старый буфер (меню «телепортируется» или пропадает).
-    if (!scene.realtime) {
+    // Окно поверх мира, которое время НЕ останавливает (scene.live: карта, таланты, магазин, инвентарь):
+    // мир под ним живёт дальше — его update(dt, { background: true }) (игра не читает клавиши героя)
+    const live = !scene.realtime && scene.live ? this.liveBelow() : null;
+    if (!scene.realtime && !live) {
       this.mouse.consume(); // выбрасываем случайные движения мыши
       this.ensureUI();
       if (this.ui.dirty) this.settle = 3;
@@ -457,7 +495,8 @@ export class Engine {
     }
 
     this.phase(1);
-    scene.update(dt);
+    if (live) live.update(dt, { background: true });
+    else scene.update(dt);
     this.render();
     this.workTime += performance.now() - start;
 
@@ -466,6 +505,8 @@ export class Engine {
     const now = performance.now();
     if (now - this.statsTimer >= 1000) {
       const fps = Math.round((this.frames * 1000) / (now - this.statsTimer));
+      if (this.fps !== fps && this.settings.data.interface?.showFps) this.redraw(); // счётчик на экране обновить
+      this.fps = fps; // для счётчика на экране
       this.onStats?.({ fps, cpu: this.workTime / this.frames });
       this.frames = 0;
       this.workTime = 0;
@@ -475,8 +516,13 @@ export class Engine {
   }
 
   render() {
+    // Первые кадры — по шагам в журнал: если игра падает сразу (сбой драйвера), видно, на каком шаге
+    const n = (this.rendered = (this.rendered || 0) + 1);
+    const trace = n <= 3 ? (step) => this.log(`кадр ${n}: ${step}`) : null;
+    trace?.("интерфейс");
     this.ensureUI(); // интерфейс, который просили перерисовать за этот кадр, — рисуем сейчас
     const v = this.findView() || {};
+    trace?.("рисование");
     this.phase(2);
     this.renderer.render({
       camera: v.camera || null,
@@ -488,7 +534,9 @@ export class Engine {
       ui: this.ui,
     });
     this.phase(3);
+    trace?.("показ кадра");
     this.renderer.present();
+    trace?.("готово");
   }
 
   // Закрыть всё. Сцены получают onQuit — шанс сохраниться.

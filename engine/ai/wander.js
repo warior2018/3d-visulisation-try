@@ -3,6 +3,8 @@
 //  Гуляет вокруг «дома» (где появился) в радиусе radius: выбирает точку, идёт
 //  к ней по найденному пути, стоит pause секунд, выбирает следующую.
 //  Подошёл кто-то (не враг) ближе lookRadius — останавливается и смотрит на него.
+//  flee: { time, speed } — ранили: убегает от обидчика time секунд со скоростью speed × свою
+//  (пугливый зверь), потом гуляет уже вокруг нового места.
 // ============================================================
 
 import { Brain } from "./brain.js";
@@ -10,8 +12,9 @@ import { Navigator } from "./pathfinder.js";
 import { pursue, separate, turnTowards } from "../world/behaviors.js";
 
 export class WanderBrain extends Brain {
-  constructor({ radius = 6, pause = [2, 5], lookRadius = 3, turnSpeed = 3, random = Math.random } = {}) {
+  constructor({ radius = 6, pause = [2, 5], lookRadius = 3, turnSpeed = 3, flee = null, random = Math.random } = {}) {
     super();
+    this.flee = flee;
     this.radius = radius;
     this.pause = pause; // [от, до] секунд постоять
     this.lookRadius = lookRadius;
@@ -24,6 +27,34 @@ export class WanderBrain extends Brain {
     const s = (e.wander ||= { home: { x: e.position.x, z: e.position.z }, goal: null, wait: this.pickPause() });
     e.velocity.x = 0;
     e.velocity.z = 0;
+
+    // Ранили — бежим прочь от обидчика
+    if (this.flee && e.attackedBy) {
+      s.flee = { from: e.attackedBy, left: this.flee.time };
+      e.attackedBy = null;
+    }
+    if (s.flee) {
+      s.flee.left -= dt;
+      // Цель — точка подальше от обидчика (идём к ней по найденному пути: дома и холмы обходит)
+      if (!s.flee.goal) {
+        const f = s.flee.from.position;
+        const away = Math.atan2(e.position.x - f.x, e.position.z - f.z);
+        const turn = (this.random() - 0.5) * 1.2;
+        const r = 10;
+        s.flee.goal = { alive: true, position: { x: e.position.x + Math.sin(away + turn) * r, y: e.position.y, z: e.position.z + Math.cos(away + turn) * r } };
+        e.nav.reset();
+      }
+      const going = pursue(e, s.flee.goal, dt, { navigator: e.nav, radius: 30, speed: e.speed * this.flee.speed, stopDistance: 0.8, turnSpeed: this.turnSpeed * 2 });
+      if (!going) s.flee.goal = null; // добежал или туда не пройти — следующая точка
+      if (s.flee.left <= 0) {
+        s.flee = null;
+        s.home = { x: e.position.x, z: e.position.z }; // убежал — гуляет здесь
+        s.goal = null;
+        s.wait = this.pickPause();
+      }
+      separate(e, ctx.entities);
+      return { walking: true, alerted: [] };
+    }
 
     // Кто-то подошёл — постоять и посмотреть на него
     const near = ctx.entities.find((o) => o !== e && o.alive && o.kind === "player" &&

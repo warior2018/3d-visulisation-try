@@ -5,7 +5,7 @@
 //  Позиция (слот):
 //    {
 //      id: "rifle", name: "СНАЙПЕРКА",
-//      price: 60,                 // сколько валюты
+//      price: 60,                 // сколько валюты (или () => число — цена может меняться, например от талантов)
 //      stock: 1,                  // сколько штук в продаже (Infinity — без ограничений)
 //      when: (ctx) => true,       // ТРИГГЕР: когда позиция появляется в магазине (необязательно)
 //      describe: (ctx) => "...",  // строка-описание (необязательно)
@@ -13,7 +13,12 @@
 //      owned: (ctx) => false,     // уже есть — второй раз не продаём (необязательно)
 //      canGive: (buyer, ctx) => true | "ПРИЧИНА", // есть ли куда выдать (необязательно)
 //      drawIcon: (ui, x, y, size) => {}, // значок (необязательно)
+//      category: "melee",         // раздел магазина (необязательно; см. categories)
 //    }
+//
+//  Разделы: new Shop({ categories: [{ id: "melee", name: "БЛИЖНИЙ" }, ...] }) — окно магазина покажет
+//  вкладки; позиции без category попадают в последний раздел. У раздела может быть when: (ctx) => true —
+//  закрытый раздел не виден вовсе (например, оружие чужого класса), как и его позиции.
 //
 //    const shop = new Shop({ currency: "coin", slots: [...] });
 //    shop.visible(ctx)                 // позиции, которые сейчас видны (сработал триггер)
@@ -23,10 +28,16 @@
 // ============================================================
 
 export class Shop {
-  constructor({ currency = "coin", currencyName = "МОНЕТ", slots = [] } = {}) {
+  constructor({ currency = "coin", currencyName = "COINS", slots = [], categories = [] } = {}) {
     this.currency = currency;
+    this.categories = categories; // [{ id, name }] — разделы (вкладки окна магазина)
     this.currencyName = currencyName; // как валюта пишется в окне: «НУЖНО 60 МОНЕТ»
     this.slots = slots.map((s) => ({ stock: Infinity, ...s, left: s.stock ?? Infinity }));
+  }
+
+  // Цена позиции сейчас (число или функция)
+  priceOf(slot) {
+    return typeof slot.price === "function" ? slot.price() : slot.price;
   }
 
   get(id) {
@@ -34,8 +45,22 @@ export class Shop {
   }
 
   // Позиции, которые сейчас в магазине (без триггера — всегда)
-  visible(ctx) {
-    return this.slots.filter((s) => !s.when || s.when(ctx));
+  // Разделы, открытые сейчас
+  categoriesFor(ctx) {
+    return this.categories.filter((c) => !c.when || c.when(ctx));
+  }
+
+  // В каком разделе позиция (без своего — в последнем)
+  categoryOf(slot) {
+    return this.categories.some((c) => c.id === slot.category) ? slot.category : this.categories.at(-1)?.id;
+  }
+
+  visible(ctx, category = null) {
+    let all = this.slots.filter((s) => !s.when || s.when(ctx));
+    if (!this.categories.length) return all;
+    const open = new Set(this.categoriesFor(ctx).map((c) => c.id));
+    all = all.filter((s) => open.has(this.categoryOf(s))); // в закрытом разделе — не видна
+    return category ? all.filter((s) => this.categoryOf(s) === category) : all;
   }
 
   money(buyer) {
@@ -43,13 +68,15 @@ export class Shop {
   }
 
   check(slot, buyer, ctx) {
-    if (!slot) return { ok: false, reason: "НЕТ ТАКОГО ТОВАРА" };
-    if (slot.when && !slot.when(ctx)) return { ok: false, reason: "ПОКА НЕ ПРОДАЁТСЯ" };
-    if (slot.owned?.(ctx)) return { ok: false, reason: "УЖЕ ЕСТЬ" };
-    if (slot.left <= 0) return { ok: false, reason: "РАСПРОДАНО" };
-    if (this.money(buyer) < slot.price) return { ok: false, reason: `НУЖНО ${slot.price} ${this.currencyName}` };
+    if (!slot) return { ok: false, reason: "NO SUCH ITEM" };
+    if (slot.when && !slot.when(ctx)) return { ok: false, reason: "NOT FOR SALE YET" };
+    if (this.categories.length && !this.categoriesFor(ctx).some((c) => c.id === this.categoryOf(slot))) return { ok: false, reason: "UNAVAILABLE" };
+    if (slot.owned?.(ctx)) return { ok: false, reason: "ALREADY OWNED" };
+    if (slot.left <= 0) return { ok: false, reason: "SOLD OUT" };
+    const price = this.priceOf(slot);
+    if (this.money(buyer) < price) return { ok: false, reason: `NEED ${price} ${this.currencyName}` };
     const room = slot.canGive ? slot.canGive(buyer, ctx) : true;
-    if (room !== true) return { ok: false, reason: room || "НЕКУДА ПОЛОЖИТЬ" };
+    if (room !== true) return { ok: false, reason: room || "NO ROOM" };
     return { ok: true };
   }
 
@@ -57,7 +84,7 @@ export class Shop {
     const slot = this.get(id);
     const c = this.check(slot, buyer, ctx);
     if (!c.ok) return c;
-    buyer.inventory.remove(this.currency, slot.price);
+    buyer.inventory.remove(this.currency, this.priceOf(slot));
     slot.left -= 1;
     slot.give?.(buyer, ctx);
     return { ok: true, slot };

@@ -11,6 +11,10 @@
 //    const hit = pickups.raycast(origin, dir, 3);            // { pickup, t } — на что смотрим
 //    pickups.remove(hit.pickup);                             // подобрали
 //
+//    pickups.add("knife", 1, hitPoint, { stuck: true, yaw }); // воткнулся: висит где попал, без физики и вращения
+//    pickups.autoCollect(hero, 1.6, (p) => take(p));         // автоподбор: всё рядом с героем
+//    pickups.add(item, n, at, { ignore: hero });              // выброшенное: автоподбор не берёт, пока герой не отойдёт
+//
 //  У предмета на земле те же поля, что у сущности, которые нужны физике и моделям:
 //  position (низ), velocity, radius, height, yaw, alive. Поэтому физика его роняет
 //  на блоки, а библиотека моделей рисует — как любое существо.
@@ -21,7 +25,8 @@ import { Vec3 } from "../math/vec3.js";
 let nextId = 1;
 
 export class Pickup {
-  constructor({ item, count = 1, position, velocity = null, yaw = Math.random() * Math.PI * 2, radius = 0.18, height = 0.24 }) {
+  constructor({ item, count = 1, position, velocity = null, yaw = Math.random() * Math.PI * 2, radius = 0.18, height = 0.24, stuck = false, ignore = null, delay = 0, data = null }) {
+    this.data = data; //    свои данные предмета (неполная обойма) — вернутся в инвентарь, когда подберут
     this.id = nextId++;
     this.kind = "pickup";
     this.item = item; //    id предмета ("stone")
@@ -33,6 +38,9 @@ export class Pickup {
     this.height = height;
     this.onGround = false;
     this.age = 0; //           секунд лежит
+    this.stuck = stuck; //     воткнулся (в стену, в землю): не падает и не крутится
+    this.ignore = ignore; //   кого автоподбор не трогает, пока тот рядом (тот, кто выбросил)
+    this.delay = delay; //     через сколько секунд можно подобрать автоматически
     // Для библиотеки моделей (engine/graphics/models.js): живой, не ранен
     this.alive = true;
     this.hurtTime = Infinity;
@@ -87,6 +95,7 @@ export class Pickups {
     for (const p of this.list.filter((p) => p.age > this.lifetime)) this.remove(p);
     for (const p of this.list) {
       p.age += dt;
+      if (p.stuck) continue; // воткнулся — висит, как есть
       p.yaw += dt * this.spin * Math.PI * 2;
       if (!this.physics) continue;
       this.physics.step(p, dt);
@@ -96,6 +105,22 @@ export class Pickups {
         p.velocity.x *= k;
         p.velocity.z *= k;
       }
+    }
+  }
+
+  // Автоподбор: всё, что ближе radius к entity (по земле; по высоте — от ног до головы с запасом)
+  // и уже можно брать (age ≥ delay), отдаём take(p) — игра решает, куда положить и убрать ли.
+  // Предмет с ignore = entity ждёт, пока entity отойдёт подальше (выбросил — не подбирать тут же обратно)
+  autoCollect(entity, radius, take) {
+    for (const p of [...this.list]) {
+      const d = Math.hypot(p.position.x - entity.position.x, p.position.z - entity.position.z);
+      const dy = p.position.y - entity.position.y;
+      const near = d <= radius && dy > -1 && dy < entity.height + 0.6;
+      if (p.ignore === entity) {
+        if (d > radius + 1) p.ignore = null; // отошёл — теперь можно
+        continue;
+      }
+      if (near && p.age >= p.delay) take(p);
     }
   }
 
@@ -117,7 +142,7 @@ export class Pickups {
   // ---------- Сохранение ----------
 
   toJSON() {
-    return this.list.map((p) => ({ item: p.item, count: p.count, x: p.position.x, y: p.position.y, z: p.position.z }));
+    return this.list.map((p) => ({ item: p.item, count: p.count, x: p.position.x, y: p.position.y, z: p.position.z, ...(p.stuck ? { stuck: true, yaw: p.yaw } : {}), ...(p.data ? { data: p.data } : {}) }));
   }
 
   loadFrom(list) {
@@ -125,7 +150,7 @@ export class Pickups {
     if (!Array.isArray(list)) return;
     for (const s of list) {
       const ok = s && typeof s.item === "string" && Number.isInteger(s.count) && s.count > 0 && [s.x, s.y, s.z].every(Number.isFinite);
-      if (ok) this.add(s.item, s.count, s);
+      if (ok) this.add(s.item, s.count, s, { ...(s.stuck ? { stuck: true, yaw: s.yaw ?? 0 } : {}), ...(s.data && typeof s.data === "object" ? { data: s.data } : {}) });
     }
   }
 }

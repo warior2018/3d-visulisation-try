@@ -38,26 +38,26 @@ export class Modifier {
 
 // Дальше бьёт: радиус удара ближнего боя больше на fraction (0.1 — на 10 %)
 export const reachBonus = (fraction) =>
-  new Modifier({ id: "reach", name: `РАДИУС +${Math.round(fraction * 100)}%`, reachMultiplier: () => 1 + fraction });
+  new Modifier({ id: "reach", name: `REACH +${Math.round(fraction * 100)}%`, reachMultiplier: () => 1 + fraction });
 
 // Превратить урон в стихию (меч → огненный меч)
 export const convertTo = (element) =>
-  new Modifier({ id: "convert-" + element, name: (ELEMENTS[element]?.name || element) + ": УРОН", priority: 10, apply: (d) => (d.element = element) });
+  new Modifier({ id: "convert-" + element, name: (ELEMENTS[element]?.name || element) + ": DAMAGE", priority: 10, apply: (d) => (d.element = element) });
 
 // Прибавка урона
-export const flatDamage = (n) => new Modifier({ id: "flat", name: `+${n} УРОНА`, priority: 20, apply: (d) => (d.amount += n) });
+export const flatDamage = (n) => new Modifier({ id: "flat", name: `+${n} DAMAGE`, priority: 20, apply: (d) => (d.amount += n) });
 
 // Множитель урона (1.5 = +50 %)
-export const damageMultiplier = (k) => new Modifier({ id: "mult", name: `УРОН X${k}`, priority: 30, apply: (d) => (d.amount *= k) });
+export const damageMultiplier = (k) => new Modifier({ id: "mult", name: `DAMAGE X${k}`, priority: 30, apply: (d) => (d.amount *= k) });
 
 // Только против определённых целей (например, ×2 по скелетам)
 export const against = (type, k) =>
-  new Modifier({ id: "vs-" + type, name: `X${k} ПРОТИВ ${type}`, priority: 30, apply: (d, ctx) => { if (ctx.target?.type === type) d.amount *= k; } });
+  new Modifier({ id: "vs-" + type, name: `X${k} VS ${type}`, priority: 30, apply: (d, ctx) => { if (ctx.target?.type === type) d.amount *= k; } });
 
 // Критический удар: с шансом chance урон ×multiplier (уже крит — второй раз не умножаем)
 export const critical = (chance = 0.1, multiplier = 2) =>
   new Modifier({
-    id: "crit", name: `КРИТ ${Math.round(chance * 100)}%`, priority: 40,
+    id: "crit", name: `CRIT ${Math.round(chance * 100)}%`, priority: 40,
     apply: (d, ctx) => {
       if (!d.crit && ctx.random() < chance) { d.amount *= multiplier; d.crit = true; d.tags.add("crit"); }
     },
@@ -69,7 +69,7 @@ export const critical = (chance = 0.1, multiplier = 2) =>
 // пересобираются (например, таланты применили заново). Срабатывает раньше обычного крита — и тот уже не множит.
 export const guaranteedCrit = (multiplier = 3, every = 5, id = "sure-crit") =>
   new Modifier({
-    id, name: `КРИТ X${multiplier} РАЗ В ${every} С`, priority: 39,
+    id, name: `CRIT X${multiplier} EVERY ${every}S`, priority: 39,
     apply: (d, ctx) => {
       const owner = ctx.owner;
       if (!owner) return;
@@ -92,32 +92,75 @@ export const critCooldown = (owner, id = "sure-crit") =>
 
 // Наложить статус с шансом (не завязанный на стихию: например, «удар оглушает»)
 export const withStatus = (makeStatus, chance = 1) =>
-  new Modifier({ id: "status", name: "ЭФФЕКТ", priority: 60, apply: (d, ctx) => { if (ctx.random() < chance) d.statuses.push(makeStatus(ctx.owner)); } });
+  new Modifier({ id: "status", name: "EFFECT", priority: 60, apply: (d, ctx) => { if (ctx.random() < chance) d.statuses.push(makeStatus(ctx.owner)); } });
 
 // Вампиризм: fraction от нанесённого урона возвращается атакующему здоровьем
 export const lifesteal = (fraction) =>
   new Modifier({
-    id: "lifesteal", name: `ВАМПИРИЗМ ${Math.round(fraction * 100)}%`, priority: 90,
+    id: "lifesteal", name: `LIFESTEAL ${Math.round(fraction * 100)}%`, priority: 90,
     afterHit: (r, ctx) => { if (r.dealt > 0) ctx.owner?.heal(Math.ceil(r.dealt * fraction)); },
   });
 
 // Атаки чаще: перезарядка короче на fraction (0.1 — на 10 %)
 export const cooldownReduction = (fraction) =>
-  new Modifier({ id: "cdr", name: `ПЕРЕЗАРЯДКА -${Math.round(fraction * 100)}%`, cooldownMultiplier: () => 1 - fraction });
+  new Modifier({ id: "cdr", name: `COOLDOWN -${Math.round(fraction * 100)}%`, cooldownMultiplier: () => 1 - fraction });
 
 // Добивание: по цели, у которой меньше threshold здоровья, урон ×k
 export const executioner = (threshold = 0.3, k = 1.5) =>
   new Modifier({
-    id: "execute", name: `ДОБИВАНИЕ X${k}`, priority: 35,
+    id: "execute", name: `EXECUTE X${k}`, priority: 35,
     apply: (d, ctx) => { const s = ctx.target?.stats; if (s && s.hp / s.maxHp < threshold) d.amount *= k; },
   });
 
 // Первый удар: по цели с полным здоровьем урон ×k
 export const firstStrike = (k = 1.5) =>
   new Modifier({
-    id: "first", name: `ПЕРВЫЙ УДАР X${k}`, priority: 35,
+    id: "first", name: `FIRST STRIKE X${k}`, priority: 35,
     apply: (d, ctx) => { const s = ctx.target?.stats; if (s && s.hp === s.maxHp) d.amount *= k; },
   });
+
+// Первое попадание по этой цели (атакующий её ещё ни разу не ранил): урон ×k
+export const firstHit = (k = 1.5) =>
+  new Modifier({
+    id: "first-hit", name: `FIRST HIT X${k}`, priority: 35,
+    apply: (d, ctx) => { if (ctx.target && !ctx.target.damagedBy?.(ctx.owner)) d.amount *= k; },
+  });
+
+// По оглушённой / замороженной цели (entity.stunned): урон ×k
+export const vsStunned = (k = 1.1) =>
+  new Modifier({ id: "vs-stunned", name: `X${k} VS STUNNED`, priority: 35, apply: (d, ctx) => { if (ctx.target?.stunned) d.amount *= k; } });
+
+// Хедшот сильнее: попадание в голову — ещё ×k (поверх множителя головы)
+export const headshotBonus = (k = 1.5) =>
+  new Modifier({ id: "headshot", name: `HEADSHOT X${k}`, priority: 45, apply: (d, ctx) => { if (ctx.part?.id === "head") d.amount *= k; } });
+
+// Нарастание в одном залпе (дробовик): каждое следующее попадание ЭТОГО выстрела по той же цели
+// сильнее на step (0.025 — +2.5 %). Счёт — в контексте выстрела (use), общем для всех дробин
+export const rampPerHit = (step = 0.025) =>
+  new Modifier({
+    id: "ramp", name: `+${Math.round(step * 1000) / 10}% PER HIT`, priority: 36,
+    apply: (d, ctx) => {
+      const count = (ctx.use.rampHits ||= new Map());
+      const n = count.get(ctx.target) || 0;
+      d.amount *= 1 + step * n;
+      count.set(ctx.target, n + 1);
+    },
+  });
+
+// Модификатор только для определённого оружия (по id атаки): таланты «молота» не усиливают катану
+export function onlyAttack(ids, mod) {
+  const list = Array.isArray(ids) ? ids : [ids];
+  const mine = (attack) => list.includes(attack?.id);
+  return new Modifier({
+    id: mod.id,
+    name: mod.name,
+    priority: mod.priority,
+    apply: (d, ctx) => { if (mine(ctx.attack)) mod.apply(d, ctx); },
+    afterHit: (r, ctx) => { if (mine(ctx.attack)) mod.afterHit(r, ctx); },
+    cooldownMultiplier: (attack) => (mine(attack) ? mod.cooldownMultiplier(attack) : 1),
+    reachMultiplier: (attack) => (mine(attack) ? mod.reachMultiplier(attack) : 1),
+  });
+}
 
 // Модификатор только для атак определённых видов ("melee", "ranged", "magic", "item", "trap").
 // Так таланты «ветки ближнего боя» не усиливают пистолет.

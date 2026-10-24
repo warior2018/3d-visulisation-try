@@ -2,6 +2,7 @@
 //  Атаки. Общий класс Attack и пять видов:
 //
 //    MeleeAttack  — ближний бой: удар рукой, меч, когти скелета (можно с замахом);
+//    SlamAttack   — удар по земле: замах, потом всем врагам в круге (боевой молот);
 //    RangedAttack — дальний: пистолет, лук (сейчас мгновенный луч; снаряды — позже);
 //    MagicAttack  — магия: тратит ману, может бить по области (радиус);
 //    ItemAttack   — тратит предмет из инвентаря (бросить кость, граната, зелье);
@@ -91,7 +92,7 @@ export class Attack {
     const base = (ctx.baseDamage ?? this.roll(random)) * (ctx.cleave ? this.arcMultiplier ?? 1 : 1); // взмах по сектору — свой множитель
     const d = new Damage({ amount: base, element: this.element, source: owner, attack: this, tags: [this.kind, ...this.extraTags] });
     // use — контекст этого удара: один и тот же для всех целей одного взмаха (сплеш катаны)
-    const mctx = { owner, target, attack: this, random, part: ctx.part || null, use: ctx };
+    const mctx = { owner, target, attack: this, random, part: ctx.part || null, use: ctx.use || ctx }; // use — общий на весь взмах / залп
     for (const m of this.allModifiers(owner)) m.apply(d, mctx);
     // Попали в часть тела с множителем (голова) — урон умножается после всех модификаторов
     if (ctx.part?.multiplier && ctx.part.multiplier !== 1) {
@@ -100,7 +101,7 @@ export class Attack {
       d.part = ctx.part.id;
     }
     const el = ELEMENTS[d.element];
-    if (el?.status && random() < (el.statusChance ?? 1)) d.statuses.push(el.status(owner));
+    if (el?.status && !ctx.noElementStatus && random() < (el.statusChance ?? 1)) d.statuses.push(el.status(owner)); // noElementStatus — без поджога и т. п.
     return d;
   }
 
@@ -264,23 +265,107 @@ export class MeleeAttack extends Attack {
   }
 }
 
+// ---------- Удар по земле ----------
+// SlamAttack — тяжёлое оружие бьёт в землю перед собой (боевой молот, «удар Райнхардта»): после замаха
+// (windup с — в такт анимации) по КРУГУ радиуса radius вокруг точки удара достаётся всем врагам —
+// полным уроном (сплеш есть всегда). Точка — на distance м перед атакующим (куда смотрит, yaw),
+// на уровне его ног; игра может дать свою: ctx.slamPoint(owner) → { x, y, z }.
+// Радиус: ctx.radius (например, талант) или radius. Удар случился — ctx.onSlam(center, radius, hits)
+// (тряска, круг на земле, звук). Сквозь стены не бьёт, если игра даст ctx.blocked(owner, target).
+// Работает и для ИИ: ctx.target не нужен — бьёт всех своих врагов в круге.
+// grounded — бьёт только о землю: замах кончился, а атакующий в воздухе — удар, когда приземлится
+// (не дольше 4 с). Сколько пролетел вниз с самой высокой точки за замах — fall (м); ctx.fallMultiplier(fall) →
+// во сколько раз больше урон (талант «удар с прыжка»); onSlam получит четвёртым { fall, k }.
+export class SlamAttack extends MeleeAttack {
+  constructor({ radius = 1, distance = 1.6, windup = 0.3, grounded = false, ...rest }) {
+    super({ windup, ...rest });
+    this.radius = radius;
+    this.distance = distance;
+    this.grounded = grounded;
+  }
+
+  perform(owner, ctx) {
+    this.pending = { left: this.windup, owner, ctx, peak: owner.position.y, wait: 0 };
+    if (this.windup <= 0) this.update(0); // без замаха — сразу
+    return { hits: [], pending: true };
+  }
+
+  // Точка удара: своя от игры или перед атакующим на distance
+  slamPoint(owner, ctx) {
+    if (ctx.slamPoint) return ctx.slamPoint(owner);
+    const p = owner.position;
+    return { x: p.x + Math.sin(owner.yaw) * this.distance, y: p.y, z: p.z + Math.cos(owner.yaw) * this.distance };
+  }
+
+  // Кого задевает круг: враги, чей край (радиус тела) в круге; по высоте — не дальше 1.5 м от земли удара
+  slamTargets(owner, center, radius, ctx) {
+    const list = [];
+    for (const e of ctx.entities || []) {
+      if (!this.mayHit(owner, e, null)) continue;
+      if (Math.hypot(e.position.x - center.x, e.position.z - center.z) > radius + (e.radius || 0)) continue;
+      if (Math.abs(e.position.y - center.y) > 1.5) continue;
+      if (ctx.blocked?.(owner, e)) continue;
+      list.push(e);
+    }
+    return list;
+  }
+
+  update(dt) {
+    Attack.prototype.update.call(this, dt); // только кулдаун (замах — свой, не как у MeleeAttack)
+    const p = this.pending;
+    if (!p) return;
+    p.peak = Math.max(p.peak, p.owner.position.y);
+    p.left -= dt;
+    if (p.left > 0) return;
+    // Только о землю: ещё в воздухе — ждём приземления
+    if (this.grounded && !p.owner.onGround && p.wait < 4 && p.owner.alive) {
+      p.wait += dt;
+      return;
+    }
+    this.pending = null;
+    if (!p.owner.alive) return;
+    const center = this.slamPoint(p.owner, p.ctx);
+    const radius = p.ctx.radius ?? this.radius;
+    const fall = Math.max(0, p.peak - p.owner.position.y);
+    const k = p.ctx.fallMultiplier?.(fall) ?? 1;
+    const ctx = k !== 1 ? { ...p.ctx, baseDamage: this.roll(p.ctx.random) * k } : p.ctx;
+    const hits = this.hitAll(p.owner, this.slamTargets(p.owner, center, radius, p.ctx), ctx);
+    p.ctx.onSlam?.(center, radius, hits, { fall, k });
+  }
+}
+
 // ---------- Дальний бой ----------
+// ctx.onShot(aimed) — после каждого луча по прицелу (и каждой дробины): игре — нарисовать след пули.
 // Сейчас — мгновенный луч (hitscan): попали в то, что под прицелом, если оно ближе range.
 // Снаряды, летящие по дуге, — следующий шаг (будет projectile: true).
 //
 // Обойма: magazine — сколько выстрелов до перезарядки (0 — без обоймы, стреляет бесконечно),
-// reloadTime — сколько секунд перезаряжается. Запас патронов бесконечный — кончается только обойма.
+// reloadTime — сколько секунд перезаряжается. Запас патронов — attack.reserve = { count(), take(n) → взято }
+// (например, патроны в сумке героя); без reserve запас бесконечный — кончается только обойма.
+// Запас пуст — перезарядка не начинается (ctx.onMiss("no-ammo")).
 //   attack.ammo — сколько осталось, attack.reloading — идёт ли перезарядка, attack.reloadProgress — 0…1.
 //   attack.reload() — начать (сама начнётся, когда обойма опустеет). ctx.onReload(attack) — сообщит игре.
+//   Обоймы вместо россыпи патронов: у reserve есть swap(ammo, magazine) → сколько патронов теперь в оружии
+//   (игра вынимает из сумки обойму, а недострелянную кладёт обратно); count() — сколько обойм в запасе.
 export class RangedAttack extends Attack {
-  constructor({ range = 40, magazine = 0, reloadTime = 1.5, ...rest }) {
+  // pellets — дробь: столько лучей за выстрел, каждый с разбросом до spread (радианы; луч даёт игра —
+  // ctx.aimSpread(range, spread) → { entity, part }); все дробины — один выстрел (ctx.use общий)
+  constructor({ range = 40, magazine = 0, reloadTime = 1.5, pellets = 1, spread = 0, ...rest }) {
     super(rest);
     this.kind = "ranged";
     this.range = range;
+    this.pellets = pellets;
+    this.spread = spread;
     this.magazine = magazine;
     this.reloadTime = reloadTime;
     this.ammo = magazine;
     this.reloadLeft = 0;
+    this.reserve = null; // откуда берутся патроны при перезарядке (null — бесконечно)
+  }
+
+  // Сколько патронов в запасе (Infinity — без запаса)
+  get reserveCount() {
+    return this.reserve ? this.reserve.count() : Infinity;
   }
 
   get reloading() {
@@ -299,6 +384,10 @@ export class RangedAttack extends Attack {
   // Начать перезарядку. false — нечего (обоймы нет, она полная или уже перезаряжаемся)
   reload(ctx = {}) {
     if (this.magazine === 0 || this.reloading || this.ammo >= this.magazine) return false;
+    if (this.reserveCount <= 0) {
+      ctx.onMiss?.("no-ammo");
+      return false;
+    }
     this.reloadLeft = this.reloadTime;
     ctx.onReload?.(this);
     return true;
@@ -322,11 +411,25 @@ export class RangedAttack extends Attack {
     super.update(dt);
     if (!this.reloading) return;
     this.reloadLeft = Math.max(0, this.reloadLeft - dt);
-    if (this.reloadLeft === 0) this.ammo = this.magazine; // запас бесконечный — обойма полная
+    if (this.reloadLeft === 0) {
+      const need = this.magazine - this.ammo;
+      if (this.reserve?.swap) this.ammo = this.reserve.swap(this.ammo, this.magazine); // сменили обойму
+      else this.ammo += this.reserve ? Math.min(need, this.reserve.take(need)) : need; // из запаса — сколько есть
+    }
   }
 
   perform(owner, ctx) {
+    if (this.pellets > 1 && !ctx.target && ctx.aimSpread) {
+      const hits = [];
+      for (let i = 0; i < this.pellets; i++) {
+        const aimed = ctx.aimSpread(this.range, this.spread);
+        ctx.onShot?.(aimed); // каждая дробина — свой след пули (игра рисует трассер)
+        if (aimed?.entity) hits.push(...this.hitAll(owner, [aimed.entity], { ...ctx, part: aimed.part || null, use: ctx }));
+      }
+      return { hits };
+    }
     const aimed = ctx.target ? null : ctx.aim?.(this.range);
+    if (!ctx.target) ctx.onShot?.(aimed); // выстрел по прицелу: игра рисует трассер и след на блоке
     const target = ctx.target || aimed?.entity || null;
     return { hits: this.hitAll(owner, [target], aimed?.part ? { ...ctx, part: aimed.part } : ctx) };
   }
@@ -334,14 +437,37 @@ export class RangedAttack extends Attack {
 
 // ---------- Магия ----------
 // cost — сколько маны (owner.stats.mana) тратит; если маны у сущности нет вообще — бесплатно.
-// radius — 0: одна цель под прицелом; больше 0: все в круге вокруг точки прицела.
+// radius — 0: одна цель под прицелом; больше 0: все враги в шаре вокруг точки прицела.
+// projectile: true — заклинание само ничего не задевает (как бросок): use() тратит перезарядку и ману,
+//   а игра запускает снаряд (огненный шар); долетел — attack.burst(owner, point, ctx) бьёт всех в радиусе.
 export class MagicAttack extends Attack {
-  constructor({ range = 25, cost = 10, radius = 0, ...rest }) {
+  constructor({ range = 25, cost = 10, radius = 0, projectile = false, ...rest }) {
     super(rest);
     this.kind = "magic";
     this.range = range;
     this.cost = cost;
     this.radius = radius;
+    this.projectile = projectile;
+  }
+
+  // Взрыв в точке: все враги атакующего (isHostileTo), чьё тело задевает шар радиуса radius.
+  // Ближе к центру — полный урон, на краю — falloff (0.5 — половина)
+  // include — кого задеть, даже если он не враг (тот, в кого шар попал прямо: кабан, по которому целились)
+  // radius — свой радиус этого взрыва (таланты «+радиус», усиленное заклинание); по умолчанию — атаки
+  burst(owner, point, ctx = {}, { falloff = 0.5, include = [], radius = this.radius } = {}) {
+    const inside = [];
+    for (const e of ctx.entities || []) {
+      if (e === owner || !e.alive || (!include.includes(e) && owner?.isHostileTo && !owner.isHostileTo(e))) continue;
+      const cy = Math.max(e.position.y, Math.min(point.y, e.position.y + e.height)); // ближайшая точка тела по высоте
+      const d = Math.hypot(e.position.x - point.x, cy - point.y, e.position.z - point.z) - e.radius;
+      if (d <= radius) inside.push({ e, d: Math.max(0, d) });
+    }
+    const hits = inside.map(({ e, d }) => {
+      const k = 1 - (1 - falloff) * Math.min(1, d / radius);
+      const base = ctx.baseDamage ?? this.roll(ctx.random || Math.random);
+      return this.hitAll(owner, [e], { ...ctx, use: ctx.use || ctx, baseDamage: base * k })[0]; // use — один взрыв для всех
+    }).filter(Boolean);
+    return { hits, point };
   }
 
   perform(owner, ctx) {
@@ -353,16 +479,14 @@ export class MagicAttack extends Attack {
       }
       s.mana -= this.cost;
     }
+    if (this.projectile) return { hits: [], launched: true }; // урон — когда снаряд долетит (burst)
     if (this.radius <= 0) {
       const target = ctx.target || ctx.aim?.(this.range)?.entity || null;
       return { hits: this.hitAll(owner, [target], ctx) };
     }
     const point = ctx.target?.position || ctx.aimPoint?.(this.range);
     if (!point) return { hits: [] };
-    const inside = (ctx.entities || []).filter((e) =>
-      Math.hypot(e.position.x - point.x, e.position.z - point.z) <= this.radius + e.radius &&
-      point.y >= e.position.y - this.radius && point.y <= e.position.y + e.height + this.radius);
-    return { hits: this.hitAll(owner, inside, ctx), point };
+    return this.burst(owner, point, ctx);
   }
 }
 
@@ -427,16 +551,29 @@ export class ThrowAttack extends Attack {
 // Стоит в мире (place), сама ничего не «использует»: каждый кадр update(dt, ctx)
 // проверяет, не зашёл ли кто-то в радиус. rearm — через сколько секунд снова
 // готова (null — одноразовая). filter(e) — кого трогает (например, только врагов).
+// percentHp — к урону прибавляется доля макс. HP жертвы (0.5 — половина): капкан опасен и для толстых.
+// selfDamage — наступил сам хозяин (filter его пропустил): ему достаётся эта доля урона (0.5 — половина),
+//   без его собственных талантов. Срабатывание — по телу жертвы: ловушка на полу ловит того, кто встал на
+//   неё, на стене — того, кто прошёл вплотную (точка ловушки — на высоте его тела).
 export class TrapAttack extends Attack {
-  constructor({ radius = 0.8, rearm = null, filter = () => true, owner = null, ...rest }) {
+  constructor({ radius = 0.8, rearm = null, filter = () => true, owner = null, percentHp = 0, selfDamage = 0, ...rest }) {
     super({ cooldown: rearm ?? 0, ...rest });
     this.kind = "trap";
     this.radius = radius;
     this.rearm = rearm;
     this.filter = filter;
     this.owner = owner; // кто поставил (может быть null — ловушка «мира»)
+    this.percentHp = percentHp;
+    this.selfDamage = selfDamage;
     this.position = null;
     this.spent = false; // одноразовая уже сработала
+  }
+
+  // Задевает ли ловушка сущность e: по горизонтали — вплотную, по высоте — точка ловушки у его тела
+  touches(e) {
+    const p = this.position;
+    return Math.hypot(e.position.x - p.x, e.position.z - p.z) <= this.radius + e.radius &&
+      p.y >= e.position.y - 0.5 && p.y <= e.position.y + e.height;
   }
 
   place(position) {
@@ -448,12 +585,16 @@ export class TrapAttack extends Attack {
   update(dt, ctx = {}) {
     super.update(dt);
     if (!this.position || this.spent || !this.ready) return null;
-    const p = this.position;
-    const caught = (ctx.entities || []).filter((e) => e.alive && this.filter(e) &&
-      Math.hypot(e.position.x - p.x, e.position.z - p.z) <= this.radius + e.radius &&
-      Math.abs(e.position.y - p.y) < 1);
+    const caught = (ctx.entities || []).filter((e) => e.alive && this.filter(e) && this.touches(e));
     if (!caught.length) return null;
-    const hits = this.hitAll(this.owner, caught, ctx);
+    const random = ctx.random || Math.random;
+    const base = (e) => this.roll(random) + this.percentHp * e.stats.maxHp;
+    const hits = [];
+    for (const e of caught) {
+      if (e === this.owner) {
+        if (this.selfDamage > 0) hits.push(this.hit(null, e, { ...ctx, baseDamage: base(e) * this.selfDamage })); // свой — без талантов
+      } else hits.push(...this.hitAll(this.owner, [e], { ...ctx, baseDamage: base(e) }));
+    }
     this.cooldownLeft = this.cooldown;
     if (this.rearm === null) this.spent = true;
     ctx.onUse?.(this);

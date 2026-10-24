@@ -112,10 +112,12 @@ export class ModelLibrary {
       // Поворот по yaw; крен (roll — наклон вбок, например Q/E) — вокруг оси «вперёд» у ног;
       // павший заваливается на спину (поворот вокруг оси X)
       let rotation = quatY(e.yaw);
+      if (e.tilt) rotation = quatMultiply(rotation, quatX(e.tilt)); // наклон вперёд (ловушка на стене — tilt π/2)
       if (e.roll) rotation = quatMultiply(rotation, [0, 0, Math.sin(e.roll / 2), Math.cos(e.roll / 2)]);
       if (!e.alive) rotation = quatMultiply(rotation, quatX(-Math.min(e.deadTime / FALL_TIME, 1) * (Math.PI / 2)));
       const p = e.position;
-      fromTRS([p.x, p.y, p.z], rotation, [v.mirrorX ? -1 : 1, 1, 1], v.modelMatrix);
+      const k = e.scale ?? 1; // размер (маленький скелет — 0.6, большая турель — 2)
+      fromTRS([p.x, p.y, p.z], rotation, [(v.mirrorX ? -1 : 1) * k, k, k], v.modelMatrix);
 
       // Красная вспышка после удара: от 0.7 до 0
       const flash = e.hurtTime < HURT_FLASH ? 0.7 * (1 - e.hurtTime / HURT_FLASH) : 0;

@@ -7,23 +7,34 @@
 //   4. Злиться не на кого — бродит вокруг места, где появилось (wander — как WanderBrain).
 //  Аура провокации (у сущности tauntRadius, например у стража): зашёл в зону — злится на неё (social.js).
 //  Охота (ctx.hunt — сущность): все злятся на неё, где бы она ни была (нашествие), leash не действует.
+//  Своя территория (territory: { x, z, radius }) — для боссов в логове: из неё не выходит. Цель внутри — гонится;
+//  снаружи — только стреляет (если стрелок и достаёт), дальше radius + дальность выстрела — успокаивается.
+//  Без цели — возвращается домой (в центр территории). Нашествие таких не зовёт.
 //  Цели — те, с кем существо враждует (entity.isHostileTo), а не «игрок» жёстко:
 //  так же можно сделать мобов, которые воюют друг с другом.
+//  Стрелок (ranged: { range, minRange, advance }) и у сущности e.rangedAttack (атака с перезарядкой): цель ближе
+//  range, дальше minRange и её видно — стоит и стреляет: e.rangedAttack.use(), а сам снаряд запускает игра
+//  (ctx.shoot(e, target, attack)). Цель вплотную (ближе minRange) — бьёт, как обычный моб. Не видно или
+//  далеко — подходит. advance — на перезарядке не стоит, а подходит ближе (метатель: бросил — идёт на тебя);
+//  без advance — держит дистанцию и ждёт перезарядку на месте (стрелок с пистолетом).
 // ============================================================
 
 import { Brain } from "./brain.js";
 import { WanderBrain } from "./wander.js";
 import { Navigator } from "./pathfinder.js";
 import { alertHerd, tauntTarget, busy, auraTarget } from "./social.js";
-import { pursue, separate, melee } from "../world/behaviors.js";
+import { pursue, separate, melee, turnTowards } from "../world/behaviors.js";
 
 const dist2d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z);
 
 export class HostileBrain extends Brain {
   // herd: { radius, alertOnSight } или null — без стада
   // wander: { radius, pause } — бродить без цели (null — стоять на месте); huntRadius — докуда идти на охоту
-  constructor({ aggroRadius = 12, leash = 45, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5, herd = null, wander = null, huntRadius = 150 } = {}) {
+  constructor({ aggroRadius = 12, leash = 45, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5, herd = null, wander = null, huntRadius = 150, ranged = null, territory = null, sightHeight = Infinity } = {}) {
     super();
+    this.sightHeight = sightHeight; // замечает врага, только если тот не выше / ниже этого (тролль в пещере не видит тех, кто ходит по горе)
+    this.territory = territory; // { x, z, radius } — не выходит из круга (логово босса) или null
+    this.ranged = ranged; // { range, minRange } — стреляет издалека (см. выше) или null
     this.aggroRadius = aggroRadius; // замечает врага ближе этого
     this.leash = leash; //             дальше этого — отстаёт и успокаивается
     this.stopDistance = stopDistance;
@@ -40,6 +51,7 @@ export class HostileBrain extends Brain {
     let bestD = radius;
     for (const o of entities) {
       if (!o.alive || !e.isHostileTo(o)) continue;
+      if (Math.abs(o.position.y - e.position.y) > this.sightHeight) continue;
       const d = dist2d(e, o);
       if (d <= bestD) {
         best = o;
@@ -74,7 +86,9 @@ export class HostileBrain extends Brain {
       }
     };
     const taunted = tauntTarget(e, dt); //                                   провокация — сильнее всего
-    const hunt = ctx.hunt?.alive && e.isHostileTo(ctx.hunt) ? ctx.hunt : null; // нашествие: цель одна на всех
+    const T = this.territory;
+    const fromHome = (o) => Math.hypot(o.position.x - T.x, o.position.z - T.z);
+    const hunt = !T && ctx.hunt?.alive && e.isHostileTo(ctx.hunt) ? ctx.hunt : null; // нашествие: цель одна на всех (кроме сидящих в логове)
     const aura = !hunt && !taunted ? auraTarget(e, entities) : null; //      зашёл в зону стража — злится на него
     force(taunted || hunt || aura);
     if (e.aggro && e.aggro !== hunt && e.aggro !== taunted && e.aggro !== aura && (!e.aggro.alive || dist2d(e, e.aggro) > this.leash)) e.aggro = null;
@@ -82,6 +96,8 @@ export class HostileBrain extends Brain {
       const seen = this.nearestEnemy(e, entities, this.aggroRadius);
       if (seen) alerted = this.anger(e, seen, entities);
     }
+    // Территория: цель ушла далеко от логова (дальше, чем достанет бросок) — успокаивается
+    if (T && e.aggro && fromHome(e.aggro) > T.radius + (this.ranged?.range ?? 0)) e.aggro = null;
 
     // 2. Преследование (или стоим, если злиться не на кого)
     const target = e.aggro;
@@ -93,10 +109,29 @@ export class HostileBrain extends Brain {
       if (!target) e.wander = null;
     }
     e.hunting = !!target;
-    if (target) {
+    // Стрелок: цель в пределах выстрела и видна — стоим, поворачиваемся и стреляем
+    const r = this.ranged;
+    const shooting = !!(target && r && e.rangedAttack && dist2d(e, target) <= r.range && dist2d(e, target) >= (r.minRange ?? 3) &&
+      (!r.advance || e.rangedAttack.ready) && !ctx.combatFor?.(e)?.blocked?.(e, target));
+    if (shooting) {
+      e.velocity.x = 0;
+      e.velocity.z = 0;
+      turnTowards(e, Math.atan2(target.position.x - e.position.x, target.position.z - e.position.z), this.turnSpeed * 1.5, dt);
+      if (e.rangedAttack.ready && e.rangedAttack.use(e, {})) ctx.shoot?.(e, target, e.rangedAttack);
+    } else if (target && T && fromHome(target) > T.radius) {
+      // Цель вне логова: не выходим — стоим и смотрим на неё (бросок — когда перезарядится)
+      e.velocity.x = 0;
+      e.velocity.z = 0;
+      turnTowards(e, Math.atan2(target.position.x - e.position.x, target.position.z - e.position.z), this.turnSpeed, dt);
+    } else if (target) {
       walking = pursue(e, target, dt, {
         navigator: e.nav, radius: target === hunt ? this.huntRadius : this.leash, speed: e.speed,
         stopDistance: this.stopDistance, turnSpeed: this.turnSpeed, jumpSpeed: this.jumpSpeed,
+      });
+    } else if (T && fromHome(e) > 1) {
+      // Без цели и не дома — идём в центр логова
+      walking = pursue(e, { position: { x: T.x, y: e.position.y, z: T.z } }, dt, {
+        navigator: e.nav, radius: Infinity, speed: e.speed, stopDistance: 0.6, turnSpeed: this.turnSpeed, jumpSpeed: this.jumpSpeed,
       });
     } else if (this.idle) {
       walking = this.idle.update(e, ctx, dt).walking; // бродит (и сам не толпится)
@@ -108,9 +143,10 @@ export class HostileBrain extends Brain {
     // 3. Не толпиться и бить
     if (target || !this.idle) separate(e, entities);
     if (e.attack) {
-      if (target) melee(e, target, dt, e.attack, ctx.combatFor?.(e) || {});
+      if (target && !shooting) melee(e, target, dt, e.attack, ctx.combatFor?.(e) || {});
       else e.attack.update(dt); // кулдаун идёт и без цели
     }
+    e.rangedAttack?.update(dt);
     return { walking, alerted };
   }
 }

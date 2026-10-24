@@ -22,6 +22,7 @@ import { Input } from "../input/input.js";
 import { drawBackground, drawDim } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";
 
+const LANGUAGE_NAMES = { en: "ENGLISH", ru: "РУССКИЙ" }; // названия — всегда на своём языке
 export const RESOLUTIONS = [[960, 600], [1280, 720], [1440, 900], [1600, 900], [1920, 1080]];
 
 export class SettingsScene extends Scene {
@@ -49,14 +50,14 @@ export class SettingsScene extends Scene {
     const e = this.engine;
     const s = this.settings.data;
     const step = (obj, key, dir, by, min, max) => (obj[key] = Math.max(min, Math.min(max, obj[key] + dir * by)));
-    const onOff = (v) => (v ? "ВКЛ" : "ВЫКЛ");
+    const onOff = (v) => (v ? "ON" : "OFF");
     return [
       {
         id: "video",
-        label: "ВИДЕО",
+        label: "VIDEO",
         rows: [
           {
-            id: "res", label: "РАЗРЕШЕНИЕ", arrows: true,
+            id: "res", label: "RESOLUTION", arrows: true,
             value: () => `${s.video.width}X${s.video.height}`,
             change: (dir) => {
               // Только разрешения, которые помещаются на экран
@@ -68,34 +69,49 @@ export class SettingsScene extends Scene {
               e.applySettings("resolution");
             },
           },
-          { id: "fullscreen", label: "ПОЛНЫЙ ЭКРАН", value: () => onOff(s.video.fullscreen),
+          { id: "fullscreen", label: "FULLSCREEN", value: () => onOff(s.video.fullscreen),
             change: () => { s.video.fullscreen = !s.video.fullscreen; e.applySettings("fullscreen"); } },
-          { id: "bright", label: "ЯРКОСТЬ", arrows: true, value: () => `${s.video.brightness}%`,
+          { id: "bright", label: "BRIGHTNESS", arrows: true, value: () => `${s.video.brightness}%`,
             change: (dir) => { step(s.video, "brightness", dir, 10, 50, 150); e.applySettings("brightness"); } },
-          { id: "vsync", label: "ВЕРТ. СИНХРОНИЗАЦИЯ", value: () => onOff(s.video.vsync),
+          { id: "vsync", label: "VSYNC", value: () => onOff(s.video.vsync),
             change: () => { s.video.vsync = !s.video.vsync; e.applySettings("vsync"); } },
         ],
-        note: () => "В ПОЛНОМ ЭКРАНЕ РАЗРЕШЕНИЕ ПРИМЕНИТСЯ ПОСЛЕ ВЫХОДА ИЗ НЕГО",
+        note: () => "IN FULLSCREEN, RESOLUTION APPLIES AFTER LEAVING IT",
+      },
+      {
+        id: "interface",
+        label: "INTERFACE",
+        rows: [
+          { id: "language", label: "LANGUAGE", arrows: true, value: () => LANGUAGE_NAMES[s.interface.language] || s.interface.language.toUpperCase(),
+            change: (dir) => {
+              const list = e.locale.languages;
+              const i = Math.max(0, list.indexOf(s.interface.language));
+              s.interface.language = list[(i + dir + list.length) % list.length];
+              e.applySettings("language");
+            } },
+          { id: "fps", label: "SHOW FPS", value: () => onOff(s.interface.showFps),
+            change: () => { s.interface.showFps = !s.interface.showFps; e.applySettings("fps"); } },
+        ],
       },
       {
         id: "audio",
-        label: "АУДИО",
+        label: "AUDIO",
         rows: [
-          { id: "master", label: "ОБЩАЯ ГРОМКОСТЬ", arrows: true, value: () => `${s.audio.master}%`,
+          { id: "master", label: "MASTER VOLUME", arrows: true, value: () => `${s.audio.master}%`,
             change: (dir) => { step(s.audio, "master", dir, 10, 0, 100); e.applySettings("audio"); } },
-          { id: "effects", label: "ЭФФЕКТЫ", arrows: true, value: () => `${s.audio.effects}%`,
+          { id: "effects", label: "EFFECTS", arrows: true, value: () => `${s.audio.effects}%`,
             change: (dir) => { step(s.audio, "effects", dir, 10, 0, 100); e.applySettings("audio"); } },
         ],
       },
       {
         id: "controls",
-        label: "УПРАВЛЕНИЕ",
+        label: "CONTROLS",
         rows: [
-          { id: "sens", label: "ЧУВСТВИТЕЛЬНОСТЬ МЫШИ", arrows: true, value: () => String(s.controls.sensitivity),
+          { id: "sens", label: "MOUSE SENSITIVITY", arrows: true, value: () => String(s.controls.sensitivity),
             change: (dir) => { step(s.controls, "sensitivity", dir, 1, 1, 10); e.applySettings("mouse"); } },
-          { id: "aimSens", label: "МЫШЬ В ПРИЦЕЛЕ", arrows: true, value: () => `${s.controls.aimSensitivity ?? 100}%`,
+          { id: "aimSens", label: "AIM SENSITIVITY", arrows: true, value: () => `${s.controls.aimSensitivity ?? 100}%`,
             change: (dir) => { s.controls.aimSensitivity ??= 100; step(s.controls, "aimSensitivity", dir, 10, 20, 200); } },
-          { id: "invert", label: "ИНВЕРСИЯ МЫШИ", value: () => onOff(s.controls.invertY),
+          { id: "invert", label: "INVERT MOUSE", value: () => onOff(s.controls.invertY),
             change: () => { s.controls.invertY = !s.controls.invertY; } },
           { type: "bindings" },
         ],
@@ -110,7 +126,7 @@ export class SettingsScene extends Scene {
     const th = ui.theme;
     if (this.engine.worldVisibleUnder(this)) drawDim(ui, 190);
     else drawBackground(ui);
-    const box = drawWindow(ui, { title: "НАСТРОЙКИ", width: 1000, height: 640, closeId: "back" });
+    const box = drawWindow(ui, { title: "SETTINGS", width: 1000, height: 640, closeId: "back" });
 
     // Вкладки
     const n = this.tabs.length;
@@ -138,10 +154,10 @@ export class SettingsScene extends Scene {
     }
 
     const bottom = box.y + box.h;
-    const note = this.waiting ? "НАЖМИ КЛАВИШУ ИЛИ КНОПКУ МЫШИ" : tab.note?.();
+    const note = this.waiting ? "PRESS A KEY OR MOUSE BUTTON" : tab.note?.();
     if (note) ui.text(note, box.cx, bottom - 66, 2, this.waiting ? th.warn : th.muted, "center");
-    ui.button("reset", "СБРОСИТЬ", box.cx - 140, bottom - 22, 250, 44);
-    ui.button("back", "НАЗАД", box.cx + 140, bottom - 22, 250, 44);
+    ui.button("reset", "RESET", box.cx - 140, bottom - 22, 250, 44);
+    ui.button("back", "BACK", box.cx + 140, bottom - 22, 250, 44);
   }
 
   // Привязки — в три колонки: подпись и кнопка с клавишей

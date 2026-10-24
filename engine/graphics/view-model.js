@@ -33,6 +33,8 @@ export class ViewModel {
     // (в осях камеры: вправо, вверх, вперёд), например пистолет к центру экрана
     this.aim = 0;
     this.aimOffset = [0, 0, 0];
+    // Покачивание на ходу (как в Minecraft): сдвиг в осях камеры и крен — ставит игра (HeadBob.hand)
+    this.sway = { x: 0, y: 0, z: 0, roll: 0 };
     this.sights = this.findSights();
   }
 
@@ -100,7 +102,7 @@ export class ViewModel {
     const cp = Math.cos(camera.pitch);
     let u = [-Math.sin(camera.yaw) * sp, cp, -Math.cos(camera.yaw) * sp];
     // Крен камеры: «вправо» и «вверх» поворачиваются вокруг «вперёд» — рука наклоняется вместе с головой
-    const roll = camera.roll || 0;
+    const roll = (camera.roll || 0) + this.sway.roll * (1 - this.aim); // в прицеле рука не качается
     if (roll) {
       const c = Math.cos(roll);
       const s = Math.sin(roll);
@@ -113,7 +115,8 @@ export class ViewModel {
     const C = [r.x, r.y, r.z, u[0], u[1], u[2], f.x, f.y, f.z];
     const { R, T } = this.aimTransform(this.aim);
     const M = [0, 1, 2].flatMap((c) => mul3(C, [R[c * 3], R[c * 3 + 1], R[c * 3 + 2]]));
-    const p = mul3(C, T);
+    const k = 1 - this.aim;
+    const p = mul3(C, [T[0] + this.sway.x * k, T[1] + this.sway.y * k, T[2] + this.sway.z * k]);
     const e = camera.position;
     this.matrix.set([M[0], M[1], M[2], 0, M[3], M[4], M[5], 0, M[6], M[7], M[8], 0, e.x + p[0], e.y + p[1], e.z + p[2], 1]);
     return { skin: v.skin, modelMatrix: this.matrix, jointMatrices: v.animator.jointMatrices, tint: null };

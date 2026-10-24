@@ -15,6 +15,7 @@ export class Scene {
 
     // Флаги — сцена выставляет их в своём конструкторе:
     this.realtime = false; //     true — нужен кадр за кадром (мир); false — рисуем, только когда что-то поменялось
+    this.live = false; //         true — окно поверх мира, но время не стоит: мир под ним живёт (update(dt, { background: true }))
     this.transparent = false; //  true — сквозь сцену видно сцену ниже (пауза поверх мира)
     this.captureMouse = false; // true — мышь захвачена для обзора, курсора нет
     this.showToasts = true; //    false — всплывающие надписи на этой сцене не показывать (мешают)
@@ -29,13 +30,13 @@ export class Scene {
   enter() {} //          сцену положили в стопку
   exit() {} //           сцену убрали из стопки
 
-  update(dt) {} //       шаг игры (только у верхней сцены и только если realtime)
+  update(dt, { background } = {}) {} // шаг игры (у верхней сцены, если realtime; background — под «живым» окном)
   view() { return null; } // что рисовать в 3D: { camera, world, ghost, characters } или null
   drawUI(ui) {} //       нарисовать интерфейс (вызывается при engine.redraw())
 
   onPress(actions, event) {} // нажали клавишу или кнопку мыши: actions — действия по привязкам
   onRawPress(event) { return false; } // то же, но ДО привязок; true — «нажатие моё, дальше не передавать»
-  onButton(id) {} //     нажали кнопку интерфейса (ui.button)
+  onButton(id, { right } = {}) {} // нажали кнопку интерфейса (ui.button); right — правой кнопкой мыши
   onKey(event) {} //     любая клавиша как есть (например, цифры, которые не перепривязываются)
   onBlur() {} //         окно потеряло фокус
   onQuit() {} //         программа закрывается — последний шанс сохраниться

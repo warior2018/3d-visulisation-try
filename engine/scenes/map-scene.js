@@ -13,7 +13,7 @@ import { drawWindow } from "../ui/window.js";
 import { drawMinimap } from "../ui/minimap.js";
 
 export class MapScene extends Scene {
-  constructor({ map, title = "КАРТА", radius = 40, closeActions = ["map", "pause"], legend = null, info = null }) {
+  constructor({ map, title = "MAP", radius = 40, closeActions = ["map", "pause"], legend = null, info = null }) {
     super();
     this.transparent = true;
     this.showToasts = false;

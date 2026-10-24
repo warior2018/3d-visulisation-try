@@ -19,6 +19,9 @@ export class CharacterController {
     this.speed = speed; //           метров в секунду (блок = 1 метр)
     this.runMultiplier = runMultiplier;
     this.jumpHeight = jumpHeight; // на сколько метров подпрыгиваем
+    this.extraJumps = 0; //          прыжков в воздухе (1 — двойной прыжок): нажал прыжок ещё раз, пока летишь
+    this.airJumps = 0; //            сколько уже сделано в этом полёте
+    this.jumpWasDown = false;
   }
 
   // yaw — куда смотрит игрок: «вперёд» — это туда.
@@ -45,6 +48,12 @@ export class CharacterController {
     const k = moving ? speed / len : 0;
     entity.velocity.x = (sin * fwd + cos * side) * k;
     entity.velocity.z = (cos * fwd - sin * side) * k;
+    // Разбег (engine/world/charge.js) — бежим сами, куда смотрим; клавиши не действуют
+    if (entity.charge?.active) {
+      const v = entity.charge.velocity;
+      entity.velocity.x = v.x;
+      entity.velocity.z = v.z;
+    }
     // Идёт рывок (dash) — он важнее клавиш
     if (entity.dash?.left > 0) {
       entity.velocity.x = entity.dash.x;
@@ -53,9 +62,15 @@ export class CharacterController {
     }
 
     // Прыжок. Какая нужна скорость, чтобы взлететь на h метров? Из физики: v² = 2·g·h
-    if (input.isDown("jump") && entity.onGround) {
+    const jumpDown = input.isDown("jump");
+    if (entity.onGround) this.airJumps = 0;
+    if (jumpDown && entity.onGround) {
+      entity.velocity.y = Math.sqrt(2 * this.physics.gravity * this.jumpHeight);
+    } else if (jumpDown && !this.jumpWasDown && !entity.onGround && this.airJumps < this.extraJumps) {
+      this.airJumps++; // двойной прыжок: в воздухе — ещё раз (нажатие, а не удержание)
       entity.velocity.y = Math.sqrt(2 * this.physics.gravity * this.jumpHeight);
     }
+    this.jumpWasDown = jumpDown;
 
     this.physics.step(entity, dt);
     return { moving, running, speed };

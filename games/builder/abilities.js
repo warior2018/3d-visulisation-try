@@ -1,42 +1,29 @@
 // ============================================================
-//  Способности «Стройки». Как устроены способности и панель из 5 ячеек —
+//  Способности «Стройки». Как устроены способности и панель ячеек —
 //  решает движок (engine/world/abilities.js), а здесь — что делают именно наши.
-//  Оружие и инструмент — это ПРЕДМЕТЫ (items.js): что лежит в хотбаре (5 ячеек внизу
-//  инвентаря), то и в панели способностей. Пустая ячейка — рука (кулак).
+//  Оружие и инструмент — это ПРЕДМЕТЫ (items.js): что лежит в хотбаре (3 ячейки: по краям оружие — Q / E,
+//  в середине — стройка, аптечка, грибы), то и в панели способностей. Пустая ячейка оружия — рука (кулак).
 //
 //  g — игровая сцена (game-scene.js): через неё способности бьют, стреляют, строят.
 // ============================================================
 
-import { Ability, MeleeAttack, RangedAttack, ThrowAttack, buff, damageMultiplier, dash } from "../../engine/index.js";
+import { Ability, MeleeAttack, SlamAttack, RangedAttack, MagicAttack, buff, damageMultiplier, dash } from "../../engine/index.js";
 import { PALETTE, ATTACKS, WEAPON_SPEED, AIM_PISTOL, AIM_RIFLE, AIM_AUTO, RECOIL_PISTOL, RECOIL_RIFLE, RECOIL_AUTO, KATANA_IAI, EQUIP_TIME } from "./config.js";
 
 // Вид от 3-го лица: модель оружия крепится к правому предплечью героя (кость forearm_R скелета) —
 // в кулак (0.31 м ниже локтя), повёрнутая так, чтобы ствол / клинок шёл вдоль руки от кулака.
 // pose — поза рук (слой поверх ходьбы, tools/make-skeleton.js → HERO_CLIPS)
-const IN_HAND = { bone: "forearm_R", position: [0, -0.31, 0], rotation: [Math.SQRT1_2, 0, 0, Math.SQRT1_2] };
+export const IN_HAND = { bone: "forearm_R", position: [0, -0.31, 0], rotation: [Math.SQRT1_2, 0, 0, Math.SQRT1_2] };
 const held = (model, pose) => ({ model, pose, ...IN_HAND });
 
 const BONE = [220, 214, 194];
 
-// Навыки оружия дальнего боя на Q/E — наклоны (движок: Ability.skills; сам наклон — engine/graphics/lean.js).
-// У оружия других типов на этих клавишах будут свои навыки.
-const leanSkill = (dir) => ({
-  id: dir < 0 ? "lean-left" : "lean-right",
-  name: dir < 0 ? "НАКЛОН ВЛЕВО" : "НАКЛОН ВПРАВО",
-  short: "НАКЛОН", // подпись в подсказке у панели (Q/E: НАКЛОН)
-  press: (g) => g.pressLean(dir),
-  hold: (dt, g, down) => {
-    g.leanHeld[dir < 0 ? 0 : 1] = down;
-  },
-});
-// skill1 / skill2 — действия движка «навык оружия 1 / 2» (по умолчанию Q / E)
-export const LEAN_SKILLS = { skill1: leanSkill(-1), skill2: leanSkill(1) };
 const METAL = [160, 166, 178]; // светлый металл — чтобы значок был виден на тёмной ячейке
 
 export class HandAbility extends Ability {
   constructor() {
     // empty — ячейка с рукой выглядит пустой (рука — это «ничего в руке»); зажал ЛКМ — бьёт снова по готовности
-    super({ id: "hand", name: "РУКА", viewModel: "fp-arm", autoRepeat: true, empty: true });
+    super({ id: "hand", name: "FIST", viewModel: "fp-arm", autoRepeat: true, empty: true });
     this.attack = new MeleeAttack(ATTACKS.punch); // атака — класс движка, параметры — из config.js
     this.blocks = true; // ПКМ — блок (game-scene.js → tryBlock)
   }
@@ -57,8 +44,8 @@ export class HandAbility extends Ability {
 export class PistolAbility extends Ability {
   constructor() {
     super({
-      id: "pistol", name: "ПИСТОЛЕТ", viewModel: "fp-pistol", moveSpeed: WEAPON_SPEED.pistol, autoRepeat: true, // зажал — стреляет по кулдауну
-      aim: AIM_PISTOL, recoil: RECOIL_PISTOL, skills: LEAN_SKILLS, held: held("w-pistol", "HoldPistol"), equipTime: EQUIP_TIME.pistol,
+      id: "pistol", name: "PISTOL", viewModel: "fp-pistol", moveSpeed: WEAPON_SPEED.pistol, autoRepeat: true, // зажал — стреляет по кулдауну
+      aim: AIM_PISTOL, recoil: RECOIL_PISTOL, held: held("w-pistol", "HoldPistol"), equipTime: EQUIP_TIME.pistol,
     });
     this.attack = new RangedAttack(ATTACKS.pistol);
     this.reloadPose = "Reload"; // перезарядка от 3-го лица (поза героя)
@@ -86,7 +73,7 @@ export class PistolAbility extends Ability {
 export class BuildAbility extends Ability {
   constructor() {
     // Молот: покупается в магазине; блоки ставит из камней (1 камень — 1 блок), цвет — на G
-    super({ id: "build", name: "МОЛОТ", viewModel: "fp-hammer", held: held("w-hammer", "HoldBlock") });
+    super({ id: "build", name: "HAMMER", viewModel: "fp-hammer", held: held("w-hammer", "HoldBlock"), equipTime: EQUIP_TIME.item });
   }
   unequip(g) {
     g.paletteOpen = false; // убрали стройку — панель цветов закрываем
@@ -108,8 +95,8 @@ export class BuildAbility extends Ability {
     const c = PALETTE[g?.colorIndex ?? 0];
     drawHammer(ui, x, y, s);
     ui.rect(x + s * 0.12, y + s * 0.62, s * 0.22, s * 0.22, c); // квадратик — текущий цвет блока
-    // Сколько камней (= блоков) осталось; ноль — красным
-    const n = g?.stoneCount?.();
+    // Сколько блоков осталось; ноль — красным
+    const n = g?.blockCount?.();
     if (n !== undefined) ui.text(String(n), x + s - 5, y + s - 18, 2, n > 0 ? [255, 255, 255] : [255, 90, 80], "right");
   }
 }
@@ -119,8 +106,8 @@ export class BuildAbility extends Ability {
 export class RifleAbility extends Ability {
   constructor() {
     super({
-      id: "rifle", name: "СНАЙПЕРКА", viewModel: "fp-rifle", moveSpeed: WEAPON_SPEED.rifle, autoRepeat: true,
-      aim: AIM_RIFLE, recoil: RECOIL_RIFLE, skills: LEAN_SKILLS, held: held("w-rifle", "HoldRifle"), equipTime: EQUIP_TIME.rifle,
+      id: "rifle", name: "SNIPER RIFLE", viewModel: "fp-rifle", moveSpeed: WEAPON_SPEED.rifle, autoRepeat: true,
+      aim: AIM_RIFLE, recoil: RECOIL_RIFLE, held: held("w-rifle", "HoldRifle"), equipTime: EQUIP_TIME.rifle,
     });
     this.attack = new RangedAttack(ATTACKS.rifle);
     this.reloadPose = "ReloadRifle";
@@ -167,8 +154,8 @@ export class RifleAbility extends Ability {
 export class AutoAbility extends Ability {
   constructor() {
     super({
-      id: "auto", name: "АВТОМАТ", viewModel: "fp-auto", moveSpeed: WEAPON_SPEED.auto, autoRepeat: true,
-      aim: AIM_AUTO, recoil: RECOIL_AUTO, skills: LEAN_SKILLS, held: held("w-auto", "HoldRifle"), equipTime: EQUIP_TIME.auto,
+      id: "auto", name: "ASSAULT RIFLE", viewModel: "fp-auto", moveSpeed: WEAPON_SPEED.auto, autoRepeat: true,
+      aim: AIM_AUTO, recoil: RECOIL_AUTO, held: held("w-auto", "HoldRifle"), equipTime: EQUIP_TIME.auto,
     });
     this.attack = new RangedAttack(ATTACKS.auto);
     this.reloadPose = "ReloadRifle";
@@ -180,7 +167,7 @@ export class AutoAbility extends Ability {
     g.aiming = false;
   }
   primary(g) {
-    g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "ShootRifle", sound: "shotAuto" });
+    if (g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "ShootRifle", sound: "shotAuto" })) g.onRifleShot(this.attack); // талант GRENADE
   }
   action(name, g) {
     return name === "reload" && g.reloadWeapon(this);
@@ -197,7 +184,7 @@ export class AutoAbility extends Ability {
 // Мачете: ближний бой — бьёт сильнее и дальше кулака
 export class MacheteAbility extends Ability {
   constructor() {
-    super({ id: "machete", name: "МАЧЕТЕ", viewModel: "fp-machete", autoRepeat: true, held: held("w-machete", "HoldMelee"), equipTime: EQUIP_TIME.machete });
+    super({ id: "machete", name: "MACHETE", viewModel: "fp-machete", autoRepeat: true, held: held("w-machete", "HoldMelee"), equipTime: EQUIP_TIME.machete });
     this.attack = new MeleeAttack(ATTACKS.machete);
     this.blocks = true;
   }
@@ -215,20 +202,42 @@ export class MacheteAbility extends Ability {
   }
 }
 
+// Копьё (БОЕЦ): ЛКМ — укол далеко вперёд (двоих на линии), блока нет; ПКМ (держать) — разбег с копьём
+// наперевес: game-scene.js → startSpearCharge / spearControl (движок: Charge)
+export class SpearAbility extends Ability {
+  constructor() {
+    super({ id: "spear", name: "SPEAR", viewModel: "fp-spear", autoRepeat: true, held: held("w-spear", "HoldMelee"), equipTime: EQUIP_TIME.spear });
+    this.attack = new MeleeAttack(ATTACKS.spear);
+  }
+  primary(g) {
+    if (g.spearRun?.active) return; // на бегу не колем — копьё и так впереди
+    g.useAttack(this.attack, { anim: "Attack", sound: "swing", hitSound: "hit" });
+  }
+  secondary(g) {
+    g.startSpearCharge(this);
+  }
+  drawIcon(ui, x, y, s) {
+    ui.rect(x + s * 0.47, y + s * 0.3, s * 0.06, s * 0.6, [140, 95, 60]); //   древко
+    ui.rect(x + s * 0.42, y + s * 0.12, s * 0.16, s * 0.2, [200, 205, 215]); // наконечник
+    ui.rect(x + s * 0.47, y + s * 0.06, s * 0.06, s * 0.08, [235, 238, 244]);
+  }
+}
+
 // Катана: в ножнах у левого бедра. Удар (Iai) — выхватить и разрезать всё перед собой (хитбокс — почти
 // весь экран), стряхнуть кровь и вернуть в ножны. От 3-го лица: в ножнах — на бедре, при ударе — в руке.
 // ИАЙ (пассивный навык): продержал катану в ножнах KATANA_IAI.sheathTime секунд — бафф «ИАЙ»
 // (движок: статус-бафф на 1 заряд): следующий удар — ×2 урона и выпад вперёд.
 const KATANA_SHEATHED = { model: "w-katana-sheathed", pose: null, bone: "hips", position: [0.17, -0.02, 0.06], rotation: [-0.1736, 0, 0, 0.9848] }; // на левом бедре, рукоять чуть вверх
 const KATANA_DRAWN = held("w-katana", "HoldMelee");
-export const iaiBuff = () => buff({
-  id: "iai", name: "ИАЙ", icon: "X" + KATANA_IAI.damage, color: [240, 196, 80],
-  modifiers: [damageMultiplier(KATANA_IAI.damage)], charges: 1, duration: Infinity, speed: KATANA_IAI.speed,
+// mult / speed — с талантами (IAI MULTIPLIER, IAI SPEED): game-scene.js → iaiStats()
+export const iaiBuff = ({ mult = KATANA_IAI.damage, speed = KATANA_IAI.speed } = {}) => buff({
+  id: "iai", name: "IAI", icon: "X" + mult, color: [240, 196, 80],
+  modifiers: [damageMultiplier(mult)], charges: 1, duration: Infinity, speed,
 });
 
 export class KatanaAbility extends Ability {
   constructor() {
-    super({ id: "katana", name: "КАТАНА", viewModel: "fp-katana", autoRepeat: true, held: KATANA_SHEATHED, equipTime: EQUIP_TIME.katana });
+    super({ id: "katana", name: "KATANA", viewModel: "fp-katana", autoRepeat: true, held: KATANA_SHEATHED, equipTime: EQUIP_TIME.katana });
     this.attack = new MeleeAttack(ATTACKS.katana);
     this.drawn = 0; //    сколько ещё клинок вне ножен (идёт удар)
     this.sheathed = 0; // сколько секунд подряд в ножнах (копится к ИАЙ)
@@ -256,9 +265,10 @@ export class KatanaAbility extends Ability {
     if (this.drawn === 0 && !g.player.hasStatus("iai")) {
       this.sheathed += dt;
       if (this.sheathed >= KATANA_IAI.sheathTime) {
-        g.player.addStatus(iaiBuff());
+        const st = g.iaiStats();
+        g.player.addStatus(iaiBuff(st));
         g.engine.sound.play("learn");
-        g.engine.toast(`ИАЙ: СЛЕДУЮЩИЙ УДАР X${KATANA_IAI.damage} И ВЫПАД, БЕГ +${Math.round(KATANA_IAI.speed * 100)}%`, 1800);
+        g.engine.toast(st.speed > 0 ? `IAI: NEXT STRIKE X${st.mult} WITH A LUNGE, RUN +${Math.round(st.speed * 100)}%` : `IAI: NEXT STRIKE X${st.mult} WITH A LUNGE`, 1800);
       }
     }
   }
@@ -324,60 +334,184 @@ export function drawHammer(ui, x, y, s) {
   ui.rect(x + s * 0.3, y + s * 0.18, s * 0.42, s * 0.05, [200, 205, 215]);
 }
 
-// Камень в руке: ЛКМ — удар рукой, ПКМ — блок, Q — бросок (держи — сильнее, отпусти — бросил).
-// Q здесь — навык этого предмета (как наклоны у оружия дальнего боя)
-const throwSkill = {
-  id: "throw", name: "БРОСОК", short: "БРОСОК (ДЕРЖИ)",
-  press: (g, a) => a.startCharge(g),
-  hold: (dt, g, down, a) => a.holdCharge(dt, g, down),
+// ============================================================
+//  Оружие классов — у каждого базовое и покупное:
+//   БОЕЦ — мачете → боевой молот, катана; СТРЕЛОК — пистолет → автомат, дробовик, снайперка;
+//   МАГ — жезл льда → магма-камень, посох метеора; ЗАСАДНИК — капкан, шипы; ПРИЗЫВАТЕЛЬ — кабаны, турели.
+// ============================================================
+
+// Число в правом нижнем углу ячейки (сколько штук осталось); ноль — красным
+const drawCount = (ui, x, y, s, n) => {
+  if (n !== undefined) ui.text(String(n), x + s - 5, y + s - 18, 2, n > 0 ? [255, 255, 255] : [255, 90, 80], "right");
 };
 
-export class StoneAbility extends HandAbility {
+// Посох метеора: под прицелом круг; ЛКМ — через миг сверху бьёт столб огня (урон по площади, поджигает)
+export class FireStaffAbility extends Ability {
   constructor() {
-    super();
-    this.id = "stone";
-    this.name = "КАМЕНЬ";
-    this.viewModel = "fp-stone";
-    this.empty = false;
-    this.held = held("w-stone", null);
-    this.skills = { skill1: throwSkill };
-    this.throwAttack = new ThrowAttack(ATTACKS.stone);
-    this.charge = null; // секунд держим Q (null — не замахиваемся)
+    super({ id: "fire-staff", name: "METEOR STAFF", viewModel: "fp-staff", autoRepeat: true, held: held("w-fire-staff", "HoldMelee"), equipTime: EQUIP_TIME.staff });
+    this.attack = new MagicAttack(ATTACKS.fireStaff);
   }
-  // 0…1 — сила замаха (для полоски у прицела)
-  get chargePower() {
-    return this.charge === null ? null : this.throwAttack.powerFor(this.charge);
+  primary(g) {
+    g.castFireball(this.attack);
   }
-  update(dt, g) {
-    this.throwAttack.update(dt);
-  }
-  unequip(g) {
-    this.charge = null;
-  }
-  startCharge(g) {
-    if (this.charge !== null || !this.throwAttack.ready || g.stoneCount() <= 0) return;
-    this.charge = 0;
-    g.viewModel()?.play("Charge");
-  }
-  holdCharge(dt, g, down) {
-    if (this.charge === null) return;
-    if (down) {
-      this.charge += dt;
-      return;
-    }
-    const power = this.throwAttack.powerFor(this.charge); // отпустили — бросок
-    this.charge = null;
-    g.throwStone(this.throwAttack, power);
-  }
-  drawIcon(ui, x, y, s, g) {
-    const icon = s * 0.6;
-    ITEM_ICONS.stone?.(ui, x + (s - icon) / 2, y + (s - icon) / 2, icon);
-    const n = g?.stoneCount?.();
-    if (n !== undefined) ui.text(String(n), x + s - 5, y + s - 18, 2, n > 0 ? [255, 255, 255] : [255, 90, 80], "right");
+  drawIcon(ui, x, y, s) {
+    for (let i = 0; i < 6; i++) ui.rect(x + s * (0.24 + i * 0.07), y + s * (0.74 - i * 0.07), s * 0.08, s * 0.08, [120, 82, 50]); // древко
+    ui.rect(x + s * 0.62, y + s * 0.16, s * 0.2, s * 0.2, [220, 60, 30]); //  кристалл
+    ui.rect(x + s * 0.67, y + s * 0.21, s * 0.1, s * 0.1, [255, 190, 80]); // огонёк
   }
 }
-// Значки предметов (items.js кладёт сюда свои — чтобы не было кругового импорта)
-export const ITEM_ICONS = {};
+
+// Жезл льда: ЛКМ — ледяная стрела мгновенно в цель под прицелом (замедляет), зажал — стреляет по готовности
+export class FrostWandAbility extends Ability {
+  constructor() {
+    super({ id: "frost-wand", name: "FROST WAND", viewModel: "fp-wand", autoRepeat: true, held: held("w-frost-wand", "HoldMelee"), equipTime: EQUIP_TIME.wand });
+    this.attack = new MagicAttack(ATTACKS.frostWand);
+  }
+  primary(g) {
+    g.castBolt(this.attack);
+  }
+  drawIcon(ui, x, y, s) {
+    for (let i = 0; i < 4; i++) ui.rect(x + s * (0.3 + i * 0.08), y + s * (0.66 - i * 0.08), s * 0.07, s * 0.07, [215, 222, 240]); // палочка
+    ui.rect(x + s * 0.24, y + s * 0.68, s * 0.12, s * 0.12, [80, 84, 110]); // рукоять
+    ui.rect(x + s * 0.6, y + s * 0.24, s * 0.16, s * 0.16, [120, 205, 255]); // кристалл
+  }
+}
+
+// Ловушка в руке (капкан или шипы — стопка в ячейке): ЛКМ — поставить на землю под прицелом
+export class TrapAbility extends Ability {
+  constructor(type, name, model, drawIcon) {
+    super({ id: type, name, viewModel: "fp-" + type, held: held("w-" + type, "HoldBlock"), equipTime: EQUIP_TIME.trap });
+    this.type = type;
+    this.paint = drawIcon;
+  }
+  primary(g) {
+    g.placeTrap(this.type);
+  }
+  drawIcon(ui, x, y, s, g) {
+    this.paint(ui, x, y, s);
+    drawCount(ui, x, y, s, g?.itemCount?.(this.type));
+  }
+}
+
+// Боевой молот (БОЕЦ): двуручный, бьёт ПО ЗЕМЛЕ перед собой (как ульта Райнхардта, только всегда) —
+// движок: SlamAttack; урон всем в круге (1 блок, талант SPLASH SLAM — больше), оглушение — талант STUN.
+// Тряска и круг на земле — game-scene.js → hammerSlam
+export class WarHammerAbility extends Ability {
+  constructor() {
+    super({ id: "war-hammer", name: "WAR HAMMER", viewModel: "fp-war-hammer", moveSpeed: WEAPON_SPEED.warHammer, autoRepeat: true, held: held("w-war-hammer", "HoldMelee"), equipTime: EQUIP_TIME.warHammer });
+    this.attack = new SlamAttack(ATTACKS.warHammer);
+    this.blocks = true;
+  }
+  secondary(g) {
+    g.tryBlock(this);
+  }
+  primary(g) {
+    g.useAttack(this.attack, { anim: "Attack", sound: "swing", ctx: { radius: g.talentStats?.hammerSlam || ATTACKS.warHammer.radius, fallMultiplier: (fall) => g.slamFallMultiplier(fall), onSlam: (c, r, hits, info) => g.hammerSlam(c, r, hits, info) } });
+  }
+  drawIcon(ui, x, y, s) {
+    ui.rect(x + s * 0.46, y + s * 0.3, s * 0.08, s * 0.58, [120, 80, 50]); // рукоять
+    ui.rect(x + s * 0.22, y + s * 0.14, s * 0.56, s * 0.22, [120, 124, 134]); // тяжёлый боёк
+    ui.rect(x + s * 0.22, y + s * 0.14, s * 0.56, s * 0.06, [180, 184, 194]);
+  }
+}
+
+// Дробовик (СТРЕЛОК): 8 дробин с разбросом за выстрел, обойма 6
+export class ShotgunAbility extends Ability {
+  constructor() {
+    super({
+      id: "shotgun", name: "SHOTGUN", viewModel: "fp-shotgun", moveSpeed: WEAPON_SPEED.shotgun, autoRepeat: true,
+      aim: AIM_AUTO, recoil: RECOIL_RIFLE, held: held("w-shotgun", "HoldRifle"), equipTime: EQUIP_TIME.shotgun,
+    });
+    this.attack = new RangedAttack(ATTACKS.shotgun);
+    this.reloadPose = "ReloadRifle";
+  }
+  update(dt, g) {
+    g.aiming = g.aimWanted() && !this.attack.reloading;
+  }
+  unequip(g) {
+    g.aiming = false;
+  }
+  primary(g) {
+    g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "ShootRifle", sound: "shot" });
+  }
+  action(name, g) {
+    return name === "reload" && g.reloadWeapon(this);
+  }
+  drawIcon(ui, x, y, s) {
+    ui.rect(x + s * 0.1, y + s * 0.42, s * 0.8, s * 0.1, METAL); //            два ствола
+    ui.rect(x + s * 0.1, y + s * 0.52, s * 0.5, s * 0.06, METAL);
+    ui.rect(x + s * 0.1, y + s * 0.44, s * 0.28, s * 0.22, [130, 90, 55]); // приклад
+    ui.rect(x + s * 0.5, y + s * 0.56, s * 0.14, s * 0.08, [130, 90, 55]); // цевьё
+  }
+}
+
+// Магма-камень (МАГ): ЛКМ — бросок по дуге, где упал — лужа магмы (game-scene.js → throwMagma)
+export class MagmaStoneAbility extends Ability {
+  constructor() {
+    super({ id: "magma-stone", name: "MAGMA STONE", viewModel: "fp-magma", autoRepeat: true, held: held("w-magma", null), equipTime: EQUIP_TIME.magma });
+    this.attack = new MagicAttack(ATTACKS.magmaStone);
+  }
+  primary(g) {
+    g.throwMagma(this.attack);
+  }
+  drawIcon(ui, x, y, s) {
+    ui.rect(x + s * 0.2, y + s * 0.4, s * 0.6, s * 0.36, [150, 40, 20]);
+    ui.rect(x + s * 0.3, y + s * 0.3, s * 0.4, s * 0.16, [230, 90, 30]);
+    ui.rect(x + s * 0.4, y + s * 0.48, s * 0.2, s * 0.12, [255, 200, 80]); // светится
+  }
+}
+
+// Грибы в средней ячейке (ПРИЗЫВАТЕЛЬ): F — покормить кабана (выбирать не нужно), выбрал и ЛКМ — турель из всех грибов
+export class MushroomAbility extends Ability {
+  constructor() {
+    super({ id: "mushroom", name: "MUSHROOMS", viewModel: "fp-arm", held: null, equipTime: EQUIP_TIME.item });
+  }
+  // Турели теперь — саженцы на E (game-scene.js → plantSapling); грибами в средней ячейке — целебный гриб
+  primary(g) {
+    g.plantHealer();
+  }
+  secondary(g) {
+    g.plantHealer(); // ПКМ — тоже целебный гриб (HEALER)
+  }
+  drawIcon(ui, x, y, s, g) {
+    drawMushroom(ui, x + s * 0.2, y + s * 0.2, s * 0.6);
+    drawCount(ui, x, y, s, g?.itemCount?.("mushroom"));
+  }
+}
+
+// Аптечка в средней ячейке: выбрал и ЛКМ — +40 HP
+export class MedkitAbility extends Ability {
+  constructor() {
+    super({ id: "medkit", name: "MEDKIT", viewModel: "fp-arm", held: null, equipTime: EQUIP_TIME.item });
+  }
+  primary(g) {
+    g.useMedkit();
+  }
+  drawIcon(ui, x, y, s, g) {
+    drawMedkit(ui, x + s * 0.2, y + s * 0.2, s * 0.6);
+    drawCount(ui, x, y, s, g?.itemCount?.("medkit"));
+  }
+}
+
+export const drawMushroom = (ui, x, y, s) => {
+  ui.rect(x + s * 0.1, y + s * 0.2, s * 0.8, s * 0.3, [90, 200, 90]); //  шляпка
+  ui.rect(x + s * 0.24, y + s * 0.26, s * 0.12, s * 0.1, [200, 240, 200]); // пятнышко
+  ui.rect(x + s * 0.38, y + s * 0.5, s * 0.24, s * 0.36, [225, 220, 200]); // ножка
+};
+export const drawMedkit = (ui, x, y, s) => {
+  ui.rect(x + s * 0.1, y + s * 0.2, s * 0.8, s * 0.64, [235, 235, 235]);
+  ui.rect(x + s * 0.42, y + s * 0.3, s * 0.16, s * 0.44, [220, 50, 50]); // крест
+  ui.rect(x + s * 0.28, y + s * 0.44, s * 0.44, s * 0.16, [220, 50, 50]);
+};
+export const drawBearTrap = (ui, x, y, s) => {
+  ui.rect(x + s * 0.18, y + s * 0.58, s * 0.64, s * 0.1, [90, 86, 80]); //  основание
+  ui.rect(x + s * 0.44, y + s * 0.5, s * 0.12, s * 0.08, [150, 136, 110]); // нажимка
+  for (let i = 0; i < 5; i++) ui.rect(x + s * (0.2 + i * 0.13), y + s * 0.4, s * 0.06, s * 0.16, [190, 192, 196]); // зубья
+};
+export const drawSpikes = (ui, x, y, s) => {
+  ui.rect(x + s * 0.16, y + s * 0.62, s * 0.68, s * 0.12, [120, 88, 56]); // доска
+  for (let i = 0; i < 4; i++) ui.rect(x + s * (0.22 + i * 0.16), y + s * 0.34, s * 0.07, s * 0.28, [190, 192, 200]); // шипы
+};
 
 // Обычный предмет в хотбаре (кость, монета): в руке он, а бьём — как рукой. Значок — предмета
 export class HeldItemAbility extends HandAbility {
@@ -405,8 +539,17 @@ export const ABILITY_FOR_ITEM = {
   pistol: () => new PistolAbility(),
   rifle: () => new RifleAbility(),
   auto: () => new AutoAbility(),
+  shotgun: () => new ShotgunAbility(),
   machete: () => new MacheteAbility(),
+  "war-hammer": () => new WarHammerAbility(),
+  spear: () => new SpearAbility(),
   katana: () => new KatanaAbility(),
-  stone: () => new StoneAbility(),
   builder: () => new BuildAbility(),
+  "fire-staff": () => new FireStaffAbility(),
+  "frost-wand": () => new FrostWandAbility(),
+  "magma-stone": () => new MagmaStoneAbility(),
+  mushroom: () => new MushroomAbility(),
+  medkit: () => new MedkitAbility(),
+  "bear-trap": () => new TrapAbility("bear-trap", "BEAR TRAP", "bear-trap", drawBearTrap),
+  spikes: () => new TrapAbility("spikes", "SPIKES", "spikes", drawSpikes),
 };

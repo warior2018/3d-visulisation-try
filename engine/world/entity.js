@@ -111,6 +111,7 @@ export class Entity {
       this.attackedBy = damage.source; // обидчик — для ИИ (он сам обнулит, когда прочтёт)
       this.lastHitBy = damage.source; //  кто ударил последним — не обнуляется (кто добил, тому и добыча)
       this.lastHitKind = damage.kind; //  и каким видом атаки (melee / ranged...) — для трофеев «за убийство оружием»
+      this.lastHitAttack = damage.attack?.id || null; // и каким именно оружием (id атаки)
       // Кто вообще ранил (хоть на 1 HP) — участники убийства: { dealt — сколько всего, kind — чем в последний раз}
       if (dealt > 0) {
         const rec = this.damageLog.get(damage.source) || { dealt: 0, kind: null };
@@ -143,19 +144,32 @@ export class Entity {
   }
 
   // Наложить статус. Такой уже есть — обновить время (и стопки)
+  // Стойкость к контролю (боссы): stunResist (0…1) — оглушение / заморозка короче на эту долю;
+  // stunImmunity — сколько секунд после конца оглушения новое не действует (нельзя «держать» босса вечно)
   addStatus(status) {
+    if (status.stun) {
+      if (this.stunImmuneLeft > 0) return;
+      if (this.stunResist) {
+        status.duration *= 1 - this.stunResist;
+        status.left = status.duration;
+      }
+    }
     const same = this.statuses.find((s) => s.id === status.id);
     if (same) same.refresh(status);
     else this.statuses.push(status);
   }
 
-  hasStatus(id) {
-    return this.statuses.some((s) => s.id === id);
+  // Оглушён / заморожен (статус со stun) — не ходит и не бьёт; игра не даёт ему «думать»
+  get stunned() {
+    return this.statuses.some((s) => s.stun);
   }
 
   // Статусы «тикают»; закончившиеся убираем
   updateStatuses(dt) {
+    if (this.stunImmuneLeft > 0) this.stunImmuneLeft -= dt;
+    const wasStunned = this.stunImmunity > 0 && this.stunned;
     if (this.statuses.length) this.statuses = this.statuses.filter((s) => s.update(this, dt));
+    if (wasStunned && !this.stunned) this.stunImmuneLeft = this.stunImmunity; // оглушение кончилось — передышка от нового
   }
 
   // Во сколько раз меняется скорость: прибавки (оружие в руках, прицеливание...) складываются,
@@ -176,8 +190,24 @@ export class Entity {
     s.hp = Math.min(s.hp, s.maxHp);
   }
 
-  // Регенерация: по regen HP в секунду, целыми единицами
+  // Мана (для MagicAttack: заклинание тратит cost). У кого маны нет (stats.mana не задана) — колдует бесплатно.
+  //   e.enableMana(100, 4) — запас 100, восстанавливается 4 в секунду; e.restoreMana(20) — подобрал сферу души
+  enableMana(max, regen = 0) {
+    this.stats.maxMana = max;
+    this.stats.mana = Math.min(this.stats.mana ?? max, max);
+    this.manaRegen = regen;
+  }
+
+  restoreMana(amount) {
+    if (this.stats.mana === undefined) return 0;
+    const before = this.stats.mana;
+    this.stats.mana = Math.min(this.stats.maxMana, before + amount);
+    return this.stats.mana - before;
+  }
+
+  // Регенерация: по regen HP в секунду, целыми единицами; мана — по manaRegen в секунду (дробно)
   updateRegen(dt) {
+    if (this.alive && this.manaRegen > 0 && this.stats.mana !== undefined) this.restoreMana(this.manaRegen * dt);
     if (!this.alive || this.regen <= 0 || this.stats.hp >= this.stats.maxHp) {
       this.regenPart = 0;
       return;

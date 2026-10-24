@@ -20,12 +20,12 @@ const BUTTON_NAMES = Object.fromEntries(Object.entries(BUTTON).map(([name, code]
 
 // Как показывать клавиши игроку
 const DISPLAY = {
-  ESCAPE: "ESC", RETURN: "ENTER", SPACE: "ПРОБЕЛ", BACKSPACE: "BACKSPACE",
+  ESCAPE: "ESC", RETURN: "ENTER", SPACE: "SPACE", BACKSPACE: "BACKSPACE",
   LSHIFT: "L-SHIFT", RSHIFT: "R-SHIFT", LCTRL: "L-CTRL", RCTRL: "R-CTRL",
   LALT: "L-ALT", RALT: "R-ALT", LGUI: "L-CMD", RGUI: "R-CMD",
-  UP: "ВВЕРХ", DOWN: "ВНИЗ", LEFT: "ВЛЕВО", RIGHT: "ВПРАВО",
+  UP: "UP", DOWN: "DOWN", LEFT: "LEFT", RIGHT: "RIGHT",
 };
-const MOUSE_DISPLAY = { LEFT: "ЛКМ", MIDDLE: "СКМ", RIGHT: "ПКМ" };
+const MOUSE_DISPLAY = { LEFT: "LMB", MIDDLE: "MMB", RIGHT: "RMB" };
 
 export class Input {
   constructor(window, bindings) {

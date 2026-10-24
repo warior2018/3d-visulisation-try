@@ -13,7 +13,11 @@
 //   plateaus  — { count, radius: [от, до], height: [от, до], edge }: плоские возвышенности с покатым краем;
 //   mountains — { count, radius: [от, до], height: [от, до], distance: [от, до] }: горы (от центра на distance);
 //   edge      — ширина полосы у края, где рельеф сходит на нет; flatCenter — ровный круг в центре;
-//   base      — сколько кубиков земли лежит везде внутри круга (1 — сплошной травяной покров, без «дыр»).
+//   base      — сколько кубиков земли лежит везде внутри круга (1 — сплошной травяной покров, без «дыр»);
+//   islands   — { count: [от, до], radius, distance, edge, hills, mountainChance, mountain }: небольшие острова
+//               вокруг главного (на distance от центра), на каждом с шансом mountainChance — своя горка;
+//   bossChance — шанс, что в горе (любой) логово босса: внутри выдолблен зал с проходом наружу
+//               (terrain.lairs — [{ x, y, z, r }]: где зал; босса ставит игра).
 // ============================================================
 
 import { valueNoise2D, fbm, smoothstep } from "../math/noise.js";
@@ -22,7 +26,8 @@ import { seededRandom } from "./structures.js";
 export class Terrain {
   constructor({ seed = 1, radius = 50, center = { x: 0, z: 0 }, edge = 14, flatCenter = 8, base = 1,
     hills = { amp: 3, scale: 22 }, plateaus = { count: 2, radius: [6, 9], height: [4, 6], edge: 4 },
-    mountains = { count: 1, radius: [14, 18], height: [13, 18], distance: [24, 34] } } = {}) {
+    mountains = { count: 1, radius: [14, 18], height: [13, 18], distance: [24, 34] },
+    islands = null, bossChance = 0 } = {}) {
     this.seed = seed;
     this.radius = radius;
     this.center = center;
@@ -45,16 +50,47 @@ export class Terrain {
     this.mountains = Array.from({ length: mountains.count }, () => ({
       ...around(between(mountains.distance)), r: between(mountains.radius), h: between(mountains.height),
     }));
+    // Земля — круги: главный остров и маленькие вокруг (между ними — пустой пол мира)
+    this.discs = [{ x: center.x, z: center.z, r: radius, edge, main: true, amp: hills.amp }];
+    if (islands) {
+      const [a, b] = islands.count;
+      const n = a + Math.floor(rnd() * (b - a + 1));
+      const start = rnd() * Math.PI * 2;
+      for (let i = 0; i < n; i++) {
+        // по кругу вокруг главного, примерно поровну, с разбросом — чтобы не налезали друг на друга
+        const ang = start + ((i + 0.5 * rnd()) / n) * Math.PI * 2;
+        const dist = between(islands.distance);
+        const d = { x: center.x + Math.sin(ang) * dist, z: center.z + Math.cos(ang) * dist, r: between(islands.radius), edge: islands.edge ?? 5, main: false, amp: islands.hills ?? 2 };
+        this.discs.push(d);
+        if (rnd() < (islands.mountainChance ?? 0)) {
+          const m = islands.mountain || { radius: [6, 9], height: [7, 11] };
+          this.mountains.push({ x: d.x, z: d.z, r: Math.min(d.r - 1, between(m.radius)), h: between(m.height) });
+        }
+      }
+    }
+    // Логова боссов: в горе с шансом bossChance — зал у подножья, в самой толще (проход — к центру мира)
+    this.lairs = [];
+    for (const m of this.mountains) {
+      m.boss = rnd() < bossChance;
+      if (m.boss) this.lairs.push({ x: Math.round(m.x), y: 1, z: Math.round(m.z), r: Math.max(4, Math.round(m.r * 0.28)), mountain: m }); // не меньше 4: босс ростом ~2.5 м
+    }
   }
 
-  // Сколько кубиков в столбике (x, z): 0 — ровная земля (пол мира)
+  // Сколько кубиков в столбике (x, z): 0 — ровная земля (пол мира). Самый высокий из островов
   height(x, z) {
-    const d = Math.hypot(x - this.center.x, z - this.center.z);
-    if (d >= this.radius) return 0;
+    let best = 0;
+    for (const disc of this.discs) best = Math.max(best, this.discHeight(disc, x, z));
+    return best;
+  }
+
+  // Высота на одном острове (круг disc); вне его — 0
+  discHeight(disc, x, z) {
+    const d = Math.hypot(x - disc.x, z - disc.z);
+    if (d >= disc.r) return 0;
     // Холмы: шум, только «плюс» (впадины ниже пола не бывают)
-    let h = Math.max(0, (fbm(this.noise, x / this.hills.scale, z / this.hills.scale, 3) * 0.5 + 0.35) * this.hills.amp * 1.6);
-    // Плато: плоский верх, покатый край
-    for (const p of this.plateaus) {
+    let h = Math.max(0, (fbm(this.noise, x / this.hills.scale, z / this.hills.scale, 3) * 0.5 + 0.35) * disc.amp * 1.6);
+    // Плато: плоский верх, покатый край (только на главном)
+    for (const p of disc.main ? this.plateaus : []) {
       const pd = Math.hypot(x - p.x, z - p.z);
       h = Math.max(h, p.h * smoothstep(p.r + p.edge, p.r, pd));
     }
@@ -66,9 +102,9 @@ export class Terrain {
       const bumps = this.rough(x / 4, z / 4) * 1.2 * k;
       h = Math.max(h, m.h * k * k * (3 - 2 * k) + bumps);
     }
-    // К краю круга — плавно в ноль; в центре — ровно (там появляется герой)
-    h *= smoothstep(this.radius, this.radius - this.edge, d);
-    h *= smoothstep(this.flatCenter * 0.5, this.flatCenter * 1.5, d);
+    // К краю круга — плавно в ноль; в центре главного — ровно (там появляется герой)
+    h *= smoothstep(disc.r, disc.r - disc.edge, d);
+    if (disc.main) h *= smoothstep(this.flatCenter * 0.5, this.flatCenter * 1.5, d);
     return Math.max(this.base, Math.round(this.base + h));
   }
 
@@ -76,9 +112,14 @@ export class Terrain {
   // под ней пара слоёв земли, глубже — камень. Вернёт, сколько кубиков поставлено
   build(world, { grass = [96, 160, 72], dirt = [130, 96, 62], stone = [140, 140, 146], snow = [236, 240, 246], rockLine = 10, snowLine = 14 } = {}) {
     let placed = 0;
-    const r = Math.ceil(this.radius);
-    for (let x = this.center.x - r; x <= this.center.x + r; x++) {
-      for (let z = this.center.z - r; z <= this.center.z + r; z++) {
+    const done = new Set(); // столбики, уже уложенные (острова не перекрываются, но на всякий случай)
+    for (const disc of this.discs) {
+      const r = Math.ceil(disc.r);
+      const cx = Math.round(disc.x), cz = Math.round(disc.z);
+      for (let x = cx - r; x <= cx + r; x++) for (let z = cz - r; z <= cz + r; z++) {
+        const key = x + "," + z;
+        if (done.has(key)) continue;
+        done.add(key);
         const h = this.height(x + 0.5, z + 0.5);
         for (let y = 0; y < h; y++) {
           const top = y === h - 1;
@@ -88,7 +129,24 @@ export class Terrain {
         }
       }
     }
+    for (const lair of this.lairs) this.carveLair(world, lair);
     return placed;
+  }
+
+  // Логово босса: зал-купол радиуса r у подножья горы и проход высотой 3 наружу, к центру мира
+  carveLair(world, { x, y, z, r }) {
+    for (let i = -r; i <= r; i++) for (let k = -r; k <= r; k++) for (let j = 0; j <= r; j++) {
+      if (Math.hypot(i, j * 1.3, k) <= r) world.remove(x + i, y + j, z + k);
+    }
+    const dx = this.center.x - x, dz = this.center.z - z;
+    const len = Math.hypot(dx, dz) || 1;
+    for (let t = r - 1; t < r + 30; t++) {
+      const tx = Math.round(x + (dx / len) * t), tz = Math.round(z + (dz / len) * t);
+      if (this.height(tx + 0.5, tz + 0.5) <= y) break; // вышли из горы
+      for (let w = -1; w <= 1; w++) for (let j = 0; j < 3; j++) {
+        world.remove(tx + Math.round((-dz / len) * w), y + j, tz + Math.round((dx / len) * w));
+      }
+    }
   }
 }
 

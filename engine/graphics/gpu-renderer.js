@@ -18,12 +18,21 @@ const NO_TINT = new Float32Array([0, 0, 0, 0]);
 export class GPURenderer {
   // Подключение к видеокарте асинхронное (её надо «найти» и «открыть»),
   // поэтому вместо new GPURenderer(...) используем await GPURenderer.create(...)
-  static async create(window, options) {
-    const instance = gpu.create([]);
+  // Флаги видеокарты (Dawn): options.gpuFlags или переменная окружения VOID_GPU_FLAGS через запятую.
+  // Например VOID_GPU_FLAGS=backend=vulkan — рисовать через Vulkan, а не D3D12 (если на Windows D3D12 падает);
+  // backend: d3d12 | d3d11 | vulkan | metal | opengl | opengles.
+  static async create(window, options = {}) {
+    const flags = options.gpuFlags ?? (process.env.VOID_GPU_FLAGS ? process.env.VOID_GPU_FLAGS.split(",").filter(Boolean) : []);
+    const instance = gpu.create(flags);
     const adapter = await instance.requestAdapter(); // какая видеокарта есть
-    if (!adapter) throw new Error("Видеокарта с поддержкой WebGPU не найдена");
+    if (!adapter) throw new Error(`Видеокарта с поддержкой WebGPU не найдена${flags.length ? ` (флаги: ${flags.join(", ")})` : ""}`);
     const device = await adapter.requestDevice(); // открыть её для работы
-    return new GPURenderer(window, instance, device, options);
+    const renderer = new GPURenderer(window, instance, device, options);
+    // Что за видеокарта — для журнала (по нему разбираем падения на чужих компьютерах)
+    const info = adapter.info || {};
+    renderer.adapterName = [info.vendor, info.architecture, info.device, info.description].filter(Boolean).join(" / ") || "?";
+    renderer.gpuFlags = flags;
+    return renderer;
   }
 
   constructor(window, instance, device, { gridStep = 1, fadeDist = 60, near = 0.05, far = 300, vsync = true, brightness = 1 } = {}) {

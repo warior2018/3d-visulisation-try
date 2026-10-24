@@ -11,9 +11,25 @@
 //    shots.update(dt);
 //
 //  Как и у предметов на земле, у снаряда есть position, yaw, alive — библиотека моделей рисует его.
+//
+//  У каждого снаряда может быть своё: gravity (0 — летит прямо, огненный шар), spin (оборотов в секунду,
+//  0 — не кувыркается), maxLife, onHit / onLand (вместо общих), pierce — пробить насквозь столько целей. Например, нож втыкается, а шар взрывается:
+//    shots.launch({ owner, position, velocity, gravity: 0, spin: 0, onHit: boom, onLand: boom, item: "fireball" });
 // ============================================================
 
 import { Vec3 } from "../math/vec3.js";
+
+// Навесной бросок: с какой скоростью (вектор) бросить из from со скоростью speed, чтобы при тяжести
+// gravity попасть в to. Берём нижнюю (быструю) траекторию; не долетает — бросаем под 45° (сколько хватит)
+export function aimArc(from, to, speed, gravity) {
+  const dx = to.x - from.x, dz = to.z - from.z, dy = to.y - from.y;
+  const d = Math.hypot(dx, dz) || 1e-6;
+  const v2 = speed * speed;
+  const disc = v2 * v2 - gravity * (gravity * d * d + 2 * dy * v2);
+  const angle = disc >= 0 ? Math.atan((v2 - Math.sqrt(disc)) / (gravity * d)) : Math.PI / 4;
+  const h = Math.cos(angle) * speed;
+  return new Vec3((dx / d) * h, Math.sin(angle) * speed, (dz / d) * h);
+}
 
 export class Projectiles {
   // world — { raycast(origin, dir, max) } (кубики и пол), entities — { raycast(origin, dir, max, skip) }
@@ -54,33 +70,64 @@ export class Projectiles {
   update(dt) {
     for (const p of [...this.list]) {
       p.age += dt;
-      p.velocity.y -= this.gravity * dt;
+      p.velocity.y -= (p.gravity ?? this.gravity) * dt;
       const step = p.velocity.scale(dt);
       const len = Math.hypot(step.x, step.y, step.z);
       if (len < 1e-6) continue;
       const dir = step.scale(1 / len);
-      const skip = [p.owner, p.owner?.mount].filter(Boolean);
+      const skip = [p.owner, p.owner?.mount, ...(p.passed || [])].filter(Boolean);
       const hit = this.entities.raycast(p.position, dir, len, skip);
       const wall = this.world.raycast(p.position, dir, len);
       if (hit && (!wall || hit.t <= wall.t)) {
         p.position = p.position.add(dir.scale(hit.t));
-        this.onHit(p, hit);
+        (p.onHit || this.onHit)(p, hit);
+        // pierce — сколько ещё целей пробьёт насквозь (летит дальше, ту же не задевает)
+        if (p.pierce > 0) {
+          p.pierce--;
+          (p.passed ||= []).push(hit.entity);
+          continue;
+        }
         this.remove(p);
         continue;
       }
       if (wall) {
         p.position = p.position.add(dir.scale(Math.max(0, wall.t - 0.05)));
-        this.onLand(p, wall);
+        (p.onLand || this.onLand)(p, wall);
         this.remove(p);
         continue;
       }
       p.position = p.position.add(step);
-      p.roll += dt * this.spin * Math.PI * 2; // кувыркается в полёте
-      if (p.age > this.maxLife) this.remove(p);
+      p.roll += dt * (p.spin ?? this.spin) * Math.PI * 2; // кувыркается в полёте
+      if (p.age > (p.maxLife ?? this.maxLife)) {
+        (p.onExpire || (() => {}))(p);
+        this.remove(p);
+      }
     }
   }
 
   clear() {
     for (const p of [...this.list]) this.remove(p);
+  }
+
+  // Предпросмотр: куда упадёт снаряд, брошенный из position со скоростью velocity (тяжесть — как в update).
+  // Летим по шагам step секунд до maxLife: стена/земля → { point, wall }, существо → { point, entity },
+  // никуда не попал — { point } в конце пути. Сам ничего не запускает (прицел-круг для бросков).
+  predict({ owner = null, position, velocity, gravity = this.gravity, maxLife = this.maxLife, step = 1 / 30 }) {
+    let pos = new Vec3(position.x, position.y, position.z);
+    const vel = new Vec3(velocity.x, velocity.y, velocity.z);
+    const skip = [owner, owner?.mount].filter(Boolean);
+    for (let t = 0; t < maxLife; t += step) {
+      vel.y -= gravity * step;
+      const d = vel.scale(step);
+      const len = Math.hypot(d.x, d.y, d.z);
+      if (len < 1e-6) continue;
+      const dir = d.scale(1 / len);
+      const hit = this.entities.raycast(pos, dir, len, skip);
+      const wall = this.world.raycast(pos, dir, len);
+      if (hit && (!wall || hit.t <= wall.t)) return { point: pos.add(dir.scale(hit.t)), entity: hit.entity };
+      if (wall) return { point: pos.add(dir.scale(Math.max(0, wall.t - 0.05))), wall };
+      pos = pos.add(d);
+    }
+    return { point: pos };
   }
 }

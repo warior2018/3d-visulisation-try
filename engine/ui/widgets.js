@@ -94,26 +94,35 @@ export function drawItem(ui, itemInfo, slot, x, y, size, { name = true } = {}) {
     ui.text(info.name, x + size / 2, y + size * (big ? 0.68 : 0.72), big ? 2 : 1, TEXT, "center");
   }
   if (slot.count > 1) ui.text(String(slot.count), x + size - 8, y + 6, 2, [255, 255, 255], "right");
+  else if (slot.data?.label) ui.text(String(slot.data.label), x + size - 8, y + 6, 2, [255, 200, 90], "right"); // свои данные (неполная обойма: патроны)
 }
 
 // Панель способностей: ячейки в ряд внизу по центру. В ячейке — значок способности
 // (его рисует сама способность), сверху слева — клавиша. Пустые ячейки — тусклые.
 //   keyLabel(i) — подпись клавиши ячейки i
-export function drawAbilityBar(ui, bar, { keyLabel, ctx, size = 56, gap = 8, bottom = 18 } = {}) {
-  const total = bar.size * size + (bar.size - 1) * gap;
+// above(i) — необязательно: короткая надпись над ячейкой (например, «3/30» — сколько ловушек стоит).
+// Выбранная ячейка крупнее (bar.grow — плавно, grow × 20 %), ячейки стоят по нижнему краю.
+export function drawAbilityBar(ui, bar, { keyLabel, ctx, size = 56, gap = 8, bottom = 18, above = null } = {}) {
+  const sizes = bar.slots.map((_, i) => Math.round(size * (1 + 0.2 * (bar.grow?.[i] ?? (i === bar.index ? 1 : 0)))));
+  const total = sizes.reduce((a, b) => a + b, 0) + (bar.size - 1) * gap;
   let x = Math.round(ui.width / 2 - total / 2);
-  const y = ui.height - size - bottom;
+  const base = ui.height - bottom; // низ ячеек
   bar.slots.forEach((ability, i) => {
+    const s = sizes[i];
+    const y = base - s;
     const active = i === bar.index;
     const filled = ability && !ability.empty; // «пустая» способность (рука) — ячейка как пустая
-    ui.rect(x, y, size, size, active ? [52, 66, 96] : [24, 30, 44], filled || active ? 215 : 120);
-    ui.frame(x, y, size, size, active ? [255, 255, 255] : [70, 85, 115], active ? 3 : 2);
-    if (filled) ability.drawIcon(ui, x, y, size, ctx);
+    ui.rect(x, y, s, s, active ? [52, 66, 96] : [24, 30, 44], filled || active ? 215 : 120);
+    ui.frame(x, y, s, s, active ? [255, 255, 255] : [70, 85, 115], active ? 3 : 2);
+    if (filled) ability.drawIcon(ui, x, y, s, ctx);
     const key = keyLabel(i);
     if (key && key !== "-") ui.text(key, x + 5, y + 5, 2, filled ? [255, 255, 255] : MUTED);
-    x += size + gap;
+    const top = above?.(i);
+    if (top) ui.text(top, x + s / 2, y - 18, 2, [230, 230, 230], "center");
+    x += s + gap;
   });
-  return { x: Math.round(ui.width / 2 - total / 2), y, width: total }; // где нарисовали (чтобы поставить что-то над)
+  const tallest = Math.max(...sizes);
+  return { x: Math.round(ui.width / 2 - total / 2), y: base - tallest, width: total }; // где нарисовали (чтобы поставить что-то над)
 }
 
 // Красная рамка по краям экрана (получили урон). strength — от 0 до 1
@@ -161,9 +170,45 @@ export function drawStatuses(ui, statuses, { x, y, size = 40, gap = 8 } = {}) {
     ui.frame(cx, y, size, size, border, 3);
     const text = s.icon || (s.name || s.id || "?").slice(0, 2);
     ui.text(text, cx + size / 2, y + size / 2 - 7, measureText(text, 2) <= size - 6 ? 2 : 1, [255, 255, 255], "center");
-    const left = s.charges > 0 ? `X${s.charges}` : Number.isFinite(s.left) ? `${Math.ceil(s.left)}С` : "";
+    // label — своя подпись (например, «+30%» у баффа скорости); иначе заряды или сколько секунд осталось
+    const left = s.label ?? (s.charges > 0 ? `X${s.charges}` : Number.isFinite(s.left) ? `${Math.ceil(s.left)}S` : "");
     if (left) ui.text(left, cx + size / 2, y + size + 3, 1, border, "center");
     cx += size + gap;
   }
   return statuses.length ? statuses.length * (size + gap) - gap : 0;
+}
+
+// Перезарядки «часиками»: значок, по которому по часовой стрелке (от 12 часов) заполняется готовая часть,
+// а ещё не готовая — затемнена; в середине — сколько секунд осталось. list: [{ icon, color, progress 0…1,
+// left — секунд, draw(ui, x, y, size) — свой рисунок значка (иначе — надпись icon) }]. Вернёт ширину ряда.
+export function drawCooldowns(ui, list, { x, y, size = 32, gap = 6 } = {}) {
+  let cx = x;
+  const step = 2; // затемнение — квадратиками 2×2 пикселя
+  for (const c of list) {
+    const color = c.color || [200, 200, 210];
+    ui.rect(cx, y, size, size, [16, 18, 24], 230);
+    if (c.draw) c.draw(ui, cx + 3, y + 3, size - 6);
+    else {
+      const text = c.icon || "?";
+      ui.text(text, cx + size / 2, y + 4, measureText(text, 1) <= size - 4 ? 1 : 1, color, "center");
+    }
+    // Не готовая часть — темнее: угол точки от «12 часов» по часовой больше, чем доля готовности
+    const p = Math.max(0, Math.min(1, c.progress ?? 0));
+    const r = size / 2, ox = cx + r, oy = y + r;
+    for (let py = 0; py < size; py += step) {
+      for (let px = 0; px < size; px += step) {
+        const dx = px + step / 2 - r, dy = py + step / 2 - r;
+        let a = Math.atan2(dx, -dy) / (Math.PI * 2); // 0 — вверх, по часовой
+        if (a < 0) a += 1;
+        if (a >= p) ui.rect(cx + px, y + py, step, step, [0, 0, 0], 150);
+      }
+    }
+    ui.frame(cx, y, size, size, color, 2);
+    if (Number.isFinite(c.left)) {
+      const t = c.left >= 10 ? String(Math.ceil(c.left)) : c.left.toFixed(1);
+      ui.text(t, ox, oy + 2, 2, [255, 255, 255], "center");
+    }
+    cx += size + gap;
+  }
+  return list.length ? list.length * (size + gap) - gap : 0;
 }

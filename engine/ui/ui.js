@@ -7,6 +7,7 @@
 //  интерфейс рисуется заново целиком — просто и без путаницы.
 // ============================================================
 
+import { translate } from "./i18n.js";
 import { Framebuffer } from "./framebuffer.js";
 import { glyph, measureText, GLYPH_W, GLYPH_H } from "./font.js";
 import { DEFAULT_THEME } from "./theme.js";
@@ -103,6 +104,7 @@ export class UI {
   // Текст пиксельным шрифтом. align: "left" — x это левый край, "center" — середина, "right" — правый край
   // alpha — непрозрачность 0–255 (для гаснущих надписей)
   text(str, x, y, scale, color, align = "left", alpha = 255) {
+    str = translate(String(str)); // язык интерфейса (engine/ui/i18n.js); measureText ниже переводит ещё раз — из кэша
     if (align === "center") x -= measureText(str, scale) / 2;
     if (align === "right") x -= measureText(str, scale);
     x = Math.round(x);

@@ -10,7 +10,7 @@ import { drawWindow } from "../ui/window.js";
 import { measureText } from "../ui/font.js";
 
 export class ChangelogScene extends Scene {
-  constructor({ entries, title = "ЧТО НОВОГО", closeActions = ["pause"] }) {
+  constructor({ entries, title = "WHAT'S NEW", closeActions = ["pause"] }) {
     super();
     this.transparent = true;
     this.showToasts = false;
@@ -33,7 +33,7 @@ export class ChangelogScene extends Scene {
     const bottom = box.y + box.h - 50;
     for (const e of this.entries) {
       if (y > bottom) break;
-      ui.text(`ВЕРСИЯ ${e.version}${e.date ? "  " + e.date : ""}`, box.x, y, 2, th.accent);
+      ui.text(`VERSION ${e.version}${e.date ? "  " + e.date : ""}`, box.x, y, 2, th.accent);
       y += 22;
       if (e.title) {
         ui.text(e.title.toUpperCase(), box.x, y, 2, th.text);
@@ -48,7 +48,7 @@ export class ChangelogScene extends Scene {
       }
       y += 12;
     }
-    ui.button("close", "ПОНЯТНО", box.cx, box.y + box.h - 22, 220, 40, 2);
+    ui.button("close", "GOT IT", box.cx, box.y + box.h - 22, 220, 40, 2);
   }
 
   onButton(id) {

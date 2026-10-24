@@ -9,6 +9,10 @@
 //  fight — спутник ещё и защищает: { radius, leash, stopDistance }. Врага (с кем спутник враждует,
 //  entity.isHostileTo) он бьёт своей атакой (entity.attack), если враг ударил его самого или подошёл
 //  к вожаку ближе radius. Цель «прилипает», пока жива и не дальше leash от вожака — потом обратно к вожаку.
+//  entity.focus — ПРИКАЗ хозяина «бей вот этого»: важнее всего (обидчика, провокации), держится, пока цель жива
+//  и не дальше leash × 3 от вожака.
+//  entity.fetch — «сбегай за этим» (что-то с position и alive, например предмет на земле): если не дерётся,
+//  бежит туда; добежал (ближе 0.8 м) — зовёт entity.onFetch(цель), игра решает, что делать (подобрать).
 // ============================================================
 
 import { Brain } from "./brain.js";
@@ -45,7 +49,9 @@ export class FollowBrain extends Brain {
       if (by?.alive && e.isHostileTo(by) && !busy(e)) e.aggro = by;
       const taunted = tauntTarget(e, dt);
       if (taunted) e.aggro = taunted;
-      if (e.aggro && (!e.aggro.alive || dist2d(leader, e.aggro) > f.leash)) e.aggro = null;
+      if (e.focus && (!e.focus.alive || dist2d(leader, e.focus) > f.leash * 3)) e.focus = null;
+      if (e.focus && e.isHostileTo(e.focus)) e.aggro = e.focus; // приказ хозяина — сильнее всего
+      if (e.aggro && e.aggro !== e.focus && (!e.aggro.alive || dist2d(leader, e.aggro) > f.leash)) e.aggro = null;
       if (!e.aggro) {
         let best = null, bestD = f.radius;
         for (const o of ctx.entities) {
@@ -59,7 +65,7 @@ export class FollowBrain extends Brain {
         if (!e.fighting) e.nav.reset();
         e.fighting = true;
         const walking = pursue(e, e.aggro, dt, {
-          navigator: e.nav, radius: f.leash * 2, speed: this.speed || e.speed,
+          navigator: e.nav, radius: f.leash * (e.aggro === e.focus ? 4 : 2), speed: this.speed || e.speed,
           stopDistance: f.stopDistance ?? 1.2, turnSpeed: this.turnSpeed * 1.5,
         });
         separate(e, ctx.entities);
@@ -69,6 +75,20 @@ export class FollowBrain extends Brain {
       if (e.fighting) e.nav.reset();
       e.fighting = false;
       e.attack.update(dt); // кулдаун идёт и без боя
+    }
+    // Сбегать за чем-то (подобрать)
+    if (e.fetch) {
+      if (!e.fetch.alive) e.fetch = null;
+      else if (dist2d(e, e.fetch) < 0.8) {
+        e.onFetch?.(e.fetch);
+        e.fetch = null;
+        e.nav.reset();
+      } else {
+        const walking = pursue(e, e.fetch, dt, { navigator: e.nav, radius: 30, speed: this.speed || e.speed, stopDistance: 0.5, turnSpeed: this.turnSpeed });
+        separate(e, ctx.entities);
+        if (!walking) e.fetch = null; // не пройти — бросаем
+        return { walking, alerted: [] };
+      }
     }
     const dx = leader.position.x - e.position.x;
     const dz = leader.position.z - e.position.z;

@@ -19,6 +19,14 @@
 //        }],
 //      }],
 //    }
+//
+//  Дерево-схема (вместо ярусов): requires: ["a", "b"] — сначала вложи хотя бы 1 ранг в каждый из них
+//  (стрелки на схеме); col / row — где узел стоит на экране (столбец и ряд), у вкладки sections:
+//  [{ name, col }] — подписи разделов над столбцами. cost — число или (ранг) => сколько стоит ЭТОТ ранг
+//  (например, (r) => (r >= 3 ? 2 : 1): первые два по 1 очку, дальше по 2).
+//
+//  Доступные вкладки (классы): talents.allow(["melee", "survival"]) — остальные вкладки не видны
+//  (visibleTabs) и в них нельзя вкладывать; allow(null) — снова все. refundTab(id) — вернуть очки вкладки.
 // ============================================================
 
 import { onlyFor } from "../combat/modifiers.js";
@@ -30,21 +38,61 @@ export class Talents {
     this.points = 0; // свободные очки
     this.byId = new Map();
     for (const tab of tree.tabs) for (const t of tab.talents) this.byId.set(t.id, { talent: t, tab });
+    this.allowed = null; // null — все вкладки; иначе Set id доступных
+  }
+
+  // Какие вкладки доступны (ids или null — все)
+  allow(ids) {
+    this.allowed = ids ? new Set(ids) : null;
+  }
+
+  isAllowed(tabId) {
+    return !this.allowed || this.allowed.has(tabId);
+  }
+
+  // Вкладки, которые видно (в окне талантов)
+  visibleTabs() {
+    return this.tree.tabs.filter((t) => this.isAllowed(t.id));
+  }
+
+  // Сбросить вкладку: ранги её талантов — в ноль, вложенные очки — обратно. Вернёт, сколько вернули
+  refundTab(tabId) {
+    const tab = this.tree.tabs.find((t) => t.id === tabId);
+    if (!tab) return 0;
+    let back = 0;
+    for (const t of tab.talents) {
+      back += this.spentOn(t);
+      delete this.ranks[t.id];
+    }
+    this.points += back;
+    return back;
   }
 
   rank(id) {
     return this.ranks[id] || 0;
   }
 
-  // Сколько стоит один ранг таланта
-  cost(id) {
-    return this.byId.get(id)?.talent.cost ?? 1;
+  // Сколько стоит ранг rank таланта (по умолчанию — следующий)
+  cost(id, rank = this.rank(id) + 1) {
+    return rankCost(this.byId.get(id)?.talent, rank);
+  }
+
+  // Сколько очков вложено в талант всего (сумма цен его рангов)
+  spentOn(talent, ranks = this.rank(talent.id)) {
+    let sum = 0;
+    for (let r = 1; r <= ranks; r++) sum += rankCost(talent, r);
+    return sum;
   }
 
   // Сколько очков вложено во вкладку (дорогие таланты считаются по цене)
   spentIn(tabId) {
     const tab = this.tree.tabs.find((t) => t.id === tabId);
-    return tab ? tab.talents.reduce((sum, t) => sum + this.rank(t.id) * (t.cost ?? 1), 0) : 0;
+    return tab ? tab.talents.reduce((sum, t) => sum + this.spentOn(t), 0) : 0;
+  }
+
+  // Каких талантов не хватает, чтобы открыть этот (requires): список id без единого ранга
+  missing(talent) {
+    return (talent.requires || []).filter((id) => this.rank(id) <= 0);
   }
 
   // Сколько очков во вкладке нужно для яруса
@@ -55,21 +103,26 @@ export class Talents {
   // Можно ли вложить очко. Вернёт { ok, reason }
   check(id) {
     const entry = this.byId.get(id);
-    if (!entry) return { ok: false, reason: "НЕТ ТАКОГО ТАЛАНТА" };
+    if (!entry) return { ok: false, reason: "NO SUCH TALENT" };
     const { talent, tab } = entry;
-    if (this.rank(id) >= talent.maxRank) return { ok: false, reason: "МАКСИМУМ" };
-    const need = this.tierRequirement(talent.tier);
-    if (this.spentIn(tab.id) < need) return { ok: false, reason: `НУЖНО ${need} ОЧК. ВО ВКЛАДКЕ` };
-    const cost = talent.cost ?? 1;
-    if (this.points < cost) return { ok: false, reason: cost > 1 ? `НУЖНО ${cost} СВОБОДНЫХ ОЧК.` : "НЕТ ОЧКОВ" };
+    if (!this.isAllowed(tab.id)) return { ok: false, reason: "NOT FOR YOUR CLASS" };
+    if (this.rank(id) >= talent.maxRank) return { ok: false, reason: "MAXED" };
+    if (talent.tier) {
+      const need = this.tierRequirement(talent.tier);
+      if (this.spentIn(tab.id) < need) return { ok: false, reason: `NEED ${need} PTS IN TAB` };
+    }
+    const miss = this.missing(talent);
+    if (miss.length) return { ok: false, reason: `NEED: ${miss.map((id) => this.byId.get(id)?.talent.name || id).join(" + ")}` };
+    const cost = this.cost(id);
+    if (this.points < cost) return { ok: false, reason: cost > 1 ? `NEED ${cost} FREE PTS` : "NO POINTS" };
     return { ok: true };
   }
 
   learn(id) {
     const c = this.check(id);
     if (!c.ok) return c;
+    this.points -= this.cost(id); // цена этого (следующего) ранга — до того, как он вложен
     this.ranks[id] = this.rank(id) + 1;
-    this.points -= this.cost(id);
     return c;
   }
 
@@ -107,7 +160,10 @@ export class Talents {
 
   // Сбросить всё: очки возвращаются
   reset() {
-    for (const [id, r] of Object.entries(this.ranks)) this.points += r * this.cost(id);
+    for (const [id, r] of Object.entries(this.ranks)) {
+      const t = this.byId.get(id)?.talent;
+      this.points += t ? this.spentOn(t, r) : r;
+    }
     this.ranks = {};
   }
 
@@ -121,10 +177,21 @@ export class Talents {
     this.ranks = {};
     for (const [id, r] of Object.entries(data.ranks || {})) {
       const entry = this.byId.get(id);
-      if (!entry || !Number.isInteger(r) || r <= 0) continue;
+      if (!Number.isInteger(r) || r <= 0) continue;
+      // Такого таланта больше нет (игра его убрала / переименовала) — очки возвращаем (цена неизвестна — по 1 за ранг)
+      if (!entry) {
+        this.points += r;
+        continue;
+      }
       this.ranks[id] = Math.min(r, entry.talent.maxRank);
       // Игра урезала предел ранга (перебаланс) — лишние вложенные очки возвращаем игроку
-      this.points += (r - this.ranks[id]) * (entry.talent.cost ?? 1);
+      this.points += this.spentOn(entry.talent, r) - this.spentOn(entry.talent, this.ranks[id]);
     }
   }
+}
+
+// Цена ранга rank: число (одинаковая) или функция ранга
+function rankCost(talent, rank) {
+  const c = talent?.cost ?? 1;
+  return typeof c === "function" ? c(rank) : c;
 }

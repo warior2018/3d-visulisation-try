@@ -470,6 +470,175 @@ function fingers(arm, curled) {
   }));
 }
 
+// ---------- 3д. Боевой молот (БОЕЦ) ----------
+// Двуручный молот: ДВЕ руки на длинной рукояти (правая — у конца, левая — выше). Удар — как ульта
+// Райнхардта: молот вскидывается над головой и с размаху бьёт в землю перед собой (боёк внизу по центру
+// экрана), отскок, пауза, обратно. Кость arm — сам молот (в точке хвата правой руки, +Y — к бойку);
+// кости rhand / lhand — предплечья (начало — в кисти на рукояти, +Z — от локтя к кисти).
+// Кадры задаём так же, как у катаны: где хват (R), куда смотрит рукоять (D) и где локти — повороты считаются сами.
+{
+  const norm = (v) => { const l = Math.hypot(...v); return v.map((c) => c / l); };
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const inverse = ([x, y, z, w]) => [-x, -y, -z, w];
+  const rotate = (q, v) => {
+    const [x, y, z, w] = q;
+    const t = cross([x, y, z], v).map((c) => 2 * c);
+    const u = cross([x, y, z], t);
+    return [v[0] + w * t[0] + u[0], v[1] + w * t[1] + u[1], v[2] + w * t[2] + u[2]];
+  };
+  const turn = (from, to) => {
+    const a = norm(from), b = norm(to);
+    const c = cross(a, b);
+    const q = [c[0], c[1], c[2], 1 + dot(a, b)];
+    const l = Math.hypot(...q);
+    return q.map((v) => v / l);
+  };
+  const add = (a, b) => a.map((v, i) => v + b[i]);
+  const sub = (a, b) => a.map((v, i) => v - b[i]);
+  const LGRIP = 0.3; // левая рука — на столько выше по рукояти
+  // Кадр: хват правой R, рукоять вдоль D, локти правой ER и левой EL (всё в координатах камеры)
+  const frame = (R, D, ER, EL) => {
+    const rot = turn([0, 1, 0], D);
+    const L = add(R, rotate(rot, [0, LGRIP, 0])); // где левая кисть
+    return {
+      pos: R, rot,
+      rhand: qmul(inverse(rot), turn([0, 0, 1], sub(R, ER))),
+      lhand: qmul(inverse(rot), turn([0, 0, 1], sub(L, EL))),
+    };
+  };
+  const REST = frame([0.3, -0.3, 0.45], [-0.15, 0.85, 0.35], [0.45, -0.65, 0.1], [-0.05, -0.5, 0.2]); // молот на плече, боёк справа вверху
+  const UP = frame([0.14, 0.0, 0.38], [0.05, 0.85, -0.53], [0.4, -0.4, 0.1], [-0.15, -0.4, 0.15]); //     вскинули над головой
+  const SWING = frame([0.08, -0.12, 0.5], [0.02, 0.7, 0.7], [0.35, -0.5, 0.15], [-0.2, -0.5, 0.25]); //   летит вниз
+  const HIT = frame([0.05, -0.33, 0.52], [0, -0.32, 1], [0.32, -0.62, 0.15], [-0.22, -0.62, 0.35]); //    удар в землю: боёк внизу по центру
+  const BOUNCE = frame([0.05, -0.29, 0.5], [0, -0.2, 1], [0.32, -0.59, 0.15], [-0.22, -0.59, 0.35]); //  отскок
+  const HOLD = frame([0.05, -0.31, 0.5], [0, -0.28, 1], [0.32, -0.61, 0.15], [-0.22, -0.61, 0.35]);
+  // Блок: рукоять поперёк перед собой
+  const GUARD = frame([0.22, -0.18, 0.45], [-0.95, 0.25, 0.15], [0.45, -0.55, 0.15], [-0.35, -0.5, 0.2]);
+
+  const arm = makeArm({ P: REST.pos, BASE: REST.rot }); // у makeArm берём только общие анимации (Idle/Walk/Equip)
+  arm.parts.length = 0; //                              предплечье makeArm не нужно — руки свои
+  const P = REST.pos;
+  const WOOD = [0.36, 0.24, 0.14];
+  const LEATHER = [0.22, 0.14, 0.09];
+  const hammer = (center, size, color) => arm.parts.push({ bone: "arm", center: add(P, center), size, color });
+  hammer([0, 0.25, 0], [0.045, 0.8, 0.045], WOOD); //               рукоять (от −0.15 до 0.65)
+  hammer([0, -0.16, 0], [0.065, 0.05, 0.065], METAL); //             навершие
+  hammer([0, 0, 0], [0.052, 0.1, 0.052], LEATHER); //               обмотка под правой
+  hammer([0, LGRIP, 0], [0.052, 0.1, 0.052], LEATHER); //           и под левой
+  hammer([0, 0.72, 0], [0.18, 0.18, 0.38], METAL_LIGHT); //          боёк — большой, вдоль «вперёд-назад»
+  hammer([0, 0.65, 0], [0.19, 0.04, 0.39], METAL); //                обода
+  hammer([0, 0.79, 0], [0.19, 0.04, 0.39], METAL);
+  hammer([0, 0.72, 0.195], [0.2, 0.2, 0.03], METAL); //              ударные грани
+  hammer([0, 0.72, -0.195], [0.2, 0.2, 0.03], METAL);
+
+  // Руки: бруски в осях предплечья (начало — кисть, −Z — к локтю), side — с какой стороны большой палец
+  const LPOS = add(P, [0, LGRIP, 0]);
+  arm.bones.push({ name: "rhand", parent: "arm", pos: P, rotation: REST.rhand });
+  arm.bones.push({ name: "lhand", parent: "arm", pos: LPOS, rotation: REST.lhand });
+  const handParts = (bone, origin, side) => {
+    const box = (c, size, color = BONE_COLOR) => arm.parts.push({ bone, center: add(origin, c), size, color });
+    box([-0.02, 0, -0.29], [0.038, 0.042, 0.4]); //  две кости предплечья
+    box([0.022, -0.004, -0.29], [0.034, 0.038, 0.4]);
+    box([0, 0, -0.495], [0.075, 0.06, 0.05], JOINT); // локоть
+    box([0, 0, -0.08], [0.085, 0.05, 0.045], JOINT); // запястье
+    box([0, 0, -0.02], [0.11, 0.035, 0.08]); //         ладонь
+    for (const x of [-0.04, -0.013, 0.013, 0.04]) box([x, -0.03, 0.03], [0.02, 0.045, 0.025]); // пальцы обхватили рукоять
+    box([side * 0.066, -0.004, -0.01], [0.02, 0.022, 0.055]); // большой палец
+  };
+  handParts("rhand", P, -1);
+  handParts("lhand", LPOS, 1);
+
+  const keys = (list) => {
+    const times = list.map((k) => k[0]);
+    return [
+      move("arm", times, list.map((k) => k[1].pos)),
+      rotQ("arm", times, list.map((k) => k[1].rot)),
+      rotQ("rhand", times, list.map((k) => k[1].rhand)),
+      rotQ("lhand", times, list.map((k) => k[1].lhand)),
+    ];
+  };
+  writeGLB(out("fp-war-hammer.glb"), buildGLB({
+    name: "FirstPersonWarHammer", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common,
+      // Удар (0.85 с): замах над головой → удар в землю на 0.3 с (ATTACKS.warHammer.windup) → отскок → обратно
+      Attack: keys([[0, REST], [0.16, UP], [0.25, SWING], [0.3, HIT], [0.37, BOUNCE], [0.5, HOLD], [0.85, REST]]),
+      Block: keys([[0, REST], [0.06, GUARD], [0.38, GUARD], [0.5, REST]]),
+    },
+  }));
+}
+
+// ---------- 3ж. Копьё (БОЕЦ) ----------
+// Длинное древко вперёд из кулака, листовидный наконечник у центра экрана. Attack — укол вперёд;
+// Charge — разбег (ПКМ): копьё опущено и выставлено вперёд, держим, пока бежим
+{
+  const arm = makeArm({ P: [0.26, -0.33, 0.0], BASE: qmul(quat(Y, -6), quat(X, -4)) });
+  fingers(arm, true);
+  const WOODS = [0.45, 0.31, 0.18];
+  const STEEL = [0.74, 0.76, 0.8];
+  arm.box([0, -0.01, 0.75], [0.035, 0.035, 1.3], WOODS); //      древко (от локтя и далеко вперёд)
+  arm.box([0, -0.01, 1.39], [0.045, 0.045, 0.05], METAL); //     обмотка у наконечника
+  arm.box([0, -0.01, 1.48], [0.07, 0.014, 0.14], STEEL); //      лист наконечника
+  arm.box([0, -0.01, 1.58], [0.035, 0.014, 0.08], STEEL); //     остриё
+  const { at, pose } = arm;
+  writeGLB(out("fp-spear.glb"), buildGLB({
+    name: "FirstPersonSpear", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common,
+      // Укол: короткий отвод назад и резко вперёд, обратно
+      Attack: [
+        move("arm", [0, 0.08, 0.16, 0.45], [at(0, 0, 0), at(0.01, 0.01, -0.08), at(-0.03, 0.02, 0.34), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.08, 0.16, 0.45], [pose(), pose(4, 0, 0), pose(-3, 4, 0), pose()]),
+      ],
+      // Разбег: копьё ниже и ближе к центру, наконечник вперёд
+      Charge: [
+        move("arm", [0, 1], [at(-0.07, -0.03, 0.14), at(-0.07, -0.03, 0.14)]),
+        rotQ("arm", [0, 1], [pose(-2, 7, 0), pose(-2, 7, 0)]),
+      ],
+    },
+  }));
+}
+
+// ---------- 3е. Дробовик (СТРЕЛОК) ----------
+{
+  const arm = makeArm({ P: [0.24, -0.32, 0.04], BASE: qmul(quat(Y, -10), quat(X, -8)) });
+  fingers(arm, true);
+  const WOODS = [0.42, 0.28, 0.16];
+  arm.box([0, 0.03, 0.5], [0.04, 0.1, 0.05], WOODS); //                    рукоять
+  arm.box([0, 0.09, 0.62], [0.06, 0.06, 0.26], METAL); //                  коробка
+  arm.box([-0.016, 0.105, 0.9], [0.028, 0.028, 0.4], METAL_LIGHT); //     два ствола
+  arm.box([0.016, 0.105, 0.9], [0.028, 0.028, 0.4], METAL_LIGHT);
+  arm.box([0, 0.06, 0.82], [0.06, 0.04, 0.18], WOODS); //                  цевьё
+  arm.box([0, 0.13, 0.62], [0.01, 0.012, 0.012], METAL); //                целик
+  arm.box([0, 0.128, 1.08], [0.01, 0.012, 0.012], METAL); //               мушка
+  arm.bones.push({ name: "sight", parent: "arm", pos: arm.at(0, 0.134, 1.08) });
+  arm.bones.push({ name: "sight_rear", parent: "arm", pos: arm.at(0, 0.136, 0.62) });
+  const muzzle = arm.at(0, 0.105, 1.12);
+  arm.bones.push({ name: "flash", parent: "arm", pos: muzzle, scale: [0, 0, 0] });
+  arm.parts.push({ bone: "flash", center: muzzle, size: [0.12, 0.1, 0.06], color: FLASH });
+  arm.parts.push({ bone: "flash", center: [muzzle[0], muzzle[1], muzzle[2] + 0.04], size: [0.07, 0.07, 0.08], color: [1, 1, 0.8] });
+  const { at, pose } = arm;
+  writeGLB(out("fp-shotgun.glb"), buildGLB({
+    name: "FirstPersonShotgun", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common,
+      Aim: [rotQ("arm", [0], [pose()]), move("arm", [0], [at(0, 0, 0)])],
+      // Сильная отдача: ствол вверх, рука назад
+      Shoot: [
+        move("arm", [0, 0.05, 0.35], [at(0, 0, 0), at(0, 0.03, -0.09), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.05, 0.35], [pose(), pose(-20), pose()]),
+        scale("flash", [0, 0.01, 0.07, 0.08], [[1, 1, 1], [1, 1, 1], [1, 1, 1], [0, 0, 0]]),
+      ],
+      // Перезарядка (2.4 с): ствол вниз и вбок, патроны по одному, обратно
+      Reload: [
+        rotQ("arm", [0, 0.25, 0.7, 1.1, 1.5, 1.9, 2.4], [pose(), pose(20, 10, 30), pose(24, 10, 30), pose(20, 10, 30), pose(24, 10, 30), pose(20, 10, 30), pose()]),
+        move("arm", [0, 0.25, 2.1, 2.4], [at(0, 0, 0), at(-0.04, -0.07, 0), at(-0.04, -0.07, 0), at(0, 0, 0)]),
+      ],
+    },
+  }));
+}
+
 // ---------- 4. Рука с блоком ----------
 {
   const arm = makeArm({ P: [0.28, -0.36, 0.1], BASE: qmul(quat(Y, -14), quat(X, -10)) });
@@ -480,3 +649,111 @@ function fingers(arm, curled) {
     animations: { ...arm.common, Use: arm.push, Attack: arm.swing },
   }));
 }
+
+// ---------- 5. Магия: посох огня и жезл льда ----------
+// У навершия — «искра» (своя кость glow): в покое масштаб 0, при заклинании вспыхивает (как вспышка выстрела)
+const WOOD_STAFF = [0.36, 0.24, 0.14];
+const WOOD_DARK = [0.24, 0.16, 0.1];
+const glowBone = (arm, center, size, color, core) => {
+  arm.bones.push({ name: "glow", parent: "arm", pos: center, scale: [0, 0, 0] });
+  arm.parts.push({ bone: "glow", center, size, color });
+  arm.parts.push({ bone: "glow", center, size: size.map((v) => v * 0.55), color: core });
+};
+const castGlow = (times) => scale("glow", times, times.map((t, i) => (i === 0 || i === times.length - 1 ? [0, 0, 0] : [1, 1, 1])));
+{
+  // Посох: длинная палка в кулаке, наклонена вперёд; навершие — красный кристалл в оправе
+  const arm = makeArm({ P: [0.32, -0.38, 0.1], BASE: qmul(quat(Y, -14), quat(X, -10)) });
+  fingers(arm, true);
+  arm.box([0, 0.12, 0.52], [0.035, 0.62, 0.035], WOOD_STAFF); //         древко (вверх от кулака)
+  arm.box([0, -0.16, 0.52], [0.04, 0.06, 0.04], WOOD_DARK); //           пятка
+  arm.box([0, 0.44, 0.52], [0.08, 0.025, 0.08], [0.55, 0.42, 0.18]); //  оправа
+  arm.box([0, 0.5, 0.52], [0.06, 0.09, 0.06], [0.85, 0.2, 0.12]); //     кристалл
+  arm.box([0, 0.5, 0.52], [0.03, 0.05, 0.07], [1, 0.55, 0.2]); //        огонёк внутри
+  glowBone(arm, arm.at(0, 0.5, 0.56), [0.16, 0.16, 0.16], [1, 0.45, 0.1], [1, 0.9, 0.5]);
+  const { at, pose } = arm;
+  writeGLB(out("fp-staff.glb"), buildGLB({
+    name: "FirstPersonStaff", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common, Attack: arm.swing, Block: arm.guard,
+      // Заклинание: посох выбрасывается вперёд навершием к цели, кристалл вспыхивает
+      Cast: [
+        move("arm", [0, 0.07, 0.16, 0.4], [at(0, 0, 0), at(-0.02, 0.02, 0.07), at(-0.015, 0.015, 0.06), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.07, 0.16, 0.4], [pose(), pose(16, -3), pose(14, -3), pose()]),
+        castGlow([0, 0.05, 0.16, 0.24]),
+      ],
+    },
+  }));
+}
+{
+  // Жезл: короткая палочка, смотрит вперёд, на конце — голубой кристалл
+  const arm = makeArm({ P: [0.24, -0.32, 0.06], BASE: qmul(quat(Y, -10), quat(X, -8)) });
+  fingers(arm, true);
+  arm.box([0, 0.03, 0.62], [0.025, 0.025, 0.26], [0.85, 0.88, 0.95]); //   палочка (вперёд)
+  arm.box([0, 0.03, 0.5], [0.035, 0.035, 0.06], [0.3, 0.32, 0.42]); //    рукоять
+  arm.box([0, 0.03, 0.765], [0.05, 0.05, 0.05], [0.45, 0.8, 1]); //        кристалл
+  arm.box([0, 0.03, 0.79], [0.025, 0.025, 0.03], [0.85, 0.97, 1]);
+  glowBone(arm, arm.at(0, 0.03, 0.8), [0.1, 0.1, 0.1], [0.5, 0.85, 1], [0.95, 1, 1]);
+  const { at, pose } = arm;
+  writeGLB(out("fp-wand.glb"), buildGLB({
+    name: "FirstPersonWand", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common, Attack: arm.swing, Block: arm.guard,
+      // Заклинание: короткий взмах кистью вперёд, кристалл вспыхивает
+      Cast: [
+        move("arm", [0, 0.04, 0.2], [at(0, 0, 0), at(-0.01, 0.01, 0.05), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.04, 0.2], [pose(), pose(-8, -3), pose()]),
+        castGlow([0, 0.03, 0.09, 0.14]),
+      ],
+    },
+  }));
+}
+
+// ---------- 6. Метательный нож ----------
+{
+  const arm = makeArm({ P: [0.3, -0.36, 0.1], BASE: qmul(quat(Y, -12), quat(X, -14)) });
+  fingers(arm, true);
+  arm.box([0, 0.02, 0.5], [0.025, 0.03, 0.09], [0.2, 0.16, 0.14]); //       рукоять в кулаке
+  arm.box([0, 0.02, 0.6], [0.008, 0.035, 0.13], [0.78, 0.8, 0.85]); //      клинок
+  arm.box([0, 0.032, 0.6], [0.01, 0.008, 0.13], [0.95, 0.96, 0.98]); //     кромка
+  const { at, pose } = arm;
+  writeGLB(out("fp-knife.glb"), buildGLB({
+    name: "FirstPersonKnife", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common, Attack: arm.swing, Block: arm.guard,
+      // Бросок: короткий замах назад и резкий хлёст вперёд
+      Throw: [
+        move("arm", [0, 0.06, 0.13, 0.32], [at(0, 0, 0), at(0.04, 0.08, -0.1), at(-0.04, 0, 0.16), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.06, 0.13, 0.32], [pose(), pose(-45, 8), pose(30, -8), pose()]),
+      ],
+    },
+  }));
+}
+
+// ---------- 7. Ловушки в руке: капкан и шипы ----------
+const trapArm = (name, build) => {
+  const arm = makeArm({ P: [0.26, -0.38, 0.1], BASE: qmul(quat(Y, -14), quat(X, -6)) });
+  fingers(arm, true);
+  build(arm);
+  const { at, pose } = arm;
+  writeGLB(out(name), buildGLB({
+    name, generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common, Attack: arm.swing, Block: arm.guard,
+      // Поставить: рука опускается вниз-вперёд (кладём на землю) и возвращается
+      Use: [
+        move("arm", [0, 0.12, 0.22, 0.45], [at(0, 0, 0), at(-0.03, -0.16, 0.1), at(-0.03, -0.16, 0.1), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.12, 0.22, 0.45], [pose(), pose(30), pose(30), pose()]),
+      ],
+    },
+  }));
+};
+trapArm("fp-bear-trap.glb", (arm) => {
+  const IRON = [0.32, 0.3, 0.28];
+  arm.box([0, 0.02, 0.53], [0.11, 0.012, 0.11], IRON); //                  основание
+  arm.box([0, 0.035, 0.53], [0.025, 0.03, 0.025], [0.55, 0.5, 0.42]); //   тарелка-нажимка
+  for (const s of [-1, 1]) arm.box([0, 0.035, 0.53 + s * 0.05], [0.11, 0.035, 0.012], [0.6, 0.6, 0.62]); // челюсти с зубьями
+});
+trapArm("fp-spikes.glb", (arm) => {
+  arm.box([0, 0.02, 0.53], [0.11, 0.015, 0.11], [0.4, 0.3, 0.2]); //         доска
+  for (const x of [-0.035, 0, 0.035]) for (const z of [-0.035, 0, 0.035]) arm.box([x, 0.045, 0.53 + z], [0.01, 0.04, 0.01], [0.72, 0.74, 0.78]); // шипы
+});

@@ -1,5 +1,231 @@
 [
   {
+    "version": "0.41.1",
+    "date": "2026-10-21",
+    "title": "Spear rebalance",
+    "changes": [
+      "Spear thrust: 48 damage (was 34), hits 3 in a line, reach 3.8 m, a bit faster",
+      "Spear charge: 60 damage per enemy (was 26), and speed matters more - up to x2.6 at full MOMENTUM speed (~157 per enemy); cooldown 4 s (was 5)"
+    ]
+  },
+  {
+    "version": "0.41.0",
+    "date": "2026-10-20",
+    "title": "Spear, buff bar, cooldown clocks, live menus",
+    "changes": [
+      "New FIGHTER weapon SPEAR (80 coins): LMB - long thrust, no block. RMB (hold) - charge forward and steer with the camera: small turns within 20 deg are free, bigger turns slow you down in proportion. Pierces up to 5 enemies, more damage at higher speed, 5 s cooldown",
+      "Spear talent MOMENTUM: the charge speeds up to +30/60/90% and pierces +2/4/6 more enemies; all speed bonuses stack",
+      "Buffs and debuffs are shown as icons above the hotbar (statuses, speed bonus and slows, crit ready, charge, boss trophies)",
+      "ALL cooldowns are shown under the hotbar as icons with a clockwise clock fill and seconds",
+      "Map, talents, shop and inventory no longer pause the game - only the pause menu does",
+      "Coordinates are shown only on the big map"
+    ]
+  },
+  {
+    "version": "0.40.0",
+    "date": "2026-10-20",
+    "title": "Bigger world, boss on the map",
+    "changes": [
+      "New worlds: main island radius 75 (was 50) with two mountains, small islands bigger (radius 12-20); more houses, towers, crate piles and trees. Old worlds keep their size",
+      "Boss locations are always shown on the map and minimap (purple skull, pinned to the edge when far). Dead boss - a respawn timer on the map and above its spawn spot",
+      "HIGH GROUND (jump x1.5 + double jump) moved from the sniper branch to SURVIVAL - now for every class"
+    ]
+  },
+  {
+    "version": "0.39.0",
+    "date": "2026-10-20",
+    "title": "Summoner Q/E, turret saplings, lich arena",
+    "changes": [
+      "SUMMONER: Q marks the enemy under the crosshair for your boars (red mark above it), E plants a TURRET SAPLING (shop 25 coins, 5% drop, 1 at start). It grows 30 s, then press F on it and put in as many mushrooms as you want - more mushrooms, stronger turret; you can take them back. No mushrooms - no shooting",
+      "Boars are fed mushrooms from the bag; the summoner can keep traps in the middle slot",
+      "Inventory: RMB takes or puts items one by one, LMB moves the whole slot",
+      "No caves in the world - a yellow arena is built and the BONE LICH lives there; caves keep the troll",
+      "Mushrooms grow more often (up to 5 on the ground), summoner starts with 5 mushrooms"
+    ]
+  },
+  {
+    "version": "0.38.0",
+    "date": "2026-10-20",
+    "title": "Bone lich, bloater, healing shroom, tougher bosses",
+    "changes": [
+      "New boss BONE LICH: keeps distance and shoots soul bolts, blinks away if you get close, raises skeletons. Reward: BONE CROWN - permanent +6% damage (each next 1% less). A lair spawns troll or lich at random",
+      "Bosses are much tougher: troll 1600 HP and 25% armor, stronger slam. Stuns and freezes on bosses are 60% shorter with 5 s immunity after. Below half HP they become ENRAGED. Bosses heal when you leave the lair",
+      "New mob BLOATER: a swollen zombie that runs up, hisses for 1.1 s with a red circle and explodes",
+      "New summon for SUMMONER: HEALING SHROOM (RMB with mushrooms, 2 mushrooms) heals you and your summons nearby for 45 s"
+    ]
+  },
+  {
+    "version": "0.37.0",
+    "date": "2026-10-20",
+    "title": "Gun clips, hammer lands its slam",
+    "changes": [
+      "Ranged: every gun has its own clips, bought only in the shop (pistol 4, rifle 8, shotgun 6, sniper 8). R inserts the fullest clip; the unfinished one goes back to the bag as a partial clip with its rounds shown. Ammo no longer drops or lies on the ground; old ammo in saves turns into pistol clips",
+      "War hammer slams only the ground: swing in the air - you fall faster and the slam hits when you land. While swinging you move 40% slower",
+      "New hammer talent JUMP SLAM: with the hammer you jump 80% higher, and the slam deals +50% damage per block fallen (up to x3)",
+      "AMMO REFUND now puts 15 rounds straight into the assault rifle's magazine"
+    ]
+  },
+  {
+    "version": "0.36.0",
+    "date": "2026-10-20",
+    "title": "Cave troll, island villages, invasion types",
+    "changes": [
+      "Boss lairs are no longer empty: a CAVE TROLL lives inside. It stays in its cave and attacks only if you hit it or come within 5.5 m. Club slam with a red warning circle on the ground, boulder throws from afar, HP bar at the top. 600 HP, grows with mobs. Respawns 3 minutes after death",
+      "Troll reward: 600 XP, 120 coins and a TROLL HIDE - permanent physical armor: -10% for the first, each next 1.5% less; stacks with TOUGH BONES",
+      "Small islands now have houses, crate piles, sometimes a tower, and trees (new worlds)",
+      "Invasions are 1.5x more frequent and come in 3 kinds: normal, fast (mobs +30% speed) and ranged (half of new mobs are ranged)"
+    ]
+  },
+  {
+    "version": "0.35.0",
+    "date": "2026-10-20",
+    "title": "Hammer slam, level 45, mushrooms, ranged mobs",
+    "changes": [
+      "War hammer is two-handed and slams the ground in front of you (like Reinhardt's ultimate, every hit): full damage to all enemies within 1 block, screen shake. SPLASH SLAM talent now widens the slam to 1.5/2/2.5 blocks",
+      "Max level raised from 30 to 45",
+      "Magma stone shows a circle where the puddle will land",
+      "Aim circles and beams are no longer visible through blocks",
+      "Mushrooms cost 30 coins and grow rarely (up to 3 on the ground). A turret takes up to 3 mushrooms: each gives +60 HP, +3 damage, faster fire. Enemies within 3 blocks attack the turret instead of you",
+      "Ranged mobs: 10% of mobs; weapon by chance - stone 45%, knife 45%, pistol 10%. Throwers wait 5 s between throws and walk closer meanwhile; gunners keep about 10 m away and shoot on cooldown",
+      "Bullet tracers for your guns and enemy gunners; bullets leave black marks on blocks for 3 s",
+      "Draw distance +10% (60 → 66 m)",
+      "All experience gained +15%"
+    ]
+  },
+  {
+    "version": "0.34.5",
+    "date": "2026-10-20",
+    "title": "Autoloot and mushrooms",
+    "changes": [
+      "Auto loot no longer 'switches off': an item that did not fit is retried every second instead of being ignored until you walk away",
+      "Auto loot also works while riding a boar",
+      "Mushrooms: 3 coins each (were 3 for 4); a turret takes at most 8 mushrooms, each gives +15 HP, +1 damage, -0.04 s reload"
+    ]
+  },
+  {
+    "version": "0.34.4",
+    "date": "2026-10-20",
+    "title": "More boars for the summoner",
+    "changes": [
+      "Summoner: wild boars spawn twice as often and up to 5 at once; other classes - up to 2"
+    ]
+  },
+  {
+    "version": "0.34.3",
+    "date": "2026-10-20",
+    "title": "Hand bob like Minecraft",
+    "changes": [
+      "The camera no longer bobs or tilts while walking; instead the item in hand sways in an arc, like in Minecraft (Settings - HAND BOB)"
+    ]
+  },
+  {
+    "version": "0.34.2",
+    "date": "2026-10-20",
+    "title": "Camera tilt fix",
+    "changes": [
+      "Fixed: the camera rolled further and further to the side and swayed hard while walking"
+    ]
+  },
+  {
+    "version": "0.34.1",
+    "date": "2026-10-20",
+    "title": "Traps for everyone",
+    "changes": [
+      "The AMBUSHER class is removed: bear traps and spikes are sold to every class in the OTHER section of the shop (no trap talents)",
+      "Old AMBUSHER saves choose a class again; talent points are refunded"
+    ]
+  },
+  {
+    "version": "0.34.0",
+    "date": "2026-10-20",
+    "title": "Class trees, new weapons, 3-slot hotbar",
+    "changes": [
+      "Five classes with talent trees from the design: FIGHTER, RANGER, MAGE, AMBUSHER, SUMMONER (ROGUE removed; old knives and stones become coins)",
+      "Talent trees: weapon branches (2 points per rank), GENERAL (ranks 3+ cost 2), arrows are requirements, trophies at the bottom",
+      "New weapons: war hammer, shotgun, magma stone, meteor staff; summoner grows mushroom turrets (all mushrooms, stronger per mushroom)",
+      "Hotbar is 3 slots: Q - left weapon, E - right weapon, 2 - middle slot for building, medkits and mushrooms; lean on Q/E removed",
+      "Medkit is now an item for the middle slot",
+      "Traps snap to the block grid (center of the block, no diagonal); no traps on walls; spikes up to 30 with a counter"
+    ]
+  },
+  {
+    "version": "0.33.0",
+    "date": "2026-10-20",
+    "title": "Islands, Beastmaster, ammo and mana",
+    "changes": [
+      "Traps stick to any block face (walls, ceilings), never expire; bear trap adds 50% of the victim's max HP; stepping on your own trap hurts you for half",
+      "Enemy loot drops on the ground under them - pick it up",
+      "Language option: Settings - INTERFACE - LANGUAGE (English / Russian)",
+      "Guns use AMMO from the bag (drops from enemies, packs on the ground, shop); mages have MANA with regen, enemies drop SOUL globes",
+      "New class BEASTMASTER: tames boars with mushrooms (1 + 1 per 100 boar HP) that grow on the ground; BOAR talents are its tab; up to 5 wild boars",
+      "Fire staff is now SUN STRIKE: target circle preview, fire pillar hits the spot after 0.9 s with splash",
+      "Wild boars run away when hurt; mobs and wild boars that wander far away despawn",
+      "New worlds: main island plus 3-6 small islands; 30% of mountains hide a boss lair (no boss yet)",
+      "Smoothed frame time against jitter while walking; SHOW FPS counter in the top left"
+    ]
+  },
+  {
+    "version": "0.32.0",
+    "date": "2026-10-20",
+    "title": "Blocks, frost and the shop",
+    "changes": [
+      "Building now uses white BLOCK items (16 at class choice, 16 for 5 in the shop); breaking a block returns it",
+      "Stones and knives lie on the ground and respawn only for the ROGUE class (renamed thrower)",
+      "Fire staff explosion now hurts a wild boar you aimed at or hit directly",
+      "Shop reordered: basic weapons first and much cheaper",
+      "Frost wand freezes by itself: each hit stacks -15% speed, 5 hits freeze for 2 s, hitting a frozen target shatters it for x2",
+      "Talent FROST TOUCH replaced by DEEP FREEZE (frost wand only); points from removed talents are refunded"
+    ]
+  },
+  {
+    "version": "0.31.0",
+    "date": "2026-10-19",
+    "title": "English, auto loot, Continue / New Game",
+    "changes": [
+      "The whole game UI is now in English",
+      "Main menu: CONTINUE when a save exists, NEW GAME below (asks first; the old world is archived)",
+      "Auto loot: items nearby are picked up automatically, V toggles it. Camera view is now only in Settings",
+      "Thrown knives and stones stick where they land instead of sinking into blocks; you can still pick them up",
+      "Camera bob while walking and running (first person, can be turned off in Settings)",
+      "Balance: Iai is now x3 (was x5). Burning deals at most 30% of a target's max HP in total, no matter how often it is re-applied"
+    ]
+  },
+  {
+    "version": "0.30.0",
+    "date": "2026-10-19",
+    "title": "Классы героя и мобы-метатели",
+    "changes": [
+      "Классы: на 2-м уровне выбираешь класс — МЕЧНИК, СТРЕЛОК, МАГ, МЕТАТЕЛЬ или ЛОВЕЦ; открываются только его таланты и его раздел магазина, даётся стартовое оружие",
+      "Старое сохранение без класса — выбор при входе в мир, очки из чужих вкладок возвращаются",
+      "Мобы-метатели: 20 % мобов появляются с оружием для броска — скелеты кидают кости, зомби камни, издалека и по дуге",
+      "Урон мобов, стража и кабанов растёт в процентах (+0.4 % за каждого моба и +1 за каждые 25): к 300-му скелет бьёт 23–34 вместо 65–70",
+      "Движок: grow (рост процентами и цифрой), ChoiceScene, talents.allow / refundTab, разделы магазина с when, HostileBrain ranged, aimArc"
+    ]
+  },
+  {
+    "version": "0.29.0",
+    "date": "2026-10-19",
+    "title": "Оружие для всех классов",
+    "changes": [
+      "МАГИЯ: посох огня (огненный шар со взрывом по площади, поджигает) и жезл льда (мгновенная ледяная стрела, замедляет)",
+      "ПРЕДМЕТЫ: метательные ножи — ЛКМ бросок, хедшоты, нож можно подобрать",
+      "ЛОВУШКИ: капкан (урон и держит врага 3 с) и шипы (колют всех на доске) — ставятся ЛКМ на землю, сохраняются с миром",
+      "Магазин разделён по классам оружия — вкладки БЛИЖНИЙ, ДАЛЬНИЙ, МАГИЯ, ПРЕДМЕТЫ, ЛОВУШКИ, ПРОЧЕЕ",
+      "Кабаны крепчают вместе с мобами: +3 HP за каждого появившегося моба, сильнее бивни и больше опыта — и дикие, и приручённый",
+      "Движок: Traps, BeamEffects, MagicAttack projectile/burst, у снарядов свои gravity/spin/onHit, разделы магазина"
+    ]
+  },
+  {
+    "version": "0.28.11",
+    "date": "2026-10-12",
+    "title": "Windows: запуск на любой видеокарте",
+    "changes": [
+      "Если игра падает сразу после старта (сбой драйвера), запуск на Windows сам пробует другие способы рисования: D3D12 → Vulkan → D3D11 → OpenGL, и запоминает рабочий",
+      "В журнал пишется, какая видеокарта найдена, и первые кадры по шагам — видно, где именно упало",
+      "Движок: GPURenderer.create принимает флаги видеокарты (VOID_GPU_FLAGS, например backend=vulkan)"
+    ]
+  },
+  {
     "version": "0.28.10",
     "date": "2026-10-12",
     "title": "Катана: 75 урона, ИАЙ ×5",

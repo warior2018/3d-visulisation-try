@@ -9,7 +9,8 @@
 //   4 — + опыт, уровень и таланты игрока (progression).
 //   5 — + spawned (сколько скелетов появилось), у существ bonusHp и bonusDamage.
 //   6 — + pickups: предметы, лежащие на земле (камни, выброшенное);
-//       worldgen: { seed } — зерно рельефа (по нему высота земли считается заново, кубики — в blocks).
+//       worldgen: { seed } — зерно рельефа (по нему высота земли считается заново, кубики — в blocks);
+//       traps — поставленные ловушки (необязательно: в старых сохранениях их нет).
 // ============================================================
 
 import fs from "node:fs";
@@ -39,16 +40,17 @@ export function migrateOldSaves() {
   }
 }
 
-export function saveGame({ world, player, look, creatures, progression, spawned = 0, pickups = [], worldgen = null }) {
+export function saveGame({ world, player, look, creatures, progression, spawned = 0, pickups = [], traps = [], worldgen = null }) {
   const p = player.position;
   writeJSON(SAVE_FILE, {
     version: 6,
     progression, // { experience: { level, xp }, talents: { points, ranks } }
     spawned, //    сколько скелетов уже появилось (каждый следующий крепче)
     savedAt: new Date().toISOString(),
-    player: { x: p.x, y: p.y, z: p.z, yaw: look.yaw, pitch: look.pitch, hp: player.stats.hp, inventory: player.inventory.toJSON(), hotbar: player.hotbar?.toJSON() },
+    player: { x: p.x, y: p.y, z: p.z, yaw: look.yaw, pitch: look.pitch, hp: player.stats.hp, mana: player.stats.mana, inventory: player.inventory.toJSON(), hotbar: player.hotbar?.toJSON() },
     entities: creatures.map(creatureToJSON),
     pickups, //    [{ item, count, x, y, z }] — что лежит на земле
+    traps, //      [{ type, x, y, z, yaw, age }] — поставленные ловушки
     worldgen, //   { seed } — зерно рельефа (null — старый плоский мир)
     blocks: world.toJSON(),
   });

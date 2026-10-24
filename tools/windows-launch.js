@@ -1,9 +1,14 @@
 // ============================================================
 //  Запуск игры «под присмотром» (для Windows, работает и везде).
 //  Запускает games/builder/main.js отдельным процессом, весь его вывод показывает в окне и пишет
-//  в games/builder/saves/console.txt. Если игра упала (код выхода не 0) или закрылась подозрительно
-//  быстро — НЕ закрывает окно: показывает код ошибки, подсказку и хвосты журналов, ждёт Enter.
-//  Так «окно мигнуло и пропало» превращается в текст, который можно прислать.
+//  в games/builder/saves/console.txt.
+//
+//  Видеокарта: если игра падает сразу после старта (чаще всего — сбой драйвера на D3D12), пробуем
+//  другие способы рисования по очереди: как по умолчанию → Vulkan → D3D11 → OpenGL
+//  (переменная VOID_GPU_FLAGS=backend=..., её читает движок). Тот, что заработал, запоминаем
+//  в saves/gpu.txt — в следующий раз начинаем с него.
+//
+//  Если не заработало ничего — окно НЕ закрывается: видны коды ошибок, подсказки и хвосты журналов.
 //
 //    node tools/windows-launch.js
 // ============================================================
@@ -17,7 +22,9 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SAVES = path.join(ROOT, "games", "builder", "saves");
 const CONSOLE_FILE = path.join(SAVES, "console.txt");
 const LOG_FILE = path.join(SAVES, "log.txt");
-const QUICK = 15; // закрылась быстрее, чем за столько секунд, — тоже подозрительно
+const GPU_FILE = path.join(SAVES, "gpu.txt");
+const QUICK = 15; // упала быстрее, чем за столько секунд, — «не взлетело»
+const BACKENDS = ["", "backend=vulkan", "backend=d3d11", "backend=opengl"]; // "" — как решит сама библиотека
 
 // Частые коды аварийного выхода Windows (NTSTATUS) — что они обычно значат
 const HINTS = {
@@ -29,16 +36,8 @@ const HINTS = {
   0x80000003: "аварийная остановка внутри библиотеки (breakpoint) — часто видеодрайвер.",
 };
 
-fs.mkdirSync(SAVES, { recursive: true });
-const out = fs.createWriteStream(CONSOLE_FILE);
-const started = Date.now();
-const child = spawn(process.execPath, [path.join(ROOT, "games", "builder", "main.js")], {
-  cwd: ROOT,
-  stdio: ["inherit", "pipe", "pipe"],
-});
-child.stdout.on("data", (d) => { process.stdout.write(d); out.write(d); });
-child.stderr.on("data", (d) => { process.stderr.write(d); out.write(d); });
-
+const hex = (code) => (code == null ? "-" : "0x" + (code >>> 0).toString(16).toUpperCase());
+const label = (flags) => flags || "по умолчанию";
 const tail = (file, n = 25) => {
   try {
     return fs.readFileSync(file, "utf8").trimEnd().split(/\r?\n/).slice(-n).join("\n");
@@ -47,20 +46,57 @@ const tail = (file, n = 25) => {
   }
 };
 
-child.on("exit", (code, signal) => {
-  const secs = (Date.now() - started) / 1000;
-  out.end();
-  if (code === 0 && secs >= QUICK) process.exit(0); // обычный выход из игры
-  const unsigned = code == null ? null : code >>> 0;
-  const hex = unsigned == null ? "-" : "0x" + unsigned.toString(16).toUpperCase();
-  console.log("\n==================== ИГРА ЗАКРЫЛАСЬ ====================");
-  console.log(`Код выхода: ${code} (${hex})${signal ? `, сигнал ${signal}` : ""}, проработала ${secs.toFixed(1)} с`);
-  if (unsigned != null && HINTS[unsigned]) console.log("Похоже на: " + HINTS[unsigned]);
-  else if (code === 0) console.log("Игра сама закрылась сразу после запуска.");
-  console.log(`\n--- последние строки журнала (${LOG_FILE}) ---\n${tail(LOG_FILE)}`);
-  console.log(`\n--- последние строки вывода (${CONSOLE_FILE}) ---\n${tail(CONSOLE_FILE, 15)}`);
-  console.log("\nСфотографируй это окно или пришли файлы log.txt и console.txt из папки выше.");
-  console.log("Нажми Enter, чтобы закрыть.");
-  process.stdin.resume();
-  process.stdin.once("data", () => process.exit(code || 1));
-});
+fs.mkdirSync(SAVES, { recursive: true });
+
+// Один запуск игры с флагами видеокарты flags. Вернёт { code, signal, secs }
+function runGame(flags, out) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const child = spawn(process.execPath, [path.join(ROOT, "games", "builder", "main.js")], {
+      cwd: ROOT,
+      stdio: ["inherit", "pipe", "pipe"],
+      env: { ...process.env, VOID_GPU_FLAGS: flags },
+    });
+    child.stdout.on("data", (d) => { process.stdout.write(d); out.write(d); });
+    child.stderr.on("data", (d) => { process.stderr.write(d); out.write(d); });
+    // Продержалась QUICK секунд — этот способ рисования рабочий, запоминаем
+    const keep = setTimeout(() => fs.writeFileSync(GPU_FILE, flags), QUICK * 1000);
+    child.on("exit", (code, signal) => {
+      clearTimeout(keep);
+      resolve({ code, signal, secs: (Date.now() - started) / 1000 });
+    });
+  });
+}
+
+// Порядок попыток: сначала то, что уже заработало раньше
+let saved = null;
+try { saved = fs.readFileSync(GPU_FILE, "utf8").trim(); } catch {}
+const order = saved !== null ? [saved, ...BACKENDS.filter((b) => b !== saved)] : BACKENDS;
+
+const out = fs.createWriteStream(CONSOLE_FILE);
+const tries = [];
+let last = null;
+for (const flags of order) {
+  if (tries.length) console.log(`\nНе запустилась (${label(tries.at(-1).flags)}). Пробую другой способ рисования: ${label(flags)}...\n`);
+  out.write(`\n===== запуск: видеокарта ${label(flags)} =====\n`);
+  last = await runGame(flags, out);
+  tries.push({ flags, ...last });
+  if (last.secs >= QUICK) break; // поиграли — это уже не «не взлетело»
+  if (last.code === 0) break; //    сама вышла (например, нажали «Выход») — не перебираем
+}
+out.end();
+
+if (last.code === 0 && last.secs >= QUICK) process.exit(0); // обычный выход из игры
+if (last.code === 0 && tries.length === 1) process.exit(0); // быстро вышли сами — тоже не ошибка
+
+console.log("\n==================== ИГРА ЗАКРЫЛАСЬ ====================");
+for (const t of tries) {
+  const hint = HINTS[t.code >>> 0];
+  console.log(`Видеокарта ${label(t.flags)}: код ${t.code} (${hex(t.code)})${t.signal ? `, сигнал ${t.signal}` : ""}, проработала ${t.secs.toFixed(1)} с${hint ? "\n   похоже на: " + hint : ""}`);
+}
+console.log(`\n--- последние строки журнала (${LOG_FILE}) ---\n${tail(LOG_FILE)}`);
+console.log(`\n--- последние строки вывода (${CONSOLE_FILE}) ---\n${tail(CONSOLE_FILE, 15)}`);
+console.log("\nСфотографируй это окно или пришли файлы log.txt и console.txt из папки выше.");
+console.log("Нажми Enter, чтобы закрыть.");
+process.stdin.resume();
+process.stdin.once("data", () => process.exit(last.code || 1));

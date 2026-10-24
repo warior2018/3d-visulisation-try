@@ -72,6 +72,7 @@ export class AbilityBar {
   constructor(size = 5) {
     this.slots = new Array(size).fill(null);
     this.index = -1; // выбранная ячейка (-1 — ничего)
+    this.grow = new Array(size).fill(0); // 0…1 — насколько ячейка «выросла» (выбранная плавно увеличивается)
     this.equipLeft = 0; // сколько ещё достаём оружие (equipTime) — пока > 0, не бьём и не стреляем
   }
 
@@ -130,7 +131,17 @@ export class AbilityBar {
   }
 
   // input — необязательно: с ним работает autoRepeat (зажатая основная кнопка повторяет действие)
+  // Идёт ли анимация ячеек (интерфейсу — перерисовывать каждый кадр)
+  get animating() {
+    return this.grow.some((g, i) => Math.abs(g - (i === this.index ? 1 : 0)) > 0.01);
+  }
+
   update(dt, ctx, input = null) {
+    // Выбранная ячейка плавно растёт, остальные — обратно (за ~0.12 с)
+    this.grow = this.grow.map((g, i) => {
+      const goal = i === this.index ? 1 : 0;
+      return g + Math.sign(goal - g) * Math.min(Math.abs(goal - g), dt * 8);
+    });
     const a = this.current;
     if (!a) return;
     this.equipLeft = Math.max(0, this.equipLeft - dt);

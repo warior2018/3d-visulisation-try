@@ -9,11 +9,11 @@
 import { burn, chill, poison } from "./status.js";
 
 export const ELEMENTS = {
-  physical: { name: "ФИЗИЧЕСКИЙ", color: [220, 220, 220] },
-  fire: { name: "ОГОНЬ", color: [255, 120, 40], status: burn, statusChance: 0.5 },
-  ice: { name: "ЛЁД", color: [120, 200, 255], status: chill, statusChance: 0.6 },
-  poison: { name: "ЯД", color: [120, 220, 80], status: poison, statusChance: 0.7 },
-  lightning: { name: "МОЛНИЯ", color: [250, 240, 120] },
+  physical: { name: "PHYSICAL", color: [220, 220, 220] },
+  fire: { name: "FIRE", color: [255, 120, 40], status: burn, statusChance: 0.5 },
+  ice: { name: "ICE", color: [120, 200, 255], status: chill, statusChance: 0.6 },
+  poison: { name: "POISON", color: [120, 220, 80], status: poison, statusChance: 0.7 },
+  lightning: { name: "LIGHTNING", color: [250, 240, 120] },
 };
 
 export function defineElement(id, def) {
