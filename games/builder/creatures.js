@@ -6,7 +6,7 @@
 // ============================================================
 
 import { Vec3, Inventory, Player, Mob, NPC, MeleeAttack, SlamAttack, ThrowAttack, HostileBrain, KamikazeBrain, WanderBrain, GuardBrain, FollowBrain, Taming, Rideable, grow, growth } from "../../engine/index.js";
-import { SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, HERO_SCALE, PLAYER } from "./config.js";
+import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, HERO_SCALE, PLAYER } from "./config.js";
 import { maxStack } from "./items.js";
 
 // Головы (хитбоксы хедшотов) — в осях существа: от ног вверх, +Z — куда смотрит.
@@ -148,8 +148,10 @@ export const RESIDENTS = [{ type: "warden", x: -6.5, y: 0, z: -6.5, yaw: 0 }];
 // Насколько крепче моб под номером index (0 — первый из спавнера): скелеты и зомби растут одинаково
 export function mobGrowth(index) {
   const g = SKELETON_GROWTH;
-  const d = growth(index, g.damage); // урон: ×mult (проценты) + add (цифрой)
-  return { bonusHp: grow(0, index, g.hp), damageMult: d.mult, bonusDamage: d.add, bonusXp: growth(index, g.xp).mult - 1 };
+  const S = GROWTH_SOFTCAP;
+  const n = index <= S.soft ? index : S.soft + (index - S.soft) * S.after; // сила — с замедлением после soft
+  const d = growth(n, g.damage); // урон: ×mult (проценты) + add (цифрой)
+  return { bonusHp: grow(0, n, g.hp), damageMult: d.mult, bonusDamage: d.add, bonusXp: growth(index, g.xp).mult - 1 };
 }
 
 const CLASSES = { player: Player, mob: Mob, npc: NPC };

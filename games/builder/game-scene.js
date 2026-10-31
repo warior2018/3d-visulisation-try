@@ -31,6 +31,8 @@ import { BuffsPart } from "./scene/buffs.js";
 import { BossesPart } from "./scene/bosses.js";
 import { InteractPart } from "./scene/interact.js";
 import { HostNet, ClientNet } from "./scene/net.js";
+import { Chat } from "./scene/chat.js";
+import { registerCommands } from "./scene/commands.js";
 
 export class GameScene extends Scene {
   // game — общее для всей игры: { models, openSettings(), toMenu() }
@@ -43,6 +45,8 @@ export class GameScene extends Scene {
     // хост, мы считаем только своего героя (scene/net.js)
     this.role = game.net?.role || "solo";
     this.net = null;
+    this.chat = new Chat(this); // чат (Enter) — scene/chat.js
+    this.god = false; //          консоль: god — бессмертие
 
     this.world = new VoxelWorld();
     this.entities = new EntityManager();
@@ -269,12 +273,14 @@ export class GameScene extends Scene {
     // его считает хост и присылает (тогда tickWorld заменяет сеть: net.applyWorld)
     if (this.role !== "client") this.tickWorld(dt);
     this.net?.tick(dt); // хост — разобрать сообщения гостей и разослать снимок; гость — применить снимки хоста
+    if (this.god) player.stats.hp = player.stats.maxHp; // консоль: god
 
     if (!player.alive) return this.die();
   }
 
   // Сетевая игра (game.net от главного меню: { role, server | client, name }) — scene/net.js
   startNet() {
+    registerCommands(this); // команды консоли этой игры (scene/commands.js)
     const n = this.game.net;
     if (!n) return;
     if (n.role === "host") this.net = new HostNet(this, n.server);
@@ -282,6 +288,14 @@ export class GameScene extends Scene {
       this.net = new ClientNet(this, n.client, n.name);
       this.net.start();
     }
+  }
+
+  // Состояние сетевой игры (консоль: net)
+  netStatus() {
+    const n = this.net;
+    if (!n) return "SOLO GAME";
+    if (n.role === "host") return [`HOST, PORT ${n.server.port}, GUESTS ${n.guests.size}`, ...[...n.guests.values()].map((q) => `  ${q.name}: PING ${q.ping ?? "?"} MS`)];
+    return `GUEST, PING ${n.ping ?? "?"} MS, ${n.ready ? "IN THE HOST WORLD" : "CONNECTING"}`;
   }
 
   // Гость погиб: в чужом мире ничего не стираем — встаём рядом с хостом с полным здоровьем

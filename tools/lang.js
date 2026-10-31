@@ -25,13 +25,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = path.dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 const DICT = path.join(ROOT, "games/builder/lang/ru.js");
 const SCAN = ["engine", "games/builder"]; //                                  где искать надписи
-const SKIP = ["engine/ui/font.js", "engine/ui/i18n.js", "games/builder/lang"]; // где не искать
+const SKIP = ["engine/ui/font.js", "engine/ui/i18n.js", "games/builder/lang", "engine/core/console.js", "games/builder/scene/commands.js"]; // где не искать (консоль разработчика — по-английски, как в Source)
 // Надписи, которые переводить не нужно (клавиши, служебное, имена)
 // Тех. панель (F3) — служебные строки, не переводим
 const TECH = /^(VOID ENGINE|VOID PROFILER|FRAME |TICK |CHUNKS |RAM |GPU |WORLD {2}|ENTITIES |PICKUPS |SPAWNED |XYZ |VIEW |DISK {2}|SYSTEM {2}|GC |HEAP |HITCHES |LAST |MARKUP |OTHER \(|MOBS |\$\{name\} |\$\{"OTHER|  TOP: |  \$\{last)/;
 // Имена систем профайлера (страница F3 «производительность» — техническая, всегда по-английски) и строка рывка
 const PROFILER = /^(?:\[PROFILER\] |PROFILER REPORT|PROFILER: NO DATA|GC: |HITCHES: |\$\{"  "\.repeat|(?:PATHFINDING|AI|UPDATE|TICK|UI|VIEW|RENDER|PRESENT|SPAWN|PROJECTILES|TRAPS|WORLD EVENTS|CREATURES|PHYSICS|ANIMATION|CAMERA|HUD CHECK|HUD DRAW)$|\$\{this\.invasion)/;
-const IGNORE = [TECH, PROFILER, /^E[A-Z]{3,}$/ /* коды ошибок Node (EPERM...) */, /^[LR]-\w+$/, /^ESC$/, /^BACKSPACE$/, /^HP$/, /^ENTER$/, /^LINEAR$/, /^CUBICSPLINE$/, /^STEP$/, /^VOID$/, /^ENGLISH$/, /^FPS \$\{this\.fps\}$/, /^\$\{e\.name\} → /];
+const IGNORE = [TECH, PROFILER, /^(FPS \$\{this\.fps|SOLO GAME|HOST, PORT|  \$\{q\.name\}: PING|GUEST, PING)/ /* консоль: stats / net */, /^E[A-Z]{3,}$/ /* коды ошибок Node (EPERM...) */, /^[LR]-\w+$/, /^ESC$/, /^BACKSPACE$/, /^HP$/, /^ENTER$/, /^LINEAR$/, /^CUBICSPLINE$/, /^STEP$/, /^VOID$/, /^ENGLISH$/, /^FPS \$\{this\.fps\}$/, /^\$\{e\.name\} → /];
 // Этих символов нет в шрифте движка — в переводе заменяем
 const FONT_FIX = [["«", '"'], ["»", '"'], ["—", "-"]];
 

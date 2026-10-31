@@ -111,3 +111,6 @@ export { DelayedStrikes } from "./combat/strikes.js";
 export { Locale, locale, translate } from "./ui/i18n.js";
 export { NetServer, NetClient, localAddresses, DEFAULT_PORT } from "./net/net.js";
 export { TextInputScene } from "./scenes/text-input-scene.js";
+export { DevConsole, num } from "./core/console.js";
+export { ConsoleScene } from "./scenes/console-scene.js";
+export { LineInputScene } from "./scenes/line-input-scene.js";

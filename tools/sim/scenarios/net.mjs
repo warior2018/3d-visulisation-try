@@ -129,6 +129,18 @@ export default async function (t, g) {
   await g.both(peer, 3);
   t.check("опыт за убитого — и гостю", xpGot === 25, `${xpGot}`);
 
+  // чат: гость пишет — у хоста видно с именем; хост пишет — у гостя
+  guest.chat.send("hi host");
+  await g.both(peer, 4);
+  t.check("чат: сообщение гостя у хоста", host.chat.messages.some((m) => m.from === "TESTER" && m.text === "hi host"));
+  host.chat.send("hi guest");
+  await g.both(peer, 4);
+  t.check("чат: сообщение хоста у гостя", guest.chat.messages.some((m) => m.text === "hi guest" && m.from));
+  t.check("чат: о подключении гостя — системное сообщение", host.chat.messages.some((m) => /TESTER JOINED/.test(m.text)));
+  // ping
+  await g.both(peer, 70);
+  t.check("ping измеряется", guest.net.ping !== null && guest.net.ping >= 0, `${guest.net.ping} мс`);
+
   // гость отключился — у хоста его нет
   client.close("тест");
   await g.both(peer, 6);

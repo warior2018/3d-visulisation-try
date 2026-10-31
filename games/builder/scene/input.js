@@ -15,6 +15,7 @@ export class InputPart {
   onPress(actions, event) {
     const has = (a) => actions.includes(a);
     if (has("pause")) return this.pause();
+    if (has("chat")) return this.chat.open(); // чат; «/команда» — консоль
     if (has("inventory")) return this.openInventory();
     if (has("talents")) return this.openTalents();
     if (has("map")) return this.pushLive(new MapScene({ map: () => this.mapData(), radius: 60, info: () => this.coordsText(), legend: "RED CROSS - WORLD CENTER (0, 0). PURPLE SKULL - BOSS" }));

@@ -11,9 +11,11 @@
 //
 //  Сообщения ({ t: тип, ... }):
 //   гость → хост: hello { name }, state { x, y, z, yaw, w }, place { x, y, z, c, s }, remove { x, y, z },
-//                 hit { id, n }, take { id } (подобрать с земли), drop { item, count, data, x, y, z }
+//                 hit { id, n }, take { id } (подобрать с земли), drop { item, count, data, x, y, z },
+//                 chat { text }, ping { ts, ms }
 //   хост → гость: welcome { id, surfaces, chunks, spawn }, snap { e, b, p }, hurt { n, from }, give { item, count, data },
-//                 xp { n } (опыт — общий: за любого убитого моба всем), bye { reason }
+//                 xp { n } (опыт — общий: за любого убитого моба всем), chat { from, text }, pong { ts }, bye { reason }
+//   Связь: гость раз в секунду — ping (хост отвечает pong: так меряем задержку); 10 с тишины — связь потеряна
 //   снимок e — строки [id, тип, x, y, z, yaw, hp, maxHp, флаги: 1 — жив, 2 — идёт, 4 — замахнулся]; b — блоки
 //   [x, y, z, r, g, b, поверхность] (поставили) или [x, y, z] (сломали); p — предметы на земле [id, item, count, x, y, z]
 //   (раз в 4 снимка); h — что в руках у героев [[id, held]]; inv — нашествие [идёт, осталось с, название];
@@ -26,6 +28,7 @@ import { PICKUP_AUTO_RADIUS } from "../config.js";
 
 const SNAP_EVERY = 3; //   снимок раз в 3 тика (20 в секунду при 60 тиках)
 const SNAP_TIME = SNAP_EVERY / 60;
+const TIMEOUT = 10000; // мс без единого сообщения — связь потеряна
 const r2 = (v) => Math.round(v * 100) / 100;
 
 // Звуки без места (в голове у того, кто играет), которые другим слышно из точки, где стоит игрок:
@@ -111,7 +114,11 @@ export class HostNet {
     this.guests = new Map(); // peer.id -> { peer, hero, name }
     this.blocks = []; //   изменения блоков с прошлого снимка
     this.ticks = 0;
-    server.onMessage = (peer, msg) => this.inbox.push([peer, msg]);
+    this.myName = scene.settings.net?.name || "HOST";
+    server.onMessage = (peer, msg) => {
+      peer.data.seen = Date.now();
+      this.inbox.push([peer, msg]);
+    };
     server.onDisconnect = (peer, reason) => this.inbox.push([peer, { t: "leave", reason }]);
     scene.world.onChange = (x, y, z, b) => this.blocks.push(b ? [x, y, z, b.color[0], b.color[1], b.color[2], b.surface || 0] : [x, y, z]);
     this.fx = new FxRelay(scene);
@@ -125,6 +132,11 @@ export class HostNet {
   tick() {
     const g = this.g;
     for (const [peer, msg] of this.inbox.splice(0)) this.handle(peer, msg);
+    // гость замолчал (завис, пропала сеть) — отключаем, его герой исчезнет
+    if (this.ticks % 60 === 0) {
+      const now = Date.now();
+      for (const q of this.guests.values()) if (now - (q.peer.data.seen || now) > TIMEOUT) this.server.kick(q.peer, "timeout");
+    }
     const mine = this.fx.take();
     if (mine) for (const [kind, args] of mine) this.fxOut.push([0, kind, args]);
     if (++this.ticks % SNAP_EVERY) return;
@@ -148,6 +160,10 @@ export class HostNet {
     }
     const fx = this.fxOut.length ? this.fxOut.splice(0) : undefined;
     this.server.broadcast({ t: "snap", e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx });
+  }
+
+  sendChat(text) {
+    this.server.broadcast({ t: "chat", from: this.myName, text });
   }
 
   // Опыт за убитого — и гостям (общий, как в кооперативе)
@@ -178,6 +194,8 @@ export class HostNet {
         this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn });
         g.engine.log(`сеть: подключился ${hero.name} (${peer.address}), отправлено кусков мира ${chunks.length}`);
         g.engine.toast(`${hero.name} JOINED`, 3000);
+        g.chat?.system(`${hero.name} JOINED`);
+        this.server.broadcast({ t: "chat", from: "", text: `${hero.name} JOINED` }, peer);
         return;
       }
       case "leave": {
@@ -186,6 +204,8 @@ export class HostNet {
         this.guests.delete(peer.id);
         g.engine.log(`сеть: ${guest.name} отключился (${msg.reason || ""})`);
         g.engine.toast(`${guest.name} LEFT`, 3000);
+        g.chat?.system(`${guest.name} LEFT`);
+        this.server.broadcast({ t: "chat", from: "", text: `${guest.name} LEFT` });
         return;
       }
     }
@@ -216,6 +236,17 @@ export class HostNet {
         break;
       case "remove":
         g.world.remove(msg.x | 0, msg.y | 0, msg.z | 0);
+        break;
+      case "chat": {
+        const text = String(msg.text || "").slice(0, 120);
+        if (!text) break;
+        g.chat?.add(guest.name, text);
+        this.server.broadcast({ t: "chat", from: guest.name, text }, peer);
+        break;
+      }
+      case "ping":
+        guest.ping = Math.round(+msg.ms || 0);
+        this.server.send(peer, { t: "pong", ts: msg.ts });
         break;
       case "take": {
         // подобрать: кто первый попросил — того и предмет
@@ -260,7 +291,13 @@ export class ClientNet {
     this.taken = new Map(); //  netId -> до какого тика не показывать (уже попросили подобрать)
     this.ready = false; //       мир хоста получен
     this.ticks = 0;
-    client.onMessage = (msg) => this.inbox.push(msg);
+    this.myName = String(name || "GUEST").slice(0, 16).toUpperCase();
+    this.ping = null;
+    this.lastHeard = Date.now();
+    client.onMessage = (msg) => {
+      this.lastHeard = Date.now();
+      this.inbox.push(msg);
+    };
     client.onClose = (reason) => this.inbox.push({ t: "closed", reason });
     // свои изменения блоков — хосту (чужие применяем тихо: world.quiet)
     scene.world.onChange = (x, y, z, b) => {
@@ -277,7 +314,15 @@ export class ClientNet {
   tick(dt) {
     const g = this.g;
     for (const msg of this.inbox.splice(0)) this.handle(msg);
-    if (!this.ready) return;
+    // раз в секунду — ping; хост молчит дольше TIMEOUT — связь потеряна
+    if (this.ticks % 60 === 0) {
+      this.client.send({ t: "ping", ts: Date.now(), ms: this.ping ?? 0 });
+      if (Date.now() - this.lastHeard > TIMEOUT) return this.handle({ t: "closed", reason: "host not responding" });
+    }
+    if (!this.ready) {
+      this.ticks++;
+      return;
+    }
     // копии едут от прошлого снимка к новому (снимок раз в SNAP_TIME)
     for (const e of this.copies.values()) {
       const n = e.net;
@@ -368,6 +413,13 @@ export class ClientNet {
         }
         return;
       }
+      case "chat":
+        if (msg.from) g.chat?.add(String(msg.from).slice(0, 16), String(msg.text || "").slice(0, 120));
+        else g.chat?.system(String(msg.text || "").slice(0, 120));
+        return;
+      case "pong":
+        this.ping = Math.max(0, Date.now() - (+msg.ts || Date.now()));
+        return;
       case "xp":
         g.gainXp(Math.max(0, +msg.n || 0));
         return;
@@ -440,6 +492,10 @@ export class ClientNet {
       g.removeEntity(e);
       this.copies.delete(id);
     }
+  }
+
+  sendChat(text) {
+    this.client.send({ t: "chat", text });
   }
 
   // Подобрать (автоподбор или клавиша): копию убираем сразу, хост пришлёт give

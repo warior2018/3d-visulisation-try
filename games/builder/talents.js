@@ -163,8 +163,15 @@ export const TALENT_TREE = {
         // Последний и самый дорогой: растёт с каждым убийством (считает game-scene.js → onDeath)
         { id: "trophies", name: "TROPHIES", tier: 4, maxRank: 1, cost: 3,
           describe: () => `+${TROPHY.hpPerKill} MAX HP PER KILL (NOW +${Math.floor(TROPHY.hp)} HP)` },
+        // Ветеранские (уровни 46–60): дорогие, на поздний мир, где мобы уже очень крепкие
+        { id: "veteran", name: "VETERAN", tier: 5, maxRank: 5, cost: 2,
+          describe: (r) => `+${15 * r} MAX HP`, stats: (r) => ({ maxHp: 15 * r }) },
+        { id: "iron-will", name: "IRON WILL", tier: 5, maxRank: 3, cost: 2,
+          describe: (r) => `-${pct(0.04 * r)} DMG OF ALL KINDS`, stats: (r) => ({ resist: { physical: 0.04 * r, fire: 0.04 * r, ice: 0.04 * r, poison: 0.04 * r, lightning: 0.04 * r, magic: 0.04 * r } }) },
+        { id: "second-wind", name: "SECOND WIND", tier: 5, maxRank: 2, cost: 2,
+          describe: (r) => `+${0.25 * r}% MAX HP PER SECOND`, stats: (r) => ({ regenPct: 0.0025 * r }) },
       ],
     },
   ],
-  tierPoints: [0, 2, 4, 6], // ярусы — только у ВЫЖИВАНИЯ (у классов — стрелки requires)
+  tierPoints: [0, 2, 4, 6, 12], // ярусы — только у ВЫЖИВАНИЯ (у классов — стрелки requires); 5-й — ветеранский
 };

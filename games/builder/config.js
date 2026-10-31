@@ -56,6 +56,7 @@ export const GAME_DEFAULTS = {
       talents: "key:T",
       map: "key:M",
       interact: "key:F", // подобрать предмет под прицелом
+      chat: "key:RETURN", // чат (и «/команда» — консоль)
     },
   },
 };
@@ -72,6 +73,7 @@ export const GAME_ACTION_LABELS = {
   talents: "TALENTS",
   map: "MAP",
   interact: "INTERACT",
+  chat: "CHAT",
 };
 
 // Своя тема интерфейса (engine/ui/theme.js): «костяная» — тёплые рамки и заголовки.
@@ -221,6 +223,10 @@ export const MOB_RANGED = {
 export const BOAR_SCALE = { hp: { flat: 3 }, damage: MOB_DAMAGE, xp: { pct: 0.025 } };
 
 export const SKELETON_GROWTH = { hp: { flat: 2 }, damage: MOB_DAMAGE, xp: { pct: 0.025 } }; // xp: +2.5 % за каждого следующего
+// Рост мобов замедляется: после soft-го появившегося здоровье и урон растут вдвое медленнее (иначе к 600-му
+// скелету он втрое опаснее героя на максимальном уровне — силы героя ограничены уровнем, а счёт мобов — нет).
+// Опыт за них растёт как раньше
+export const GROWTH_SOFTCAP = { soft: 400, after: 0.5 };
 
 export const REACH = 8; // как далеко ставим блоки (метры)
 
@@ -393,7 +399,9 @@ export const HEARING = { refDistance: 3, maxDistance: 45, rolloff: 1 };
 // Опыт: сколько нужно с уровня L до L+1 (100, 150, 200...). За уровень — 1 очко талантов.
 // Сколько опыта даёт существо — в creatures.js (xp).
 // xpMultiplier — весь получаемый опыт ×1.15 (на 15 % быстрее качаемся)
-export const PROGRESSION = { curve: (level) => 50 + level * 50, pointsPerLevel: 1, maxLevel: 45, xpMultiplier: 1.15 };
+// Уровни: до 60 (было 45). После 45 опыта на уровень нужно больше (×1.5 сверху) — последние 15 уровней долгие,
+// за них — «ветеранские» таланты ВЫЖИВАНИЯ (ярус 5)
+export const PROGRESSION = { curve: (level) => (50 + level * 50) * (level >= 45 ? 1.5 : 1), pointsPerLevel: 1, maxLevel: 60, xpMultiplier: 1.15 };
 // Дальность прорисовки, м (движок: GPURenderer fadeDist; было 60 — стало на 10 % дальше). От неё же — где появляются мобы
 export const VIEW_DISTANCE = 66;
 

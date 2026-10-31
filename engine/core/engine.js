@@ -16,6 +16,8 @@ import "./env.js"; // первым: подсказки для SDL до её за
 import sdl from "@kmamal/sdl";
 import { profiler } from "./profiler.js";
 import { FixedStep } from "./fixed-step.js";
+import { DevConsole, num } from "./console.js";
+import { ConsoleScene } from "../scenes/console-scene.js";
 import { drawPerfPanel } from "../ui/perf-panel.js";
 
 const BACKGROUND = { background: true }; // опции шага мира под «живым» окном (один объект — без мусора)
@@ -77,6 +79,7 @@ export const ENGINE_DEFAULTS = {
       drop: "key:Q", //            в инвентаре: выбросить предмет из ячейки под мышью
       ultimate: "key:X", //        ультимейт (engine/combat/ultimate.js)
       help: "key:F1", //           держать — что умеют атаки и скиллы (widgets.drawHelpOverlay)
+      console: "key:GRAVE", //     консоль разработчика (` / ~), как в Dota 2 / Deadlock / Minecraft
     },
   },
 };
@@ -106,6 +109,7 @@ export const ENGINE_ACTION_LABELS = {
   drop: "DROP",
   ultimate: "ULTIMATE",
   help: "ABILITIES INFO",
+  console: "CONSOLE",
 };
 
 export class Engine {
@@ -146,6 +150,9 @@ export class Engine {
   // tickRate — тиков логики в секунду (сцены с fixedUpdate; см. FixedStep). Можно поднять (128) для сложной игры
   constructor({ window, renderer, settings, actionLabels, journal, theme = {}, tickRate = 60 }) {
     this.fixed = new FixedStep({ rate: tickRate });
+    this.timeScale = 1; // скорость времени мира (консоль: timescale 0.25 — замедление, 2 — ускорение)
+    this.console = new DevConsole({ log: (t) => this.log(t) });
+    this.registerConsole();
     this.tickScene = null; // кому идут тики этого кадра (и с какими опциями) — одна функция на всё время, без мусора
     this.tickOpts = undefined;
     this.runTick = (dt) => {
@@ -470,6 +477,7 @@ export class Engine {
     const actions = this.input.actionsFor(event);
     if (actions.length) this.log(`действия: ${actions.join(", ")} (${scene.label})`);
     if (actions.includes("fullscreen")) this.toggleFullscreen();
+    if (actions.includes("console") && !(scene instanceof ConsoleScene)) return this.push(new ConsoleScene(this.console));
     if (actions.includes("techPanel") && this.input.shift) {
       // Shift+F3 — срез профайлера в журнал (короткий текст: можно вставить в чат)
       if (!profiler.enabled) this.toast("OPEN THE PROFILER PAGE FIRST: F3 TWICE", 2500);
@@ -644,8 +652,31 @@ export class Engine {
     if (opts?.background) this.input.flushPressed();
     target.beforeTicks?.(dt, opts); // раз в кадр до тиков: то, что тики должны знать уже свежим (взгляд мышью)
     // первый живой кадр после меню / паузы: не больше одного тика (время в меню не в счёт)
-    this.fixed.advance(this.prevLiveEnd ? seconds : Math.min(seconds, this.fixed.dt), this.runTick);
-    target.frameUpdate?.(dt, this.fixed.alpha, opts);
+    const k = this.timeScale;
+    this.fixed.advance((this.prevLiveEnd ? seconds : Math.min(seconds, this.fixed.dt)) * k, this.runTick);
+    target.frameUpdate?.(dt * k, this.fixed.alpha, opts);
+  }
+
+  // Общие команды консоли (игра добавляет свои: engine.console.command / cvar)
+  registerConsole() {
+    const c = this.console;
+    c.cvar("timescale", { help: "timescale <0.05..4> - world speed (1 - normal)", cheat: true, get: () => this.timeScale, set: (v) => { this.timeScale = Math.max(0.05, Math.min(4, num(v))); } });
+    c.cvar("tickrate", { help: "tickrate <20..240> - world ticks per second (default 60)", cheat: true, get: () => this.fixed.rate, set: (v) => this.fixed.setRate(Math.round(Math.max(20, Math.min(240, num(v))))) });
+    c.cvar("fps_show", { help: "fps_show 0/1 - FPS counter", get: () => (this.settings.data.interface.showFps ? 1 : 0), set: (v) => { this.settings.data.interface.showFps = v !== "0"; this.settings.save(); this.redraw(); } });
+    c.cvar("brightness", { help: "brightness <30..200> - picture brightness, %", get: () => this.settings.data.video.brightness, set: (v) => { this.settings.data.video.brightness = Math.round(Math.max(30, Math.min(200, num(v)))); this.settings.save(); this.applySettings("brightness"); } });
+    c.command("stats", { help: "stats - fps, frame time, ticks", run: () => `FPS ${this.fps ?? "-"}, FRAME ${(this.cpuAvg ?? 0).toFixed(2)} MS, TICK ${this.fixed.rate} HZ, TICKS ${this.fixed.count}, DROPPED ${this.fixed.dropped}, TIMESCALE ${this.timeScale}` });
+    c.command("profile", { help: "profile - write a profiler report to log.txt (opens the profiler page)", run: () => {
+      this.techPanel = 2;
+      profiler.enabled = true;
+      return "PROFILER ON (F3 PAGE). RUN profile_dump IN A FEW SECONDS";
+    } });
+    c.command("profile_dump", { help: "profile_dump - profiler report to log.txt", run: () => {
+      if (!profiler.enabled) return "PROFILER IS OFF: RUN profile FIRST";
+      const lines = profiler.report("console");
+      this.dumpProfile(lines);
+      return lines.slice(0, 12);
+    } });
+    c.command("quit", { help: "quit - close the game", run: () => this.quit() });
   }
 
   render() {

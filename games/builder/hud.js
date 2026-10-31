@@ -314,6 +314,23 @@ export const HUD_PARTS = [
     },
   },
 
+  // ---------- Чат (Enter): сообщения внизу слева, пропадают через ~12 с ----------
+  {
+    id: "chat",
+    watch: (g) => {
+      const list = g.chat?.visible() || [];
+      return list.length ? { list: list.map((m) => ({ t: (m.from ? m.from + ": " : "") + m.text, c: m.color })), key: list.map((m) => m.at).join() } : null;
+    },
+    draw: (ui, g, d) => {
+      if (!d) return;
+      const bottom = Math.round(ui.height * 0.72) - 8;
+      d.list.forEach((m, i) => {
+        const y = bottom - (d.list.length - i) * 20;
+        ui.rect(20, y - 3, Math.min(760, 14 + m.t.length * 12), 19, [0, 0, 0], 110);
+        ui.text(m.t, 26, y, 2, m.c || [235, 240, 250]);
+      });
+    },
+  },
   // ---------- Вверху ----------
   {
     id: "invasion", // нашествие — красная надпись и сколько ещё держаться
