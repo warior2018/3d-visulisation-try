@@ -27,8 +27,9 @@ tar -xf "%ZIP%" -C "%UNZIP%"
 if errorlevel 1 goto :offline
 set "SRC="
 for /d %%D in ("%UNZIP%\*") do set "SRC=%%D"
-rem проект может лежать в корне репозитория или в папке nodejs_visual
+rem проект может лежать в корне репозитория или в папке VOIDitself (раньше — nodejs_visual)
 if exist "%SRC%\nodejs_visual\package.json" set "SRC=%SRC%\nodejs_visual"
+if exist "%SRC%\VOIDitself\package.json" set "SRC=%SRC%\VOIDitself"
 if not exist "%SRC%\package.json" goto :offline
 rem копируем всё, кроме сохранений и библиотек; лишние старые файлы убираем (/MIR)
 robocopy "%SRC%" "%GAME%" /MIR /XD node_modules saves /NFL /NDL /NJH /NJS /NP >nul

@@ -76,21 +76,56 @@ export class UI {
   // Кольцо между радиусами r0 и r1. fraction (0..1) — какая часть кольца:
   // от «12 часов» по часовой стрелке (для круговой шкалы, как опыт вокруг портрета)
   ring(cx, cy, r0, r1, color, alpha = 255, fraction = 1) {
+    const { fb } = this;
+    const px = fb.pixels;
+    const value = ((alpha << 24) | (color[2] << 16) | (color[1] << 8) | color[0]) >>> 0;
     const limit = fraction * Math.PI * 2;
-    for (let y = Math.floor(cy - r1); y <= Math.ceil(cy + r1); y++) {
-      for (let x = Math.floor(cx - r1); x <= Math.ceil(cx + r1); x++) {
-        const dx = x + 0.5 - cx;
-        const dy = y + 0.5 - cy;
-        const d = Math.hypot(dx, dy);
-        if (d < r0 || d > r1) continue;
-        if (fraction < 1) {
-          let a = Math.atan2(dx, -dy); // 0 — вверх, по часовой
-          if (a < 0) a += Math.PI * 2;
-          if (a > limit) continue;
+    const yA = Math.max(0, Math.floor(cy - r1)), yB = Math.min(fb.height - 1, Math.ceil(cy + r1));
+    for (let y = yA; y <= yB; y++) {
+      const dy = y + 0.5 - cy;
+      if (dy * dy > r1 * r1) continue;
+      // Пиксель (x, y) в кольце, если r0 ≤ расстояние от его середины до центра ≤ r1. В строке это один или
+      // два отрезка: [L, R] без «дырки» (−hi, hi) — считаем их концы и заливаем строку целиком (fill), а не
+      // по пикселю с корнем на каждый (кольца ульты, портрета и значков — тысячи пикселей на перерисовку)
+      const ho = Math.sqrt(r1 * r1 - dy * dy);
+      const L = Math.max(0, Math.ceil(cx - ho - 0.5)), R = Math.min(fb.width - 1, Math.floor(cx + ho - 0.5));
+      if (R < L) continue;
+      const hole = r0 * r0 > dy * dy ? Math.sqrt(r0 * r0 - dy * dy) : -1;
+      const spans = hole < 0 ? [[L, R]] : [[L, Math.min(R, Math.floor(cx - hole - 0.5))], [Math.max(L, Math.ceil(cx + hole - 0.5)), R]];
+      const row = y * fb.width;
+      for (const [x0, x1] of spans) {
+        if (x1 < x0) continue;
+        if (fraction >= 1) {
+          px.fill(value, row + x0, row + x1 + 1);
+          continue;
         }
-        this.pixel(x, y, color, alpha);
+        for (let x = x0; x <= x1; x++) { // часть кольца — по углу (от «12 часов» по часовой)
+          let a = Math.atan2(x + 0.5 - cx, -dy);
+          if (a < 0) a += Math.PI * 2;
+          if (a <= limit) px[row + x] = value;
+        }
       }
     }
+  }
+
+  // Запомнить кусок картинки интерфейса (x, y, w, h) — чтобы потом вернуть его paste без перерисовки
+  // (дорогая часть HUD, которая меняется реже, чем весь HUD: миникарта)
+  grab(x, y, w, h) {
+    const { fb } = this;
+    const x0 = Math.max(0, Math.round(x)), y0 = Math.max(0, Math.round(y));
+    const x1 = Math.min(fb.width, Math.round(x + w)), y1 = Math.min(fb.height, Math.round(y + h));
+    const W = Math.max(0, x1 - x0), H = Math.max(0, y1 - y0);
+    const data = new Uint32Array(W * H);
+    for (let r = 0; r < H; r++) data.set(fb.pixels.subarray((y0 + r) * fb.width + x0, (y0 + r) * fb.width + x0 + W), r * W);
+    return { x: x0, y: y0, w: W, h: H, width: fb.width, height: fb.height, data };
+  }
+
+  // Вернуть запомненный кусок на место. false — окно с тех пор поменяло размер (рисуй заново)
+  paste(img) {
+    const { fb } = this;
+    if (!img || img.width !== fb.width || img.height !== fb.height) return false;
+    for (let r = 0; r < img.h; r++) fb.pixels.set(img.data.subarray(r * img.w, (r + 1) * img.w), (img.y + r) * fb.width + img.x);
+    return true;
   }
 
   // Рамка толщиной t

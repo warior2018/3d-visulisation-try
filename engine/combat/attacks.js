@@ -92,8 +92,12 @@ export class Attack {
     const base = (ctx.baseDamage ?? this.roll(random)) * (ctx.cleave ? this.arcMultiplier ?? 1 : 1); // взмах по сектору — свой множитель
     const d = new Damage({ amount: base, element: this.element, source: owner, attack: this, tags: [this.kind, ...this.extraTags] });
     // use — контекст этого удара: один и тот же для всех целей одного взмаха (сплеш катаны)
-    const mctx = { owner, target, attack: this, random, part: ctx.part || null, use: ctx.use || ctx }; // use — общий на весь взмах / залп
-    for (const m of this.allModifiers(owner)) m.apply(d, mctx);
+    const mctx = this.modifierContext(owner, target, ctx);
+    for (const m of this.allModifiers(owner)) {
+      const before = d.amount;
+      m.apply(d, mctx);
+      if (d.amount !== before) d.applied.push({ id: m.id, delta: d.amount - before }); // для счётчика урона
+    }
     // Попали в часть тела с множителем (голова) — урон умножается после всех модификаторов
     if (ctx.part?.multiplier && ctx.part.multiplier !== 1) {
       d.amount *= ctx.part.multiplier;
@@ -105,12 +109,21 @@ export class Attack {
     return d;
   }
 
+  // Контекст для модификаторов (см. modifiers.js): attacker / victim — кто бьёт и кого;
+  // owner / target — то же самое (старые имена). use — общий на весь взмах / залп
+  modifierContext(owner, target, ctx) {
+    return {
+      attacker: owner, victim: target, owner, target, attack: this,
+      random: ctx.random || Math.random, part: ctx.part || null, use: ctx.use || ctx,
+    };
+  }
+
   // Ударить одну цель
   hit(owner, target, ctx) {
     const damage = this.makeDamage(owner, target, ctx);
     const { dealt, killed, blocked = false } = target.receive(damage);
     const result = { target, damage, dealt, killed, blocked }; // blocked — цель отбила удар (блок)
-    const mctx = { owner, target, attack: this, random: ctx.random || Math.random };
+    const mctx = this.modifierContext(owner, target, ctx);
     for (const m of this.allModifiers(owner)) m.afterHit(result, mctx); // вампиризм и т. п.
     ctx.onHit?.(result);
     return result;
@@ -588,7 +601,7 @@ export class TrapAttack extends Attack {
     const caught = (ctx.entities || []).filter((e) => e.alive && this.filter(e) && this.touches(e));
     if (!caught.length) return null;
     const random = ctx.random || Math.random;
-    const base = (e) => this.roll(random) + this.percentHp * e.stats.maxHp;
+    const base = (e) => this.roll(random) + this.percentHp * e.stats.maxHp * (e.percentDamageScale ?? 1); // боссам — слабее
     const hits = [];
     for (const e of caught) {
       if (e === this.owner) {

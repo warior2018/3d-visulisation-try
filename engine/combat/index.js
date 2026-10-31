@@ -1,5 +1,7 @@
 // Бой: всё одним импортом (то же самое есть и в engine/index.js)
-export { Damage } from "./damage.js";
+export { Damage, creditOf } from "./damage.js";
+export { CombatLog, combatLog } from "./combat-log.js";
+export { UltimateCharge } from "./ultimate.js";
 export { ELEMENTS, defineElement } from "./elements.js";
 export { StatusEffect, DamageOverTime, Slow, burn, poison, chill, bleed, stun, buff, debuff, parry, BURN_LEVELS } from "./status.js";
 export {

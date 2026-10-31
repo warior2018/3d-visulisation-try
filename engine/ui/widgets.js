@@ -5,6 +5,7 @@
 
 export const TEXT = [235, 240, 250]; //  основной цвет текста
 import { measureText } from "./font.js";
+import { translate } from "./i18n.js";
 
 export const MUTED = [140, 155, 180]; // приглушённый (подсказки)
 export const WARN = [240, 200, 110]; //  жёлтый (внимание)
@@ -50,8 +51,9 @@ export function drawBar(ui, x, y, w, h, value, max, color = [200, 50, 50]) {
 
 // Сетка инвентаря. itemInfo(id) -> { name, color } — что за предмет, решает игра.
 // x, y — левый верхний угол (по умолчанию — по центру экрана, не выше top)
-export function inventoryGridSize(inventory, { cols = 5, size = 100, gap = 10 } = {}) {
-  const rows = Math.ceil(inventory.size / cols);
+// indices — показать только эти ячейки (по порядку; например, ячейки 1 и 2 хотбара отдельной колонкой)
+export function inventoryGridSize(inventory, { cols = 5, size = 100, gap = 10, indices = null } = {}) {
+  const rows = Math.ceil((indices?.length ?? inventory.size) / cols);
   return { w: cols * size + (cols - 1) * gap, h: rows * size + (rows - 1) * gap };
 }
 
@@ -59,14 +61,17 @@ export function inventoryGridSize(inventory, { cols = 5, size = 100, gap = 10 } 
 //   hover — номер ячейки под мышью (подсветить), picked — ячейка, из которой взяли предмет (тусклая),
 //   label(i) — подпись в углу ячейки (например, клавиша хотбара), buttonId(i) — id кнопки ячейки (клик).
 //   itemInfo(id) → { name, color, drawIcon?(ui, x, y, size) } — свой значок предмета, если есть.
-export function drawInventoryGrid(ui, inventory, itemInfo, { cols = 5, size = 100, gap = 10, top = 0, x, y, hover = -1, picked = -1, label = null, buttonId = null } = {}) {
-  const rows = Math.ceil(inventory.size / cols);
+//   indices — показать только эти ячейки (по порядку): в прямоугольниках i — настоящий номер ячейки
+export function drawInventoryGrid(ui, inventory, itemInfo, { cols = 5, size = 100, gap = 10, top = 0, x, y, hover = -1, picked = -1, label = null, buttonId = null, indices = null } = {}) {
+  const list = indices ?? inventory.slots.map((_, i) => i);
+  const rows = Math.ceil(list.length / cols);
   const x0 = x ?? ui.width / 2 - (cols * size + (cols - 1) * gap) / 2;
   const y0 = y ?? Math.max(top, ui.height / 2 - (rows * (size + gap)) / 2);
   const rects = [];
-  inventory.slots.forEach((slot, i) => {
-    const x = x0 + (i % cols) * (size + gap);
-    const y = y0 + Math.floor(i / cols) * (size + gap);
+  list.forEach((i, n) => {
+    const slot = inventory.slots[i];
+    const x = x0 + (n % cols) * (size + gap);
+    const y = y0 + Math.floor(n / cols) * (size + gap);
     rects.push({ i, x, y, w: size, h: size });
     const hot = i === hover;
     ui.rect(x, y, size, size, hot ? [44, 56, 82] : [30, 38, 56], 220);
@@ -122,7 +127,7 @@ export function drawAbilityBar(ui, bar, { keyLabel, ctx, size = 56, gap = 8, bot
     x += s + gap;
   });
   const tallest = Math.max(...sizes);
-  return { x: Math.round(ui.width / 2 - total / 2), y: base - tallest, width: total }; // где нарисовали (чтобы поставить что-то над)
+  return { x: Math.round(ui.width / 2 - total / 2), y: base - tallest, width: total, height: tallest }; // где нарисовали (чтобы поставить что-то над)
 }
 
 // Красная рамка по краям экрана (получили урон). strength — от 0 до 1
@@ -211,4 +216,139 @@ export function drawCooldowns(ui, list, { x, y, size = 32, gap = 6 } = {}) {
     cx += size + gap;
   }
   return list.length ? list.length * (size + gap) - gap : 0;
+}
+
+// Ультимейт в стиле Overwatch: круг с процентами, по кругу — заряд (по часовой от «12 часов»).
+// Готов — кольцо цвета color и надпись key (клавиша). { x, y — центр, r, percent (0…100), key, color }
+export function drawUltimate(ui, { x, y, r = 30, percent = 0, key = "", color = [255, 210, 90] }) {
+  const ready = percent >= 100;
+  const w = Math.max(5, Math.round(r * 0.14)); // толщина кольца — по размеру
+  const scale = r >= 40 ? 3 : 2; //               крупный круг — крупные цифры
+  ui.circle(x, y, r, [16, 18, 24], 210);
+  ui.ring(x, y, r - w, r, [60, 66, 80], 255);
+  if (percent > 0) ui.ring(x, y, r - w, r, ready ? color : [235, 240, 250], 255, Math.min(1, percent / 100));
+  if (ready) {
+    ui.ring(x, y, r + 2, r + 5, color, 160);
+    ui.text(key || "ULT", x, y - 3.5 * scale, scale, color, "center");
+  } else {
+    ui.text(`${percent}%`, x, y - 3.5 * scale, scale, TEXT, "center");
+  }
+}
+
+// Разбить текст на строки не шире width пикселей (по словам). Сначала переводим целиком (язык интерфейса),
+// иначе куски строки не нашлись бы в словаре
+export function wrapText(text, width, scale = 2) {
+  const lines = [];
+  let line = "";
+  for (const word of translate(String(text)).split(/\s+/).filter(Boolean)) {
+    const next = line ? line + " " + word : word;
+    if (line && measureText(next, scale) > width) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// Справка поверх игры (держишь F1, как в Overwatch): полупрозрачный экран, колонки-карточки.
+// columns: [{ title, rows: [{ key, name, text }], compact?, empty? }]; title, footer — необязательно.
+// compact — мелкий текст (длинный список: таланты); empty — надпись, если строк нет. Не влезло по высоте — «...»
+export function drawHelpOverlay(ui, { title = "", columns = [], footer = "", alpha = 185 } = {}) {
+  ui.rect(0, 0, ui.width, ui.height, DIM, alpha);
+  if (title) ui.text(title, ui.width / 2, 40, 3, TEXT, "center");
+  const n = Math.max(1, columns.length);
+  const gap = 20;
+  const cardW = Math.min(380, Math.floor((ui.width - 80 - gap * (n - 1)) / n));
+  let x = Math.round(ui.width / 2 - (cardW * n + gap * (n - 1)) / 2);
+  const top = 100;
+  const scale = cardW >= 300 ? 2 : 1;
+  const bottom = ui.height - 70; // ниже — подпись (footer)
+  for (const col of columns) {
+    let y = top + 16;
+    const body = []; // сначала разметка — чтобы знать высоту карточки
+    y += 30;
+    const sc = col.compact ? 1 : scale, lh = 8 * sc + 4;
+    let cut = false;
+    const rows = col.rows?.length ? col.rows : col.empty ? [{ key: "", name: "", text: col.empty }] : [];
+    for (const r of rows) {
+      const keyW = r.key ? Math.max(36, measureText(r.key, 2) + 12) : 0;
+      const lines = wrapText(r.text || "", cardW - 28, sc);
+      const hgt = (r.key || r.name ? 26 : 0) + lines.length * lh + (col.compact ? 6 : 10);
+      if (y + hgt > bottom) {
+        cut = true;
+        break;
+      }
+      body.push({ r, y, keyW, lines, sc, lh });
+      y += hgt;
+    }
+    if (cut) y += 20;
+    const h = y - top + 6;
+    ui.rect(x, top, cardW, h, [20, 26, 38], 200);
+    ui.frame(x, top, cardW, h, [90, 105, 135], 2);
+    ui.text(col.title || "", x + cardW / 2, top + 16, 2, WARN, "center"); // поверх подложки
+    for (const { r, y: ry, keyW, lines, sc, lh } of body) {
+      const head = r.key || r.name ? 26 : 0;
+      if (r.key) {
+        ui.rect(x + 12, ry - 4, keyW, 24, [52, 66, 96], 255);
+        ui.text(r.key, x + 12 + keyW / 2, ry + 2, 2, TEXT, "center");
+      }
+      if (r.name) ui.text(r.name, x + 12 + (keyW ? keyW + 10 : 0), ry + 2, 2, TEXT);
+      lines.forEach((l, i) => ui.text(l, x + 14, ry + head + i * lh, sc, MUTED));
+    }
+    if (cut) ui.text("...", x + cardW / 2, y - 22, 2, MUTED, "center");
+    x += cardW + gap;
+  }
+  if (footer) ui.text(footer, ui.width / 2, ui.height - 40, 2, MUTED, "center");
+}
+
+// Одна ячейка панели (оружие, скилл, предмет): подложка, значок, клавиша в углу, перезарядка «часиками».
+//   drawIcon(ui, x, y, size) — значок (или text — короткая надпись по центру, например имя скилла)
+//   key — клавиша сверху слева; top — надпись над ячейкой; active — выбрана (белая рамка);
+//   empty — пустая (тусклая); cooldown — { progress 0…1 (сколько прошло), left — секунд } или null;
+//   skew — наклон в пикселях: верх ячейки сдвинут вправо на skew относительно низа (параллелограмм, 0 — квадрат).
+//   x — левый край НИЗА ячейки; вся ячейка занимает по ширине size + skew
+export function drawSlot(ui, { x, y, size = 56, drawIcon = null, text = null, key = "", top = null, active = false, empty = false, cooldown = null, color = null, skew = 0 }) {
+  const shift = (py) => Math.round(skew * (1 - py / size)); // сдвиг строки py (0 — верх) вправо
+  const band = 2; //                                           рисуем полосами по 2 пикселя
+  const fill = active ? [52, 66, 96] : [24, 30, 44];
+  const alpha = empty && !active ? 120 : 215;
+  for (let py = 0; py < size; py += band) ui.rect(x + shift(py), y + py, size, band, fill, alpha);
+  const cx = x + skew / 2; // значок — по середине наклонной ячейки
+  if (!empty) {
+    if (drawIcon) drawIcon(ui, cx, y, size);
+    else if (text) ui.text(text, cx + size / 2, y + size / 2 - 7, 2, color || TEXT, "center");
+  }
+  if (cooldown && cooldown.left > 0) {
+    const p = Math.max(0, Math.min(1, cooldown.progress ?? 0));
+    const r = size / 2;
+    for (let py = 0; py < size; py += band) {
+      for (let px = 0; px < size; px += band) {
+        let a = Math.atan2(px + band / 2 - r, -(py + band / 2 - r)) / (Math.PI * 2); // 0 — вверх, по часовой
+        if (a < 0) a += 1;
+        if (a >= p) ui.rect(x + shift(py) + px, y + py, band, band, [0, 0, 0], 150);
+      }
+    }
+    const t = cooldown.left >= 10 ? String(Math.ceil(cooldown.left)) : cooldown.left.toFixed(1);
+    ui.text(t, cx + size / 2, y + size / 2 - 7, 2, [255, 255, 255], "center");
+  }
+  // Рамка: верх и низ — полосы, бока — по строкам (наклонные)
+  const edge = active ? [255, 255, 255] : color && !empty ? color : [70, 85, 115];
+  const t = active ? 3 : 2;
+  ui.rect(x + shift(0), y, size, t, edge);
+  ui.rect(x, y + size - t, size, t, edge);
+  for (let py = 0; py < size; py += band) {
+    ui.rect(x + shift(py), y + py, t, band, edge);
+    ui.rect(x + shift(py) + size - t, y + py, t, band, edge);
+  }
+  if (key && key !== "-") ui.text(key, x + shift(0) + 6, y + 5, 2, empty ? MUTED : [255, 255, 255]);
+  if (top) ui.text(top, cx + size / 2, y - 18, 2, [230, 230, 230], "center");
+}
+
+// Тех. панель (F3): строки мелким шрифтом на тёмной подложке, слева сверху. Пустая строка — отступ
+export function drawTechPanel(ui, lines, { x = 6, y = 6, scale = 2 } = {}) {
+  const lh = 8 * scale + 4;
+  const w = Math.max(...lines.map((l) => measureText(l, scale))) + 16;
+  ui.rect(x, y, w, lines.length * lh + 10, [8, 10, 16], 185);
+  lines.forEach((l, i) => ui.text(l, x + 8, y + 6 + i * lh, scale, i === 0 ? WARN : TEXT));
 }

@@ -23,9 +23,10 @@ import { Brain } from "./brain.js";
 import { WanderBrain } from "./wander.js";
 import { Navigator } from "./pathfinder.js";
 import { alertHerd, tauntTarget, busy, auraTarget } from "./social.js";
-import { pursue, separate, melee, turnTowards } from "../world/behaviors.js";
+import { pursue, separate, neighbors, melee, turnTowards } from "../world/behaviors.js";
 
 const dist2d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z);
+const NONE = Object.freeze([]); // «никто не разозлился» — один общий пустой список, а не новый каждый кадр
 
 export class HostileBrain extends Brain {
   // herd: { radius, alertOnSight } или null — без стада
@@ -72,7 +73,7 @@ export class HostileBrain extends Brain {
   update(e, ctx, dt) {
     const entities = ctx.entities;
     e.nav ||= new Navigator({ ...ctx.navWorld, height: Math.ceil(e.height - 1e-6) }); // свой «штурман» у каждого, под рост существа
-    let alerted = [];
+    let alerted = NONE;
 
     // 1. Злость. Цель «прилипает»: ударили — злимся на обидчика, только если своей цели ещё нет
     const hurtBy = e.attackedBy;
@@ -124,10 +125,12 @@ export class HostileBrain extends Brain {
       e.velocity.z = 0;
       turnTowards(e, Math.atan2(target.position.x - e.position.x, target.position.z - e.position.z), this.turnSpeed, dt);
     } else if (target) {
-      walking = pursue(e, target, dt, {
-        navigator: e.nav, radius: target === hunt ? this.huntRadius : this.leash, speed: e.speed,
-        stopDistance: this.stopDistance, turnSpeed: this.turnSpeed, jumpSpeed: this.jumpSpeed,
-      });
+      // Настройки погони — один объект на существо (каждый кадр только обновляем числа, без нового объекта)
+      const opts = (e.pursueOpts ||= { navigator: e.nav, stopDistance: this.stopDistance, turnSpeed: this.turnSpeed, jumpSpeed: this.jumpSpeed });
+      opts.navigator = e.nav;
+      opts.radius = target === hunt ? this.huntRadius : this.leash;
+      opts.speed = e.speed;
+      walking = pursue(e, target, dt, opts);
     } else if (T && fromHome(e) > 1) {
       // Без цели и не дома — идём в центр логова
       walking = pursue(e, { position: { x: T.x, y: e.position.y, z: T.z } }, dt, {
@@ -141,7 +144,7 @@ export class HostileBrain extends Brain {
     }
 
     // 3. Не толпиться и бить
-    if (target || !this.idle) separate(e, entities);
+    if (target || !this.idle) separate(e, neighbors(e, ctx));
     if (e.attack) {
       if (target && !shooting) melee(e, target, dt, e.attack, ctx.combatFor?.(e) || {});
       else e.attack.update(dt); // кулдаун идёт и без цели

@@ -8,7 +8,7 @@
 import { Brain } from "./brain.js";
 import { WanderBrain } from "./wander.js";
 import { Navigator } from "./pathfinder.js";
-import { pursue, separate, melee } from "../world/behaviors.js";
+import { pursue, separate, neighbors, melee } from "../world/behaviors.js";
 import { tauntTarget, busy } from "./social.js";
 
 const dist2d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z);
@@ -59,7 +59,7 @@ export class GuardBrain extends Brain {
       navigator: e.nav, radius: this.leash * 2, speed: e.speed * 1.6, // в бою — бегом
       stopDistance: this.stopDistance, turnSpeed: this.turnSpeed,
     });
-    separate(e, ctx.entities);
+    separate(e, neighbors(e, ctx));
     if (e.attack) melee(e, e.aggro, dt, e.attack, ctx.combatFor?.(e) || {});
     return { walking, alerted: [] };
   }

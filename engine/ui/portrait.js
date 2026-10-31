@@ -33,6 +33,7 @@ export function drawPortrait(ui, {
     const scale = Math.floor(((inner - 1) * 2 * 0.86) / Math.max(w, h)); // чуть меньше круга
     const ox = Math.round(cx - (w * scale) / 2);
     const oy = Math.round(cy - (h * scale) / 2) + 2;
+    const R2 = (inner - 1) * (inner - 1); // в круге: квадрат расстояния ≤ R² (без корня на каждый пиксель)
     for (let row = 0; row < h; row++) {
       for (let col = 0; col < w; col++) {
         const color = palette[sprite[row][col]];
@@ -41,7 +42,8 @@ export function drawPortrait(ui, {
           for (let px = 0; px < scale; px++) {
             const X = ox + col * scale + px;
             const Y = oy + row * scale + py;
-            if (Math.hypot(X + 0.5 - cx, Y + 0.5 - cy) <= inner - 1) ui.pixel(X, Y, color);
+            const dx = X + 0.5 - cx, dy = Y + 0.5 - cy;
+            if (inner >= 1 && dx * dx + dy * dy <= R2) ui.pixel(X, Y, color);
           }
         }
       }

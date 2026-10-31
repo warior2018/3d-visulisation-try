@@ -2,7 +2,7 @@
 //  Дерево талантов «Стройки» — по схемам классов. Правила (очки, ранги, требования) — в движке
 //  (engine/progression/talents.js), здесь — сами таланты.
 //
-//  4 вкладки классов (видна только вкладка своего класса) + ВЫЖИВАНИЕ (всем).
+//  2 вкладки классов (видна только вкладка своего класса) + ВЫЖИВАНИЕ (всем).
 //  Вкладка класса — дерево: по краям ветки оружия (боковые, по 2 очка за ранг), в середине — GENERAL
 //  (ранги 1–2 по 1 очку, с 3-го — по 2). Стрелки схемы — requires: чтобы открыть талант, нужен хотя бы
 //  1 ранг каждого из требуемых. Внизу каждого дерева — трофеи: +% урона за каждое убийство.
@@ -10,12 +10,13 @@
 //
 //  Таланты вкладки с kind действуют только на атаки этого вида (БОЕЦ — ближний бой и т. д.).
 //  Что не модификатор урона, а правило игры (радиус молота, граната, магма...) — stats: их читает игра
-//  (game-scene.js → applyTalents / applySummonTalents и места, где это работает).
+//  (game-scene.js → applyTalents и места, где это работает).
 // ============================================================
 
+import { HAMMER, FALL_DAMAGE } from "./config.js";
 import {
   damageMultiplier, cooldownReduction, lifesteal, guaranteedCrit, withStatus, convertTo, bleed, stun, Slow,
-  firstHit, vsStunned, headshotBonus, rampPerHit, onlyAttack,
+  firstHit, vsStunned, headshotBonus, rampPerHit, onlyAttack, reachBonus,
 } from "../../engine/index.js";
 
 const pct = (x) => `${Math.round(x * 1000) / 10}%`;
@@ -28,12 +29,13 @@ const faster = (x) => cooldownReduction(1 - 1 / (1 + x));
 const at = (list, r) => list[Math.min(r, list.length) - 1];
 
 // Трофеи: сколько уже набрано за убитых. Игра обновляет и сохраняет, здесь — чтобы описания показывали цифры.
-//  «ТРОФЕИ» (Выживание) — hp: +1 % макс. HP каждого убитого (share);
+//  «ТРОФЕИ» (Выживание) — hp: +hpPerKill макс. HP за каждое убийство;
 //  трофеи урона — у каждого класса свой (внизу дерева): +perKill % к урону его вида за убийство этим видом.
-export const TROPHY = { share: 0.01, hp: 0, perKill: 0.3, pct: { melee: 0, ranged: 0, magic: 0, summon: 0 } };
+// hpPerKill — талант «ТРОФЕИ»: +столько макс. HP за каждое убийство (без предела)
+export const TROPHY = { hpPerKill: 1, hp: 0, perKill: 0.3, pct: { melee: 0, ranged: 0, blast: 0 } };
 
-// Какой талант копит трофеи урона для какого вида атак (summon — звери и турели призывателя)
-export const TROPHY_TALENTS = { melee: "fighter-trophies", ranged: "marksman-trophies", magic: "mage-trophies", summon: "summoner-trophies" };
+// Какой талант копит трофеи урона для какого вида атак
+export const TROPHY_TALENTS = { melee: "fighter-trophies", ranged: "marksman-trophies", blast: "demo-trophies" };
 
 export const trophyPct = (kind) => +TROPHY.pct[kind].toFixed(1);
 
@@ -62,21 +64,26 @@ export const TALENT_TREE = {
           describe: (r) => `HAMMER SLAM RADIUS ${at([1.5, 2, 2.5], r)} BLOCKS (BASE 1)`,
           stats: (r) => ({ hammerSlam: at([1.5, 2, 2.5], r) }) },
         { id: "hammer-leap", name: "JUMP SLAM", maxRank: 1, cost: SIDE, col: 0.5, row: 1, requires: ["hammer-slam"],
-          describe: () => "WITH THE HAMMER: JUMP 80% HIGHER, SLAM +50% DMG PER BLOCK FALLEN (UP TO X3)", stats: () => ({ hammerLeap: true }) },
+          describe: () => `WITH THE HAMMER: JUMP 80% HIGHER, SLAM X${HAMMER.perStep} DMG MORE PER ${HAMMER.step} BLOCK FALLEN (UP TO X${HAMMER.maxMult}). FALL DMG FROM +${FALL_DAMAGE.jumpSlam.from} BLOCKS HIGHER, X${FALL_DAMAGE.jumpSlam.mult}`, stats: () => ({ hammerLeap: true }) },
         damageTalent("f-damage", [0.1, 0.15, 0.2, 0.25, 0.3]),
         { id: "f-speed", name: "ATTACK SPEED", maxRank: 5, cost: GENERAL, col: 3, row: 0,
           describe: (r) => `+${pct(at([0.1, 0.2, 0.3, 0.4, 0.5], r))} ATTACK SPEED`, modifiers: (r) => [faster(at([0.1, 0.2, 0.3, 0.4, 0.5], r))] },
         { id: "f-lifesteal", name: "LIFESTEAL", maxRank: 3, cost: GENERAL, col: 2, row: 1, requires: ["f-damage"],
           describe: (r) => `${pct(at([0.2, 0.35, 0.5], r))} OF DMG AS HEALTH`, modifiers: (r) => [lifesteal(at([0.2, 0.35, 0.5], r))] },
         { id: "f-bleed", name: "BLEED", maxRank: 3, cost: GENERAL, col: 3, row: 1, requires: ["f-speed"],
-          describe: (r) => `HITS BLEED ${pct(at([0.1, 0.15, 0.2], r))} MAX HP IN 3 S (STACKS)`, modifiers: (r) => [withStatus(bleed(at([0.1, 0.15, 0.2], r)))] },
+          describe: (r) => `HITS BLEED ${pct(at([0.1, 0.15, 0.2], r))} MAX HP IN 3 S (UP TO 3 STACKS)`, modifiers: (r) => [withStatus(bleed(at([0.1, 0.15, 0.2], r)))] },
         { id: "f-crit", name: "CRIT", maxRank: 2, cost: GENERAL, col: 2.5, row: 2, requires: ["f-lifesteal", "f-bleed"],
           describe: (r) => `CRIT X${at([2, 3], r)} ONCE EVERY ${at([8, 7], r)} S`, modifiers: (r) => [guaranteedCrit(at([2, 3], r), at([8, 7], r), "fighter-crit")] },
-        damageTrophy("melee", "FIGHTER TROPHIES", "IN MELEE", 2.5, 3, ["f-crit"]),
+        damageTrophy("melee", "FIGHTER TROPHIES", "IN MELEE", 3, 3, ["f-crit"]),
+        // Дальность ударов ближнего боя (reachFor: мачете, катана, копьё, кулак): 1 очко за ранг
+        { id: "f-reach", name: "REACH", maxRank: 3, cost: 1, col: 2, row: 3,
+          describe: (r) => `+${pct(at([0.1, 0.2, 0.3], r))} MELEE REACH`, modifiers: (r) => [reachBonus(at([0.1, 0.2, 0.3], r))] },
         { id: "katana-iai", name: "IAI MULTIPLIER", maxRank: 3, cost: SIDE, col: 4, row: 0,
           describe: (r) => `IAI STRIKE X${at([2, 3, 4], r)} DMG`, stats: (r) => ({ iaiMult: at([2, 3, 4], r) }) },
         { id: "katana-speed", name: "IAI SPEED", maxRank: 3, cost: SIDE, col: 5, row: 0,
           describe: (r) => `+${pct(at([0.1, 0.15, 0.2], r))} SPEED WHILE IAI IS CHARGED`, stats: (r) => ({ iaiSpeed: at([0.1, 0.15, 0.2], r) }) },
+        { id: "katana-reset", name: "IAI RESET", maxRank: 1, cost: SIDE, col: 4.5, row: 1, requires: ["katana-iai", "katana-speed"],
+          describe: () => "A KILL BY THE IAI DASH RESETS ITS COOLDOWN", stats: () => ({ iaiReset: true }) }, // abilities.js → cutAlong
         { id: "spear-momentum", name: "MOMENTUM", maxRank: 3, cost: SIDE, col: 6, row: 0,
           describe: (r) => `CHARGE SPEEDS UP TO +${pct(at([0.3, 0.6, 0.9], r))} (FASTER - MORE DMG), PIERCES +${at([2, 4, 6], r)} ENEMIES` }, // game-scene.js → startSpearCharge
       ],
@@ -108,56 +115,32 @@ export const TALENT_TREE = {
           describe: (r) => `SNIPER HEADSHOTS X${at([1.5, 2.5, 3.5], r)} MORE`, modifiers: (r) => [onlyAttack("rifle", headshotBonus(at([1.5, 2.5, 3.5], r)))] },
       ],
     },
-    // ---------- МАГ ----------
+    // ---------- ПОДРЫВНИК ----------
+    // Всё — взрывы (вид атак "blast"): гранаты (база), гранатомёт и динамит (магазин). Правила (радиус, фитиль,
+    // бомбочки кассеты) — stats, их читает game-scene.js → throwBomb и abilities.js
     {
-      id: "magic", name: "MAGE", kind: "magic", note: "BASE: FROST WAND. SHOP: MAGMA STONE, METEOR STAFF",
-      sections: [{ name: "MAGMA STONE", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "METEOR STAFF", col: 4 }],
+      id: "demo", name: "DEMOLITIONIST", kind: "blast", note: "BASE: GRENADES. SHOP: GRENADE LAUNCHER, DYNAMITE",
+      sections: [{ name: "GRENADES", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "LAUNCHER", col: 4 }, { name: "DYNAMITE", col: 5 }],
       talents: [
-        { id: "magma-slow", name: "SLOW", maxRank: 3, cost: SIDE, col: 0, row: 0,
-          describe: (r) => `MAGMA SLOWS ${pct(at([0.15, 0.3, 0.45], r))}`, stats: (r) => ({ magmaSlow: at([0.15, 0.3, 0.45], r) }) },
-        { id: "magma-sparks", name: "SPARKS", maxRank: 1, cost: SIDE, col: 1, row: 0,
-          describe: () => "MAGMA EMITS SPARKS AT ENEMIES NEARBY: 30% DMG", stats: () => ({ magmaSparks: 1 }) },
-        damageTalent("m-damage", [0.1, 0.15, 0.2, 0.25]),
-        { id: "m-radius", name: "RADIUS", maxRank: 4, cost: GENERAL, col: 3, row: 0,
-          describe: (r) => `+${pct(at([0.2, 0.4, 0.6, 0.8], r))} SPELL RADIUS`, stats: (r) => ({ spellRadius: at([0.2, 0.4, 0.6, 0.8], r) }) },
-        { id: "m-globes", name: "MANA GLOBES", maxRank: 2, cost: GENERAL, col: 2, row: 1, requires: ["m-damage"],
-          describe: (r) => `KILLS DROP A GLOBE (${pct(at([0.5, 0.7], r))} CHANCE): +${pct(at([0.05, 0.1], r))} MAX MANA`, stats: (r) => ({ globes: r }) },
-        { id: "m-dotcrit", name: "PASSIVE CRITS", maxRank: 2, cost: GENERAL, col: 3, row: 1, requires: ["m-radius"],
-          describe: (r) => `DMG OVER TIME: 50% CHANCE TO CRIT X${at([2, 3], r)}`, stats: (r) => ({ dotCrit: at([2, 3], r) }) },
-        { id: "m-cast", name: "SPELL CAST", maxRank: 2, cost: GENERAL, col: 2, row: 2, requires: ["m-globes"],
-          describe: (r) => `+${pct(at([0.2, 0.4], r))} CAST SPEED`, modifiers: (r) => [faster(at([0.2, 0.4], r))] },
-        { id: "m-empower", name: "EMPOWER", maxRank: 1, cost: GENERAL, col: 3, row: 2, requires: ["m-dotcrit"],
-          describe: () => "ONCE IN 30 S THE NEXT SPELL: 300% DMG, X2 RADIUS", stats: () => ({ empower: 1 }) },
-        damageTrophy("magic", "MAGE TROPHIES", "WITH MAGIC", 2.5, 3, ["m-cast", "m-empower"]),
-        { id: "meteor-repeat", name: "REPEATED METEOR", maxRank: 1, cost: SIDE, col: 4, row: 0,
-          describe: () => "1 S AFTER A METEOR - ONE MORE, 50% DMG", stats: () => ({ meteorRepeat: 1 }) },
-      ],
-    },
-    // ---------- ПРИЗЫВАТЕЛЬ (звери и турели — «призванные») ----------
-    {
-      id: "summon", name: "SUMMONER", note: "BOARS: TAME WITH MUSHROOMS (F). TURRETS: MUSHROOMS IN THE MIDDLE SLOT, LMB",
-      sections: [{ name: "BOAR", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "PLANT TURRET", col: 4.5 }],
-      talents: [
-        { id: "boar-stun", name: "STUN", maxRank: 3, cost: SIDE, col: 0, row: 0,
-          describe: (r) => `BOAR HITS STUN ${at([0.2, 0.4, 0.6], r)} S`, stats: (r) => ({ boarStun: at([0.2, 0.4, 0.6], r) }) },
-        { id: "boar-leech", name: "LIFESTEAL", maxRank: 2, cost: SIDE, col: 1, row: 0,
-          describe: (r) => `BOARS HEAL ${pct(at([0.15, 0.3], r))} OF THEIR DMG`, stats: (r) => ({ boarLeech: at([0.15, 0.3], r) }) },
-        { id: "s-damage", name: "DAMAGE", maxRank: 4, cost: GENERAL, col: 2, row: 0,
-          describe: (r) => `SUMMONS +${pct(at([0.1, 0.15, 0.2, 0.25], r))} DMG`, stats: (r) => ({ summonDamage: at([0.1, 0.15, 0.2, 0.25], r) }) },
-        { id: "s-armor", name: "ARMOR", maxRank: 4, cost: GENERAL, col: 3, row: 0,
-          describe: (r) => `SUMMONS TAKE ${pct(at([0.1, 0.2, 0.3, 0.4], r))} LESS DMG`, stats: (r) => ({ summonArmor: at([0.1, 0.2, 0.3, 0.4], r) }) },
-        { id: "s-speed", name: "ATTACK SPEED", maxRank: 5, cost: GENERAL, col: 2, row: 1, requires: ["s-damage"],
-          describe: (r) => `SUMMONS +${pct(at([0.1, 0.175, 0.25, 0.325, 0.4], r))} ATTACK SPEED`, stats: (r) => ({ summonSpeed: at([0.1, 0.175, 0.25, 0.325, 0.4], r) }) },
-        { id: "s-regen", name: "HP REGEN", maxRank: 3, cost: GENERAL, col: 3, row: 1, requires: ["s-armor"],
-          describe: (r) => `SUMMONS REGEN ${pct(at([0.02, 0.04, 0.06], r))} MAX HP PER SECOND`, stats: (r) => ({ summonRegen: at([0.02, 0.04, 0.06], r) }) },
-        { id: "s-fetch", name: "FORAGERS", maxRank: 1, cost: GENERAL, col: 2.5, row: 2, requires: ["s-speed", "s-regen"],
-          describe: () => "BOARS RUN AND PICK UP MUSHROOMS WITHIN 10 M", stats: () => ({ fetch: 1 }) },
-        damageTrophy("summon", "SUMMONER TROPHIES", "BY SUMMONS", 2.5, 3, ["s-fetch"]),
-        { id: "turret-shot", name: "PIERCING SHOTS", maxRank: 2, cost: SIDE, col: 4, row: 0,
-          describe: (r) => `TURRET SHOTS +${pct(at([0.25, 0.5], r))} SPEED, PIERCE ${at([2, 4], r)} TARGETS`,
-          stats: (r) => ({ turretSpeed: at([0.25, 0.5], r), turretPierce: at([2, 4], r) }) },
-        { id: "turret-split", name: "SECONDARY TARGETS", maxRank: 2, cost: SIDE, col: 5, row: 0,
-          describe: (r) => `TURRET HITS ${r} MORE TARGET${r > 1 ? "S" : ""} NEARBY, 50% DMG`, stats: (r) => ({ turretSplit: r }) },
+        { id: "grenade-shrapnel", name: "SHRAPNEL", maxRank: 2, cost: SIDE, col: 0, row: 0,
+          describe: (r) => `GRENADES BLEED ${pct(at([0.1, 0.15], r))} MAX HP IN 3 S (UP TO 3 STACKS)`,
+          modifiers: (r) => [onlyAttack("hand-grenade", withStatus(bleed(at([0.1, 0.15], r))))] },
+        { id: "grenade-hands", name: "QUICK HANDS", maxRank: 2, cost: SIDE, col: 1, row: 0,
+          describe: (r) => `THROW GRENADES ${pct(at([0.2, 0.4], r))} FASTER`, modifiers: (r) => [onlyAttack("hand-grenade", faster(at([0.2, 0.4], r)))] },
+        damageTalent("d-damage", [0.1, 0.15, 0.2, 0.25, 0.3]),
+        { id: "d-radius", name: "BLAST RADIUS", maxRank: 3, cost: GENERAL, col: 3, row: 0,
+          describe: (r) => `+${pct(at([0.1, 0.2, 0.3], r))} EXPLOSION RADIUS`, stats: (r) => ({ blastRadius: at([0.1, 0.2, 0.3], r) }) },
+        { id: "d-speed", name: "ATTACK SPEED", maxRank: 4, cost: GENERAL, col: 2, row: 1, requires: ["d-damage"],
+          describe: (r) => `+${pct(at([0.1, 0.2, 0.3, 0.4], r))} ATTACK SPEED`, modifiers: (r) => [faster(at([0.1, 0.2, 0.3, 0.4], r))] },
+        { id: "d-napalm", name: "NAPALM", maxRank: 1, cost: GENERAL, col: 3, row: 1, requires: ["d-radius"],
+          describe: () => "EXPLOSIONS SET ON FIRE: BURNS 7.5% HP/S, MAX 30% HP", modifiers: () => [convertTo("fire")], stats: () => ({ burnLevel: 1 }) },
+        { id: "d-concussion", name: "CONCUSSION", maxRank: 2, cost: GENERAL, col: 2.5, row: 2, requires: ["d-speed", "d-napalm"],
+          describe: (r) => `EXPLOSIONS STUN FOR ${at([0.3, 0.6], r)} S`, modifiers: (r) => [withStatus(stun(at([0.3, 0.6], r)))] },
+        damageTrophy("blast", "DEMO TROPHIES", "WITH EXPLOSIVES", 2.5, 3, ["d-concussion"]),
+        { id: "launcher-cluster", name: "BIG CLUSTER", maxRank: 2, cost: SIDE, col: 4, row: 0,
+          describe: (r) => `CLUSTER SKILL: +${at([2, 4], r)} BOMBLETS`, stats: (r) => ({ clusterExtra: at([2, 4], r) }) },
+        { id: "dynamite-fuse", name: "SHORT FUSE", maxRank: 1, cost: SIDE, col: 5, row: 0,
+          describe: () => "DYNAMITE FUSE HALVED", stats: () => ({ shortFuse: true }) },
       ],
     },
     // ---------- ВЫЖИВАНИЕ (всем) ----------
@@ -176,10 +159,10 @@ export const TALENT_TREE = {
           describe: () => "+25 MAX HP", stats: () => ({ maxHp: 25 }) },
         // Был у снайперки — теперь общий (id прежний: выученный в старых сохранениях остаётся)
         { id: "sniper-jump", name: "HIGH GROUND", tier: 3, maxRank: 1, cost: 2,
-          describe: () => "JUMP HEIGHT X1.5 + DOUBLE JUMP", stats: () => ({ jumpMult: 0.5, extraJumps: 1 }) },
+          describe: () => `JUMP HEIGHT X1.5 + DOUBLE JUMP. FALL DMG FROM +${FALL_DAMAGE.highGround.from} BLOCKS HIGHER, X${FALL_DAMAGE.highGround.mult}`, stats: () => ({ jumpMult: 0.5, extraJumps: 1 }) },
         // Последний и самый дорогой: растёт с каждым убийством (считает game-scene.js → onDeath)
         { id: "trophies", name: "TROPHIES", tier: 4, maxRank: 1, cost: 3,
-          describe: () => `+1% OF EACH KILL'S MAX HP (NOW +${Math.floor(TROPHY.hp)} HP)` },
+          describe: () => `+${TROPHY.hpPerKill} MAX HP PER KILL (NOW +${Math.floor(TROPHY.hp)} HP)` },
       ],
     },
   ],

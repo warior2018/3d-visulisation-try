@@ -16,6 +16,9 @@
 //    const step = nav.update(e, target.position, dt); // { x, z, jump, done } | null
 // ============================================================
 
+import { profiler } from "../core/profiler.js";
+const PROF_PATH = profiler.register("PATHFINDING", "AI"); // поиск пути — часть «мозгов» (ИИ)
+
 // 8 направлений: 4 прямых и 4 диагональных
 const DIRS = [
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -136,8 +139,17 @@ function estimate(x, y, z, g) {
 // Возвращает { path: [[x, y, z], ...], complete } или null, если старт негодный.
 // Не дошли до цели (стена кругом, цель на столбе) — путь до самой близкой к ней клетки, complete: false.
 // maxNodes — сколько клеток проверить самое большее (чтобы не думать вечно).
-export function findPath(isSolid, start, goal, { height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200 } = {}) {
-  const key = (x, y, z) => `${x},${y},${z}`;
+export function findPath(isSolid, start, goal, opts) {
+  profiler.begin(PROF_PATH);
+  try {
+    return findPathRaw(isSolid, start, goal, opts);
+  } finally {
+    profiler.end(PROF_PATH);
+  }
+}
+
+function findPathRaw(isSolid, start, goal, { height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200 } = {}) {
+  const key = (x, y, z) => ((x + 524288) * 1048576 + (z + 524288)) * 4096 + (y + 2048); // число, не строка: меньше мусора
   const opts = { height, maxStep, maxDrop };
   const open = new Heap();
   const nodes = new Map(); // ключ клетки -> { x, y, z, g, parent, closed }
@@ -214,6 +226,15 @@ function straight(isSolid, a, b, height, radius) {
   return true;
 }
 
+// ---------- Бюджет поиска пути на кадр ----------
+// Поиск пути (findPath) — самое дорогое в мозгах. Когда существ много (нашествие), все хотят пересчитать путь
+// в одном кадре — и кадр «залипает». pathBudget(n) в начале кадра: не больше n пересчётов за кадр, остальные
+// ждут следующего (идут по старому пути, а у кого его нет — прямо к цели). Не вызывать — без предела.
+const budget = { left: Infinity };
+export function pathBudget(n) {
+  budget.left = n;
+}
+
 // ---------- Штурман одного существа ----------
 export class Navigator {
   // version() — необязательно: число, которое меняется, когда меняется мир (поставили или убрали блок);
@@ -261,8 +282,20 @@ export class Navigator {
     const goalCell = this.cellOf(goal);
     const moved = !this.goalCell || goalCell.some((v, k) => v !== this.goalCell[k]);
     const changed = this.version && this.version() !== this.seenVersion;
-    if (changed) this.seenVersion = this.version();
-    if (!this.path || changed || (moved && this.timer <= 0) || this.stuck > 0.8) this.plan(e, goal);
+    if (changed) {
+      this.seenVersion = this.version();
+      this.dirty = true; // мир поменялся — пересчитать, как только будет бюджет
+    }
+    if (!this.path || this.dirty || (moved && this.timer <= 0) || this.stuck > 0.8) {
+      if (budget.left > 0) {
+        budget.left--;
+        this.dirty = false;
+        this.plan(e, goal);
+      } else if (!this.path) {
+        // в этом кадре бюджет кончился, пути ещё нет — пока прямо к цели (план — в следующих кадрах)
+        return { x: goal.x, z: goal.z, jump: false, done: false, complete: false };
+      }
+    }
 
     // Застряли (толкучка, кто-то поставил блок) — скоро пересчитаем
     const p = e.position;

@@ -14,6 +14,23 @@
 import { Updater } from "./updates.js";
 import "./env.js"; // первым: подсказки для SDL до её загрузки
 import sdl from "@kmamal/sdl";
+import { profiler } from "./profiler.js";
+import { FixedStep } from "./fixed-step.js";
+import { drawPerfPanel } from "../ui/perf-panel.js";
+
+const BACKGROUND = { background: true }; // опции шага мира под «живым» окном (один объект — без мусора)
+
+// Системы профайлера уровня движка (верхний уровень кадра): обновление сцены (внутри — системы игры),
+// интерфейс, сборка того, что рисовать, отправка на видеокарту и показ кадра
+const PROF = {
+  update: profiler.register("UPDATE"),
+  tick: null, // ниже: тики логики внутри UPDATE (calls — тиков за кадр)
+  ui: profiler.register("UI"),
+  view: profiler.register("VIEW"),
+  render: profiler.register("RENDER"),
+  present: profiler.register("PRESENT"),
+};
+PROF.tick = profiler.register("TICK", PROF.update);
 import path from "node:path";
 import { Journal, Watchdog } from "./watchdog.js";
 import { SettingsStore, deepMerge } from "./settings.js";
@@ -21,7 +38,7 @@ import { GPURenderer } from "../graphics/gpu-renderer.js";
 import { locale } from "../ui/i18n.js";
 import { UI } from "../ui/ui.js";
 import { makeTheme } from "../ui/theme.js";
-import { drawToast } from "../ui/widgets.js";
+import { drawToast, drawTechPanel } from "../ui/widgets.js";
 import { Input } from "../input/input.js";
 import { MouseLook } from "../input/mouse.js";
 import { Sound } from "../audio/sound.js";
@@ -52,11 +69,14 @@ export const ENGINE_DEFAULTS = {
       ability5: "key:5",
       pause: "key:ESCAPE",
       fullscreen: "key:F11",
+      techPanel: "key:F3", //      тех. панель поверх игры (как F3 в Minecraft): кадры, память, сцена — techLines()
       skill1: "key:Q", //          навыки оружия в руках (Ability.skills): у оружия дальнего боя — наклоны,
       skill2: "key:E", //          у других — свои приёмы
       shop: "key:B", //            магазин (engine/economy/shop.js)
       reload: "key:R", //          перезарядка оружия с обоймой (RangedAttack magazine)
       drop: "key:Q", //            в инвентаре: выбросить предмет из ячейки под мышью
+      ultimate: "key:X", //        ультимейт (engine/combat/ultimate.js)
+      help: "key:F1", //           держать — что умеют атаки и скиллы (widgets.drawHelpOverlay)
     },
   },
 };
@@ -78,11 +98,14 @@ export const ENGINE_ACTION_LABELS = {
   ability5: "ABILITY 5",
   pause: "PAUSE",
   fullscreen: "FULLSCREEN",
+  techPanel: "TECH PANEL",
   skill1: "WEAPON SKILL 1",
   skill2: "WEAPON SKILL 2",
   reload: "RELOAD",
   shop: "SHOP",
   drop: "DROP",
+  ultimate: "ULTIMATE",
+  help: "ABILITIES INFO",
 };
 
 export class Engine {
@@ -120,9 +143,22 @@ export class Engine {
     return engine;
   }
 
-  constructor({ window, renderer, settings, actionLabels, journal, theme = {} }) {
+  // tickRate — тиков логики в секунду (сцены с fixedUpdate; см. FixedStep). Можно поднять (128) для сложной игры
+  constructor({ window, renderer, settings, actionLabels, journal, theme = {}, tickRate = 60 }) {
+    this.fixed = new FixedStep({ rate: tickRate });
+    this.tickScene = null; // кому идут тики этого кадра (и с какими опциями) — одна функция на всё время, без мусора
+    this.tickOpts = undefined;
+    this.runTick = (dt) => {
+      profiler.begin(PROF.tick);
+      this.tickScene.fixedUpdate(dt, this.tickOpts);
+      profiler.end(PROF.tick);
+    };
     this.journal = journal;
     this.watchdog = null; // запускается в run()
+    this.profiler = profiler; // сколько времени за кадр у каждой системы (F3); общий, выключен, пока не нужен
+    profiler.statsEvery = 500; //  цифры на странице F3 — дважды в секунду
+    profiler.onDump = (lines) => this.dumpProfile(lines); // много рывков — срез в журнал сам
+    this.profiler.hitchContext = () => this.scene?.hitchContext?.() ?? this.liveBelow()?.hitchContext?.() ?? null; // что было в игре в момент рывка
     this.window = window;
     this.renderer = renderer;
     this.settings = settings;
@@ -255,7 +291,35 @@ export class Engine {
       this.ui.rect(6, 6, 96, 22, [10, 12, 18], 170);
       this.ui.text(`FPS ${this.fps}`, 12, 10, 2, this.fps >= 50 ? [120, 220, 130] : this.fps >= 30 ? [240, 196, 80] : [255, 90, 80]);
     }
+    if (this.techPanel) this.drawTechPanel();
     if (this.toastState && this.scene?.showToasts !== false) drawToast(this.ui, this.toastState.text);
+  }
+
+  // Тех. панель (F3) — поверх всего, слева сверху, как в Minecraft: движок — кадры, время кадра, память,
+  // видеокарта; сцена добавляет своё — techLines() (берём у верхней сцены, у которой он есть: мир под окнами)
+  drawTechPanel() {
+    const y0 = this.settings.data.interface?.showFps ? 32 : 6;
+    if (this.techPanel === 2) return drawPerfPanel(this.ui, profiler, { x: 6, y: y0, fps: this.fps });
+    const m = this.memory || process.memoryUsage();
+    const mb = (b) => (b / 1048576).toFixed(0);
+    const lines = [
+      `VOID ENGINE  FPS ${this.fps ?? "-"}`,
+      `FRAME ${(this.cpuAvg ?? 0).toFixed(2)} MS AVG, ${(this.cpuMax ?? 0).toFixed(1)} MS MAX`,
+      `TICK ${this.fixed.rate} HZ, ${this.fixed.count} TICKS, ${this.fixed.dropped} DROPPED`, // тикрейт; dropped — тики, выброшенные из-за заминок
+      `RAM ${mb(m.rss)} MB  HEAP ${mb(m.heapUsed)}/${mb(m.heapTotal)} MB  EXT ${mb(m.external)} MB`,
+      `WINDOW ${this.ui.width}x${this.ui.height}  PIXEL RATIO ${(this.pixelRatio || 1).toFixed(2)}`,
+      `GPU ${this.renderer?.adapterName || "?"}`,
+    ];
+    const owner = [...this.scenes].reverse().find((s) => s.techLines);
+    if (owner) lines.push("", ...owner.techLines());
+    const y = this.settings.data.interface?.showFps ? 32 : 6;
+    drawTechPanel(this.ui, lines, { x: 6, y });
+  }
+
+  // Срез профайлера — в журнал, каждая строка с пометкой (легко найти и скопировать)
+  dumpProfile(lines) {
+    for (const l of lines) this.log("[PROFILER] " + l);
+    this.journal.flush?.(); // сразу на диск: срез нужен, даже если игра потом упадёт
   }
 
   // Кнопки интерфейса должны быть свежими, прежде чем проверять, куда попала мышь
@@ -352,9 +416,22 @@ export class Engine {
           this.log(`кнопка «${id}» (${scene.label})`);
           this.sound.play("click");
           scene.onButton(id, { right: e.button === sdl.mouse.BUTTON.RIGHT }); // right — правой кнопкой (инвентарь: по одной штуке)
-        }
+        } else if (scene.onMouseDown({ x: e.x, y: e.y, button: e.button === sdl.mouse.BUTTON.RIGHT ? "right" : e.button === sdl.mouse.BUTTON.LEFT ? "left" : "middle" })) this.redraw();
       }
       this.phase(0);
+    });
+
+    w.on("mouseButtonUp", (e) => {
+      const scene = this.scene;
+      if (!scene || scene.captureMouse) return;
+      if (scene.onMouseUp({ x: e.x, y: e.y, button: e.button === sdl.mouse.BUTTON.RIGHT ? "right" : e.button === sdl.mouse.BUTTON.LEFT ? "left" : "middle" })) this.redraw();
+    });
+
+    w.on("mouseWheel", (e) => {
+      const scene = this.scene;
+      if (!scene || scene.captureMouse) return;
+      const dy = e.flipped ? -e.dy : e.dy;
+      if (scene.onWheel({ x: e.x, y: e.y, dy })) this.redraw();
     });
 
     w.on("mouseMove", (e) => {
@@ -362,7 +439,8 @@ export class Engine {
       if (this.mouse.captured) return;
       this.ensureUI();
       // trackMouse — сцене нужен каждый сдвиг (например, предмет «в руке» едет за курсором)
-      if (this.ui.setMouse(e.x, e.y) || this.scene?.trackMouse) this.redraw();
+      const moved = this.scene?.onMouseMove({ x: e.x, y: e.y }); // сцене (перетаскивание карты и т. п.)
+      if (this.ui.setMouse(e.x, e.y) || this.scene?.trackMouse || moved) this.redraw();
     });
 
     w.on("blur", () => {
@@ -392,6 +470,21 @@ export class Engine {
     const actions = this.input.actionsFor(event);
     if (actions.length) this.log(`действия: ${actions.join(", ")} (${scene.label})`);
     if (actions.includes("fullscreen")) this.toggleFullscreen();
+    if (actions.includes("techPanel") && this.input.shift) {
+      // Shift+F3 — срез профайлера в журнал (короткий текст: можно вставить в чат)
+      if (!profiler.enabled) this.toast("OPEN THE PROFILER PAGE FIRST: F3 TWICE", 2500);
+      else {
+        this.dumpProfile(profiler.report("Shift+F3"));
+        this.toast("PROFILE SAVED TO LOG.TXT", 1500);
+      }
+    } else if (actions.includes("techPanel")) {
+      // F3 по кругу: выкл → тех. панель (кадры, память, мир) → ПРОИЗВОДИТЕЛЬНОСТЬ (профайлер) → выкл.
+      // Профайлер работает только пока открыта его страница — иначе он ничего не стоит
+      this.techPanel = ((this.techPanel || 0) + 1) % 3;
+      profiler.enabled = this.techPanel === 2;
+      this.log(`тех. панель: ${["выкл", "сведения", "производительность"][this.techPanel]}`);
+      this.redraw();
+    }
     scene.onPress(actions, event);
   }
 
@@ -481,7 +574,10 @@ export class Engine {
     // мир под ним живёт дальше — его update(dt, { background: true }) (игра не читает клавиши героя)
     const live = !scene.realtime && scene.live ? this.liveBelow() : null;
     if (!scene.realtime && !live) {
+      this.prevLiveEnd = 0; // меню / пауза: следующий живой кадр — без промежутка (не рывок)
+      this.fixed.reset(); //   время стояло — тиков догонять не нужно
       this.mouse.consume(); // выбрасываем случайные движения мыши
+      this.input.flushPressed(); // и нажатия (пробел в меню — не прыжок после него)
       this.ensureUI();
       if (this.ui.dirty) this.settle = 3;
       if (this.settle > 0) {
@@ -495,10 +591,21 @@ export class Engine {
     }
 
     this.phase(1);
-    if (live) live.update(dt, { background: true });
-    else scene.update(dt);
+    profiler.begin(PROF.update);
+    this.updateScene(live || scene, live ? BACKGROUND : undefined, raw, dt);
+    profiler.end(PROF.update);
     this.render();
-    this.workTime += performance.now() - start;
+    const work = performance.now() - start;
+    // Профайлер (F3): время систем этого кадра — в статистику. Промежуток — от конца прошлого кадра до конца
+    // этого (простой между кадрами + работа): столько глаз ждал новую картинку. Только если и прошлый кадр
+    // был живым (из меню / паузы промежуток длинный по делу — это не рывок). От конца, а не от начала:
+    // иначе один тяжёлый кадр давал бы два рывка — сам и следующий за ним
+    const end = start + work;
+    this.profiler.endFrame(work, this.prevLiveEnd ? end - this.prevLiveEnd : 0);
+    this.prevLiveEnd = end;
+    if (this.techPanel === 2) this.redraw(); // страница профайлера: график кадров обновляется каждый кадр
+    this.workTime += work;
+    this.workMax = Math.max(this.workMax || 0, work); // самый долгий кадр за секунду — тех. панель
 
     // Раз в секунду — статистика
     this.frames++;
@@ -507,6 +614,13 @@ export class Engine {
       const fps = Math.round((this.frames * 1000) / (now - this.statsTimer));
       if (this.fps !== fps && this.settings.data.interface?.showFps) this.redraw(); // счётчик на экране обновить
       this.fps = fps; // для счётчика на экране
+      this.cpuAvg = this.workTime / this.frames; // для тех. панели (F3)
+      this.cpuMax = this.workMax || 0;
+      this.workMax = 0;
+      if (this.techPanel) {
+        this.memory = process.memoryUsage(); // раз в секунду — дёшево
+        this.redraw();
+      }
       this.onStats?.({ fps, cpu: this.workTime / this.frames });
       this.frames = 0;
       this.workTime = 0;
@@ -515,15 +629,39 @@ export class Engine {
     return true;
   }
 
+  // Шаг сцены за кадр. Сцена с fixedUpdate живёт тиками (ровно tickRate раз в секунду, dt тика постоянный),
+  // перед ними beforeTicks(dt) (мышь, взгляд), после — frameUpdate(dt, alpha) — то, что идёт с кадром (камера, интерфейс, плавность: alpha — доля пути
+  // между прошлым и следующим тиком). Сцена без fixedUpdate — по-старому: update(dt) раз в кадр.
+  // seconds — настоящее время кадра (для тиков: оно и копится), dt — сглаженное (для того, что на экране)
+  updateScene(target, opts, seconds, dt) {
+    if (!target.fixedUpdate) {
+      target.update(dt, opts);
+      return;
+    }
+    this.tickScene = target;
+    this.tickOpts = opts;
+    // Мир под «живым» окном (инвентарь, карта...) клавиш героя не читает — нажатия не копим до закрытия окна
+    if (opts?.background) this.input.flushPressed();
+    target.beforeTicks?.(dt, opts); // раз в кадр до тиков: то, что тики должны знать уже свежим (взгляд мышью)
+    // первый живой кадр после меню / паузы: не больше одного тика (время в меню не в счёт)
+    this.fixed.advance(this.prevLiveEnd ? seconds : Math.min(seconds, this.fixed.dt), this.runTick);
+    target.frameUpdate?.(dt, this.fixed.alpha, opts);
+  }
+
   render() {
     // Первые кадры — по шагам в журнал: если игра падает сразу (сбой драйвера), видно, на каком шаге
     const n = (this.rendered = (this.rendered || 0) + 1);
     const trace = n <= 3 ? (step) => this.log(`кадр ${n}: ${step}`) : null;
     trace?.("интерфейс");
+    profiler.begin(PROF.ui);
     this.ensureUI(); // интерфейс, который просили перерисовать за этот кадр, — рисуем сейчас
+    profiler.end(PROF.ui);
+    profiler.begin(PROF.view);
     const v = this.findView() || {};
+    profiler.end(PROF.view);
     trace?.("рисование");
     this.phase(2);
+    profiler.begin(PROF.render);
     this.renderer.render({
       camera: v.camera || null,
       world: v.world || null,
@@ -533,9 +671,12 @@ export class Engine {
       viewModels: v.viewModels || [],
       ui: this.ui,
     });
+    profiler.end(PROF.render);
     this.phase(3);
     trace?.("показ кадра");
+    profiler.begin(PROF.present);
     this.renderer.present();
+    profiler.end(PROF.present);
     trace?.("готово");
   }
 

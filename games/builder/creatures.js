@@ -6,14 +6,16 @@
 // ============================================================
 
 import { Vec3, Inventory, Player, Mob, NPC, MeleeAttack, SlamAttack, ThrowAttack, HostileBrain, KamikazeBrain, WanderBrain, GuardBrain, FollowBrain, Taming, Rideable, grow, growth } from "../../engine/index.js";
-import { SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, BOARS, MOB_WANDER, BOAR_FOLLOW, MOB_RANGED, BOSS, BLOATER } from "./config.js";
+import { SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, HERO_SCALE, PLAYER } from "./config.js";
 import { maxStack } from "./items.js";
 
 // Головы (хитбоксы хедшотов) — в осях существа: от ног вверх, +Z — куда смотрит.
 // multiplier — во сколько раз больше урона при попадании в голову.
 const HUMAN_HEAD = { id: "head", min: [-0.15, 1.6, -0.15], max: [0.15, 1.9, 0.15], multiplier: 2 };
+// Голова героя — модель уменьшена до роста 1.6 (HERO_SCALE)
+const HERO_HEAD = { ...HUMAN_HEAD, min: HUMAN_HEAD.min.map((v) => v * HERO_SCALE), max: HUMAN_HEAD.max.map((v) => v * HERO_SCALE) };
 export const HITBOXES = {
-  player: [HUMAN_HEAD],
+  player: [HERO_HEAD],
   skeleton: [HUMAN_HEAD],
   // Зомби: голова в каске — шире и выше, но каска гасит часть урона (×1.5 вместо ×2)
   zombie: [{ id: "head", min: [-0.19, 1.6, -0.19], max: [0.19, 1.99, 0.19], multiplier: 1.5 }],
@@ -32,7 +34,9 @@ export const CREATURES = {
     name: "PLAYER",
     maxHp: 100,
     inventorySize: 20,
-    model: "skeleton", // пока у всех одна модель
+    model: "hero", // скелет в боевой юкате (tools/make-skeleton.js → hero.glb), меньше — рост 1.6
+    scale: HERO_SCALE,
+    height: PLAYER.height,
   },
   skeleton: {
     kind: "mob",
@@ -79,12 +83,8 @@ export const CREATURES = {
     height: 0.9,
     inventorySize: 0,
     model: "boar",
-    tamedModel: "boar-saddle", // приручённый — с седлом
-    attack: "boarTusk", //       бивни: бьёт ими, когда приручён (защищает хозяина)
+    attack: "boarTusk", //       бивни (растут с миром: game-scene.js → scaleBoars)
     brain: () => new WanderBrain({ radius: 8, pause: [3, 7], lookRadius: 2.5, flee: { time: 4, speed: 3 } }), // ранили — убегает
-    taming: () => new Taming({ food: BOARS.food, need: BOARS.tameBase }), // сколько грибов — считает игра (по HP)
-    // seat — где ноги всадника относительно ног кабана: так таз (0.95 над ногами) ложится на седло
-    rideable: () => new Rideable({ seat: -0.03, speed: 6.5, runMultiplier: 1.35, jumpHeight: 1.25 }),
   },
   // Страж: герой ранить не может (protectedFrom), а мобы — могут; сам бьёт мобов мечом
   warden: {
@@ -135,22 +135,6 @@ CREATURES.bloater = {
   }),
 };
 
-// Призванные (на стороне героя: мобы на них нападают, герой их не ранит). Мозги и силу даёт игра
-// (game-scene.js → plantTurret / spawnMinion): турель-гриб — TurretBrain, скелет-камикадзе — KamikazeBrain
-CREATURES.turret = {
-  kind: "npc", name: "MUSHROOM TURRET", maxHp: 30, inventorySize: 0, model: "item-turret", scale: 2.4, radius: 0.5, height: 1.2,
-  faction: "player", hostileTo: ["monster"], protectedFrom: ["player"], invulnerable: false, summon: true,
-};
-// Целебный гриб (HEALER): не бьёт, раз в секунду лечит героя и призванных вокруг (game-scene.js → updateHealers)
-CREATURES.healer = {
-  kind: "npc", name: "HEALING SHROOM", maxHp: 60, inventorySize: 0, model: "item-healer", scale: 2.2, radius: 0.45, height: 1.0,
-  faction: "player", hostileTo: [], protectedFrom: ["player"], invulnerable: false, summon: true,
-};
-CREATURES.minion = {
-  kind: "npc", name: "SKELETON MINION", maxHp: 20, speed: 3.6, inventorySize: 0, model: "skeleton", scale: 0.55, radius: 0.22, height: 1.05,
-  faction: "player", hostileTo: ["monster"], protectedFrom: ["player"], invulnerable: false,
-};
-
 // Кто стоит в новом мире
 export const DEFAULT_SPAWNS = [
   { type: "skeleton", x: -3, y: 0, z: 7, yaw: Math.PI },
@@ -172,10 +156,9 @@ const CLASSES = { player: Player, mob: Mob, npc: NPC };
 
 export const skeletonGrowth = mobGrowth; // старое имя
 
-// Модель существа сейчас (приручённый кабан — с седлом)
+// Модель существа
 export function modelFor(e) {
-  const def = CREATURES[e.type];
-  return e.taming?.tamed && def.tamedModel ? def.tamedModel : def.model;
+  return CREATURES[e.type].model;
 }
 
 // Стрелок для мозгов (движок: HostileBrain ranged): дальность оружия, ближе minRange — рукой; advance —
@@ -195,7 +178,7 @@ export function pickRangedWeapon(saved) {
 // bonusHp — прибавка к здоровью, damageMult и bonusDamage — урон атаки ×damageMult + bonusDamage,
 // bonusXp — к опыту (мобы крепчают). ranged — стрелок (у паспорта ranged: true): id оружия MOB_RANGED.weapons
 // (stone / knife / pistol) или true — выбрать случайно
-export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, inventory, bonusHp = 0, damageMult = 1, bonusDamage = 0, bonusXp = 0, tame, trophyHp = 0, trophyPct = 0, ranged = false, mushrooms = 0, growLeft = 0 } = {}) {
+export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, inventory, bonusHp = 0, damageMult = 1, bonusDamage = 0, bonusXp = 0, ranged = false } = {}) {
   const def = CREATURES[type];
   if (!def) return null; // неизвестный тип (например, из старого сохранения) — пропускаем
   const weaponId = ranged && def.ranged ? pickRangedWeapon(ranged) : null;
@@ -246,27 +229,13 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
     e.boss = true; // босс логова: не исчезает, не считается в мобах, сам в нашествие не идёт
     e.stunResist = BOSS.stunResist; //   оглушение и заморозка короче
     e.stunImmunity = BOSS.stunImmunity; // и после них — передышка
+    e.percentDamageScale = BOSS.percentDamageScale; // горение / кровотечение / капкан (доля макс. HP) — слабее
   }
   if (type === "bloater") e.blastDamage = BLOATER.damage.map((d) => Math.round(d * damageMult) + bonusDamage); // взрыв крепчает, как удары
   e.bonusXp = bonusXp; // доля: 0.05 — опыта на 5 % больше
-  // Свои трофеи приручённого зверя (копит, пока жив; у хозяина — свои): +HP и +% урона
-  e.trophyHp = trophyHp;
-  e.trophyPct = trophyPct;
-  if (def.taming) {
-    e.taming = def.taming();
-    e.taming.loadFrom(tame);
-    if (e.taming.tamed) makePet(e);
-  }
-  if (def.rideable) e.rideable = def.rideable();
   if (def.regen) e.regen = def.regen;
   if (def.tauntRadius) e.tauntRadius = def.tauntRadius;
-  if (def.scale) e.scale = def.scale; // размер модели (маленький скелет, большая турель)
-  if (type === "turret") {
-    // Турель: своя ячейка для грибов (сколько угодно, только грибы) — от их числа её сила; growLeft — ещё растёт
-    e.inventory = new Inventory(1, () => 9999, (i, id) => id === "mushroom");
-    e.growLeft = growLeft;
-    if (!inventory && mushrooms > 0) e.inventory.add("mushroom", mushrooms); // старое сохранение: число грибов
-  }
+  if (def.scale) e.scale = def.scale; // размер модели
   if (inventory) e.inventory.loadFrom(inventory);
   else {
     // Добыча: число или [от, до] — случайно в этих пределах (0 — в этот раз не выпадет)
@@ -278,17 +247,7 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
   return e;
 }
 
-// Приручённый зверь — на стороне героя: мобы видят в нём врага (нападают), а герой его ранить не может;
-// ходит за хозяином (FollowBrain; кого слушаться — e.leader, ставит игра, когда хозяин известен)
-export function makePet(e, owner = null) {
-  e.faction = "player";
-  e.hostileTo = new Set(["monster"]); // враги хозяина — его враги
-  e.protectedFrom.add("player");
-  e.brain = new FollowBrain(BOAR_FOLLOW);
-  if (owner) e.leader = owner;
-}
-
 export function creatureToJSON(e) {
   const p = e.position;
-  return { type: e.type, x: p.x, y: p.y, z: p.z, yaw: e.yaw, hp: e.stats.hp, bonusHp: e.bonusHp, damageMult: e.damageMult, bonusDamage: e.bonusDamage, bonusXp: e.bonusXp, ...(e.ranged ? { ranged: e.rangedWeapon } : {}), inventory: e.inventory.toJSON(), ...(e.taming ? { tame: e.taming.toJSON() } : {}), ...(e.trophyHp || e.trophyPct ? { trophyHp: e.trophyHp, trophyPct: e.trophyPct } : {}), ...(e.growLeft > 0 ? { growLeft: e.growLeft } : {}) };
+  return { type: e.type, x: p.x, y: p.y, z: p.z, yaw: e.yaw, hp: e.stats.hp, bonusHp: e.bonusHp, damageMult: e.damageMult, bonusDamage: e.bonusDamage, bonusXp: e.bonusXp, ...(e.ranged ? { ranged: e.rangedWeapon } : {}), inventory: e.inventory.toJSON() };
 }

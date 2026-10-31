@@ -31,6 +31,13 @@ export class Scene {
   exit() {} //           сцену убрали из стопки
 
   update(dt, { background } = {}) {} // шаг игры (у верхней сцены, если realtime; background — под «живым» окном)
+  // Фиксированный шаг (тикрейт, engine.fixed): объявите в сцене fixedUpdate(dt, opts) — движок будет звать его
+  // ровно tickRate раз в секунду (dt постоянный), а потом раз в кадр frameUpdate(dt, alpha, opts); update тогда
+  // не зовётся. Не объявили — как раньше, update(dt) раз в кадр. (Здесь fixedUpdate нарочно НЕ объявлен:
+  // движок по его наличию и решает, тиками жить сцене или кадрами.)
+  //   fixedUpdate(dt, { background } = {}) {}
+  beforeTicks(dt, opts) {} //       раз в кадр ДО тиков (взгляд мышью — чтобы тики уже знали, куда смотрим)
+  frameUpdate(dt, alpha, opts) {} // раз в кадр ПОСЛЕ тиков (камера, анимации, интерфейс)
   view() { return null; } // что рисовать в 3D: { camera, world, ghost, characters } или null
   drawUI(ui) {} //       нарисовать интерфейс (вызывается при engine.redraw())
 
@@ -38,6 +45,12 @@ export class Scene {
   onRawPress(event) { return false; } // то же, но ДО привязок; true — «нажатие моё, дальше не передавать»
   onButton(id, { right } = {}) {} // нажали кнопку интерфейса (ui.button); right — правой кнопкой мыши
   onKey(event) {} //     любая клавиша как есть (например, цифры, которые не перепривязываются)
+  // Мышь при свободном курсоре (окна): x, y — в пикселях интерфейса. Вернуть true — «перерисовать».
+  // onMouseDown зовётся, только если нажали не на кнопку интерфейса (кнопкам — onButton)
+  onMouseDown({ x, y, button }) { return false; }
+  onMouseUp({ x, y, button }) { return false; }
+  onMouseMove({ x, y }) { return false; }
+  onWheel({ x, y, dy }) { return false; } // колесо: dy > 0 — от себя
   onBlur() {} //         окно потеряло фокус
   onQuit() {} //         программа закрывается — последний шанс сохраниться
 }

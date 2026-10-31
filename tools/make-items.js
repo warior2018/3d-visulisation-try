@@ -100,6 +100,16 @@ const hide = [
   ...[[-0.27, -0.2], [0.27, -0.2], [-0.27, 0.2], [0.27, 0.2]].map(([x, z]) => box([x, 0.015, z], [0.1, 0.03, 0.1], HIDE)),
   box([0, 0.02, 0.24], [0.16, 0.04, 0.1], HIDE_DARK), //  голова
 ];
+// Аптечка на земле: белая коробка с красным крестом сверху и с боков
+const WHITE = [0.92, 0.92, 0.9], RED_K = [0.85, 0.15, 0.13];
+const medkit = [
+  box([0, 0.09, 0], [0.36, 0.18, 0.26], WHITE),
+  box([0, 0.182, 0], [0.07, 0.006, 0.18], RED_K),
+  box([0, 0.182, 0], [0.2, 0.006, 0.07], RED_K),
+  box([0, 0.09, 0], [0.37, 0.03, 0.27], RED_K),
+  box([0, 0.2, 0], [0.12, 0.03, 0.03], [0.5, 0.5, 0.52]),
+];
+writeGLB(out("medkit.glb"), buildGLB({ name: "Medkit", generator: "VOID tools/make-items.js", bones: BONES, parts: medkit, animations: ANIMATIONS }));
 writeGLB(out("hide.glb"), buildGLB({ name: "TrollHide", generator: "VOID tools/make-items.js", bones: BONES, parts: hide, animations: ANIMATIONS }));
 writeGLB(out("turret.glb"), buildGLB({ name: "Turret", generator: "VOID tools/make-items.js", bones: BONES, parts: turret, animations: ANIMATIONS }));
 writeGLB(out("spore.glb"), buildGLB({ name: "Spore", generator: "VOID tools/make-items.js", bones: BONES, parts: spore, animations: ANIMATIONS }));

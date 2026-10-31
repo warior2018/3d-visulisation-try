@@ -15,6 +15,10 @@
 //  press — нажали клавишу действия (один раз), hold — каждый кадр, пока способность в руках
 //  (down — зажата ли клавиша). Выбрали другую способность — её навыки больше не вызываются.
 //
+//  Справка (help): что делает каждое действие — для экрана «что умеют мои атаки» (F1):
+//    help: { primary: { name, text }, secondary: { name, text }, skill1: { text }, reload: { name, text } ... }
+//    у навыка можно писать text прямо в нём: skills: { skill1: { name, text, press } }. Собрать строки — abilityHelp().
+//
 //  ctx — что игра передаёт способностям (обычно сама игровая сцена):
 //  через него способность ставит блоки, стреляет и т. д.
 // ============================================================
@@ -31,7 +35,8 @@ export class Ability {
   // equipTime — сколько секунд достают оружие после выбора: до этого им нельзя бить и стрелять
   // held — как способность выглядит от 3-го лица: { model — что в руке (models.hold), pose — слой-поза рук
   //        (animator.setOverlay), bone, position, rotation — куда крепить модель } или null — пустые руки
-  constructor({ id, name, viewModel = null, moveSpeed = 0, autoRepeat = false, aim = null, recoil = null, empty = false, skills = {}, held = null, equipTime = 0 }) {
+  // help — справка по действиям (см. выше)
+  constructor({ id, name, viewModel = null, moveSpeed = 0, autoRepeat = false, aim = null, recoil = null, empty = false, skills = {}, held = null, equipTime = 0, help = null }) {
     this.id = id;
     this.name = name;
     this.viewModel = viewModel;
@@ -43,6 +48,7 @@ export class Ability {
     this.skills = skills;
     this.held = held;
     this.equipTime = equipTime;
+    this.help = help;
   }
 
   // Навык оружия на действии name (или null)
@@ -149,4 +155,18 @@ export class AbilityBar {
     for (const [name, s] of Object.entries(a.skills)) s.hold?.(dt, ctx, !!input?.isDown(name), a);
     if (input && a.autoRepeat && !this.equipping && input.isDown("primary") && a.ready(ctx)) a.primary(ctx);
   }
+}
+
+// Строки справки способности: [{ action, key, name, text }] — сначала ЛКМ / ПКМ, потом навыки, потом остальное.
+// keyLabel(action) — подпись клавиши ("ЛКМ", "Q"); действия без справки и без навыка не попадают
+export function abilityHelp(ability, keyLabel) {
+  const help = ability?.help || {};
+  const rows = [];
+  const row = (action, info) => rows.push({ action, key: keyLabel(action), name: info.name || "", text: info.text || "" });
+  for (const action of ["primary", "secondary"]) if (help[action]) row(action, help[action]);
+  for (const [action, s] of Object.entries(ability?.skills || {})) row(action, { name: s.name, text: help[action]?.text ?? s.text });
+  for (const [action, info] of Object.entries(help)) {
+    if (action !== "primary" && action !== "secondary" && !ability.skills?.[action]) row(action, info);
+  }
+  return rows;
 }

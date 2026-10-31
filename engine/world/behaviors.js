@@ -35,6 +35,9 @@ export function chase(e, target, dt, { radius = 10, speed = 2.2, stopDistance = 
   return true;
 }
 
+// Кого проверять на толкотню: ctx.near(e) — соседи из сетки (SpatialGrid, быстро), нет — все сущности
+export const neighbors = (e, ctx) => (ctx.near ? ctx.near(e) : ctx.entities);
+
 // Не толпиться: если соседи ближе, чем сумма «радиусов» + gap, слегка отходим от них.
 // Вызывать после chase (он задаёт скорость), до физики (она двигает).
 export function separate(e, others, { gap = 0.3, push = 2.5 } = {}) {

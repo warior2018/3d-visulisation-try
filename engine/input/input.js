@@ -32,10 +32,18 @@ export class Input {
     this.bindings = bindings; // { forward: "key:W", place: "mouse:LEFT", ... }
     this.keys = new Set(); // зажатые клавиши (scancode)
     this.buttons = new Set(); // зажатые кнопки мыши
+    this.pressedKeys = new Set(); // нажатые с прошлого опроса (wasPressed) — короткое нажатие между кадрами не теряется
+    this.pressedButtons = new Set(); // то же для кнопок мыши
 
-    window.on("keyDown", (e) => this.keys.add(e.scancode));
+    window.on("keyDown", (e) => {
+      this.keys.add(e.scancode);
+      if (!e.repeat) this.pressedKeys.add(e.scancode);
+    });
     window.on("keyUp", (e) => this.keys.delete(e.scancode));
-    window.on("mouseButtonDown", (e) => this.buttons.add(e.button));
+    window.on("mouseButtonDown", (e) => {
+      this.buttons.add(e.button);
+      this.pressedButtons.add(e.button);
+    });
     window.on("mouseButtonUp", (e) => this.buttons.delete(e.button));
     window.on("blur", () => this.clear());
   }
@@ -43,6 +51,27 @@ export class Input {
   clear() {
     this.keys.clear();
     this.buttons.clear();
+    this.pressedKeys.clear();
+    this.pressedButtons.clear();
+  }
+
+  // Забыть нажатия, которые ещё никто не забрал (wasPressed). Движок зовёт, пока мир клавиш не читает
+  // (меню, пауза, окно поверх мира): иначе пробел, нажатый в меню, — прыжок сразу после него
+  flushPressed() {
+    if (this.pressedKeys.size) this.pressedKeys.clear();
+    if (this.pressedButtons.size) this.pressedButtons.clear();
+  }
+
+  // Нажали ли действие с прошлого вызова (для этого действия) — и «съесть» нажатие. Нажал и отпустил быстрее
+  // кадра или тика — всё равно true (isDown бы его пропустил); одно нажатие — ровно один true, сколько бы тиков
+  // ни прошло за кадр. Для прыжка, двойного прыжка и т. п. Клавиши и кнопки мыши
+  wasPressed(action) {
+    const [type, name] = (this.bindings[action] || ":").split(":");
+    const set = type === "key" ? this.pressedKeys : type === "mouse" ? this.pressedButtons : null;
+    const code = type === "key" ? SC[name] : BUTTON[name];
+    if (!set || !set.has(code)) return false;
+    set.delete(code);
+    return true;
   }
 
   // Зажато ли действие прямо сейчас (для ходьбы, бега)

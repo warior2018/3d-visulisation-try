@@ -6,9 +6,10 @@
 
 import {
   PistolAbility, RifleAbility, AutoAbility, ShotgunAbility, MacheteAbility, WarHammerAbility, KatanaAbility, SpearAbility,
-  FireStaffAbility, FrostWandAbility, MagmaStoneAbility, drawHammer, drawBearTrap, drawSpikes, drawMushroom, drawMedkit,
+  GrenadesAbility, LauncherAbility, DynamiteAbility,
+  drawHammer, drawBearTrap, drawSpikes, drawMedkit,
 } from "./abilities.js";
-import { PALETTE } from "./config.js";
+import { PALETTE, ARMOR } from "./config.js";
 
 // Значок оружия — тот же, что у способности в панели
 const iconOf = (Ability) => {
@@ -16,11 +17,11 @@ const iconOf = (Ability) => {
   return (ui, x, y, s) => a.drawIcon(ui, x, y, s);
 };
 
-// slot — куда в хотбаре (3 ячейки) можно положить: "weapon" — левая и правая (оружие, ловушки),
-//   "utility" — средняя (стройка, аптечка, грибы); без slot — только сумка (кости, монеты, блоки, патроны).
-//   Что лежит в хотбаре — то и в панели способностей (abilities.js → ABILITY_FOR_ITEM)
+// slot — куда можно положить: "weapon" — ячейка оружия (одна), "item" — две ячейки предметов (стройка, аптечка,
+//   ловушки), "head" / "chest" / "legs" / "feet" — броня (ARMOR в config.js); без slot — только сумка
+//   (кости, монеты, блоки, обоймы). Оружие и предметы — то и в панели способностей (abilities.js → ABILITY_FOR_ITEM)
 // weapon: true — оружие одно в ячейке (stack 1)
-// class — к какому классу относится (раздел магазина): melee, ranged, magic, trap, beast
+// class — к какому классу относится (раздел магазина): melee, ranged, demo; без class — раздел ПРОЧЕЕ
 // model — своя модель на земле (assets/<model>.glb); без неё — ящичек с крышкой цвета предмета
 // Обойма: магазин с патронами сверху; tall — высота магазина (длинная у автомата). Стопка до 10
 function clipItem(name, color, tall) {
@@ -33,6 +34,9 @@ function clipItem(name, color, tall) {
     },
   };
 }
+
+// Часть комплекта брони → ячейка (до ITEMS: он её уже использует)
+const ARMOR_PART_SLOT = { helmet: "head", chest: "chest", legs: "legs", boots: "feet" };
 
 export const ITEMS = {
   bone: { name: "BONE", color: [225, 220, 200], maxStack: 32 },
@@ -49,19 +53,8 @@ export const ITEMS = {
   "auto-clip": clipItem("RIFLE CLIP", [120, 110, 90], 0.5),
   "shotgun-clip": clipItem("SHELLS", [190, 60, 50], 0.36),
   "rifle-clip": clipItem("SNIPER CLIP", [90, 100, 80], 0.42),
-  // Гриб (ПРИЗЫВАТЕЛЬ): в средней ячейке — им кормят кабанов (F, выбирать не надо); выбрал ячейку и ЛКМ —
-  // из ВСЕХ грибов растёт турель. Растёт на земле (зелёный кубик), только у этого класса
-  mushroom: { name: "MUSHROOM", slot: "utility", class: "beast", color: [90, 200, 90], maxStack: 32, drawIcon: drawMushroom },
-  // Аптечка: средняя ячейка, выбрать и ЛКМ — лечит
-  medkit: { name: "MEDKIT", slot: "utility", color: [220, 60, 60], maxStack: 5, drawIcon: drawMedkit },
-  // Сфера души: падает с врагов у мага; подобрал — сразу мана (в сумку не идёт)
-  soul: {
-    name: "SOUL", color: [120, 200, 255], maxStack: 1, instant: true,
-    drawIcon: (ui, x, y, s) => {
-      ui.rect(x + s * 0.3, y + s * 0.3, s * 0.4, s * 0.4, [120, 200, 255]);
-      ui.rect(x + s * 0.4, y + s * 0.4, s * 0.2, s * 0.2, [230, 250, 255]);
-    },
-  },
+  // Аптечка: ячейка предмета, взять (клавиша ячейки) и держать ЛКМ — лечит (круг у прицела, MEDKIT)
+  medkit: { name: "MEDKIT", slot: "item", color: [220, 60, 60], maxStack: 5, model: "medkit", drawIcon: drawMedkit },
   // Шкура тролля: трофей босса логова; подобрал — сразу броня навсегда (TROLL_HIDE), в сумку не идёт
   "troll-hide": {
     name: "TROLL HIDE", color: [110, 120, 90], maxStack: 1, instant: true, model: "hide",
@@ -72,15 +65,6 @@ export const ITEMS = {
       ui.rect(x + s * 0.1, y + s * 0.64, s * 0.16, s * 0.16, [110, 120, 90]);
       ui.rect(x + s * 0.74, y + s * 0.64, s * 0.16, s * 0.16, [110, 120, 90]);
       ui.rect(x + s * 0.3, y + s * 0.4, s * 0.4, s * 0.2, [85, 95, 70]);
-    },
-  },
-  // Саженец турели (ПРИЗЫВАТЕЛЬ): E — посадить; растёт в турель (TURRET в config.js). Магазин или с врагов
-  "turret-sapling": {
-    name: "TURRET SAPLING", class: "beast", color: [120, 190, 90], maxStack: 10,
-    drawIcon: (ui, x, y, s) => {
-      ui.rect(x + s * 0.46, y + s * 0.45, s * 0.08, s * 0.35, [110, 80, 50]); //  стебелёк
-      ui.rect(x + s * 0.3, y + s * 0.3, s * 0.4, s * 0.18, [90, 200, 90]); //   шляпка-росток
-      ui.rect(x + s * 0.22, y + s * 0.78, s * 0.56, s * 0.08, [120, 90, 60]); // земля
     },
   },
   // Корона лича: трофей второго босса; подобрал — сразу +урон навсегда (BONE_CROWN), в сумку не идёт
@@ -103,14 +87,27 @@ export const ITEMS = {
   auto: { name: "ASSAULT RIFLE", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, drawIcon: iconOf(AutoAbility) },
   shotgun: { name: "SHOTGUN", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, color: [120, 90, 60], drawIcon: iconOf(ShotgunAbility) },
   rifle: { name: "SNIPER RIFLE", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, drawIcon: iconOf(RifleAbility) },
-  "frost-wand": { name: "FROST WAND", slot: "weapon", weapon: true, class: "magic", maxStack: 1, color: [120, 200, 255], drawIcon: iconOf(FrostWandAbility) },
-  "magma-stone": { name: "MAGMA STONE", slot: "weapon", weapon: true, class: "magic", maxStack: 1, color: [230, 90, 30], drawIcon: iconOf(MagmaStoneAbility) },
-  "fire-staff": { name: "METEOR STAFF", slot: "weapon", weapon: true, class: "magic", maxStack: 1, color: [200, 70, 40], drawIcon: iconOf(FireStaffAbility) },
-  "bear-trap": { name: "BEAR TRAP", slot: "weapon", maxStack: 10, model: "bear-trap", color: [110, 106, 100], drawIcon: drawBearTrap },
-  spikes: { name: "SPIKES", slot: "weapon", maxStack: 30, model: "spikes", color: [150, 110, 70], drawIcon: drawSpikes },
-  // Молот для стройки (id "builder" — старые сохранения не ломаются): средняя ячейка. Покупается в магазине
-  builder: { name: "HAMMER", slot: "utility", maxStack: 1, color: [170, 175, 185], drawIcon: drawHammer },
+  grenades: { name: "GRENADES", slot: "weapon", weapon: true, class: "demo", maxStack: 1, color: [80, 98, 52], drawIcon: iconOf(GrenadesAbility) },
+  launcher: { name: "GRENADE LAUNCHER", slot: "weapon", weapon: true, class: "demo", maxStack: 1, color: [80, 98, 52], drawIcon: iconOf(LauncherAbility) },
+  dynamite: { name: "DYNAMITE", slot: "weapon", weapon: true, class: "demo", maxStack: 1, color: [190, 40, 34], drawIcon: iconOf(DynamiteAbility) },
+  "bear-trap": { name: "BEAR TRAP", slot: "item", maxStack: 10, model: "bear-trap", color: [110, 106, 100], drawIcon: drawBearTrap },
+  spikes: { name: "SPIKES", slot: "item", maxStack: 30, model: "spikes", color: [150, 110, 70], drawIcon: drawSpikes },
+  // Молот для стройки (id "builder" — старые сохранения не ломаются): ячейка предмета. Покупается в магазине
+  builder: { name: "HAMMER", slot: "item", maxStack: 1, color: [170, 175, 185], drawIcon: drawHammer },
+  // Броня (ARMOR в config.js): своя ячейка у каждой части, armor — доля физического урона, которую срезает
+  ...armorItems(),
 };
+
+// Предметы брони из ARMOR: { "leather-helmet": { name, slot: "head", armor, ... }, ... }
+function armorItems() {
+  const out = {};
+  for (const [setId, set] of Object.entries(ARMOR.sets)) {
+    for (const [part, p] of Object.entries(set.parts)) {
+      out[`${setId}-${part}`] = { name: `${set.name} ${p.name}`, slot: ARMOR_PART_SLOT[part], armor: p.armor, speed: p.speed || 0, set: setId, maxStack: 1, color: set.color, drawIcon: drawArmor(part, set.color) };
+    }
+  }
+  return out;
+}
 
 // Сколько штук предмета помещается в одну ячейку инвентаря
 export const maxStack = (id) => ITEMS[id]?.maxStack ?? 64;
@@ -122,15 +119,48 @@ export const itemInfo = (id) => ({ name: itemName(id), color: ITEMS[id]?.color, 
 
 export const isWeapon = (id) => !!ITEMS[id]?.weapon;
 
-// Куда в хотбаре: "weapon" / "utility" / null (только сумка)
+// Куда: "weapon" / "item" / "head" / "chest" / "legs" / "feet" / null (только сумка)
 export const slotOf = (id) => ITEMS[id]?.slot || null;
 
-// Хотбар — 3 ячейки: 0 и 2 — оружие, 1 (середина) — расходники и инструменты
-export const HOTBAR_SLOTS = ["weapon", "utility", "weapon"];
+// Хотбар — 3 ячейки: 0 — оружие (одно), 1 и 2 — предметы (стройка, аптечка, ловушки)
+export const HOTBAR_SLOTS = ["weapon", "item", "item"];
 export const hotbarAccepts = (i, id) => slotOf(id) !== null && slotOf(id) === HOTBAR_SLOTS[i];
 
-// То, что берут в руку (подобранное — сразу в хотбар, если есть подходящая пустая ячейка)
-export const isUsable = (id) => slotOf(id) !== null;
+// Броня — 4 ячейки: шлем, нагрудник, поножи, ботинки
+export const ARMOR_SLOTS = ["head", "chest", "legs", "feet"];
+export const ARMOR_SLOT_NAMES = ["HELMET", "CHEST", "LEGS", "BOOTS"];
+export const armorAccepts = (i, id) => slotOf(id) === ARMOR_SLOTS[i];
+export const isArmor = (id) => ARMOR_SLOTS.includes(slotOf(id));
 
-// Убранные предметы (класс ROGUE и старое): в старых сохранениях их выкидываем; refund — монеты взамен
-export const REMOVED_ITEMS = { stone: 0, knife: 1, ammo: 0 }; // ammo — старые патроны: при загрузке → обоймы пистолета (game-scene: migrateHotbar)
+// То, что берут в руку (подобранное — сразу в хотбар, если есть подходящая пустая ячейка)
+export const isUsable = (id) => HOTBAR_SLOTS.includes(slotOf(id));
+
+
+// Значок брони: простой силуэт части цвета комплекта
+function drawArmor(part, color) {
+  const dark = color.map((c) => Math.round(c * 0.65));
+  return (ui, x, y, s) => {
+    const r = (fx, fy, fw, fh, c = color) => ui.rect(x + s * fx, y + s * fy, s * fw, s * fh, c);
+    if (part === "helmet") {
+      r(0.25, 0.25, 0.5, 0.3);
+      r(0.2, 0.5, 0.15, 0.2);
+      r(0.65, 0.5, 0.15, 0.2);
+      r(0.35, 0.45, 0.3, 0.06, dark); // щель забрала
+    } else if (part === "chest") {
+      r(0.22, 0.22, 0.56, 0.56);
+      r(0.1, 0.22, 0.14, 0.26);
+      r(0.76, 0.22, 0.14, 0.26);
+      r(0.42, 0.22, 0.16, 0.14, dark); // ворот
+    } else if (part === "legs") {
+      r(0.25, 0.2, 0.5, 0.18);
+      r(0.25, 0.36, 0.2, 0.44);
+      r(0.55, 0.36, 0.2, 0.44);
+      r(0.25, 0.2, 0.5, 0.05, dark); // пояс
+    } else {
+      r(0.2, 0.3, 0.2, 0.36);
+      r(0.2, 0.62, 0.3, 0.14);
+      r(0.58, 0.3, 0.2, 0.36);
+      r(0.58, 0.62, 0.3, 0.14);
+    }
+  };
+}

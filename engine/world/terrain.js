@@ -27,7 +27,7 @@ export class Terrain {
   constructor({ seed = 1, radius = 50, center = { x: 0, z: 0 }, edge = 14, flatCenter = 8, base = 1,
     hills = { amp: 3, scale: 22 }, plateaus = { count: 2, radius: [6, 9], height: [4, 6], edge: 4 },
     mountains = { count: 1, radius: [14, 18], height: [13, 18], distance: [24, 34] },
-    islands = null, bossChance = 0 } = {}) {
+    islands = null, bossChance = 0, minLairs = 0, maxLairs = Infinity } = {}) {
     this.seed = seed;
     this.radius = radius;
     this.center = center;
@@ -68,12 +68,18 @@ export class Terrain {
         }
       }
     }
-    // Логова боссов: в горе с шансом bossChance — зал у подножья, в самой толще (проход — к центру мира)
-    this.lairs = [];
-    for (const m of this.mountains) {
-      m.boss = rnd() < bossChance;
-      if (m.boss) this.lairs.push({ x: Math.round(m.x), y: 1, z: Math.round(m.z), r: Math.max(4, Math.round(m.r * 0.28)), mountain: m }); // не меньше 4: босс ростом ~2.5 м
+    // Логова боссов: в горе с шансом bossChance — зал у подножья, в самой толще (проход — к центру мира).
+    // minLairs / maxLairs — сколько логов обязательно и самое большее: не хватает — логово в самых больших
+    // горах из оставшихся; лишние — гора без логова (всё по зерну, мир тот же при той же загрузке)
+    for (const m of this.mountains) m.boss = rnd() < bossChance;
+    let chosen = this.mountains.filter((m) => m.boss);
+    if (chosen.length < minLairs) {
+      const rest = this.mountains.filter((m) => !m.boss).sort((a, b) => b.r - a.r);
+      chosen = [...chosen, ...rest.slice(0, minLairs - chosen.length)];
     }
+    chosen = chosen.slice(0, maxLairs);
+    for (const m of this.mountains) m.boss = chosen.includes(m);
+    this.lairs = this.mountains.filter((m) => m.boss).map((m) => ({ x: Math.round(m.x), y: 1, z: Math.round(m.z), r: Math.max(4, Math.round(m.r * 0.28)), mountain: m })); // не меньше 4: босс ростом ~2.5 м
   }
 
   // Сколько кубиков в столбике (x, z): 0 — ровная земля (пол мира). Самый высокий из островов
@@ -134,18 +140,30 @@ export class Terrain {
   }
 
   // Логово босса: зал-купол радиуса r у подножья горы и проход высотой 3 наружу, к центру мира
-  carveLair(world, { x, y, z, r }) {
+  // Зал логова и проход наружу. В lair.tunnel — где проход начался и где вышел (x0, z0 → x1, z1): игре — не
+  // ставить у выхода постройки и деревья
+  carveLair(world, lair) {
+    const { x, y, z, r } = lair;
     for (let i = -r; i <= r; i++) for (let k = -r; k <= r; k++) for (let j = 0; j <= r; j++) {
       if (Math.hypot(i, j * 1.3, k) <= r) world.remove(x + i, y + j, z + k);
     }
+    // Проход к центру мира: «кистью» — все клетки ближе HALF от линии, шаг полклетки. Так и наискосок проход
+    // сплошной (раньше по диагонали получалась «шахматка» — клетки касались только углами). Высота — 3 блока.
+    // Идём, пока не вышли наружу: земля над проходом не выше пола + 1 (дальше можно просто зайти / запрыгнуть)
     const dx = this.center.x - x, dz = this.center.z - z;
     const len = Math.hypot(dx, dz) || 1;
-    for (let t = r - 1; t < r + 30; t++) {
-      const tx = Math.round(x + (dx / len) * t), tz = Math.round(z + (dz / len) * t);
-      if (this.height(tx + 0.5, tz + 0.5) <= y) break; // вышли из горы
-      for (let w = -1; w <= 1; w++) for (let j = 0; j < 3; j++) {
-        world.remove(tx + Math.round((-dz / len) * w), y + j, tz + Math.round((dx / len) * w));
+    const ux = dx / len, uz = dz / len;
+    const HALF = 1.45;
+    for (let t = r - 1; t < r + 80; t += 0.5) {
+      const cx = x + 0.5 + ux * t, cz = z + 0.5 + uz * t; // точка на линии (середина клетки лога — x + 0.5)
+      for (let i = Math.floor(cx - HALF); i <= Math.floor(cx + HALF); i++) {
+        for (let k = Math.floor(cz - HALF); k <= Math.floor(cz + HALF); k++) {
+          if (Math.hypot(i + 0.5 - cx, k + 0.5 - cz) > HALF) continue;
+          for (let j = 0; j < 3; j++) world.remove(i, y + j, k);
+        }
       }
+      lair.tunnel = { x0: x + 0.5, z0: z + 0.5, x1: cx, z1: cz };
+      if (this.height(cx, cz) <= y + 1) break; // вышли из горы: дальше — открытая земля
     }
   }
 }

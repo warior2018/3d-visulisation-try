@@ -1,14 +1,14 @@
 // ============================================================
 //  Способности «Стройки». Как устроены способности и панель ячеек —
 //  решает движок (engine/world/abilities.js), а здесь — что делают именно наши.
-//  Оружие и инструмент — это ПРЕДМЕТЫ (items.js): что лежит в хотбаре (3 ячейки: по краям оружие — Q / E,
-//  в середине — стройка, аптечка, грибы), то и в панели способностей. Пустая ячейка оружия — рука (кулак).
+//  Оружие и инструмент — это ПРЕДМЕТЫ (items.js): что лежит в хотбаре (3 ячейки: оружие и два предмета —
+//  стройка, аптечка, ловушки), то и в панели способностей. Пустая ячейка оружия — рука (кулак).
 //
 //  g — игровая сцена (game-scene.js): через неё способности бьют, стреляют, строят.
 // ============================================================
 
-import { Ability, MeleeAttack, SlamAttack, RangedAttack, MagicAttack, buff, damageMultiplier, dash } from "../../engine/index.js";
-import { PALETTE, ATTACKS, WEAPON_SPEED, AIM_PISTOL, AIM_RIFLE, AIM_AUTO, RECOIL_PISTOL, RECOIL_RIFLE, RECOIL_AUTO, KATANA_IAI, EQUIP_TIME } from "./config.js";
+import { Ability, MeleeAttack, SlamAttack, RangedAttack, MagicAttack, buff, dash, stun } from "../../engine/index.js";
+import { PALETTE, ATTACKS, WEAPON_SPEED, AIM_PISTOL, AIM_RIFLE, AIM_AUTO, RECOIL_PISTOL, RECOIL_RIFLE, RECOIL_AUTO, KATANA_IAI, EQUIP_TIME, SHOTGUN_BLAST, DEMO, MEDKIT, DASH_SLIDE } from "./config.js";
 
 // Вид от 3-го лица: модель оружия крепится к правому предплечью героя (кость forearm_R скелета) —
 // в кулак (0.31 м ниже локтя), повёрнутая так, чтобы ствол / клинок шёл вдоль руки от кулака.
@@ -107,7 +107,7 @@ export class RifleAbility extends Ability {
   constructor() {
     super({
       id: "rifle", name: "SNIPER RIFLE", viewModel: "fp-rifle", moveSpeed: WEAPON_SPEED.rifle, autoRepeat: true,
-      aim: AIM_RIFLE, recoil: RECOIL_RIFLE, held: held("w-rifle", "HoldRifle"), equipTime: EQUIP_TIME.rifle,
+      aim: AIM_RIFLE, recoil: RECOIL_RIFLE, held: held("w-rifle", "HoldSniper"), equipTime: EQUIP_TIME.rifle,
     });
     this.attack = new RangedAttack(ATTACKS.rifle);
     this.reloadPose = "ReloadRifle";
@@ -136,7 +136,7 @@ export class RifleAbility extends Ability {
   }
   primary(g) {
     const ready = this.attack.ready;
-    g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "ShootRifle", sound: "shot" });
+    g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "ShootSniper", sound: "shot" });
     if (ready && !this.attack.ready && !this.attack.reloading) this.bolt = { t: 0 }; // выстрелили — пора передёрнуть затвор
   }
   action(name, g) {
@@ -184,7 +184,7 @@ export class AutoAbility extends Ability {
 // Мачете: ближний бой — бьёт сильнее и дальше кулака
 export class MacheteAbility extends Ability {
   constructor() {
-    super({ id: "machete", name: "MACHETE", viewModel: "fp-machete", autoRepeat: true, held: held("w-machete", "HoldMelee"), equipTime: EQUIP_TIME.machete });
+    super({ id: "machete", name: "MACHETE", viewModel: "fp-machete", autoRepeat: true, held: held("w-machete", "HoldMachete"), equipTime: EQUIP_TIME.machete });
     this.attack = new MeleeAttack(ATTACKS.machete);
     this.blocks = true;
   }
@@ -192,7 +192,9 @@ export class MacheteAbility extends Ability {
     g.tryBlock(this); // ПКМ — блок
   }
   primary(g) {
-    g.useAttack(this.attack, { anim: "Attack", sound: "swing", hitSound: "hit" });
+    const used = g.useAttack(this.attack, { anim: "Attack", bodyAnim: "MacheteSlash", sound: "swing", hitSound: "hit" });
+    // След, как у катаны (плоский и сразу, по хитбоксу), только уже — сектор мачете 80° — и чуть наискось
+    if (used) g.slashTrail(this.attack, { from: -0.25, to: -0.4, dir: -1, delay: 0, instant: true }); // справа налево, как взмах
   }
   drawIcon(ui, x, y, s) {
     ui.rect(x + s * 0.44, y + s * 0.12, s * 0.12, s * 0.5, [190, 194, 204]); // клинок
@@ -223,101 +225,162 @@ export class SpearAbility extends Ability {
   }
 }
 
-// Катана: в ножнах у левого бедра. Удар (Iai) — выхватить и разрезать всё перед собой (хитбокс — почти
+// Катана: в ножнах у левого бедра. Удар (ЛКМ) — выхватить и разрезать всё перед собой (хитбокс — почти
 // весь экран), стряхнуть кровь и вернуть в ножны. От 3-го лица: в ножнах — на бедре, при ударе — в руке.
-// ИАЙ (пассивный навык): продержал катану в ножнах KATANA_IAI.sheathTime секунд — бафф «ИАЙ»
-// (движок: статус-бафф на 1 заряд): следующий удар — ×2 урона и выпад вперёд.
-const KATANA_SHEATHED = { model: "w-katana-sheathed", pose: null, bone: "hips", position: [0.17, -0.02, 0.06], rotation: [-0.1736, 0, 0, 0.9848] }; // на левом бедре, рукоять чуть вверх
-const KATANA_DRAWN = held("w-katana", "HoldMelee");
-// mult / speed — с талантами (IAI MULTIPLIER, IAI SPEED): game-scene.js → iaiStats()
-export const iaiBuff = ({ mult = KATANA_IAI.damage, speed = KATANA_IAI.speed } = {}) => buff({
-  id: "iai", name: "IAI", icon: "X" + mult, color: [240, 196, 80],
-  modifiers: [damageMultiplier(mult)], charges: 1, duration: Infinity, speed,
-});
+// ИАЙ — скилл на Q (skill1), как «Стремительный удар» Гэндзи: сильный рывок туда, куда смотришь (в 3D: и вверх,
+// и вниз, и наискось), разрез всех врагов на пути (урон ×KATANA_IAI.damage). Всё время рывка камера стоит
+// (движок: ActionLock); в конце пути — замираем на pause с (и в воздухе), камера отпускается чуть раньше —
+// через lockShare этой паузы. Перезарядка — KATANA_IAI.cooldown.
+// Пока ИАЙ готов (и катана в руках) — прибавка к бегу с талантом IAI SPEED (без значка: готовность видна на ячейке Q).
+// В ножнах — левая рука лежит на ножнах, правая наготове (поза HoldKatana); выхвачена — HoldKatanaDrawn
+const KATANA_SHEATHED = { model: "w-katana-sheathed", pose: "HoldKatana", bone: "hips", position: [0.17, -0.02, 0.06], rotation: [-0.1736, 0, 0, 0.9848] }; // на левом бедре, рукоять чуть вверх
+// Выхвачена: клинок в правой руке, а на бедре остаются пустые ножны (второй предмет — extra) там же, где висели
+const KATANA_DRAWN = { ...held("w-katana", "HoldKatanaDrawn"), extra: { ...KATANA_SHEATHED, model: "w-katana-saya" } };
 
 export class KatanaAbility extends Ability {
   constructor() {
-    super({ id: "katana", name: "KATANA", viewModel: "fp-katana", autoRepeat: true, held: KATANA_SHEATHED, equipTime: EQUIP_TIME.katana });
+    super({
+      id: "katana", name: "KATANA", viewModel: "fp-katana", autoRepeat: true, held: KATANA_SHEATHED, equipTime: EQUIP_TIME.katana,
+      // cooldown — для ячейки скилла на панели: { left, total } (часики)
+      skills: { skill1: { id: "iai", name: "IAI", press: (g, a) => a.iai(g), cooldown: (a) => ({ left: a.iaiLeft, total: KATANA_IAI.cooldown }) } },
+    });
     this.attack = new MeleeAttack(ATTACKS.katana);
-    this.drawn = 0; //    сколько ещё клинок вне ножен (идёт удар)
-    this.sheathed = 0; // сколько секунд подряд в ножнах (копится к ИАЙ)
-    this.lunge = 0; //    идёт выпад: удар — когда он кончится
+    this.drawn = 0; //      сколько ещё клинок вне ножен (идёт удар)
+    this.iaiReadyAt = 0; // когда ИАЙ снова готов (секунды часов): перезарядка идёт, даже если катана не в руках
+    this.dashLeft = 0; //   идёт рывок ИАЙ: сколько ещё секунд
+    this.pauseLeft = 0; //  остановка после рывка
+    this.dashFrom = null; // где герой был в прошлом кадре рывка (режем всех между)
+    this.wasReady = true; // ИАЙ был готов в прошлом кадре (звук — только когда стал готов)
+    this.cut = new Set(); // кого этот рывок уже разрезал (каждого — один раз)
     this.blocks = true;
   }
+  get busy() {
+    return this.dashLeft > 0 || this.pauseLeft > 0;
+  }
   secondary(g) {
-    if (this.lunge > 0) return;
+    if (this.busy) return;
     g.tryBlock(this); // ПКМ — блок рукоятью и ножнами
   }
-  // 0…1 — сколько накоплено к ИАЙ (для подсказки на экране)
+  // Сколько секунд ещё перезаряжается ИАЙ (0 — готов)
+  get iaiLeft() {
+    return Math.max(0, this.iaiReadyAt - performance.now() / 1000);
+  }
+  // 0…1 — сколько прошло перезарядки ИАЙ (для подсказки на экране)
   get iaiProgress() {
-    return Math.min(1, this.sheathed / KATANA_IAI.sheathTime);
+    return 1 - this.iaiLeft / KATANA_IAI.cooldown;
   }
   update(dt, g) {
     this.drawn = Math.max(0, this.drawn - dt);
-    this.held = this.drawn > 0 ? KATANA_DRAWN : KATANA_SHEATHED;
-    // Выпад закончился — режем
-    if (this.lunge > 0) {
-      this.lunge -= dt;
-      if (this.lunge <= 0) this.strike(g);
+    this.held = this.drawn > 0 || this.busy ? KATANA_DRAWN : KATANA_SHEATHED;
+    if (this.dashLeft > 0) {
+      this.cutAlong(g); // режем всех, мимо кого пролетели за этот кадр
+      this.dashTime += dt;
+      if (this.dashTime >= this.dashTotal * 0.5) this.cutVisual(g); // половина пути — взмах и серп
+      this.dashLeft -= dt;
+      if (this.dashLeft <= 0) this.endDash(g);
       return;
     }
-    // В ножнах — копим ИАЙ
-    if (this.drawn === 0 && !g.player.hasStatus("iai")) {
-      this.sheathed += dt;
-      if (this.sheathed >= KATANA_IAI.sheathTime) {
-        const st = g.iaiStats();
-        g.player.addStatus(iaiBuff(st));
-        g.engine.sound.play("learn");
-        g.engine.toast(st.speed > 0 ? `IAI: NEXT STRIKE X${st.mult} WITH A LUNGE, RUN +${Math.round(st.speed * 100)}%` : `IAI: NEXT STRIKE X${st.mult} WITH A LUNGE`, 1800);
-      }
+    if (this.pauseLeft > 0) {
+      this.pauseLeft -= dt;
+      return;
     }
+    // ИАЙ снова готов — звук (готовность видна на ячейке Q); с талантом IAI SPEED — быстрее бег, пока готов
+    const ready = this.iaiLeft === 0;
+    if (ready && !this.wasReady) g.engine.sound.play("learn");
+    this.wasReady = ready;
+    g.player.speedBonuses.iai = ready ? g.iaiStats().speed : 0;
   }
   unequip(g) {
-    g.player.removeStatus("iai"); // убрал катану — готовность пропала
-    this.sheathed = 0;
-    this.lunge = 0;
+    delete g.player.speedBonuses.iai; // убрал катану — прибавки к бегу нет (перезарядка идёт дальше)
+    if (this.dashLeft > 0 || this.pauseLeft > 0) g.player.dash = null; // рывок обрывается
+    g.player.tilt = 0;
+    if (this.dashLeft > 0) g.actionLock.clear();
+    this.dashLeft = 0;
+    this.pauseLeft = 0;
     this.drawn = 0;
     this.held = KATANA_SHEATHED;
   }
   primary(g) {
-    if (this.lunge > 0 || !this.attack.ready) return;
-    // С ИАЙ — сначала выпад вперёд, удар — в конце рывка
-    if (g.player.hasStatus("iai") && !g.player.mount) {
-      const dir = g.look.lookDirection();
-      // Рывок — не дальше ближайшего врага впереди: останавливаемся в ~1.2 м от него, а не пролетаем
-      // насквозь (иначе враг оказывается за спиной и разрез мимо)
-      const time = this.lungeTimeTo(g, dir);
-      if (time <= 0.01) return this.strike(g); // враг уже вплотную — режем сразу
-      dash(g.player, dir.x, dir.z, KATANA_IAI.lungeSpeed, time);
-      this.lunge = time;
-      this.drawn = 0.9;
-      g.engine.sound.play("swing");
-      return;
-    }
-    this.strike(g);
+    if (this.busy) return;
+    this.strike(g); // ЛКМ — всегда обычный удар
   }
-  // Сколько секунд рваться вперёд: полный выпад или до ближайшего врага в секторе ±45° перед собой
-  lungeTimeTo(g, dir) {
-    const p = g.player.position;
-    const len = Math.hypot(dir.x, dir.z) || 1;
-    const fx = dir.x / len, fz = dir.z / len;
-    let stop = KATANA_IAI.lungeSpeed * KATANA_IAI.lungeTime; // полный рывок, м
+  // Q: рывок туда, куда смотрим (в 3D) — режет всех на пути
+  iai(g) {
+    if (this.busy || this.iaiLeft > 0 || g.abilities.equipping) return;
+    const I = KATANA_IAI;
+    g.player.speedBonuses.iai = 0;
+    this.iaiReadyAt = performance.now() / 1000 + I.cooldown;
+    const dir = g.look.lookDirection();
+    this.dashLeft = I.distance / I.dashSpeed;
+    this.dashTotal = this.dashLeft;
+    dash(g.player, dir.x, dir.z, I.dashSpeed, this.dashLeft, dir.y, { shape: I.shape, slide: DASH_SLIDE }); // в рывке — «плоская» коробка; по стенам — скользит
+    // Камера стоит весь рывок и ещё lockShare паузы в конце (рывок может оборваться о стену — тогда раньше)
+    g.actionLock.lock(this.dashLeft + I.pause * I.lockShare, { look: true });
+    this.dashFrom = { ...g.player.position };
+    this.cut.clear();
+    this.drawn = 1;
+    g.player.view?.animator.playOnce("IaiDash"); // от 3-го лица: вытянулся в рывке, разрез, потом — снова стойка
+    this.dashTime = 0; //                          сколько уже летим: разрез — на половине пути (cut)
+    this.cutDone = false;
+    g.player.tilt = -Math.asin(Math.max(-1, Math.min(1, dir.y))) * 0.8; // рывок вверх / вниз — всё тело по вектору
+    g.engine.sound.play("swing");
+  }
+  // Враги рядом с отрезком «где был → где сейчас» (в 3D, ширина разреза — I.width) получают удар ×mult,
+  // каждый один раз. Расстояние — от отрезка до оси врага (от ног до макушки)
+  cutAlong(g) {
+    const I = KATANA_IAI;
+    const p = g.player;
+    const a = this.dashFrom, b = p.position;
+    const mid = p.height / 2; // режем на уровне пояса героя
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+    const len2 = dx * dx + dy * dy + dz * dz || 1e-6;
     for (const e of g.entities.list) {
-      if (e === g.player || !e.alive || !g.player.isHostileTo(e)) continue;
-      const dx = e.position.x - p.x, dz = e.position.z - p.z;
-      const ahead = dx * fx + dz * fz; //            насколько впереди
-      const side = Math.abs(dx * fz - dz * fx); //    насколько в стороне
-      if (ahead <= 0 || side > ahead) continue; //    позади или дальше 45° вбок
-      stop = Math.min(stop, Math.max(0, ahead - 1.2));
+      if (e === p || !e.alive || this.cut.has(e) || !p.isHostileTo(e)) continue;
+      const ey = e.position.y + e.height / 2 - mid; // середина врага в «координатах ног героя»
+      const t = Math.max(0, Math.min(1, ((e.position.x - a.x) * dx + (ey - a.y) * dy + (e.position.z - a.z) * dz) / len2));
+      const cx = a.x + dx * t, cy = a.y + dy * t, cz = a.z + dz * t;
+      const flat = Math.hypot(e.position.x - cx, e.position.z - cz);
+      const up = Math.max(0, Math.abs(ey - cy) - e.height / 2); // по высоте — от ближайшей точки тела
+      if (Math.hypot(flat, up) > I.width + (e.radius || 0)) continue;
+      this.cut.add(e);
+      const r = this.attack.hit(p, e, g.combatContext({ baseDamage: this.attack.roll() * g.iaiStats().mult, onHit: (h) => g.onPlayerHit(h) }));
+      // Талант IAI RESET: убил самим рывком — перезарядка ИАЙ сброшена (снова можно, как только кончится этот рывок)
+      if (r.killed && g.talentStats?.iaiReset && this.iaiReadyAt > 0) {
+        this.iaiReadyAt = 0;
+        g.engine.toast("IAI RESET", 700);
+      }
+      g.engine.sound.play("hit");
     }
-    return stop / KATANA_IAI.lungeSpeed;
+    this.dashFrom = { ...b };
+  }
+  // Взмах ИАЙ: клинок от 1-го лица (удар Iai вдвое быстрее) и пиксельный серп на весь экран — один раз за рывок
+  cutVisual(g) {
+    if (this.cutDone) return;
+    this.cutDone = true;
+    g.viewModel()?.play("Iai", 2);
+    // серп — вдоль пореза: перед героем, поперёк взгляда, едет вместе с ним
+    g.crescents.add({ anchor: () => g.look.position, yaw: g.look.yaw, pitch: g.look.pitch, dir: 1 });
+    g.engine.sound.play("slash");
+  }
+
+  // Конец пути: замираем на месте (и в воздухе) на pause с; камера отпустится чуть раньше (lock — в iai)
+  endDash(g) {
+    const I = KATANA_IAI;
+    this.cutAlong(g);
+    this.cutVisual(g); // рывок короткий (упёрлись) — взмах сейчас, пока камера стоит
+    this.dashLeft = 0;
+    this.pauseLeft = I.pause;
+    g.player.tilt = 0;
+    dash(g.player, 0, 0, 0, I.pause, 0); // рывок со скоростью 0 — стоим, не падаем, клавиши не двигают
+    g.actionLock.lock(I.pause * I.lockShare, { look: true }); // рывок оборвался раньше (стена) — всё равно до 70 % паузы
+    this.drawn = 0.5;
   }
   strike(g) {
-    const used = g.useAttack(this.attack, { anim: "Iai", bodyAnim: "Iai", sound: "slash", hitSound: "hit" });
+    // Удар — вдвое быстрее анимации Iai; урон по хитбоксу — сразу (у катаны нет замаха)
+    const used = g.useAttack(this.attack, { anim: "Iai", bodyAnim: "Iai", sound: "slash", hitSound: "hit", animSpeed: 2 });
     if (!used) return;
-    this.drawn = 0.7; //   клинок вне ножен, пока идёт Iai
-    this.sheathed = 0; //  ИАЙ копится заново
-    g.slashTrail(this.attack); // белый след — ровно по хитбоксу удара
+    this.drawn = 0.35; //  клинок вне ножен, пока идёт Iai (×2 — вдвое короче)
+    g.slashTrail(this.attack, { from: -0.35, to: -0.35, delay: 0, instant: true }); // след — плоский и сразу, ровно по хитбоксу
   }
   drawIcon(ui, x, y, s) {
     // Клинок по диагонали: снизу слева вверх вправо, цуба и рукоять
@@ -345,38 +408,6 @@ const drawCount = (ui, x, y, s, n) => {
   if (n !== undefined) ui.text(String(n), x + s - 5, y + s - 18, 2, n > 0 ? [255, 255, 255] : [255, 90, 80], "right");
 };
 
-// Посох метеора: под прицелом круг; ЛКМ — через миг сверху бьёт столб огня (урон по площади, поджигает)
-export class FireStaffAbility extends Ability {
-  constructor() {
-    super({ id: "fire-staff", name: "METEOR STAFF", viewModel: "fp-staff", autoRepeat: true, held: held("w-fire-staff", "HoldMelee"), equipTime: EQUIP_TIME.staff });
-    this.attack = new MagicAttack(ATTACKS.fireStaff);
-  }
-  primary(g) {
-    g.castFireball(this.attack);
-  }
-  drawIcon(ui, x, y, s) {
-    for (let i = 0; i < 6; i++) ui.rect(x + s * (0.24 + i * 0.07), y + s * (0.74 - i * 0.07), s * 0.08, s * 0.08, [120, 82, 50]); // древко
-    ui.rect(x + s * 0.62, y + s * 0.16, s * 0.2, s * 0.2, [220, 60, 30]); //  кристалл
-    ui.rect(x + s * 0.67, y + s * 0.21, s * 0.1, s * 0.1, [255, 190, 80]); // огонёк
-  }
-}
-
-// Жезл льда: ЛКМ — ледяная стрела мгновенно в цель под прицелом (замедляет), зажал — стреляет по готовности
-export class FrostWandAbility extends Ability {
-  constructor() {
-    super({ id: "frost-wand", name: "FROST WAND", viewModel: "fp-wand", autoRepeat: true, held: held("w-frost-wand", "HoldMelee"), equipTime: EQUIP_TIME.wand });
-    this.attack = new MagicAttack(ATTACKS.frostWand);
-  }
-  primary(g) {
-    g.castBolt(this.attack);
-  }
-  drawIcon(ui, x, y, s) {
-    for (let i = 0; i < 4; i++) ui.rect(x + s * (0.3 + i * 0.08), y + s * (0.66 - i * 0.08), s * 0.07, s * 0.07, [215, 222, 240]); // палочка
-    ui.rect(x + s * 0.24, y + s * 0.68, s * 0.12, s * 0.12, [80, 84, 110]); // рукоять
-    ui.rect(x + s * 0.6, y + s * 0.24, s * 0.16, s * 0.16, [120, 205, 255]); // кристалл
-  }
-}
-
 // Ловушка в руке (капкан или шипы — стопка в ячейке): ЛКМ — поставить на землю под прицелом
 export class TrapAbility extends Ability {
   constructor(type, name, model, drawIcon) {
@@ -398,7 +429,7 @@ export class TrapAbility extends Ability {
 // Тряска и круг на земле — game-scene.js → hammerSlam
 export class WarHammerAbility extends Ability {
   constructor() {
-    super({ id: "war-hammer", name: "WAR HAMMER", viewModel: "fp-war-hammer", moveSpeed: WEAPON_SPEED.warHammer, autoRepeat: true, held: held("w-war-hammer", "HoldMelee"), equipTime: EQUIP_TIME.warHammer });
+    super({ id: "war-hammer", name: "WAR HAMMER", viewModel: "fp-war-hammer", moveSpeed: WEAPON_SPEED.warHammer, autoRepeat: true, held: held("w-war-hammer", "HoldHammer"), equipTime: EQUIP_TIME.warHammer });
     this.attack = new SlamAttack(ATTACKS.warHammer);
     this.blocks = true;
   }
@@ -406,7 +437,7 @@ export class WarHammerAbility extends Ability {
     g.tryBlock(this);
   }
   primary(g) {
-    g.useAttack(this.attack, { anim: "Attack", sound: "swing", ctx: { radius: g.talentStats?.hammerSlam || ATTACKS.warHammer.radius, fallMultiplier: (fall) => g.slamFallMultiplier(fall), onSlam: (c, r, hits, info) => g.hammerSlam(c, r, hits, info) } });
+    g.useAttack(this.attack, { anim: "Attack", bodyAnim: "HammerSlam", sound: "swing", ctx: { radius: g.talentStats?.hammerSlam || ATTACKS.warHammer.radius, fallMultiplier: (fall) => g.slamFallMultiplier(fall), onSlam: (c, r, hits, info) => g.hammerSlam(c, r, hits, info) } });
   }
   drawIcon(ui, x, y, s) {
     ui.rect(x + s * 0.46, y + s * 0.3, s * 0.08, s * 0.58, [120, 80, 50]); // рукоять
@@ -421,9 +452,40 @@ export class ShotgunAbility extends Ability {
     super({
       id: "shotgun", name: "SHOTGUN", viewModel: "fp-shotgun", moveSpeed: WEAPON_SPEED.shotgun, autoRepeat: true,
       aim: AIM_AUTO, recoil: RECOIL_RIFLE, held: held("w-shotgun", "HoldRifle"), equipTime: EQUIP_TIME.shotgun,
+      skills: { skill1: { id: "blast", name: "BLAST JUMP", press: (g, a) => a.blast(g), cooldown: (a) => ({ left: a.blastLeft, total: SHOTGUN_BLAST.cooldown }) } },
     });
     this.attack = new RangedAttack(ATTACKS.shotgun);
     this.reloadPose = "ReloadRifle";
+    // Залп Q — конус перед собой (как удар по сектору), но это выстрел: вид «ranged» (таланты стрелка)
+    this.blastAttack = new MeleeAttack(ATTACKS.shotgunBlast);
+    this.blastAttack.kind = "ranged";
+    this.blastReadyAt = 0; // когда залп снова готов (секунды часов): перезарядка идёт и без дробовика в руках
+  }
+  get blastLeft() {
+    return Math.max(0, this.blastReadyAt - performance.now() / 1000);
+  }
+  // Q — ОТСКОК: залп в упор по конусу (оглушает) и отброс героя против взгляда
+  blast(g) {
+    const B = SHOTGUN_BLAST;
+    if (this.blastLeft > 0 || g.abilities.equipping) return;
+    const used = g.useAttack(this.blastAttack, {
+      anim: "Shoot", bodyAnim: "ShootShotgun", sound: "shot",
+      onHit: (hit) => hit.target.alive && hit.target.addStatus?.(stun(B.stun)()),
+    });
+    if (!used) return;
+    this.blastReadyAt = performance.now() / 1000 + B.cooldown;
+    const d = g.look.lookDirection();
+    dash(g.player, -d.x, -d.z, B.push, B.pushTime, -d.y + B.lift, { slide: DASH_SLIDE }); // отдача: назад (и вверх, если стрелял вниз); по стенам — скользит
+    // Дробь веером — несколько ярких полос из ствола по конусу залпа
+    const eye = g.look.position, R = ATTACKS.shotgunBlast.reach;
+    for (let i = 0; i < 9; i++) {
+      const a = ((i / 8) - 0.5) * (ATTACKS.shotgunBlast.arc * Math.PI) / 180, up = (Math.random() - 0.5) * 0.25;
+      const c = Math.cos(a), sn = Math.sin(a);
+      const dir = { x: d.x * c + d.z * sn, y: d.y + up, z: d.z * c - d.x * sn };
+      const from = { x: eye.x + dir.x * 0.6, y: eye.y - 0.15 + dir.y * 0.6, z: eye.z + dir.z * 0.6 };
+      const k = R * (0.6 + Math.random() * 0.4);
+      g.beams.add({ from, to: { x: eye.x + dir.x * k, y: eye.y - 0.15 + dir.y * k, z: eye.z + dir.z * k }, color: [255, 200, 110], core: [255, 245, 220], life: 0.1, width: 4 });
+    }
   }
   update(dt, g) {
     g.aiming = g.aimWanted() && !this.attack.reloading;
@@ -432,7 +494,7 @@ export class ShotgunAbility extends Ability {
     g.aiming = false;
   }
   primary(g) {
-    g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "ShootRifle", sound: "shot" });
+    g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "ShootShotgun", sound: "shot" });
   }
   action(name, g) {
     return name === "reload" && g.reloadWeapon(this);
@@ -445,59 +507,147 @@ export class ShotgunAbility extends Ability {
   }
 }
 
-// Магма-камень (МАГ): ЛКМ — бросок по дуге, где упал — лужа магмы (game-scene.js → throwMagma)
-export class MagmaStoneAbility extends Ability {
+// ---------- ПОДРЫВНИК ----------
+// Взрывная атака: снаряд летит сам (MagicAttack projectile), долетел — взрыв по площади (game-scene → throwBomb).
+// Вид "blast" — таланты вкладки подрывника действуют только на неё
+const blastAttack = (cfg) => {
+  const a = new MagicAttack(cfg);
+  a.kind = "blast";
+  return a;
+};
+
+// Гранаты (базовое): ЛКМ — бросок по дуге, взрыв от удара о что угодно. Бесконечные, раз в cooldown
+export class GrenadesAbility extends Ability {
   constructor() {
-    super({ id: "magma-stone", name: "MAGMA STONE", viewModel: "fp-magma", autoRepeat: true, held: held("w-magma", null), equipTime: EQUIP_TIME.magma });
-    this.attack = new MagicAttack(ATTACKS.magmaStone);
+    super({ id: "grenades", name: "GRENADES", viewModel: "fp-grenade", autoRepeat: true, held: held("w-grenade", "HoldGrenade"), equipTime: EQUIP_TIME.item });
+    this.attack = blastAttack(ATTACKS.handGrenade);
   }
   primary(g) {
-    g.throwMagma(this.attack);
+    if (g.useAttack(this.attack, { anim: "Throw", bodyAnim: "ThrowGrenade", sound: "swing" })) g.throwBomb(this.attack, { item: "grenade", speed: ATTACKS.handGrenade.speed, gravity: DEMO.gravity });
   }
   drawIcon(ui, x, y, s) {
-    ui.rect(x + s * 0.2, y + s * 0.4, s * 0.6, s * 0.36, [150, 40, 20]);
-    ui.rect(x + s * 0.3, y + s * 0.3, s * 0.4, s * 0.16, [230, 90, 30]);
-    ui.rect(x + s * 0.4, y + s * 0.48, s * 0.2, s * 0.12, [255, 200, 80]); // светится
+    ui.rect(x + s * 0.3, y + s * 0.34, s * 0.4, s * 0.46, [80, 98, 52]); //   корпус
+    ui.rect(x + s * 0.3, y + s * 0.5, s * 0.4, s * 0.04, [55, 68, 36]); //     насечка
+    ui.rect(x + s * 0.42, y + s * 0.22, s * 0.16, s * 0.12, METAL); //         запал
+    ui.rect(x + s * 0.58, y + s * 0.24, s * 0.06, s * 0.28, METAL); //         скоба
+    ui.rect(x + s * 0.24, y + s * 0.18, s * 0.12, s * 0.06, [200, 200, 205]); // кольцо
   }
 }
 
-// Грибы в средней ячейке (ПРИЗЫВАТЕЛЬ): F — покормить кабана (выбирать не нужно), выбрал и ЛКМ — турель из всех грибов
-export class MushroomAbility extends Ability {
+// Динамит: бросок, падает и горит фитиль DEMO.fuse с (SHORT FUSE — короче) — потом большой взрыв
+export class DynamiteAbility extends Ability {
   constructor() {
-    super({ id: "mushroom", name: "MUSHROOMS", viewModel: "fp-arm", held: null, equipTime: EQUIP_TIME.item });
+    super({ id: "dynamite", name: "DYNAMITE", viewModel: "fp-dynamite", autoRepeat: true, held: held("w-dynamite", "HoldDynamite"), equipTime: EQUIP_TIME.item });
+    this.attack = blastAttack(ATTACKS.dynamite);
   }
-  // Турели теперь — саженцы на E (game-scene.js → plantSapling); грибами в средней ячейке — целебный гриб
   primary(g) {
-    g.plantHealer();
+    if (!g.useAttack(this.attack, { anim: "Throw", bodyAnim: "ThrowDynamite", sound: "swing" })) return;
+    g.throwBomb(this.attack, { item: "dynamite-lit", speed: ATTACKS.dynamite.speed, gravity: DEMO.gravity, fuse: g.talentStats?.shortFuse ? DEMO.shortFuse : DEMO.fuse });
   }
-  secondary(g) {
-    g.plantHealer(); // ПКМ — тоже целебный гриб (HEALER)
-  }
-  drawIcon(ui, x, y, s, g) {
-    drawMushroom(ui, x + s * 0.2, y + s * 0.2, s * 0.6);
-    drawCount(ui, x, y, s, g?.itemCount?.("mushroom"));
+  drawIcon(ui, x, y, s) {
+    for (const k of [0.28, 0.42, 0.56]) ui.rect(x + s * k, y + s * 0.3, s * 0.13, s * 0.5, [190, 40, 34]); // шашки
+    ui.rect(x + s * 0.26, y + s * 0.48, s * 0.46, s * 0.07, [220, 205, 150]); //  перевязка
+    ui.rect(x + s * 0.47, y + s * 0.16, s * 0.04, s * 0.14, [60, 50, 40]); //    фитиль
+    ui.rect(x + s * 0.44, y + s * 0.1, s * 0.1, s * 0.08, [255, 190, 80]); //    искра
   }
 }
 
-// Аптечка в средней ячейке: выбрал и ЛКМ — +40 HP
+// Гранатомёт: ЛКМ — снаряд летит быстро и почти прямо, взрыв от удара. Скилл Q — КАССЕТА: снаряд рвётся
+// и разбрасывает бомбочки вокруг (DEMO.cluster; талант BIG CLUSTER — больше)
+export class LauncherAbility extends Ability {
+  constructor() {
+    super({
+      id: "launcher", name: "GRENADE LAUNCHER", viewModel: "fp-launcher", moveSpeed: WEAPON_SPEED.launcher, autoRepeat: true,
+      aim: AIM_AUTO, recoil: RECOIL_RIFLE, held: held("w-launcher", "HoldLauncher"), equipTime: EQUIP_TIME.launcher,
+      skills: { skill1: { id: "cluster", name: "CLUSTER", press: (g, a) => a.cluster(g), cooldown: (a) => ({ left: a.clusterLeft, total: DEMO.cluster.cooldown }) } },
+    });
+    this.attack = blastAttack(ATTACKS.launcher);
+    this.clusterAttack = blastAttack(ATTACKS.launcher); // залп Q — своя перезарядка (не сбивает обычный выстрел)
+    this.clusterAttack.cooldown = 0;
+    this.bomblet = blastAttack(ATTACKS.clusterBomb);
+    this.clusterReadyAt = 0;
+  }
+  get clusterLeft() {
+    return Math.max(0, this.clusterReadyAt - performance.now() / 1000);
+  }
+  update(dt, g) {
+    g.aiming = g.aimWanted();
+  }
+  unequip(g) {
+    g.aiming = false;
+  }
+  primary(g) {
+    if (g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "ShootLauncher", sound: "cast" })) g.throwBomb(this.attack, { item: "grenade", speed: ATTACKS.launcher.speed, gravity: DEMO.launcherGravity });
+  }
+  cluster(g) {
+    const C = DEMO.cluster;
+    if (this.clusterLeft > 0 || g.abilities.equipping) return;
+    if (!g.useAttack(this.clusterAttack, { anim: "Shoot", bodyAnim: "ShootLauncher", sound: "cast" })) return;
+    this.clusterReadyAt = performance.now() / 1000 + C.cooldown;
+    const count = C.count + (g.talentStats?.clusterExtra || 0);
+    g.throwBomb(this.clusterAttack, {
+      item: "grenade", speed: ATTACKS.launcher.speed, gravity: DEMO.launcherGravity,
+      // Разорвался — бомбочки веером вверх и в стороны, каждая рвётся, где упадёт
+      then: (at) => {
+        for (let i = 0; i < count; i++) {
+          const a = (i / count) * Math.PI * 2 + Math.random() * 0.5, h = C.spread * (0.5 + Math.random() * 0.5);
+          g.throwBomb(this.bomblet, { item: "grenade", from: { x: at.x, y: at.y + 0.3, z: at.z }, velocity: { x: Math.sin(a) * h, y: C.up * (0.8 + Math.random() * 0.4), z: Math.cos(a) * h }, gravity: DEMO.gravity, quiet: true });
+        }
+      },
+    });
+  }
+  drawIcon(ui, x, y, s) {
+    ui.rect(x + s * 0.12, y + s * 0.4, s * 0.62, s * 0.16, [80, 98, 52]); //   ствол
+    ui.rect(x + s * 0.7, y + s * 0.38, s * 0.08, s * 0.2, METAL); //           дульце
+    ui.rect(x + s * 0.18, y + s * 0.36, s * 0.22, s * 0.24, [60, 62, 68]); //  барабан
+    ui.rect(x + s * 0.24, y + s * 0.58, s * 0.08, s * 0.2, [60, 62, 68]); //   рукоять
+  }
+}
+
+// Аптечка в ячейке предмета: взял (клавиша ячейки) — держишь двумя руками перед собой. Зажал ЛКМ — лечишься:
+// вокруг прицела заполняется круг за MEDKIT.useTime с (идти можно, но медленнее), заполнился — +HP и снова
+// оружие в руках. Отпустил раньше — аптечка цела, круг сначала
+// От 3-го лица — коробка у груди (кость chest), руки держат её с боков (поза HoldBox)
+const MEDKIT_HELD = { model: "w-medkit", pose: "HoldBox", bone: "chest", position: [0, -0.04, 0.42], rotation: [0, 0, 0, 1] };
 export class MedkitAbility extends Ability {
   constructor() {
-    super({ id: "medkit", name: "MEDKIT", viewModel: "fp-arm", held: null, equipTime: EQUIP_TIME.item });
+    super({ id: "medkit", name: "MEDKIT", viewModel: "fp-medkit", held: MEDKIT_HELD, equipTime: EQUIP_TIME.item });
+    this.progress = 0; // 0…1 — сколько заполнился круг
   }
-  primary(g) {
-    g.useMedkit();
+  get using() {
+    return this.progress > 0;
   }
+  update(dt, g) {
+    const p = g.player;
+    const holding = !g.background && !g.abilities.equipping && g.engine.input.isDown("primary") && g.itemCount("medkit") > 0;
+    if (!holding) return this.stop(g);
+    if (this.progress === 0 && p.stats.hp >= p.stats.maxHp) {
+      if (!this.fullWarned) g.engine.toast("HEALTH IS FULL", 800);
+      this.fullWarned = true;
+      return;
+    }
+    this.progress = Math.min(1, this.progress + dt / MEDKIT.useTime);
+    p.speedBonuses.medkit = MEDKIT.slow;
+    if (this.progress >= 1) {
+      this.stop(g);
+      g.useMedkit();
+    }
+  }
+  stop(g) {
+    this.progress = 0;
+    this.fullWarned = false;
+    delete g.player.speedBonuses.medkit;
+  }
+  unequip(g) {
+    this.stop(g);
+  }
+  primary() {} // лечение — пока ЛКМ зажата (update)
   drawIcon(ui, x, y, s, g) {
     drawMedkit(ui, x + s * 0.2, y + s * 0.2, s * 0.6);
     drawCount(ui, x, y, s, g?.itemCount?.("medkit"));
   }
 }
 
-export const drawMushroom = (ui, x, y, s) => {
-  ui.rect(x + s * 0.1, y + s * 0.2, s * 0.8, s * 0.3, [90, 200, 90]); //  шляпка
-  ui.rect(x + s * 0.24, y + s * 0.26, s * 0.12, s * 0.1, [200, 240, 200]); // пятнышко
-  ui.rect(x + s * 0.38, y + s * 0.5, s * 0.24, s * 0.36, [225, 220, 200]); // ножка
-};
 export const drawMedkit = (ui, x, y, s) => {
   ui.rect(x + s * 0.1, y + s * 0.2, s * 0.8, s * 0.64, [235, 235, 235]);
   ui.rect(x + s * 0.42, y + s * 0.3, s * 0.16, s * 0.44, [220, 50, 50]); // крест
@@ -544,11 +694,10 @@ export const ABILITY_FOR_ITEM = {
   "war-hammer": () => new WarHammerAbility(),
   spear: () => new SpearAbility(),
   katana: () => new KatanaAbility(),
+  grenades: () => new GrenadesAbility(),
+  launcher: () => new LauncherAbility(),
+  dynamite: () => new DynamiteAbility(),
   builder: () => new BuildAbility(),
-  "fire-staff": () => new FireStaffAbility(),
-  "frost-wand": () => new FrostWandAbility(),
-  "magma-stone": () => new MagmaStoneAbility(),
-  mushroom: () => new MushroomAbility(),
   medkit: () => new MedkitAbility(),
   "bear-trap": () => new TrapAbility("bear-trap", "BEAR TRAP", "bear-trap", drawBearTrap),
   spikes: () => new TrapAbility("spikes", "SPIKES", "spikes", drawSpikes),

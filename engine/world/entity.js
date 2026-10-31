@@ -23,7 +23,9 @@
 // ============================================================
 
 import { Inventory } from "./inventory.js";
+import { SpatialGrid } from "./spatial-grid.js";
 import { Vec3 } from "../math/vec3.js";
+import { combatLog } from "../combat/combat-log.js";
 
 let nextId = 1;
 
@@ -59,6 +61,8 @@ export class Entity {
     this.hitboxes = hitboxes; // части тела: попадание в них — с множителем (голова ×2)
     this.regen = 0; //          регенерация: сколько HP в секунду восстанавливается само
     this.regenPart = 0; //      накопленная дробная часть (0.5 HP/с — +1 HP раз в 2 секунды)
+    this.percentDamageScale = 1; // урон долей макс. HP (горение, кровотечение, капкан) — во столько раз (боссы — меньше)
+    this.master = null; //      чья это сущность (турель, призванный): урон засчитывается хозяину (engine/combat/damage.js → creditOf)
     this.attackedBy = null; //  кто ударил последним (ИИ: разозлиться на обидчика); читающий сам обнуляет
     this.damageLog = new Map(); // кто сколько урона нанёс: source → { dealt, kind } (добыча за участие)
     this.tauntRadius = 0; //    аура провокации: враги ближе этого злятся на эту сущность (0 — нет), engine/ai/social.js
@@ -96,16 +100,29 @@ export class Entity {
   // Возвращает { dealt — сколько на самом деле сняли, killed — погибла ли }
   receive(damage) {
     if (!this.alive || !this.canBeDamagedBy(damage.source)) return { dealt: 0, killed: false };
-    // Блок / парирование: статус с guard отбил удар — урона нет (обидчика ИИ всё равно запомнит)
+    damage.victim = this;
+    // Блок / парирование: статус с guard отбил удар — урона нет (обидчика ИИ всё равно запомнит).
+    // У статуса blockShare < 1 — блок не полный: срезает эту долю урона (уже посчитанного с модификаторами),
+    // остальное проходит как обычно (с сопротивлениями)
     const guard = this.statuses.find((s) => s.guard?.(damage, this));
-    if (guard) {
+    let partial = false;
+    if (guard && (guard.blockShare ?? 1) < 1) {
+      damage.amount *= 1 - guard.blockShare;
+      damage.tags.add("blocked");
+      partial = true;
+      if (damage.source && damage.source !== this) this.attackedBy = damage.source;
+      this.onBlock?.(damage, guard);
+    } else if (guard) {
       if (damage.source && damage.source !== this) this.attackedBy = damage.source;
       this.onBlock?.(damage, guard); // слушатель (звук, надпись) — игра ставит сама
+      this.report(damage, 0, false, true);
       return { dealt: 0, killed: false, blocked: true };
     }
     const resist = this.stats.resist[damage.element] || 0;
     const dealt = Math.max(0, Math.round(damage.amount * (1 - resist)));
+    const hpBefore = this.stats.hp;
     const killed = dealt > 0 ? this.damage(dealt) : false;
+    this.report(damage, Math.min(dealt, hpBefore), killed, partial, Math.max(0, dealt - hpBefore));
     if (dealt > 0) this.onDamage?.(damage, dealt); // слушатель (например, цифры урона) — игра ставит сама
     if (damage.source && damage.source !== this) {
       this.attackedBy = damage.source; // обидчик — для ИИ (он сам обнулит, когда прочтёт)
@@ -126,7 +143,18 @@ export class Entity {
         this.addStatus(s);
       }
     }
-    return { dealt, killed };
+    return partial ? { dealt, killed, blocked: true } : { dealt, killed };
+  }
+
+  // Сообщить в журнал боя (engine/combat/combat-log.js) — для счётчика урона и статистики.
+  // dealt здесь — сколько HP сняли на самом деле (не больше, чем было), overkill — остальное
+  report(damage, dealt, killed, blocked, overkill = 0) {
+    combatLog.emit({
+      attacker: damage.source, victim: this, credit: damage.credit,
+      dealt, amount: damage.amount, overkill, killed, blocked,
+      attack: damage.attack, kind: damage.kind, element: damage.element, crit: damage.crit,
+      tags: damage.tags, applied: damage.applied, damage, time: performance.now() / 1000,
+    });
   }
 
   // Участвовал ли source в убийстве (нанёс хоть 1 урона) — и чем бил: { dealt, kind } или null
@@ -275,6 +303,16 @@ export class Entity {
 export class EntityManager {
   constructor() {
     this.list = [];
+    // Сетка соседей (engine/world/spatial-grid.js): кто рядом — без перебора всех. Обновлять раз в тик:
+    // entities.grid.rebuild(entities.list); спрашивать — entities.near(e)
+    this.grid = new SpatialGrid(4);
+    this.nearOut = [];
+  }
+
+  // Соседи e в радиусе r (кандидаты из сетки; точное расстояние проверяет спрашивающий). Массив общий —
+  // использовать сразу, не хранить
+  near(e, r = e.radius + 2.5) {
+    return this.grid.near(e.position.x, e.position.z, r, this.nearOut);
   }
 
   add(entity) {

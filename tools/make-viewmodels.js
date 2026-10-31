@@ -174,10 +174,11 @@ function fingers(arm, curled) {
     name: "FirstPersonMachete", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
     animations: {
       ...arm.common,
-      // Рубящий удар: замах вверх-вправо и резко вниз-влево
+      // Широкий горизонтальный взмах (как у героя от 3-го лица): клинок кладётся плашмя, рука отводится
+      // вправо — и резко проходит справа налево через центр экрана, обратно в стойку
       Attack: [
-        move("arm", [0, 0.1, 0.2, 0.42], [at(0, 0, 0), at(0.04, 0.08, -0.02), at(-0.12, -0.06, 0.12), at(0, 0, 0)]),
-        rotQ("arm", [0, 0.1, 0.2, 0.42], [pose(), pose(-35, 10, -15), pose(30, -25, 20), pose()]),
+        move("arm", [0, 0.07, 0.17, 0.4], [at(0, 0, 0), at(0.08, 0.03, -0.02), at(-0.18, 0.0, 0.12), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.07, 0.17, 0.4], [pose(), pose(-12, 28, -70), pose(4, -48, -80), pose()]),
       ],
       Block: arm.guard, // клинок поперёк — закрыться
     },
@@ -443,6 +444,114 @@ function fingers(arm, curled) {
         move("arm", [0, 0.08, 0.35], [at(0.06, 0.12, -0.16), at(-0.04, -0.02, 0.18), at(0, 0, 0)]),
         rotQ("arm", [0, 0.08, 0.35], [pose(-55, 10, -10), pose(35, -10, 5), pose()]),
       ],
+    },
+  }));
+}
+
+// ---------- 3в². Взрывчатка в руке: граната и динамит (бросок — Throw, как у камня) ----------
+for (const [file, build] of [
+  ["fp-grenade.glb", (arm) => {
+    const OLIVE = [0.27, 0.33, 0.18], OLIVE_D = [0.2, 0.25, 0.13];
+    arm.box([0, 0.045, 0.5], [0.075, 0.085, 0.075], OLIVE); //         корпус
+    for (const y of [0.025, 0.065]) arm.box([0, y, 0.5], [0.08, 0.008, 0.08], OLIVE_D); // насечка
+    arm.box([0, 0.1, 0.5], [0.03, 0.03, 0.03], METAL_LIGHT); //         запал
+    arm.box([0.025, 0.1, 0.5], [0.012, 0.012, 0.06], METAL_LIGHT); //   скоба
+    arm.box([-0.03, 0.12, 0.5], [0.02, 0.02, 0.005], [0.7, 0.7, 0.72]); // кольцо чеки
+  }],
+  ["fp-dynamite.glb", (arm) => {
+    const RED = [0.72, 0.12, 0.1];
+    for (const x of [-0.028, 0, 0.028]) arm.box([x, 0.045, 0.5], [0.026, 0.026, 0.2], RED); // три шашки
+    arm.box([0, 0.045, 0.5], [0.09, 0.03, 0.025], [0.85, 0.8, 0.6]); //  перевязка
+    arm.box([0, 0.06, 0.62], [0.008, 0.008, 0.06], [0.2, 0.18, 0.15]); // фитиль
+    arm.box([0, 0.06, 0.655], [0.016, 0.016, 0.016], [1, 0.75, 0.3]); //   искра
+  }],
+]) {
+  const arm = makeArm({ P: [0.3, -0.36, 0.1], BASE: qmul(quat(Y, -12), quat(X, -14)) });
+  fingers(arm, true);
+  build(arm);
+  const { at, pose } = arm;
+  writeGLB(out(file), buildGLB({
+    name: "FirstPerson" + file, generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common, Attack: arm.swing,
+      Throw: [
+        move("arm", [0, 0.06, 0.14, 0.4], [at(0, 0, 0), at(0.06, 0.12, -0.16), at(-0.04, -0.02, 0.18), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.06, 0.14, 0.4], [pose(), pose(-55, 10, -10), pose(35, -10, 5), pose()]),
+      ],
+    },
+  }));
+}
+
+// ---------- 3в³. Гранатомёт: толстая короткая труба с барабаном ----------
+{
+  const arm = makeArm({ P: [0.24, -0.32, 0.04], BASE: qmul(quat(Y, -10), quat(X, -8)) });
+  fingers(arm, true);
+  const OLIVE = [0.27, 0.33, 0.18];
+  arm.box([0, 0.03, 0.5], [0.04, 0.1, 0.05], [0.2, 0.2, 0.22]); //        рукоять
+  arm.box([0, 0.1, 0.62], [0.11, 0.11, 0.14], METAL); //                    барабан
+  for (const a of [0, 1, 2, 3]) arm.box([Math.cos(a * 1.57) * 0.035, 0.1 + Math.sin(a * 1.57) * 0.035, 0.55], [0.03, 0.03, 0.006], [0.75, 0.65, 0.2]); // донца гранат
+  arm.box([0, 0.11, 0.86], [0.07, 0.07, 0.36], OLIVE); //                   ствол
+  arm.box([0, 0.11, 1.045], [0.08, 0.08, 0.02], METAL_LIGHT); //            дульце
+  arm.box([0, 0.17, 0.78], [0.012, 0.03, 0.012], METAL); //                 прицельная рамка
+  arm.bones.push({ name: "sight", parent: "arm", pos: arm.at(0, 0.19, 0.78) });
+  const muzzle = arm.at(0, 0.11, 1.07);
+  arm.bones.push({ name: "flash", parent: "arm", pos: muzzle, scale: [0, 0, 0] });
+  arm.parts.push({ bone: "flash", center: muzzle, size: [0.14, 0.12, 0.06], color: FLASH });
+  const { at, pose } = arm;
+  writeGLB(out("fp-launcher.glb"), buildGLB({
+    name: "FirstPersonLauncher", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common,
+      Aim: [rotQ("arm", [0], [pose()]), move("arm", [0], [at(0, 0, 0)])],
+      // Глухой «пум»: ствол вверх, рука назад
+      Shoot: [
+        move("arm", [0, 0.06, 0.4], [at(0, 0, 0), at(0, 0.04, -0.1), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.06, 0.4], [pose(), pose(-24), pose()]),
+        scale("flash", [0, 0.01, 0.07, 0.08], [[1, 1, 1], [1, 1, 1], [1, 1, 1], [0, 0, 0]]),
+      ],
+    },
+  }));
+}
+
+// ---------- 3в⁴. Аптечка: держим ДВУМЯ руками перед собой ----------
+// Правая рука — makeArm (кость arm), левая — её зеркальная копия (кость armL: x → −x, поворот зеркалим),
+// сама аптечка — своя кость kit между ладонями. Use — пока лечимся: аптечку подносят ближе и чуть трясут
+{
+  const BASE_R = qmul(quat(Y, -20), quat(X, -20));
+  const arm = makeArm({ P: [0.22, -0.42, 0.05], BASE: BASE_R });
+  fingers(arm, true);
+  const mirrorQ = ([x, y, z, w]) => [x, -y, -z, w];
+  const mirrorP = ([x, y, z]) => [-x, y, z];
+  const right = arm.parts.slice();
+  for (const p of right) arm.parts.push({ ...p, bone: "armL", center: mirrorP(p.center) });
+  const R0 = arm.bones[0];
+  arm.bones.push({ name: "armL", parent: null, pos: mirrorP(R0.pos), rotation: mirrorQ(R0.rotation) });
+  const KIT = [0, -0.31, 0.5];
+  arm.bones.push({ name: "kit", parent: null, pos: KIT });
+  const kit = (c, size, color) => arm.parts.push({ bone: "kit", center: [KIT[0] + c[0], KIT[1] + c[1], KIT[2] + c[2]], size, color });
+  const WHITE = [0.92, 0.92, 0.9], RED = [0.85, 0.15, 0.13];
+  kit([0, 0, 0], [0.26, 0.17, 0.1], WHITE); //                 коробка
+  kit([0, 0, -0.052], [0.05, 0.12, 0.006], RED); //             крест — к нам
+  kit([0, 0, -0.052], [0.12, 0.05, 0.006], RED);
+  kit([0, 0.095, 0], [0.1, 0.02, 0.03], [0.5, 0.5, 0.52]); //    ручка сверху
+  kit([0, 0, 0], [0.27, 0.02, 0.105], RED); //                  полоса по боку
+  const { at, pose } = arm;
+  // Канал одной руки → та же для обеих (левая — зеркально) и коробка — следом за руками
+  const both = (times, offs, rots) => [
+    move("arm", times, offs.map((o) => at(...o))),
+    rotQ("arm", times, rots.map((r) => pose(...r))),
+    move("armL", times, offs.map((o) => mirrorP(at(...o)))),
+    rotQ("armL", times, rots.map((r) => mirrorQ(pose(...r)))),
+    move("kit", times, offs.map(([x, y, z]) => [KIT[0], KIT[1] + y, KIT[2] + z])),
+  ];
+  writeGLB(out("fp-medkit.glb"), buildGLB({
+    name: "FirstPersonMedkit", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      Idle: both([0, 1.2, 2.4], [[0, 0, 0], [0, 0.006, 0], [0, 0, 0]], [[0], [-2.5], [0]]),
+      Walk: both([0, 0.25, 0.5, 0.75, 1], [[0, 0, 0], [0, -0.02, 0], [0, 0, 0], [0, -0.02, 0], [0, 0, 0]], [[0], [2], [0], [2], [0]]),
+      Equip: both([0, 0.25], [[0, -0.28, -0.05], [0, 0, 0]], [[35], [0]]),
+      // Лечимся: аптечку подняли ближе к груди и раскрыли — мелкая дрожь, пока заполняется круг
+      Use: both([0, 0.2, 0.35, 0.5, 0.65, 0.8], [[0, 0, 0], [0, 0.06, -0.08], [0.004, 0.065, -0.08], [0, 0.06, -0.08], [-0.004, 0.065, -0.08], [0, 0.06, -0.08]], [[0], [-12], [-13], [-12], [-13], [-12]]),
     },
   }));
 }

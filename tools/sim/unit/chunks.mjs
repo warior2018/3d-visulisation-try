@@ -1,0 +1,52 @@
+// Чанки: блоки раскладываются по кускам 16×16; изменение — новая version только у своего куска (и у соседа,
+// если блок на краю); рисуются только кубики с открытой гранью; куски вне кадра и за дымкой отсекаются
+import { VoxelWorld, CHUNK, chunkOf } from "../../../engine/world/voxel-world.js";
+import { exposedCubes, viewOf, chunkInView } from "../../../engine/graphics/chunk-mesh.js";
+let ok = 0, bad = 0;
+const check = (name, cond, info = "") => { cond ? ok++ : bad++; console.log((cond ? "OK  " : "FAIL") + " " + name + (info ? "  (" + info + ")" : "")); };
+const C = [10, 20, 30];
+
+check("номер чанка: 0..15 → 0, 16 → 1, −1 → −1, −16 → −1, −17 → −2", chunkOf(0) === 0 && chunkOf(15) === 0 && chunkOf(16) === 1 && chunkOf(-1) === -1 && chunkOf(-16) === -1 && chunkOf(-17) === -2);
+const w = new VoxelWorld();
+w.place(3, 0, 3, C); w.place(20, 5, -4, C); w.place(-1, 0, -1, C);
+check("блоки разложены по своим кускам", w.chunks.size === 3 && w.chunk(0, 0).blocks.size === 1 && w.chunk(1, -1).blocks.size === 1 && w.chunk(-1, -1).blocks.size === 1);
+// случайные place / remove: каждый блок мира — ровно в своём куске
+let seed = 5;
+const rnd = (n) => Math.floor(((seed = (seed * 16807) % 2147483647) / 2147483647) * n);
+for (let i = 0; i < 5000; i++) { const x = rnd(80) - 40, y = rnd(6), z = rnd(80) - 40; if (rnd(3)) w.place(x, y, z, C); else w.remove(x, y, z); }
+let inChunks = 0, wrong = 0;
+for (const c of w.chunks.values()) for (const b of c.blocks) { inChunks++; if (chunkOf(b.x) !== c.cx || chunkOf(b.z) !== c.cz || !w.has(b.x, b.y, b.z)) wrong++; }
+check("после 5000 случайных place/remove: блоков в кусках = в мире, все на своих местах", inChunks === w.blocks.size && wrong === 0, `${inChunks} / ${w.blocks.size}, не на месте ${wrong}`);
+// version: свой кусок и сосед на краю
+const v = new VoxelWorld();
+for (let x = 0; x < 48; x++) v.place(x, 0, 0, C);
+const ver = () => [v.chunk(0, 0).version, v.chunk(1, 0).version, v.chunk(2, 0).version];
+let a = ver(); v.place(20, 1, 0, C); let b = ver();
+check("блок в середине куска — новая version только у него", b[0] === a[0] && b[1] === a[1] + 1 && b[2] === a[2]);
+a = ver(); v.remove(16, 0, 0); b = ver();
+check("блок на краю куска — и у соседа (там открылась грань)", b[0] === a[0] + 1 && b[1] === a[1] + 1 && b[2] === a[2]);
+// открытые грани: сплошной куб 16×4×16 — рисуем только «кожу»
+const s = new VoxelWorld();
+for (let x = 0; x < 16; x++) for (let z = 0; z < 16; z++) for (let y = 0; y < 4; y++) s.place(x, y, z, C);
+const solid = exposedCubes(s, s.chunk(0, 0));
+// кожа: верхний слой 256 + боковые стенки нижних 3 слоёв (60 на слой) = 436; низ лежит на полу мира
+check("сплошной кусок 16×4×16: рисуем только кожу", solid.count === 256 + 60 * 3, `${solid.count} из ${s.chunk(0, 0).blocks.size}`);
+s.remove(8, 3, 8);
+const holed = exposedCubes(s, s.chunk(0, 0), solid.data);
+check("дыра сверху: открылся блок под ней и 4 соседа", holed.count === 256 - 1 + 60 * 3 + 1, `${holed.count}`);
+check("черновик данных переиспользуется", holed.data === solid.data);
+check("данные кубика: x, y, z, цвет 0..1", (() => { const d = exposedCubes(w, w.chunk(1, -1)).data; return d[0] === 20 && d[1] === 5 && d[2] === -4 && Math.abs(d[3] - 10 / 255) < 1e-6; })());
+// отсечение
+const cam = (x, z, yaw, pitch = 0) => ({ position: { x, y: 2, z }, yaw, pitch, fov: (70 * Math.PI) / 180 });
+const far = new VoxelWorld();
+far.place(8, 0, 40, C); far.place(8, 0, -40, C); far.place(60, 0, 8, C); far.place(8, 0, 8, C); far.place(8, 0, 300, C);
+const see = (c, x, z) => chunkInView(viewOf(c, 16 / 9, 70), far.chunkAt(x, z));
+const look = cam(8, 8, 0); // смотрим вдоль +Z
+check("кусок впереди — в кадре", see(look, 8, 40));
+check("кусок за спиной — нет", !see(look, 8, -40));
+check("кусок сбоку под 90° — нет", !see(look, 60, 8));
+check("кусок, в котором стоим, — в кадре, куда ни смотри", see(cam(8, 8, Math.PI), 8, 8) && see(cam(8, 8, 1.2, -1.4), 8, 8));
+check("кусок за дымкой — нет", !see(look, 8, 300));
+check("смотрим вниз (pitch −80°): кусок рядом под ногами — в кадре", see(cam(8, 20, 0, -1.4), 8, 8) || see(cam(8, 10, 0, -1.4), 8, 8));
+console.log(`\nитого: ${ok} OK, ${bad} FAIL`);
+process.exit(bad ? 1 : 0);

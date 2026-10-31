@@ -145,7 +145,8 @@ export class Talents {
     const out = {};
     const add = (to, from) => {
       for (const [k, v] of Object.entries(from)) {
-        if (typeof v === "number") to[k] = (to[k] || 0) + v;
+        if (typeof v === "number") to[k] = (to[k] || 0) + v; //            числа складываются
+        else if (typeof v === "boolean") to[k] = !!to[k] || v; //         флаги: хоть один талант дал — включено
         else if (v && typeof v === "object") add((to[k] ||= {}), v);
       }
     };

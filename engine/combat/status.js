@@ -86,9 +86,11 @@ export class StatusEffect {
 // cap — предел (доля макс. HP цели): сколько ВСЕГО этот статус может снять с одной цели за всю её жизнь,
 // сколько ни поджигай заново (0.3 — не больше 30 % здоровья). Набрал предел — статус гаснет и больше
 // не наносит урона этой цели. Счёт — на цели: entity.dotDealt[id]
+// Стопки: по умолчанию не больше DOT_MAX_STACKS (3) — урон по времени не разгоняется бесконечно.
+export const DOT_MAX_STACKS = 3;
 export class DamageOverTime extends StatusEffect {
-  constructor({ damagePerTick = 0, percentPerSecond = 0, element, cap = null, ...rest }) {
-    super(rest);
+  constructor({ damagePerTick = 0, percentPerSecond = 0, element, cap = null, maxStacks = DOT_MAX_STACKS, ...rest }) {
+    super({ ...rest, maxStacks });
     this.damagePerTick = damagePerTick;
     this.percentPerSecond = percentPerSecond;
     this.element = element;
@@ -104,12 +106,13 @@ export class DamageOverTime extends StatusEffect {
   }
 
   tick(entity) {
-    const raw = (this.damagePerTick + entity.stats.maxHp * this.percentPerSecond * this.interval) * this.stacks + this.carry;
+    const k = entity.percentDamageScale ?? 1; // доля макс. HP — по боссам слабее (entity.percentDamageScale)
+    const raw = (this.damagePerTick + entity.stats.maxHp * this.percentPerSecond * k * this.interval) * this.stacks + this.carry;
     let amount = Math.floor(raw);
     this.carry = raw - amount;
     if (this.cap !== null) {
       const dealt = (entity.dotDealt ||= {});
-      const room = Math.floor(entity.stats.maxHp * this.cap) - (dealt[this.id] || 0);
+      const room = Math.floor(entity.stats.maxHp * this.cap * k) - (dealt[this.id] || 0);
       if (room <= 0) {
         this.left = 0; // предел набран — гаснет
         return;
@@ -154,9 +157,10 @@ export const buff = (options) => new StatusEffect({ positive: true, ...options }
 export const debuff = (options) => new StatusEffect({ positive: false, ...options });
 
 // Блок (парирование): duration секунд отбивает удары видов kinds (по умолчанию — ближний бой),
-// пришедшие спереди — в секторе arc° от того, куда смотрит владелец (yaw). Отбитый удар не ранит.
-export const parry = ({ duration = 0.4, kinds = ["melee"], arc = 160 } = {}) =>
-  new StatusEffect({
+// пришедшие спереди — в секторе arc° от того, куда смотрит владелец (yaw). share — какую долю урона
+// срезает (1 — удар не ранит вовсе; 0.5 — проходит половина, как блок щитом в Valheim)
+export const parry = ({ duration = 0.4, kinds = ["melee"], arc = 160, share = 1 } = {}) =>
+  Object.assign(new StatusEffect({
     id: "parry", name: "BLOCK", icon: "BL", positive: true, color: [140, 200, 255], duration,
     guard: (d, owner) => {
       if (!kinds.includes(d.kind)) return false;
@@ -166,7 +170,7 @@ export const parry = ({ duration = 0.4, kinds = ["melee"], arc = 160 } = {}) =>
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
       return Math.abs(diff) <= (arc * Math.PI) / 360;
     },
-  });
+  }), { blockShare: share });
 
 // Готовые статусы
 export const burn = (source, level = source?.burnLevel || 1) => {
@@ -174,9 +178,9 @@ export const burn = (source, level = source?.burnLevel || 1) => {
   return new DamageOverTime({ id: "burn", name: "BURNING", duration: b.duration, interval: 0.5, percentPerSecond: b.percent, element: "fire", cap: b.cap ?? null, source });
 };
 export const poison = (source) => new DamageOverTime({ id: "poison", name: "POISON", duration: 5, interval: 1, damagePerTick: 1, element: "poison", stackable: true, source });
-// Кровотечение: fraction макс. HP цели за duration секунд; копится стопками (каждая — ещё столько же)
+// Кровотечение: fraction макс. HP цели за duration секунд; копится стопками (каждая — ещё столько же, до 3)
 export const bleed = (fraction = 0.1, duration = 3) => (source) =>
-  new DamageOverTime({ id: "bleed", name: "BLEEDING", duration, interval: 0.5, percentPerSecond: fraction / duration, element: "physical", stackable: true, maxStacks: 10, source, icon: "BLD", color: [200, 40, 40] });
+  new DamageOverTime({ id: "bleed", name: "BLEEDING", duration, interval: 0.5, percentPerSecond: fraction / duration, element: "physical", stackable: true, source, icon: "BLD", color: [200, 40, 40] });
 // Оглушение: seconds секунд не ходит и не бьёт (entity.stunned)
 export const stun = (seconds = 0.5) => () => new StatusEffect({ id: "stunned", name: "STUNNED", duration: seconds, stun: true, icon: "STN", color: [240, 220, 120] });
 export const chill = (source) => new Slow({ id: "chill", name: "CHILL", duration: 2, factor: 0.6, source });

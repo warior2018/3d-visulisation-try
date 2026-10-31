@@ -1,5 +1,5 @@
 {
-  "name": "nodejs_visual",
+  "name": "voiditself",
   "version": "0.1.0",
   "description": "3D-движок VOID на Node.js (своё окно, рендер на видеокарте через WebGPU) и игры на нём",
   "type": "module",
@@ -14,7 +14,10 @@
     "make:items": "node tools/make-items.js",
     "make:weapons": "node tools/make-weapons.js",
     "make:models": "node tools/make-skeleton.js && node tools/make-viewmodels.js && node tools/make-zombie.js && node tools/make-boar.js && node tools/make-items.js && node tools/make-weapons.js",
-    "make:app": "node tools/make-mac-app.js"
+    "make:app": "node tools/make-mac-app.js",
+    "lang": "node tools/lang.js",
+    "test": "node tools/sim/run.mjs",
+    "check": "node tools/check-release.mjs"
   },
   "dependencies": {
     "@kmamal/sdl": "1.0.0-3",

@@ -14,7 +14,8 @@
 //  Отвернулся дальше зоны — направление сразу за взглядом, но скорость падает ПРОПОРЦИОНАЛЬНО лишнему углу:
 //  чуть повернул — чуть замедлился, резко и сильно (turnStop градусов сверх зоны) — встал.
 //  ramp — разгон: +м/с каждую секунду (талант), не быстрее maxSpeed. Медленнее minSpeed или дольше
-//  duration секунд — разбег кончается. Скорость умножается на entity.speedMultiplier (замедления).
+//  duration секунд (Infinity — без предела: кончит игра, например по выносливости) — разбег кончается.
+//  elapsed — сколько секунд уже бежим. Скорость умножается на entity.speedMultiplier (замедления).
 // ============================================================
 
 const RAD = Math.PI / 180;
@@ -42,6 +43,7 @@ export class Charge {
     this.yaw = yaw;
     this.speed = this.base;
     this.left = this.duration;
+    this.elapsed = 0;
     this.active = true;
     entity.charge = this;
   }
@@ -78,6 +80,7 @@ export class Charge {
     // 3. Разгон и конец
     this.speed = Math.min(this.maxSpeed, this.speed + this.ramp * dt);
     this.left -= dt;
+    this.elapsed += dt;
     if (this.left <= 0 || this.speed < this.minSpeed) this.stop();
   }
 }

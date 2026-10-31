@@ -10,7 +10,7 @@
 
 import { Brain } from "./brain.js";
 import { Navigator } from "./pathfinder.js";
-import { pursue, separate } from "../world/behaviors.js";
+import { pursue, separate, neighbors } from "../world/behaviors.js";
 
 export class KamikazeBrain extends Brain {
   constructor({ range = 15, fuse = 10, trigger = 1.3, speed = 0, prime = 0, onPrime = () => {}, onBoom = () => {} } = {}) {
@@ -55,7 +55,7 @@ export class KamikazeBrain extends Brain {
     }
     if (!target) return { walking: false, alerted: [] };
     const walking = pursue(e, target, dt, { navigator: e.nav, radius: this.range * 2, speed: this.speed || e.speed, stopDistance: this.trigger * 0.6 });
-    separate(e, ctx.entities);
+    separate(e, neighbors(e, ctx));
     return { walking, alerted: [] };
   }
 }

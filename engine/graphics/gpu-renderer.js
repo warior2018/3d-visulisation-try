@@ -9,7 +9,7 @@ import gpu from "@kmamal/gpu";
 import { SHADERS } from "./shaders.js";
 
 const DEPTH_FORMAT = "depth24plus";
-const FLOATS_PER_CUBE = 6; // x, y, z, r, g, b
+import { FLOATS_PER_CUBE, exposedCubes, viewOf, chunkInView } from "./chunk-mesh.js"; // x, y, z, r, g, b на кубик
 const MAX_JOINTS = 64; //     столько костей помещается в шейдер (array<mat4x4f, 64>)
 // Буфер одного существа: матрица модели (64 байта) + оттенок vec4 (16) + матрицы костей
 const SKIN_BYTES = 64 + 16 + MAX_JOINTS * 64;
@@ -151,11 +151,14 @@ export class GPURenderer {
     this.cubeVertexBuffer = this.createBuffer(cubeMesh, gpu.GPUBufferUsage.VERTEX);
     this.cubeVertexCount = cubeMesh.length / 6;
 
-    // Экземпляры кубиков: вместимость растёт по мере надобности
-    this.instanceCapacity = 0;
-    this.instanceCount = 0;
-    this.ensureInstanceCapacity(1024);
+    // Кубики мира — по чанкам (engine/world/voxel-world.js): у каждого куска свой буфер на видеокарте.
+    // Поставили блок — пересобираем только его кусок; рисуем только куски в кадре (chunk-mesh.js)
+    this.chunkMeshes = new Map(); // Chunk -> { chunk, version, buffer, capacity, count }
+    this.chunkScratch = null; //    общий черновик данных куска (не создаём новый на каждую пересборку)
     this.worldVersion = -1;
+    this.cullView = {}; //          направление взгляда для отсечения (раз в кадр, без мусора)
+    this.worldStats = { chunks: 0, drawn: 0, cubes: 0, rebuilt: 0 }; // тех. панели: кусков всего / в кадре, кубиков в кадре
+    this.ghostData = new Float32Array(FLOATS_PER_CUBE);
 
     this.ghostBuffer = device.createBuffer({
       size: FLOATS_PER_CUBE * 4,
@@ -178,18 +181,6 @@ export class GPURenderer {
     const buffer = this.device.createBuffer({ size: data.byteLength, usage: usage | gpu.GPUBufferUsage.COPY_DST });
     this.device.queue.writeBuffer(buffer, 0, data);
     return buffer;
-  }
-
-  ensureInstanceCapacity(count) {
-    if (count <= this.instanceCapacity) return;
-    let cap = Math.max(this.instanceCapacity, 1024);
-    while (cap < count) cap *= 2; // растём вдвое — как динамический массив
-    if (this.instanceBuffer) this.retire(this.instanceBuffer);
-    this.instanceBuffer = this.device.createBuffer({
-      size: cap * FLOATS_PER_CUBE * 4,
-      usage: gpu.GPUBufferUsage.VERTEX | gpu.GPUBufferUsage.COPY_DST,
-    });
-    this.instanceCapacity = cap;
   }
 
   // Загрузить модель (из engine/gltf.js) в память видеокарты — ОДИН раз на модель.
@@ -248,20 +239,49 @@ export class GPURenderer {
     });
   }
 
-  // Мир поменялся (другой мир или другая version) — заново отправляем список блоков видеокарте.
-  // Проверяем и сам мир: у нового мира счётчик version может совпасть со старым.
+  // Мир поменялся: пересобрать изменившиеся чанки (у чанка своя version). Другой мир — забыть всё старое
   updateWorld(world) {
-    if (world === this.worldShown && world.version === this.worldVersion) return;
-    this.worldShown = world;
+    if (world !== this.worldShown) {
+      for (const m of this.chunkMeshes.values()) if (m.buffer) this.retire(m.buffer);
+      this.chunkMeshes.clear();
+      this.worldShown = world;
+      this.worldVersion = -1;
+    }
+    if (world.version === this.worldVersion) return;
     this.worldVersion = world.version;
-    const blocks = [...world.blocks.values()];
-    this.ensureInstanceCapacity(blocks.length);
-    const data = new Float32Array(Math.max(blocks.length, 1) * FLOATS_PER_CUBE);
-    blocks.forEach((b, i) => {
-      data.set([b.x, b.y, b.z, b.color[0] / 255, b.color[1] / 255, b.color[2] / 255], i * FLOATS_PER_CUBE);
-    });
-    this.device.queue.writeBuffer(this.instanceBuffer, 0, data);
-    this.instanceCount = blocks.length;
+    let rebuilt = 0;
+    for (const c of world.chunks.values()) {
+      const m = this.chunkMeshes.get(c);
+      if (m && m.version === c.version) continue;
+      this.buildChunk(world, c, m);
+      rebuilt++;
+    }
+    // куски, которых в мире больше нет (мир очищали: clear) — освободить
+    if (this.chunkMeshes.size > world.chunks.size) {
+      for (const [c, m] of this.chunkMeshes) {
+        if (world.chunks.get(c.key) === c) continue;
+        if (m.buffer) this.retire(m.buffer);
+        this.chunkMeshes.delete(c);
+      }
+    }
+    this.worldStats.chunks = this.chunkMeshes.size;
+    this.worldStats.rebuilt += rebuilt;
+  }
+
+  // Собрать кусок: только кубики с открытыми гранями. Буфер — с запасом (растёт, если мало)
+  buildChunk(world, chunk, m) {
+    const { data, count } = exposedCubes(world, chunk, this.chunkScratch);
+    this.chunkScratch = data;
+    if (!m) this.chunkMeshes.set(chunk, (m = { chunk, version: 0, buffer: null, capacity: 0, count: 0 }));
+    m.version = chunk.version;
+    m.count = count;
+    if (!count) return;
+    if (count > m.capacity) {
+      if (m.buffer) this.retire(m.buffer);
+      m.capacity = Math.max(64, Math.ceil(count * 1.5));
+      m.buffer = this.device.createBuffer({ size: m.capacity * FLOATS_PER_CUBE * 4, usage: gpu.GPUBufferUsage.VERTEX | gpu.GPUBufferUsage.COPY_DST });
+    }
+    this.device.queue.writeBuffer(m.buffer, 0, data.subarray(0, count * FLOATS_PER_CUBE));
   }
 
   // Картинка интерфейса поменялась — отправляем её видеокарте
@@ -341,7 +361,10 @@ export class GPURenderer {
     if (ui) this.updateUI(ui);
     if (ghost) {
       const c = ghost.color;
-      device.queue.writeBuffer(this.ghostBuffer, 0, new Float32Array([ghost.x, ghost.y, ghost.z, c[0] / 255, c[1] / 255, c[2] / 255]));
+      const g = this.ghostData;
+      g[0] = ghost.x; g[1] = ghost.y; g[2] = ghost.z;
+      g[3] = c[0] / 255; g[4] = c[1] / 255; g[5] = c[2] / 255;
+      device.queue.writeBuffer(this.ghostBuffer, 0, g);
     }
 
     // 2. Записываем команды кадра
@@ -374,13 +397,22 @@ export class GPURenderer {
       pass.draw(3);
     }
 
-    // все кубики мира — ОДНОЙ командой: 36 вершин × instanceCount экземпляров
-    if (world && this.instanceCount > 0) {
+    // кубики мира — по куску на команду (36 вершин × кубиков куска); куски вне кадра и за дымкой пропускаем
+    if (world && camera) {
       pass.setPipeline(this.cubePipeline);
       pass.setBindGroup(0, this.cubeBind);
       pass.setVertexBuffer(0, this.cubeVertexBuffer);
-      pass.setVertexBuffer(1, this.instanceBuffer);
-      pass.draw(this.cubeVertexCount, this.instanceCount);
+      const v = viewOf(camera, width / height, this.fadeDist * 1.15, this.cullView);
+      let drawn = 0, cubes = 0;
+      for (const m of this.chunkMeshes.values()) {
+        if (!m.count || !chunkInView(v, m.chunk)) continue;
+        pass.setVertexBuffer(1, m.buffer);
+        pass.draw(this.cubeVertexCount, m.count);
+        drawn++;
+        cubes += m.count;
+      }
+      this.worldStats.drawn = drawn;
+      this.worldStats.cubes = cubes;
     }
 
     // персонажи: сначала отдаём их матрицы, потом рисуем треугольники модели

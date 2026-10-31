@@ -12,7 +12,16 @@ ELEMENTS.ice.statusChance = 0; // лёд сам не замедляет случ
 
 // Пути — от этого файла, а не от папки запуска: так игра запускается откуда угодно
 export const ASSETS = fileURLToPath(new URL("./assets/", import.meta.url));
-export const SAVES = fileURLToPath(new URL("./saves/", import.meta.url));
+// Папка сохранений. VOID_SAVES — подменить (автотесты, tools/sim: работают на копии во временной папке
+// и никогда не трогают настоящие сохранения)
+export const SAVES = process.env.VOID_SAVES || fileURLToPath(new URL("./saves/", import.meta.url));
+// Автосохранение: раз в every секунд, в фоне (только изменившиеся куски мира — обычно десятки КБ)
+export const AUTOSAVE = { every: 120 };
+// Подгрузка мира по частям: когда кусков на диске больше minChunks, в памяти держим только куски в радиусе
+// radius (в кусках по 16 м) от героя; дальние выгружаем (изменённые — сначала на диск)
+export const STREAM = { minChunks: 400, radius: 10 };
+// Копии мира (saves/backups/): не чаще раза в every секунд, последние keep
+export const BACKUP = { every: 600, keep: 2 };
 
 // Свои настройки игры — добавляются к настройкам движка (видео, аудио, управление)
 export const GAME_DEFAULTS = {
@@ -23,16 +32,21 @@ export const GAME_DEFAULTS = {
     aimMode: "hold", //     прицел (ПКМ): "hold" — пока держишь, "toggle" — нажал / нажал ещё раз
     damageNumbers: true, // цифры урона над целями
     headBob: true, //      покачивание предмета в руке при ходьбе и беге (как в Minecraft; камера не качается)
+    screenShake: true, //  тряска камеры от ударов, взрывов, приземлений и при быстром падении (прицел не сдвигает)
     autoLoot: true, //     автоподбор предметов рядом (V)
   },
   controls: {
     bindings: {
-      // Хотбар — 3 ячейки: Q — оружие слева, E — оружие справа, 2 — средняя (стройка, аптечка, грибы);
-      // 1 / 3 — тоже оружие. ЛКМ/ПКМ — действия движка (primary, secondary)
-      weaponLeft: "key:Q",
-      weaponRight: "key:E",
-      skill1: "", //        навыки оружия на Q/E (наклоны) убраны — Q/E выбирают оружие
-      skill2: "",
+      // Хотбар — 3 ячейки: оружие (своей клавиши нет: оно в руках, когда предмет не взят), предмет 1, предмет 2.
+      // item1 / item2 — взять предмет; нажал ещё раз (или предмет использован) — обратно оружие.
+      // Q / E — скиллы оружия в руках (Ability.skills, например ИАЙ катаны). ЛКМ/ПКМ — действия движка
+      item1: "key:1",
+      item2: "key:2",
+      skill1: "key:Q",
+      skill2: "key:E",
+      ability1: "", // ячейки панели движка — не нужны: выбор ячеек — item1 / item2
+      ability2: "",
+      ability3: "",
       ability4: "",
       ability5: "",
       palette: "key:G", // панель цветов (когда выбрана стройка)
@@ -41,14 +55,16 @@ export const GAME_DEFAULTS = {
       inventory: "key:I",
       talents: "key:T",
       map: "key:M",
-      interact: "key:F", // покормить / сесть / слезть (кабан)
+      interact: "key:F", // подобрать предмет под прицелом
     },
   },
 };
 
 export const GAME_ACTION_LABELS = {
-  weaponLeft: "LEFT WEAPON",
-  weaponRight: "RIGHT WEAPON",
+  item1: "ITEM 1",
+  item2: "ITEM 2",
+  skill1: "SKILL 1",
+  skill2: "SKILL 2",
   palette: "BLOCK COLOR",
   save: "SAVE",
   autoLoot: "AUTO LOOT",
@@ -75,10 +91,18 @@ export const PALETTE = [
   [90, 170, 80], //   трава
   [70, 120, 220], //  вода
   [220, 70, 70], //   кирпич
+  [175, 225, 245], // лёд — скользкий (PALETTE_SURFACE): на нём не устоять, съезжаешь
 ];
+// Особые поверхности цветов палитры (номер цвета → поверхность блока): "slip" — скользкий (движок: Physics)
+export const PALETTE_SURFACE = { 5: "slip" };
 
+// Рост героя 1.6 (модель скелета 1.8 × HERO_SCALE). С катаной в руках — стойка самурая (STANCE): колени
+// согнуты, герой ниже — и коробка столкновений, и глаза (game-scene.js → updateStance)
+export const HERO_SCALE = 1.6 / 1.8;
+export const STANCE = { height: 1.4, eyeHeight: 1.28 };
 export const PLAYER = {
-  eyeHeight: 1.6, //  глаза над ногами (метры)
+  height: 1.6, //     рост (коробка столкновений)
+  eyeHeight: 1.48, // глаза над ногами (метры)
   speed: 4, //        шаг, м/с
   runMultiplier: 2,
   jumpHeight: 1.2, // прыжок на 1.2 блока — хватает, чтобы запрыгнуть на один
@@ -89,7 +113,8 @@ export const PLAYER = {
 // despawnDistance — спокойный моб, отставший дальше этого, исчезает (освобождает место у тебя рядом).
 // despawnDistance — спокойный моб (и дикий кабан) дальше этого от героя исчезает; huntDespawn — даже злой
 // (потерял героя из виду и отстал). Появляются не дальше 60 м (прорисовка), так что дальше 75 — значит «ушёл»
-export const SPAWN = { interval: 5, max: 25, minPlayerDistance: 12, despawnDistance: 75, huntDespawn: 100 };
+// interval — раз в сколько секунд новый моб (5 / 3: втрое чаще, чем было), max — предел живых мобов вокруг
+export const SPAWN = { interval: 5 / 3, max: 45, minPlayerDistance: 12, despawnDistance: 75, huntDespawn: 100 };
 
 // Сколько живут в мире (секунды): спокойный моб (не злой) и предмет на земле исчезают через 2 минуты
 export const LIFETIME = { mob: 120, pickup: 120 };
@@ -103,7 +128,7 @@ export const MOB_WANDER = { radius: 8, pause: [2, 6] };
 // Виды (types, выбор поровну по weight): обычное; БЫСТРОЕ — все мобы на 30 % быстрее (speed);
 // ДАЛЬНЕЕ — половина новых мобов стрелки (rangedShare вместо обычных MOB_RANGED.chance)
 export const INVASION = {
-  chance: 1 / 240, every: 1, duration: 60, cooldown: 120, spawnSpeed: 2.6, max: 40,
+  chance: 1 / 240, every: 1, duration: 60, cooldown: 120, spawnSpeed: 2.6, max: 50,
   types: {
     normal: { weight: 1, name: "INVASION" },
     fast: { weight: 1, name: "FAST INVASION", speed: 0.3 },
@@ -131,21 +156,8 @@ export const MOB_MIX = { skeleton: 7, zombie: 3, bloater: 1 }; // РАЗДУТЫ
 export const BLOATER = { range: 14, trigger: 2.2, prime: 1.1, radius: 3, damage: [22, 32] };
 
 // Кабан — мирный (НПС), появляется редко: раз в interval секунд с шансом chance, не больше max.
-// Покорми грибами (клавиша взаимодействия) — приручишь и сможешь кататься.
-// Дикие кабаны: не больше max сразу (приручённые не считаются — их сколько угодно).
-// Приручает только класс SUMMONER (ПРИЗЫВАТЕЛЬ) — ГРИБАМИ: нужно tameBase + 1 за каждые tamePerHp HP кабана
-// (80 HP — 1 гриб, 250 HP — 3). Грибы (зелёные) растут на земле — только у SUMMONER (MUSHROOMS)
-// summoner — у ПРИЗЫВАТЕЛЯ кабаны появляются чаще и их больше (до 5 диких), у остальных — до 2
-export const BOARS = { interval: 30, chance: 0.3, max: 2, summoner: { interval: 15, chance: 0.6, max: 5 }, food: "mushroom", tameBase: 1, tamePerHp: 100 };
-export const MUSHROOMS = { interval: 25, chance: 0.6, max: 5, startCount: 4, radius: 35, minRadius: 4 }; // растут: ~1 гриб в 40 с (было реже — первые волны не пережить)
-
-// Приручённый кабан растёт (талант «РОСТ» во вкладке КАБАН): раз в growEvery секунд +growHp к макс. HP
-export const BOAR_GROWTH = { growEvery: 60, growHp: 10 };
-
-// Приручённый кабан ходит за хозяином (движок: FollowBrain): отстал дальше far — догоняет со скоростью
-// speed, подошёл ближе near — стоит; потерялся дальше teleport — появляется рядом
-// fight — защищает: враг ударил кабана или подошёл к хозяину ближе radius — бьёт его, пока тот не дальше leash
-export const BOAR_FOLLOW = { near: 2.5, far: 5, speed: 4.6, teleport: 40, fight: { radius: 9, leash: 16, stopDistance: 1.3 } };
+// Ранили — убегает; крепчает вместе с мобами (BOAR_SCALE)
+export const BOARS = { interval: 30, chance: 0.3, max: 2 };
 
 // Рост по счёту появлений мобов (движок: grow — проценты от базы + прибавка цифрой каждые every):
 //   hp — здоровье, damage — урон атаки, xp — опыт за победу.
@@ -167,9 +179,13 @@ export const WARDEN_GROWTH = { hp: { flat: 12 }, damage: MOB_DAMAGE };
 // Ниже enrageAt здоровья — ЯРОСТЬ: атакуют на 30 % чаще (enrage.cooldown) и на 25 % быстрее ходят.
 // Без цели (ушёл из логова) — лечатся regen доли макс. HP в секунду: «ударил и убежал» не работает
 export const BOSS = {
-  respawn: 180, // в логове в горе — ТРОЛЛЬ; логов нет — ЛИЧ на жёлтой площадке (WORLDGEN.arena) aggroRadius: 5.5, territory: 1.5,
+  respawn: 180, // в логове в горе — ТРОЛЛЬ, на жёлтой площадке (WORLDGEN.arena) — ЛИЧ
+  aggroRadius: 5.5, territory: 1.5,
   growth: { hp: { flat: 40 }, damage: MOB_DAMAGE },
   stunResist: 0.6, stunImmunity: 5, enrageAt: 0.5, enrage: { cooldown: 0.7, speed: 0.25 }, regen: 0.04,
+  // Урон в процентах от макс. HP (горение, кровотечение, капкан +50 % HP) по боссу — в 8 раз слабее
+  // (движок: entity.percentDamageScale; предел горения — тоже)
+  percentDamageScale: 1 / 8,
 };
 // ЛИЧ (второй босс): высокий скелет-колдун. Держится на расстоянии и стреляет фиолетовыми сгустками; подошёл
 // ближе blink.near — исчезает и появляется в другом конце зала (раз в blink.cooldown с); раз в summon.every с
@@ -239,6 +255,7 @@ export const WORLDGEN = {
     // Маленькие острова вокруг главного (между ними — пустой пол); на острове с шансом — своя горка
     islands: { count: [3, 6], radius: [12, 20], distance: [102, 126], edge: 6, hills: 2, mountainChance: 0.4, mountain: { radius: [7, 11], height: [8, 12] } },
     bossChance: 0.3, //                                            в горе — логово босса (зал с проходом): ПЕЩЕРНЫЙ ТРОЛЛЬ (BOSS)
+    minLairs: 1, maxLairs: 1, //                                   логово тролля — ровно одно в каждом мире (и всегда — площадка лича)
   },
   colors: { grass: [96, 160, 72], dirt: [130, 96, 62], stone: [140, 140, 146], snow: [236, 240, 246], rockLine: 10, snowLine: 14 },
   houses: 11, //             сколько домиков (на главном острове)
@@ -284,7 +301,7 @@ export const ATTACKS = {
   // разбег — 60 за врага в начале, на полной скорости с MOMENTUM ×2.6 (≈157) — по 11 врагам насквозь
   spear: { id: "spear", name: "SPEAR THRUST", damage: 48, reach: 3.8, cooldown: 0.85, arc: 24, maxTargets: 3 },
   spearCharge: { id: "spear-charge", name: "SPEAR CHARGE", damage: 60, reach: 1 },
-  // Катана: удар из ножен режет всё перед собой — сектор 170° (почти весь экран), до 6 врагов
+  // Катана: удар режет всё перед собой — сектор 110° (не весь экран: по бокам уже не задевает), до 6 врагов
   // Приручённый кабан: бьёт бивнями врагов рядом с хозяином (средний урон, ближний бой, короткий замах)
   boarTusk: { id: "tusk", name: "TUSK HIT", damage: [10, 16], reach: 1.9, windup: 0.25, cooldown: 1.2 },
   // Боевой молот (БОЕЦ, покупной): медленный тяжёлый удар по одному (~28 урона/с); таланты — оглушение
@@ -292,8 +309,17 @@ export const ATTACKS = {
   // Боевой молот — удар ПО ЗЕМЛЕ (движок: SlamAttack): замах windup с, потом всем врагам в круге radius
   // (1 блок; талант SPLASH SLAM — больше) вокруг точки в distance м перед собой — полный урон
   // grounded — только о землю: ударил в прыжке — удар, когда приземлишься (HAMMER: падаешь быстрее)
-  warHammer: { id: "war-hammer", name: "HAMMER SLAM", damage: 42, distance: 1.7, radius: 1, windup: 0.3, cooldown: 1.5, grounded: true },
-  katana: { id: "katana", name: "KATANA SLASH", damage: 75, reach: 3.2, cooldown: 1.3, arc: 170, maxTargets: 6 }, // 75 каждому; с ИАЙ — ×5
+  warHammer: { id: "war-hammer", name: "HAMMER SLAM", damage: 69, distance: 1.7, radius: 1, windup: 0.3, cooldown: 1.8, grounded: true },
+  // ПОДРЫВНИК: всё — взрывы по площади (MagicAttack, снаряд летит, долетел — burst). Вид атак — "blast" (свои таланты).
+  // Граната (базовая): бросок по дуге, взрыв от удара ~33 урона/с ПО ВСЕМ в радиусе; гранатомёт — быстрее и
+  // настильнее, радиус меньше (~40/с); динамит — лежит fuse с и рвёт сильно и широко (~37/с, но разом по толпе)
+  handGrenade: { id: "hand-grenade", name: "GRENADE", damage: 40, radius: 2.5, cooldown: 1.2, cost: 0, projectile: true, speed: 15 },
+  launcher: { id: "launcher", name: "LAUNCHER SHELL", damage: 28, radius: 2, cooldown: 0.7, cost: 0, projectile: true, speed: 28 },
+  dynamite: { id: "dynamite", name: "DYNAMITE", damage: 110, radius: 4, cooldown: 3, cost: 0, projectile: true, speed: 13 },
+  clusterBomb: { id: "cluster", name: "CLUSTER BOMBLET", damage: 30, radius: 1.8, cooldown: 0, cost: 0, projectile: true },
+  // Дробовик, скилл Q «ОТСКОК» (SHOTGUN_BLAST): залп в упор — всем в конусе перед собой (до 7 м)
+  shotgunBlast: { id: "shotgun-blast", name: "BLAST JUMP", damage: 45, reach: 7, arc: 70, maxTargets: 6 },
+  katana: { id: "katana", name: "KATANA SLASH", damage: 75, reach: 3.2, cooldown: 1.3, arc: 110, maxTargets: 6 }, // 75 каждому; с ИАЙ — ×5
   // Снайперская винтовка: урон фиксированный (75), бьёт далеко, но медленно перезаряжается
   rifle: { id: "rifle", name: "SNIPER SHOT", damage: 90, range: 90, cooldown: 2.0, magazine: 5, reloadTime: 2.4 }, // 2 с: передёргиваем затвор
   // Дробовик (СТРЕЛОК, покупной): 8 дробин с разбросом, вблизи — 56 за выстрел (~49/с, если все попали)
@@ -305,17 +331,6 @@ export const ATTACKS = {
   // Страж: меч — бьёт мобов, которые подошли к нему или к его дому
   wardenSword: { id: "warden-sword", name: "WARDEN SWORD", damage: [15, 22], reach: 2.3, windup: 0.25, cooldown: 1.0, arc: 110, maxTargets: 3 },
   // Зомби: тянется дальше скелета (× 1.25), бьёт чуть сильнее, но замахивается дольше
-  // ---------- Магия (вкладка талантов МАГИЯ) ----------
-  // Посох метеора (бывший посох огня) — СОЛНЕЧНЫЙ УДАР: под прицелом виден круг; ЛКМ — через delay с столб огня бьёт сверху
-  // всех в радиусе radius (сплеш, на краю — половина) и поджигает. projectile — урон не сразу (бьёт игра)
-  fireStaff: { id: "sunstrike", name: "METEOR", damage: 55, element: "fire", radius: 3, range: 40, cooldown: 1.2, projectile: true, cost: 25, delay: 0.9 },
-  // Жезл льда: мгновенная ледяная стрела в цель под прицелом, 60 % шанс замедлить. ~35 урона/с, без хедшотов
-  frostWand: { id: "frost-bolt", name: "FROST BOLT", damage: 14, element: "ice", range: 35, cooldown: 0.4, cost: 5 },
-  // Магма-камень (МАГ, покупной): бросок по дуге, где упал — лужа магмы radius м на duration с:
-  // damage урона в секунду всем врагам внутри (тики по 0.5 с). 20 маны, раз в 3 с
-  magmaStone: { id: "magma-stone", name: "MAGMA", damage: 12, element: "fire", radius: 2, duration: 8, range: 30, speed: 16, cooldown: 3, cost: 20, projectile: true },
-  // Призыв: турель-гриб стреляет спорами; урон и здоровье — от числа грибов (TURRET)
-  spore: { id: "spore", name: "SPORE", damage: 4, cooldown: 1.2, cost: 0, projectile: true },
   // ---------- Ловушки ----------
   // Капкан: одноразовый, захлопывается на первом враге — урон (+50 % его макс. HP) и держит на месте (TRAPS root с)
   bearTrap: { id: "bear-trap", name: "BEAR TRAP", damage: 50, radius: 0.6 },
@@ -408,7 +423,7 @@ export const PORTRAIT_PALETTE = {
 
 // Оружие в руках замедляет: пистолет маленький — на 5 %. Прицеливание (ПКМ, держать) —
 // ещё на 10 % (вместе 15 %), камера приближается (fov), пистолет встаёт к центру экрана.
-export const WEAPON_SPEED = { pistol: -0.05, rifle: -0.1, auto: -0.08, shotgun: -0.08, warHammer: -0.08 }; // винтовка тяжелее
+export const WEAPON_SPEED = { launcher: -0.08, pistol: -0.05, rifle: -0.1, auto: -0.08, shotgun: -0.08, warHammer: -0.08 }; // винтовка тяжелее
 // Сколько секунд достают оружие после выбора (до этого не стреляет и не бьёт): тяжёлое — дольше
 // Копьё, разбег (ПКМ, держать): бежишь вперёд сам (движок: Charge), куда — правишь взглядом. Посмотрел в сторону
 // в пределах deadZone (20°) — без потерь (направление само доворачивает freeTurn °/с); дальше — скорость падает
@@ -417,14 +432,17 @@ export const WEAPON_SPEED = { pistol: -0.05, rifle: -0.1, auto: -0.08, shotgun: 
 // или duration с — конец, перезарядка cooldown с. Скорость складывается со всеми прибавками (LIGHT STEP и т. п.).
 // Талант MOMENTUM (ранг 1/2/3): разгон до +30/60/90 % скорости за rampTime с (быстрее — больнее),
 // и насквозь на +2/4/6 врагов больше
+// Разбег тратит выносливость, как бег (STAMINA.drain), и длится, пока она есть (своего предела по времени нет)
 export const SPEAR = {
-  charge: { speed: 8.5, maxSpeed: 8.5, deadZone: 20, freeTurn: 45, turnStop: 90, minSpeed: 3.5, duration: 4 },
+  charge: { speed: 8.5, maxSpeed: 8.5, deadZone: 20, freeTurn: 45, turnStop: 90, minSpeed: 3.5, duration: Infinity },
+  minStamina: 10, //  начать разбег — нужно хотя бы столько выносливости
   maxHits: 5, hitRadius: 0.9, tip: 1.2, cooldown: 4,
+  maxTime: 3, //      предел разбега, когда выносливость выключена (STAMINA.enabled: false)
   powerExp: 1.5, // урон разбега × (скорость / начальная) ^ powerExp: на разгоне бьёт заметно больнее
   momentum: { speed: [0.3, 0.6, 0.9], hits: [2, 4, 6], rampTime: 2 },
 };
 
-export const EQUIP_TIME = { spear: 0.3, pistol: 0.3, auto: 0.45, rifle: 0.7, shotgun: 0.5, machete: 0.25, warHammer: 0.45, katana: 0.25, staff: 0.35, wand: 0.25, magma: 0.3, trap: 0.2, item: 0.15 };
+export const EQUIP_TIME = { launcher: 0.45, spear: 0.3, pistol: 0.3, auto: 0.45, rifle: 0.7, shotgun: 0.5, machete: 0.25, warHammer: 0.45, katana: 0.25, trap: 0.2, item: 0.15 };
 
 // Ловушки: ставятся ЛКМ на любую грань блока или на землю под прицелом (не дальше reach м) — «клеятся»
 // к стенам и потолку. Стоят, пока не сработают (капкан) или пока не поставишь сверх max (самая старая исчезает).
@@ -439,84 +457,142 @@ export const TRAPS = {
 // НЕПОЛНОЙ обоймой (на ячейке — сколько в ней патронов; такие в стопку не складываются).
 // start — сколько обойм пистолета дают при выборе класса; refund — талант AMMO REFUND: патронов прямо в автомат
 export const CLIPS = { items: { pistol: "pistol-clip", auto: "auto-clip", shotgun: "shotgun-clip", rifle: "rifle-clip" }, start: 3 };
-// Мана (класс MAGE): запас max, сама восстанавливается regen в секунду; с павших врагов с шансом soulChance
-// выпадает СФЕРА ДУШИ — подобрал, +soul (доля макс. маны). Талант MANA GLOBES: шанс и сила — globes[ранг - 1].
-// Цена заклинаний — cost у атак (ATTACKS)
-export const MANA = { max: 100, regen: 4, soul: 0.05, soulChance: 0.2, globes: [{ chance: 0.5, soul: 0.05 }, { chance: 0.7, soul: 0.1 }] };
-// Мага: EMPOWER — раз в every с следующее заклинание ×damage урона и ×radius радиус
-export const EMPOWER = { every: 30, damage: 3, radius: 2 };
-// Повторный метеор (талант): через delay с — ещё один, share урона
-export const METEOR_REPEAT = { delay: 1, share: 0.5 };
-// Искры магмы (талант): раз в interval с из лужи — искра в случайного врага не дальше range, share урона
-export const SPARKS = { interval: 1, range: 6, share: 0.3 };
-// Засадник: маленький скелет-камикадзе из сработавшего капкана (талант SKELETON): бежит к врагу и
-// взрывается (radius м) на share урона капкана; scale — размер модели
-export const MINION = { share: 0.4, radius: 2.2, range: 15, fuse: 10, scale: 0.55, speed: 3.6, hp: 20 };
-// Ядовитый туман (талант DEADLY MIST): на месте убийства, radius м, duration с, pct макс. HP в секунду
-export const MIST = { radius: 2.5, duration: 4, pct: 0.05 };
-// Ловушка-рефлекс (талант REFLEX TRAP): получил урон — под тобой случайная ловушка, не чаще раза в cooldown с
-export const AUTO_TRAP = { cooldown: 10 };
-// Турель-гриб (призыватель): ставится ЛКМ, когда в руке средняя ячейка с грибами — уходят ВСЕ грибы,
-// за каждый — прибавка (per). Стреляет спорами по врагам не дальше range; max — сколько турелей сразу
 // След пули (и у героя, и у мобов-стрелков): трассер — короткий светлый луч от ствола до попадания,
 // в блок — чёрная точка на holeLife секунд
 export const BULLET = { color: [255, 215, 110], core: [255, 250, 225], life: 0.07, width: 3, hole: [15, 15, 15], holeLife: 3, holeSize: 0.012 };
 
-// Боевой молот: пока идёт удар — ходишь на 40 % медленнее (slow), в воздухе падаешь быстрее (fastFall м/с²
-// сверху тяжести). Талант JUMP SLAM: с молотом в руках прыжок на 80 % выше (leap), а удар после прыжка
-// сильнее — +perBlock урона за каждый метр падения, не больше ×maxMult
-export const HAMMER = { slow: -0.4, fastFall: 30, leap: 0.8, perBlock: 0.5, maxMult: 3 };
+// Выносливость (движок: Stamina): 100; бег (спринт) и разбег с копьём — drain в секунду (100 / 11 ≈ 9 с бега),
+// восстанавливается regen в секунду через delay с после траты; выдохся — бегать снова, когда наберётся recover.
+// Удары оружием ближнего боя стоят MELEE_STAMINA (по id атаки); не хватает — удара нет
+// enabled: false — в этой игре выносливость выключена (класс Stamina в движке остался): бег без предела, удары
+// бесплатно, шкалы нет; разбег с копьём тогда кончается через SPEAR.maxTime с
+export const STAMINA = { enabled: false, max: 100, drain: 11, regen: 25, delay: 0.8, recover: 20 };
+export const MELEE_STAMINA = { punch: 3, machete: 4, "war-hammer": 12, katana: 9, spear: 6 };
 
-// Тряска экрана от удара молотом о землю (движок: Recoil — взгляд дёргается вниз и возвращается)
-export const HAMMER_SHAKE = { pattern: [[-1.4, 0]], random: 0.6, recovery: 1, scale: 1 };
+// Ультимейт (X; движок: UltimateCharge): заряд за 1 HP урона по врагам, за убийство и в секунду — доли
+// полного заряда. Сейчас примерно: 3000 урона, или 66 убийств, или 4 минуты
+export const ULTIMATE = { perDamage: 1 / 3000, perKill: 0.015, perSecond: 1 / 240 };
 
-// ЦЕЛЕБНЫЙ ГРИБ (ПРИЗЫВАТЕЛЬ): средняя ячейка с грибами, ПКМ — вырастить (cost грибов, не больше max сразу,
-// живёт life с). Раз в секунду лечит героя и его призванных (кабанов, турели) в radius на heal их макс. HP.
-// Мобы его тоже бьют — защищай
-export const HEALER = { cost: 2, max: 2, life: 45, radius: 5, heal: 0.03 };
+// Туман войны на карте (движок: FogOfWar): открывается всё в радиусе radius блоков вокруг героя и запоминается
+export const MAP_FOG = { radius: 22 };
 
-export const TURRET = {
-  // E (у ПРИЗЫВАТЕЛЯ) — посадить САЖЕНЕЦ (предмет sapling: из магазина или с врагов, шанс saplingDrop): он
-  // растёт grow секунд, потом — турель со своей ячейкой (F — открыть): сколько грибов положишь, такая и сила,
-  // без предела; можно и забрать обратно. Без грибов (и пока растёт) — не стреляет.
-  max: 5, range: 16, speed: 18, minCooldown: 0.35, grow: 30, sapling: "turret-sapling", saplingDrop: 0.05, startSaplings: 1,
-  mushrooms: Infinity, //                           предела грибов в одной турели нет
-  base: { hp: 40, damage: 3, cooldown: 1.1 },
-  per: { hp: 60, damage: 3, cooldown: -0.1 }, //     каждый гриб: +60 HP, +3 урона, перезарядка −0.1 с
-  taunt: 3, //                                      мобы ближе 3 блоков бросают героя и бьют турель (движок: tauntRadius)
-  // Баланс «за гриб» (гриб — 30 монет), сравнение с кабаном (1 гриб за 80 HP, ~11 урона/с, ходит за тобой):
-  //   1 гриб — 80 HP, 6 урона/с; 3 гриба (90 монет) — 200 HP, 15 урона/с + отвлекает мобов.
-  //   Турель не ходит — зато крепче и сама собирает на себя врагов («танк» на месте)
-  split: { radius: 4, share: 0.5 }, //              талант SECONDARY TARGETS: ещё цели рядом, 50 % урона
+// Броня (инвентарь: шлем, нагрудник, поножи, ботинки). armor — доля физического урона, которую срезает часть;
+// всё вместе (с шкурами тролля и талантом THICK SKIN) — не больше 90 %. speed — прибавка (или штраф) к скорости
+// от части. Цены — в монетах (магазин, ПРОЧЕЕ).
+// Три комплекта — три стиля: КОЖА — середина (−15 %, без штрафа), ЖЕЛЕЗО — крепко, но тяжело (−26 %, −8 % скорости),
+// КОСТЬ — лёгкая (−9 %, +8 % скорости). Части можно смешивать.
+// full — бонус за полный комплект (все 4 части одного): speed — к скорости, hp — к макс. HP,
+// attackSpeed — атаки быстрее (0.1 — на 10 %), text — как показать (F1, магазин)
+export const ARMOR = {
+  sets: {
+    leather: {
+      name: "LEATHER", color: [150, 105, 65],
+      parts: {
+        helmet: { name: "HELMET", armor: 0.03, price: 20 },
+        chest: { name: "CHEST", armor: 0.06, price: 35 },
+        legs: { name: "LEGS", armor: 0.04, price: 25 },
+        boots: { name: "BOOTS", armor: 0.02, price: 15 },
+      },
+      full: { speed: 0.05, text: "+5% SPEED" },
+    },
+    iron: {
+      name: "IRON", color: [150, 156, 168],
+      parts: {
+        helmet: { name: "HELMET", armor: 0.05, speed: -0.02, price: 45 },
+        chest: { name: "CHEST", armor: 0.1, speed: -0.03, price: 85 },
+        legs: { name: "LEGS", armor: 0.07, speed: -0.02, price: 65 },
+        boots: { name: "BOOTS", armor: 0.04, speed: -0.01, price: 35 },
+      },
+      full: { hp: 40, text: "+40 MAX HP" },
+    },
+    bone: {
+      name: "BONE", color: [222, 214, 190],
+      parts: {
+        helmet: { name: "HELMET", armor: 0.02, speed: 0.02, price: 30 },
+        chest: { name: "CHEST", armor: 0.03, speed: 0.02, price: 45 },
+        legs: { name: "LEGS", armor: 0.025, speed: 0.02, price: 40 },
+        boots: { name: "BOOTS", armor: 0.015, speed: 0.02, price: 25 },
+      },
+      full: { attackSpeed: 0.1, text: "+10% ATTACK SPEED" },
+    },
+  },
 };
 
-// Жезл льда — свой приём, не случайное замедление: каждое попадание — стопка ХОЛОДА (−slowPerStack скорости,
-// держится stackTime с); на freezeAt-м попадании цель ЗАМЕРЗАЕТ на freezeTime с (не ходит и не бьёт).
-// Попал по замёрзшему — РАСКОЛ: урон ×shatter, лёд разбит
-export const FROST = { slowPerStack: 0.15, stackTime: 3, freezeAt: 5, freezeTime: 2, shatter: 2 };
+// Боевой молот: пока идёт удар — ходишь на 40 % медленнее (slow), в воздухе падаешь быстрее (fastFall м/с²
+// сверху тяжести). Талант JUMP SLAM: с молотом в руках прыжок на 80 % выше (leap), а удар после прыжка
+// сильнее — +perStep к множителю урона за каждые step блока падения (ступеньками: полблока — +0.5, целый
+// блок — +1), не больше ×maxMult (×10 — с высоты 9 блоков; с обычного прыжка JUMP SLAM — около ×3)
+// root — после удара о землю герой замирает на столько секунд (и камера стоит), как в конце рывка ИАЙ
+export const HAMMER = { slow: -0.4, fastFall: 30, leap: 0.8, step: 0.5, perStep: 0.5, maxMult: 10, root: 0.15 };
+
+// Тряска камеры (движок: CameraShake) — только картинки, прицел не сдвигается (как в Overwatch). «Встряска» 0…1:
+// hammer — удар молотом о землю (с прыжка — сильнее: + jumpSlam за каждый «икс» множителя), bossSlam / bloater /
+// explosion — удар тролля, взрыв раздутого, взрывы подрывника: в полную силу вплотную, к radius м — на нет.
+// fall — дрожь, пока падаешь быстрее from м/с (растёт до max на from + range м/с); land — толчок при
+// приземлении: с высоты от from блоков, + perBlock за каждый блок выше, не больше max
+// Урон от падения (героя): с высоты больше from блоков — perBlock доли макс. HP за каждый блок сверху (8 блоков —
+// 5 × 7 % = 35 %). Таланты на прыжок поднимают порог и режут урон: HIGH GROUND (sniper-jump) — всегда,
+// JUMP SLAM — пока молот в руках. Удар молотом с прыжка (молот ждёт земли) героя не ранит
+export const FALL_DAMAGE = {
+  from: 3, perBlock: 0.07,
+  highGround: { from: 2, mult: 0.5 }, //   + к порогу (блоков) и множитель урона
+  jumpSlam: { from: 3, mult: 0.5 },
+};
+
+export const SHAKE = {
+  hammer: 0.45, jumpSlam: 0.08,
+  bossSlam: { amount: 0.65, radius: 12 }, bloater: { amount: 0.5, radius: 9 }, explosion: { amount: 0.35, radius: 8 },
+  fall: { from: 12, range: 26, max: 0.4 },
+  land: { from: 3, perBlock: 0.09, max: 0.8 },
+};
 
 // Магазин (клавиша B): цены в монетах (монеты выпадают из мобов)
 // Цены: базовое оружие класса — дёшево (стартовое и слабее), продвинутое — дороже и сильнее.
 // Монеты: скелет 5, зомби 8. Блоки — за пачку BUILD.pack. Базовое оружие класса — дёшево (если потерял)
 export const SHOP = {
   machete: 20, "war-hammer": 70, katana: 90, spear: 80, //           боец: мачете ~43/с (двоим), молот ~28/с + оглушение, катана 75 всем
+  grenades: 20, launcher: 80, dynamite: 85, //            подрывник: граната ~33/с по площади, гранатомёт ~40/с, динамит 110 раз в 3 с
   pistol: 20, auto: 70, shotgun: 75, rifle: 80, //        стрелок: пистолет ~35/с, автомат ~48/с, дробовик ~49/с вблизи, снайперка 90
-  "frost-wand": 20, "magma-stone": 70, "fire-staff": 80, // маг: жезл + заморозка, магма — лужа, метеор — удар по площади
-  "bear-trap": 5, spikes: 8, mushroom: 30, "turret-sapling": 25, // ловушки, гриб (дорого: это кабан или сила турели), саженец турели
+  "bear-trap": 5, spikes: 8, //                          ловушки
   "pistol-clip": 4, "auto-clip": 8, "shotgun-clip": 6, "rifle-clip": 8, // обоймы: пистолет 12, автомат 30, дробь 6, снайперка 5
   builder: 10, block: 5, medkit: 10, medkitHeal: 40, //   прочее: молот-стройка, 16 блоков, аптечка
 };
+// Аптечка: держишь ЛКМ useTime секунд (вокруг прицела заполняется круг, как в PEAK) — тогда лечит SHOP.medkitHeal;
+// отпустил раньше — не потратилась. Пока лечишься — медленнее на slow
+export const MEDKIT = { useTime: 2.5, slow: -0.5 };
 export const THROW = { gravity: 20 }; // тяжесть для брошенного (м/с²)
 
 // Блок (ПКМ с оружием ближнего боя — кулак, мачете, катана): window секунд после нажатия удары
-// спереди отбиваются целиком (поставил вовремя — пока враг замахивается, ~0.3–0.45 с). Потом cooldown.
-export const BLOCK = { window: 0.4, cooldown: 1.0 };
+// спереди блокируются (поставил вовремя — пока враг замахивается, ~0.3–0.45 с). Потом cooldown.
+// share — какую долю урона удара срезает блок (0.5 — половину; урон уже с модификаторами атакующего)
+export const BLOCK = { window: 0.4, cooldown: 1.5, share: 0.5 };
 
-// Катана, ИАЙ (пассивный навык): катана в руке, но в ножнах sheathTime секунд подряд (не бил) —
-// бафф «ИАЙ»: следующий удар — ×damage урона (×3) и выпад вперёд (рывок lungeSpeed м/с на lungeTime с ≈ 3 м);
-// пока бафф висит — бег быстрее на speed (0.15 = +15 %)
-// damage — базовый множитель (талант IAI MULTIPLIER: ×2/×3/×4), speed — прибавка к бегу (талант IAI SPEED)
-export const KATANA_IAI = { sheathTime: 4.5, damage: 1.5, lungeSpeed: 18, lungeTime: 0.18, speed: 0 };
+// ИАЙ — скилл катаны (Q), как «Стремительный удар» Гэндзи: рывок на distance м со скоростью dashSpeed м/с туда,
+// куда смотришь (и вверх, и вниз, и наискось); все враги в пределах width м от пути получают удар катаны ×damage
+// (каждый один раз). Камера стоит весь рывок; в конце пути — замираем на pause с, камера отпускается после
+// lockShare этой паузы (чуть раньше движения). Перезарядка cooldown с (идёт и без катаны в руках).
+// damage — базовый множитель (талант IAI MULTIPLIER: ×2/×3/×4), speed — прибавка к бегу, пока ИАЙ готов (талант IAI SPEED)
+// shape — коробка столкновений героя на время рывка (как Гэндзи: вытянулся в рывке и «плоский»): уже и ниже,
+// от макушки вниз на height (anchor "top" — от камеры, у головы): низ коробки выше блока — смотришь
+// прямо и пролетаешь над блоком перед собой, щель в блок — тоже; после рывка — снова в рост, на ноги
+// (катана — всегда в стойке, рост 1.4: коробка 0.35 у макушки → низ на 1.05 над ногами, выше блока)
+// ПОДРЫВНИК: тяжесть для брошенного (gravity — граната и динамит, launcherGravity — снаряд гранатомёта летит
+// настильнее), fuse — сколько секунд горит фитиль лежащего динамита (талант SHORT FUSE — shortFuse).
+// Скилл Q гранатомёта — КАССЕТА: снаряд рвётся и разбрасывает count бомбочек (ATTACKS.clusterBomb) вокруг,
+// каждая взрывается, где упадёт. Перезарядка cooldown с
+export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1.6, shortFuse: 0.8, cluster: { cooldown: 10, count: 6, up: 7, spread: 4.5 } };
+
+// Дробовик — скилл Q «ОТСКОК»: залп в упор (ATTACKS.shotgunBlast, патроны не тратит) оглушает задетых на stun с,
+// а отдача отбрасывает героя назад — против взгляда: смотришь вниз — подлетаешь вверх (выпрыгнуть из толпы, на крышу).
+// push — скорость отброса (м/с), pushTime — сколько секунд (≈ 5 м), lift — добавка вверх к направлению.
+// Баланс: дробовик ~49 урона/с; залп — до 6 × 45 = 270 раз в 9 с плюс уход из окружения
+export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, lift: 0.3 };
+// Скольжение рывков по стенам (движок: dash slide), как в Overwatch: влетел в стену почти в лоб (ближе stopAngle°
+// к перпендикуляру) — стоп, иначе рывок едет вдоль стены на keep своей скорости и, кончилась стена, — дальше
+// Прощение краёв у рывков: stepUp — задел край блока низом тела не глубже 0.5 — поднимает на него; stepDown —
+// задел головой край потолка не глубже 0.25 — проходишь под ним; corner — задел угол стены краешком до 0.25 м — огибаешь
+export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
+export const KATANA_IAI = { cooldown: 6, damage: 1.5, distance: 10, dashSpeed: 40, width: 1.2, pause: 0.1, lockShare: 0.7, speed: 0, shape: { radius: 0.2, height: 0.35, anchor: "top" } };
 // Прицеливание (движок: engine/input/aim.js). fov — угол обзора в прицеле, sensitivity — мышь в прицеле
 // так, как её чувствует игрок (1 — перекрестие бегает по экрану как без прицела, 0.5 — вдвое медленнее).
 // moveSpeed — замедление ходьбы в прицеле, offset — сдвиг модели оружия.
@@ -548,9 +624,9 @@ export const RECOIL_AUTO = {
 // и даётся стартовое оружие. tab — вкладка талантов, shop — раздел магазина (= класс предметов, items.js)
 export const CLASSES = {
   melee: { name: "FIGHTER", tab: "melee", shop: "melee", starter: ["machete", 1], text: "MELEE: MACHETE. SHOP: WAR HAMMER, KATANA, SPEAR. BLOCK ON RMB" },
-  ranged: { name: "RANGER", tab: "ranged", shop: "ranged", starter: ["pistol", 1], text: "RANGED: PISTOL. SHOP: RIFLE, SHOTGUN, SNIPER" },
-  magic: { name: "MAGE", tab: "magic", shop: "magic", starter: ["frost-wand", 1], text: "MAGIC: FROST WAND. SHOP: MAGMA STONE, METEOR STAFF" },
-  beast: { name: "SUMMONER", tab: "summon", shop: "beast", starter: ["mushroom", 5], text: "BOARS (TAME WITH MUSHROOMS) AND MUSHROOM TURRETS. Q - MARK A TARGET FOR BOARS, E - PLANT A TURRET. START - 5 MUSHROOMS, 1 SAPLING" },
+  ranged: { name: "RANGER", tab: "ranged", shop: "ranged", outfit: "hero-ranged", starter: ["pistol", 1], text: "RANGED: PISTOL. SHOP: RIFLE, SHOTGUN, SNIPER" },
+  demo: { name: "DEMOLITIONIST", tab: "demo", shop: "demo", outfit: "hero-demo", starter: ["grenades", 1], text: "EXPLOSIVES: GRENADES. SHOP: GRENADE LAUNCHER, DYNAMITE. EVERYTHING BLOWS UP IN AN AREA" },
 };
+// outfit — модель героя этого класса (одежда; без него — юката "hero"), main.js грузит её
 // Вкладки талантов, открытые всем (и до выбора класса). у классов — своя вкладка
 export const COMMON_TABS = ["survival"];

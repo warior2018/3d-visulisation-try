@@ -14,6 +14,8 @@
 //    //   corner: [x, y, z] — след «вылетает» из этой точки у самой камеры (м: вправо, вверх, вперёд от origin;
 //    //   например [-0.45, -0.38, 0.32] — из левого нижнего угла экрана): первую долю пробега cornerSpan
 //    //   кончик идёт от угла к сектору, дальше — по сектору. Для вида от 1-го лица; хитбокс это не меняет
+//    instant: true — след появляется сразу целиком (без пробега от края к краю) и ровной яркости, потом гаснет;
+//    двигаешься во время удара — след не изгибается дугой
 //    slashes.update(dt);
 //    slashes.draw(ui, camera);   // в интерфейсе, точки мира переводятся в пиксели (camera.toScreen)
 // ============================================================
@@ -36,8 +38,9 @@ export class SlashEffects {
   // origin — откуда (обычно глаза), yaw — куда смотрит атакующий (вперёд = (sin yaw, cos yaw)),
   // inner — с какого расстояния начинается след (доля reach),
   // delay — через сколько секунд след начнётся (подогнать под анимацию), sweep — свой темп пробега
-  add({ origin, yaw, pitch = 0, roll = 0, arc = 120, reach = 3, inner = 0.7, from = 0, to = 0, dir = 1, color = [255, 255, 255], delay = 0, sweep = this.sweep, straight = false, corner = null, cornerSpan = 0.5 }) {
-    this.list.push({ x: origin.x, y: origin.y, z: origin.z, yaw, basis: viewBasis(yaw, pitch, roll), arc: (arc * Math.PI) / 180, reach, inner, from, to, dir, color, age: -delay, sweep, straight, corner, cornerSpan });
+  add({ origin, yaw, pitch = 0, roll = 0, arc = 120, reach = 3, inner = 0.7, from = 0, to = 0, dir = 1, color = [255, 255, 255], delay = 0, sweep = this.sweep, straight = false, corner = null, cornerSpan = 0.5, instant = false }) {
+    if (instant) sweep = 0.0001;
+    this.list.push({ x: origin.x, y: origin.y, z: origin.z, yaw, basis: viewBasis(yaw, pitch, roll), arc: (arc * Math.PI) / 180, reach, inner, from, to, dir, color, age: -delay, sweep, straight, corner, cornerSpan, instant });
   }
 
   update(dt) {
@@ -58,7 +61,7 @@ export class SlashEffects {
         let prev = null;
         for (let i = 0; i <= this.steps; i++) {
           const u = Math.min(i / this.steps, head); //         место на дуге: 0 — начало удара, 1 — конец
-          const trail = Math.max(0, 1 - (head - u) * 1.6); //  ближе к переднему краю — ярче (хвост гаснет)
+          const trail = s.instant ? 1 : Math.max(0, 1 - (head - u) * 1.6); // ближе к переднему краю — ярче (хвост гаснет)
           const side = s.dir > 0 ? u - 0.5 : 0.5 - u; //       −0.5 — левый край сектора, 0.5 — правый
           const a = side * s.arc; //                          угол от «вперёд» в плоскости взгляда
           // straight — высота ∝ глубине (cos угла от «вперёд»): на экране — прямая

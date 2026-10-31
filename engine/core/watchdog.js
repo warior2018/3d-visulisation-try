@@ -14,25 +14,51 @@
 // ============================================================
 
 import fs from "node:fs";
+import { renameSafe } from "./json-file.js";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
 
 // Этапы кадра: главный поток отмечает, где он сейчас. Номер = индекс в списке.
 export const PHASES = ["отдых между кадрами", "логика (update)", "рисование (render)", "показ кадра (present)", "обработка нажатия", "смена сцены"];
 
+const FLUSH_MS = 500; // журнал: как часто дописывать файл
+
 export class Journal {
   constructor(file) {
     this.file = file;
     fs.mkdirSync(path.dirname(file), { recursive: true });
     // Прошлый журнал не теряем: он может понадобиться, если игру перезапустили после зависания
-    if (fs.existsSync(file)) fs.renameSync(file, file.replace(/\.txt$/, "-prev.txt"));
+    if (fs.existsSync(file)) {
+      try { renameSafe(file, file.replace(/\.txt$/, "-prev.txt")); } catch {} // занят (Windows) — допишем в старый
+    }
     this.write("старт");
   }
 
+  // Строки копятся в памяти и пишутся в файл пачкой (раз в FLUSH_MS или когда набралось много): запись на диск
+  // на каждую строку тормозила игру, когда событий много (нашествие — десятки ударов в секунду).
+  // Ошибки пишутся сразу. При выходе — всё дописывается
   write(text) {
     const time = new Date().toISOString().slice(11, 23); // часы:минуты:секунды.мс
+    (this.buffer ||= []).push(`${time}  ${text}\n`);
+    if (/ОШИБКА|ERROR/.test(text) || this.buffer.length >= 300) return this.flush();
+    if (!this.timer) {
+      this.timer = setTimeout(() => this.flush(), FLUSH_MS);
+      this.timer.unref?.(); // таймер не держит программу открытой
+    }
+    if (!this.hooked) {
+      this.hooked = true;
+      process.on("exit", () => this.flush()); // закрыли игру — дописать хвост
+    }
+  }
+
+  flush() {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    if (!this.buffer?.length) return;
+    const text = this.buffer.join("");
+    this.buffer = [];
     try {
-      fs.appendFileSync(this.file, `${time}  ${text}\n`);
+      fs.appendFileSync(this.file, text);
     } catch {
       // журнал — не главное: если писать нельзя, игра всё равно работает
     }

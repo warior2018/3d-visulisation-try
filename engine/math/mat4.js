@@ -26,7 +26,7 @@ export function multiply(a, b, out = new Float32Array(16)) {
 
 // Матрица из сдвига t, поворота q (кватернион) и масштаба s
 export function fromTRS(t, q, s = [1, 1, 1], out = new Float32Array(16)) {
-  const [x, y, z, w] = q;
+  const x = q[0], y = q[1], z = q[2], w = q[3]; // по индексу, а не «const [x, y, z, w] = q»: без итератора (мусора)
   const x2 = x + x, y2 = y + y, z2 = z + z;
   const xx = x * x2, xy = x * y2, xz = x * z2;
   const yy = y * y2, yz = y * z2, zz = z * z2;
@@ -68,8 +68,9 @@ export function lerp(a, b, t, out = []) {
 
 // Сферическая интерполяция поворотов: идёт по кратчайшей дуге с постоянной скоростью
 export function slerp(a, b, t, out = [0, 0, 0, 1]) {
-  let [bx, by, bz, bw] = b;
-  let cos = a[0] * bx + a[1] * by + a[2] * bz + a[3] * bw;
+  let bx = b[0], by = b[1], bz = b[2], bw = b[3]; // out может быть тем же массивом, что b: сначала читаем
+  const ax = a[0], ay = a[1], az = a[2], aw = a[3];
+  let cos = ax * bx + ay * by + az * bz + aw * bw;
   if (cos < 0) { cos = -cos; bx = -bx; by = -by; bz = -bz; bw = -bw; } // кратчайший путь
   let k0, k1;
   if (cos > 0.9995) { // повороты почти одинаковые — хватит обычного mix
@@ -81,11 +82,8 @@ export function slerp(a, b, t, out = [0, 0, 0, 1]) {
     k0 = Math.sin((1 - t) * angle) / sin;
     k1 = Math.sin(t * angle) / sin;
   }
-  out[0] = a[0] * k0 + bx * k1;
-  out[1] = a[1] * k0 + by * k1;
-  out[2] = a[2] * k0 + bz * k1;
-  out[3] = a[3] * k0 + bw * k1;
-  const len = Math.hypot(out[0], out[1], out[2], out[3]);
-  for (let i = 0; i < 4; i++) out[i] /= len;
+  const x = ax * k0 + bx * k1, y = ay * k0 + by * k1, z = az * k0 + bz * k1, w = aw * k0 + bw * k1;
+  const len = Math.sqrt(x * x + y * y + z * z + w * w);
+  out[0] = x / len; out[1] = y / len; out[2] = z / len; out[3] = w / len;
   return out;
 }

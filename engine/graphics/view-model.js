@@ -81,8 +81,8 @@ export class ViewModel {
     this.animator?.setBase(name, speed);
   }
 
-  play(name) {
-    this.animator?.playOnce(name);
+  play(name, speed = 1) {
+    this.animator?.playOnce(name, speed);
   }
 
   update(dt) {

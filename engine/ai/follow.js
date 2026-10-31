@@ -17,7 +17,7 @@
 
 import { Brain } from "./brain.js";
 import { Navigator } from "./pathfinder.js";
-import { pursue, separate, turnTowards, melee } from "../world/behaviors.js";
+import { pursue, separate, neighbors, turnTowards, melee } from "../world/behaviors.js";
 import { tauntTarget, busy } from "./social.js";
 
 const dist2d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z);
@@ -68,7 +68,7 @@ export class FollowBrain extends Brain {
           navigator: e.nav, radius: f.leash * (e.aggro === e.focus ? 4 : 2), speed: this.speed || e.speed,
           stopDistance: f.stopDistance ?? 1.2, turnSpeed: this.turnSpeed * 1.5,
         });
-        separate(e, ctx.entities);
+        separate(e, neighbors(e, ctx));
         melee(e, e.aggro, dt, e.attack, ctx.combatFor?.(e) || {});
         return { walking, alerted: [] };
       }
@@ -85,7 +85,7 @@ export class FollowBrain extends Brain {
         e.nav.reset();
       } else {
         const walking = pursue(e, e.fetch, dt, { navigator: e.nav, radius: 30, speed: this.speed || e.speed, stopDistance: 0.5, turnSpeed: this.turnSpeed });
-        separate(e, ctx.entities);
+        separate(e, neighbors(e, ctx));
         if (!walking) e.fetch = null; // не пройти — бросаем
         return { walking, alerted: [] };
       }
@@ -117,7 +117,7 @@ export class FollowBrain extends Brain {
       e.following = false;
       turnTowards(e, Math.atan2(dx, dz), this.turnSpeed * 0.5, dt); // стоит и поглядывает на вожака
     }
-    separate(e, ctx.entities);
+    separate(e, neighbors(e, ctx));
     return { walking, alerted: [] };
   }
 }

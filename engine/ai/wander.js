@@ -9,7 +9,7 @@
 
 import { Brain } from "./brain.js";
 import { Navigator } from "./pathfinder.js";
-import { pursue, separate, turnTowards } from "../world/behaviors.js";
+import { pursue, separate, neighbors, turnTowards } from "../world/behaviors.js";
 
 export class WanderBrain extends Brain {
   constructor({ radius = 6, pause = [2, 5], lookRadius = 3, turnSpeed = 3, flee = null, random = Math.random } = {}) {
@@ -52,7 +52,7 @@ export class WanderBrain extends Brain {
         s.goal = null;
         s.wait = this.pickPause();
       }
-      separate(e, ctx.entities);
+      separate(e, neighbors(e, ctx));
       return { walking: true, alerted: [] };
     }
 
@@ -61,7 +61,7 @@ export class WanderBrain extends Brain {
       Math.hypot(o.position.x - e.position.x, o.position.z - e.position.z) < this.lookRadius);
     if (near) {
       turnTowards(e, Math.atan2(near.position.x - e.position.x, near.position.z - e.position.z), this.turnSpeed, dt);
-      separate(e, ctx.entities);
+      separate(e, neighbors(e, ctx));
       return { walking: false, alerted: [] };
     }
 
@@ -80,7 +80,7 @@ export class WanderBrain extends Brain {
       s.goal = null;
       s.wait = this.pickPause();
     }
-    separate(e, ctx.entities);
+    separate(e, neighbors(e, ctx));
     return { walking, alerted: [] };
   }
 

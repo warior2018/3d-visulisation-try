@@ -1,7 +1,7 @@
 // ============================================================
 //  Ярлык игры для macOS: собирает VOID.app — двойной клик (или клик в Dock) и игра запускается,
 //  без терминала и без захода в папку.
-//  Запуск: node tools/make-mac-app.js   ->   ../VOID.app (рядом с папкой nodejs_visual)
+//  Запуск: node tools/make-mac-app.js   ->   ../VOID.app (рядом с папкой VOIDitself)
 //
 //  Что внутри .app — обычная папка особого вида:
 //    VOID.app/Contents/Info.plist        — паспорт программы: имя, значок, что запускать
@@ -18,11 +18,11 @@ import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 import path from "node:path";
 
-const ROOT = path.dirname(fileURLToPath(new URL("../package.json", import.meta.url))); // nodejs_visual
+const ROOT = path.dirname(fileURLToPath(new URL("../package.json", import.meta.url))); // VOIDitself
 const APP = path.join(ROOT, "..", "VOID.app");
 const GAME = "games/builder/main.js";
-// Запасной путь к игре (если ярлык унесут из папки): где лежит nodejs_visual на Маке.
-// Собираешь не на том компьютере, где играть, — подскажи: VOID_ROOT=/путь/к/nodejs_visual node tools/make-mac-app.js
+// Запасной путь к игре (если ярлык унесут из папки): где лежит VOIDitself на Маке.
+// Собираешь не на том компьютере, где играть, — подскажи: VOID_ROOT=/путь/к/VOIDitself node tools/make-mac-app.js
 const GAME_ROOT = process.env.VOID_ROOT || ROOT;
 // node, которым запущен этот скрипт, — если собираем на Маке, его и «зашьём» первым кандидатом
 const BUILT_NODE = process.platform === "darwin" ? process.execPath : "";
@@ -33,12 +33,13 @@ const launcher = `#!/bin/bash
 LOG="$HOME/Library/Logs/VOID.log"
 alert() { /usr/bin/osascript -e "display alert \\"VOID\\" message \\"$1\\"" >/dev/null 2>&1; }
 
-# Папка с игрой: ярлык лежит рядом с nodejs_visual; если ярлык перенесли — путь, где его собирали
+# Папка с игрой: ярлык лежит рядом с VOIDitself; если ярлык перенесли — путь, где его собирали
 HERE="$(cd "$(dirname "$0")/../../.." && pwd)"
-GAME_DIR="$HERE/nodejs_visual"
+GAME_DIR="$HERE/VOIDitself"
+[ -f "$GAME_DIR/${GAME}" ] || GAME_DIR="$HERE/Void/VOIDitself" #  ярлык на Рабочем столе, игра — в Void
 [ -f "$GAME_DIR/${GAME}" ] || GAME_DIR="${GAME_ROOT}"
 if [ ! -f "$GAME_DIR/${GAME}" ]; then
-  alert "Не нашёл игру: $GAME_DIR/${GAME}. Положи VOID.app рядом с папкой nodejs_visual."
+  alert "Не нашёл игру: $GAME_DIR/${GAME}. Положи VOID.app рядом с папкой VOIDitself."
   exit 1
 fi
 
