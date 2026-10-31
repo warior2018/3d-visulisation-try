@@ -159,6 +159,7 @@ export class GPURenderer {
     this.cullView = {}; //          направление взгляда для отсечения (раз в кадр, без мусора)
     this.worldStats = { chunks: 0, drawn: 0, cubes: 0, rebuilt: 0 }; // тех. панели: кусков всего / в кадре, кубиков в кадре
     this.ghostData = new Float32Array(FLOATS_PER_CUBE);
+    this.lighting = true; // освещение кубиков (chunk-mesh.js lightOf): небо, тень под крышей, углы
 
     this.ghostBuffer = device.createBuffer({
       size: FLOATS_PER_CUBE * 4,
@@ -268,9 +269,17 @@ export class GPURenderer {
     this.worldStats.rebuilt += rebuilt;
   }
 
+  // Включить / выключить освещение кубиков — все куски пересобрать
+  setLighting(on) {
+    if (this.lighting === !!on) return;
+    this.lighting = !!on;
+    for (const m of this.chunkMeshes.values()) m.version = -1;
+    this.worldVersion = -1;
+  }
+
   // Собрать кусок: только кубики с открытыми гранями. Буфер — с запасом (растёт, если мало)
   buildChunk(world, chunk, m) {
-    const { data, count } = exposedCubes(world, chunk, this.chunkScratch);
+    const { data, count } = exposedCubes(world, chunk, this.chunkScratch, this.lighting);
     this.chunkScratch = data;
     if (!m) this.chunkMeshes.set(chunk, (m = { chunk, version: 0, buffer: null, capacity: 0, count: 0 }));
     m.version = chunk.version;

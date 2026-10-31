@@ -110,6 +110,15 @@ function generalTab() {
         change: () => (s.general.headBob = s.general.headBob === false),
       },
       {
+        id: "lighting",
+        label: "LIGHTING",
+        value: () => (engine.settings.data.video.lighting !== false ? "ON" : "OFF"),
+        change: () => {
+          engine.settings.data.video.lighting = engine.settings.data.video.lighting === false;
+          engine.applySettings("lighting");
+        },
+      },
+      {
         id: "screenShake",
         label: "SCREEN SHAKE",
         value: () => (s.general.screenShake !== false ? "ON" : "OFF"),

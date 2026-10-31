@@ -27,8 +27,11 @@ import { isWeapon, isArmor } from "../items.js";
 import { PICKUP_AUTO_RADIUS } from "../config.js";
 
 const SNAP_EVERY = 3; //   снимок раз в 3 тика (20 в секунду при 60 тиках)
-const SNAP_TIME = SNAP_EVERY / 60;
 const TIMEOUT = 10000; // мс без единого сообщения — связь потеряна
+// Копии у гостя рисуются с отставанием DELAY тиков (100 мс), между двумя снимками, которые обрамляют это время
+// (буфер интерполяции, как cl_interp в Source / Overwatch): снимок пришёл неровно или один потерялся — движение
+// всё равно ровное. Часы гостя (viewTick) идут сами и мягко подтягиваются к часам хоста
+const DELAY = 6;
 const r2 = (v) => Math.round(v * 100) / 100;
 
 // Звуки без места (в голове у того, кто играет), которые другим слышно из точки, где стоит игрок:
@@ -159,7 +162,7 @@ export class HostNet {
       inv = [g.invasion.active ? 1 : 0, Math.ceil(g.invasion.timeLeft || 0), g.invasionKind?.name || "INVASION"];
     }
     const fx = this.fxOut.length ? this.fxOut.splice(0) : undefined;
-    this.server.broadcast({ t: "snap", e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx });
+    this.server.broadcast({ t: "snap", k: this.ticks, e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx });
   }
 
   sendChat(text) {
@@ -323,18 +326,34 @@ export class ClientNet {
       this.ticks++;
       return;
     }
-    // копии едут от прошлого снимка к новому (снимок раз в SNAP_TIME)
+    // часы показа: тик за тиком, мягко к «последний тик хоста − DELAY» (большой разрыв — сразу)
+    if (this.hostTick !== undefined) {
+      const target = this.hostTick - DELAY;
+      if (this.viewTick === undefined || Math.abs(target - this.viewTick) > 30) this.viewTick = target;
+      else this.viewTick += 1 + (target - this.viewTick) * 0.05;
+    }
+    const vt = this.viewTick ?? 0;
     for (const e of this.copies.values()) {
-      const n = e.net;
-      n.t = Math.min(1, n.t + dt / SNAP_TIME);
-      e.position.x = n.fx + (n.tx - n.fx) * n.t;
-      e.position.y = n.fy + (n.ty - n.fy) * n.t;
-      e.position.z = n.fz + (n.tz - n.fz) * n.t;
-      let d = (n.tyaw - n.fyaw) % (Math.PI * 2);
+      const S = e.net.samples;
+      // два снимка вокруг vt (или последний, если новее ещё нет — стоим на нём, не угадываем)
+      let a = S[S.length - 1], b = a;
+      for (let i = S.length - 1; i > 0; i--) {
+        if (S[i - 1].k <= vt) {
+          a = S[i - 1];
+          b = S[i];
+          break;
+        }
+        a = b = S[i - 1];
+      }
+      const t = b.k > a.k ? Math.max(0, Math.min(1, (vt - a.k) / (b.k - a.k))) : 1;
+      e.position.x = a.x + (b.x - a.x) * t;
+      e.position.y = a.y + (b.y - a.y) * t;
+      e.position.z = a.z + (b.z - a.z) * t;
+      let d = (b.yaw - a.yaw) % (Math.PI * 2);
       if (d > Math.PI) d -= Math.PI * 2;
       else if (d < -Math.PI) d += Math.PI * 2;
-      e.yaw = n.fyaw + d * n.t;
-      e.view?.animator.setBase(n.walk ? "Walk" : "Idle", 1);
+      e.yaw = a.yaw + d * t;
+      e.view?.animator.setBase(e.net.walk ? "Walk" : "Idle", 1);
     }
     g.entities.update(dt); // часы: вспышка от удара, падение павших
     // автоподбор: попросить хоста (предмет — тому, кто первый)
@@ -379,6 +398,8 @@ export class ClientNet {
       case "snap":
         if (!this.ready) return;
         this.applyBlocks(msg.b);
+        this.snapK = +msg.k || 0;
+        this.hostTick = Math.max(this.hostTick ?? 0, this.snapK);
         this.applyEntities(msg.e || []);
         if (msg.p) this.applyPickups(msg.p);
         if (msg.h) for (const [id, held] of msg.h) {
@@ -463,7 +484,7 @@ export class ClientNet {
         e.remote = true;
         e.brain = null;
         e.netId = id;
-        e.net = { fx: x, fy: y, fz: z, fyaw: yaw, tx: x, ty: y, tz: z, tyaw: yaw, t: 1, walk: false };
+        e.net = { samples: [], walk: false }; // снимки этой копии: { k, x, y, z, yaw } (последние 6)
         // попали по копии (наш удар, выстрел, горение) — сколько сняли, сообщаем хосту: урон считает он
         const shown = e.onDamage;
         e.onDamage = (d, dealt) => {
@@ -473,15 +494,8 @@ export class ClientNet {
         this.copies.set(id, e);
       }
       const n = e.net;
-      n.fx = e.position.x;
-      n.fy = e.position.y;
-      n.fz = e.position.z;
-      n.fyaw = e.yaw;
-      n.tx = x;
-      n.ty = y;
-      n.tz = z;
-      n.tyaw = yaw;
-      n.t = 0;
+      n.samples.push({ k: this.snapK ?? 0, x, y, z, yaw });
+      if (n.samples.length > 6) n.samples.shift();
       n.walk = !!(flags & 2);
       if (flags & 4) e.view?.animator.playOnce("Attack"); // замахнулся на хосте
       e.stats.maxHp = maxHp;

@@ -1,7 +1,7 @@
 // Чанки: блоки раскладываются по кускам 16×16; изменение — новая version только у своего куска (и у соседа,
 // если блок на краю); рисуются только кубики с открытой гранью; куски вне кадра и за дымкой отсекаются
 import { VoxelWorld, CHUNK, chunkOf } from "../../../engine/world/voxel-world.js";
-import { exposedCubes, viewOf, chunkInView } from "../../../engine/graphics/chunk-mesh.js";
+import { exposedCubes, viewOf, chunkInView, lightOf, LIGHT } from "../../../engine/graphics/chunk-mesh.js";
 let ok = 0, bad = 0;
 const check = (name, cond, info = "") => { cond ? ok++ : bad++; console.log((cond ? "OK  " : "FAIL") + " " + name + (info ? "  (" + info + ")" : "")); };
 const C = [10, 20, 30];
@@ -48,5 +48,21 @@ check("кусок сбоку под 90° — нет", !see(look, 60, 8));
 check("кусок, в котором стоим, — в кадре, куда ни смотри", see(cam(8, 8, Math.PI), 8, 8) && see(cam(8, 8, 1.2, -1.4), 8, 8));
 check("кусок за дымкой — нет", !see(look, 8, 300));
 check("смотрим вниз (pitch −80°): кусок рядом под ногами — в кадре", see(cam(8, 20, 0, -1.4), 8, 8) || see(cam(8, 10, 0, -1.4), 8, 8));
+// освещение: открытое небо — 1; под крышей — темнее; глубже — ещё темнее; у стены — чуть темнее
+{
+  const L = new VoxelWorld();
+  for (let x = -6; x <= 6; x++) for (let z = -6; z <= 6; z++) L.place(x, 0, z, C);
+  const open = lightOf(L, -5, 0, -5);
+  for (let x = -1; x <= 1; x++) for (let z = -1; z <= 1; z++) L.place(x, 4, z, C); // крыша 3×3 над (0,0)
+  const roof = lightOf(L, 0, 0, 0);
+  for (let x = -1; x <= 1; x++) for (let z = -1; z <= 1; z++) L.place(x, 14, z, C); // ещё выше — глубже
+  L.place(0, 1, 3, C);
+  const wall = lightOf(L, 0, 0, 2);
+  check("свет: открытое небо — полная яркость", Math.abs(open - 1) < 1e-9, open.toFixed(2));
+  check("свет: под крышей — темнее, но не темнее минимума", roof < 0.85 && roof >= LIGHT.minSky * (1 - 4 * LIGHT.ao), roof.toFixed(2));
+  check("свет: у стены (сосед сверху-сбоку) — чуть темнее открытого", wall < 1 && wall > 0.8, wall.toFixed(2));
+  const lit = exposedCubes(L, L.chunk(0, 0), null, true), flat = exposedCubes(L, L.chunk(0, 0), null, false);
+  check("запекание: цвета с освещением не ярче исходных", lit.count === flat.count && [...lit.data.slice(0, lit.count * 6)].every((v, i) => i % 6 < 3 || v <= flat.data[i] + 1e-6));
+}
 console.log(`\nитого: ${ok} OK, ${bad} FAIL`);
 process.exit(bad ? 1 : 0);

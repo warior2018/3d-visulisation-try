@@ -48,7 +48,7 @@ import { Sound } from "../audio/sound.js";
 // Настройки, которые есть у любой игры на движке. Игра добавляет свои (deepMerge).
 export const ENGINE_DEFAULTS = {
   version: 1,
-  video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true },
+  video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true, lighting: true },
   interface: { language: "en", showFps: false }, // язык надписей (engine/ui/i18n.js), счётчик FPS слева сверху
   audio: { master: 80, effects: 100 },
   controls: {
@@ -349,6 +349,7 @@ export class Engine {
     if (all || what === "fullscreen") this.applyFullscreen();
     if ((all || what === "resolution") && !this.window.fullscreen) this.applyWindowSize();
     if (all || what === "brightness") this.renderer.brightness = s.video.brightness / 100;
+    if (all || what === "lighting") this.renderer.setLighting?.(s.video.lighting !== false);
     if ((all || what === "vsync") && this.renderer.vsync !== s.video.vsync) this.renderer.setVsync(s.video.vsync);
     if (all || what === "audio") this.sound.setVolume((s.audio.master / 100) * (s.audio.effects / 100));
     if (all || what === "mouse") this.mouse.sensitivity = 0.0005 * s.controls.sensitivity;
@@ -664,6 +665,7 @@ export class Engine {
     c.cvar("tickrate", { help: "tickrate <20..240> - world ticks per second (default 60)", cheat: true, get: () => this.fixed.rate, set: (v) => this.fixed.setRate(Math.round(Math.max(20, Math.min(240, num(v))))) });
     c.cvar("fps_show", { help: "fps_show 0/1 - FPS counter", get: () => (this.settings.data.interface.showFps ? 1 : 0), set: (v) => { this.settings.data.interface.showFps = v !== "0"; this.settings.save(); this.redraw(); } });
     c.cvar("brightness", { help: "brightness <30..200> - picture brightness, %", get: () => this.settings.data.video.brightness, set: (v) => { this.settings.data.video.brightness = Math.round(Math.max(30, Math.min(200, num(v)))); this.settings.save(); this.applySettings("brightness"); } });
+    c.cvar("lighting", { help: "lighting 0/1 - block lighting (sky, shade under roofs, corners)", get: () => (this.settings.data.video.lighting !== false ? 1 : 0), set: (v) => { this.settings.data.video.lighting = v !== "0"; this.settings.save(); this.applySettings("lighting"); } });
     c.command("stats", { help: "stats - fps, frame time, ticks", run: () => `FPS ${this.fps ?? "-"}, FRAME ${(this.cpuAvg ?? 0).toFixed(2)} MS, TICK ${this.fixed.rate} HZ, TICKS ${this.fixed.count}, DROPPED ${this.fixed.dropped}, TIMESCALE ${this.timeScale}` });
     c.command("profile", { help: "profile - write a profiler report to log.txt (opens the profiler page)", run: () => {
       this.techPanel = 2;

@@ -423,6 +423,7 @@ export const RU = {
   "LIFESTEAL": "ВАМПИРИЗМ",
   "LIFESTEAL ${Math.round(fraction * 100)}%": "ВАМПИРИЗМ ${Math.round(fraction * 100)}%",
   "LIGHT STEP": "ЛЁГКИЙ ШАГ",
+  "LIGHTING": "ОСВЕЩЕНИЕ",
   "LIGHTNING": "МОЛНИЯ",
   "LMB": "ЛКМ",
   "LMB - BREAK, RMB - PLACE A BLOCK. G - COLOR": "ЛКМ - СЛОМАТЬ, ПКМ - ПОСТАВИТЬ БЛОК. G - ЦВЕТ",
