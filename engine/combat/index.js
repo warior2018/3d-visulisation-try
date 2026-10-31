@@ -10,3 +10,4 @@ export {
   firstHit, vsStunned, headshotBonus, rampPerHit, onlyAttack,
 } from "./modifiers.js";
 export { Attack, MeleeAttack, SlamAttack, RangedAttack, MagicAttack, ItemAttack, TrapAttack, ThrowAttack } from "./attacks.js";
+export { Cast } from "./cast.js";
