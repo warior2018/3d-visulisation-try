@@ -328,6 +328,9 @@ export const ATTACKS = {
   katana: { id: "katana", name: "KATANA SLASH", damage: 75, reach: 3.2, cooldown: 1.3, arc: 110, maxTargets: 6 }, // 75 каждому; с ИАЙ — ×5
   // Снайперская винтовка: урон фиксированный (75), бьёт далеко, но медленно перезаряжается
   rifle: { id: "rifle", name: "SNIPER SHOT", damage: 90, range: 90, cooldown: 2.0, magazine: 5, reloadTime: 2.4 }, // 2 с: передёргиваем затвор
+  // Арбалет: болт пробивает насквозь до 3 врагов на линии (каждому следующему — 80 % урона); после выстрела —
+  // взвод (магазин 1). Один на один ~50/с, по толпе в ряд — до ~120/с
+  crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 65, range: 60, cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
   // Дробовик (СТРЕЛОК, покупной): 8 дробин с разбросом, вблизи — 56 за выстрел (~49/с, если все попали)
   shotgun: { id: "shotgun", name: "BUCKSHOT", damage: 7, range: 22, cooldown: 0.9, magazine: 6, reloadTime: 2.4, pellets: 8, spread: 0.06 },
   // Граната автомата (талант GRENADE): каждые every выстрелов — 200 % урона выстрела по площади
@@ -339,7 +342,7 @@ export const ATTACKS = {
   // Зомби: тянется дальше скелета (× 1.25), бьёт чуть сильнее, но замахивается дольше
   // ---------- Ловушки ----------
   // Капкан: одноразовый, захлопывается на первом враге — урон (+50 % его макс. HP) и держит на месте (TRAPS root с)
-  bearTrap: { id: "bear-trap", name: "BEAR TRAP", damage: 50, radius: 0.6 },
+  bearTrap: { id: "bear-trap", name: "BEAR TRAP", damage: 50, radius: 0.6, damageType: "pure" }, // чистый урон: броня и сопротивления не помогают (как pure в Dota)
   // Шипы: многоразовые, колют всех врагов на доске раз в rearm секунд
   spikes: { id: "spikes", name: "SPIKES", damage: 12, radius: 1.1, rearm: 0.8 },
   // Броски мобов-метателей (снаряд по дуге; урон растёт как у их удара)
@@ -431,7 +434,7 @@ export const PORTRAIT_PALETTE = {
 
 // Оружие в руках замедляет: пистолет маленький — на 5 %. Прицеливание (ПКМ, держать) —
 // ещё на 10 % (вместе 15 %), камера приближается (fov), пистолет встаёт к центру экрана.
-export const WEAPON_SPEED = { launcher: -0.08, pistol: -0.05, rifle: -0.1, auto: -0.08, shotgun: -0.08, warHammer: -0.08 }; // винтовка тяжелее
+export const WEAPON_SPEED = { launcher: -0.08, pistol: -0.05, rifle: -0.1, crossbow: -0.06, auto: -0.08, shotgun: -0.08, warHammer: -0.08 }; // винтовка тяжелее
 // Сколько секунд достают оружие после выбора (до этого не стреляет и не бьёт): тяжёлое — дольше
 // Копьё, разбег (ПКМ, держать): бежишь вперёд сам (движок: Charge), куда — правишь взглядом. Посмотрел в сторону
 // в пределах deadZone (20°) — без потерь (направление само доворачивает freeTurn °/с); дальше — скорость падает
@@ -450,7 +453,7 @@ export const SPEAR = {
   momentum: { speed: [0.3, 0.6, 0.9], hits: [2, 4, 6], rampTime: 2 },
 };
 
-export const EQUIP_TIME = { launcher: 0.45, spear: 0.3, pistol: 0.3, auto: 0.45, rifle: 0.7, shotgun: 0.5, machete: 0.25, warHammer: 0.45, katana: 0.25, trap: 0.2, item: 0.15 };
+export const EQUIP_TIME = { launcher: 0.45, spear: 0.3, pistol: 0.3, auto: 0.45, rifle: 0.7, crossbow: 0.5, shotgun: 0.5, machete: 0.25, warHammer: 0.45, katana: 0.25, trap: 0.2, item: 0.15 };
 
 // Ловушки: ставятся ЛКМ на любую грань блока или на землю под прицелом (не дальше reach м) — «клеятся»
 // к стенам и потолку. Стоят, пока не сработают (капкан) или пока не поставишь сверх max (самая старая исчезает).
@@ -562,7 +565,7 @@ export const SHAKE = {
 export const SHOP = {
   machete: 20, "war-hammer": 70, katana: 90, spear: 80, //           боец: мачете ~43/с (двоим), молот ~28/с + оглушение, катана 75 всем
   grenades: 20, launcher: 80, dynamite: 85, //            подрывник: граната ~33/с по площади, гранатомёт ~40/с, динамит 110 раз в 3 с
-  pistol: 20, auto: 70, shotgun: 75, rifle: 80, //        стрелок: пистолет ~35/с, автомат ~48/с, дробовик ~49/с вблизи, снайперка 90
+  pistol: 20, auto: 70, shotgun: 75, rifle: 80, crossbow: 75, // стрелок: пистолет ~35/с, автомат ~48/с, дробовик ~49/с вблизи, снайперка 90, арбалет ~50/с насквозь
   "bear-trap": 5, spikes: 8, //                          ловушки
   "pistol-clip": 4, "auto-clip": 8, "shotgun-clip": 6, "rifle-clip": 8, // обоймы: пистолет 12, автомат 30, дробь 6, снайперка 5
   builder: 10, block: 5, medkit: 10, medkitHeal: 40, //   прочее: молот-стройка, 16 блоков, аптечка

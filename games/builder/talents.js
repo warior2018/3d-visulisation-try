@@ -167,7 +167,7 @@ export const TALENT_TREE = {
         { id: "veteran", name: "VETERAN", tier: 5, maxRank: 5, cost: 2,
           describe: (r) => `+${15 * r} MAX HP`, stats: (r) => ({ maxHp: 15 * r }) },
         { id: "iron-will", name: "IRON WILL", tier: 5, maxRank: 3, cost: 2,
-          describe: (r) => `-${pct(0.04 * r)} DMG OF ALL KINDS`, stats: (r) => ({ resist: { physical: 0.04 * r, fire: 0.04 * r, ice: 0.04 * r, poison: 0.04 * r, lightning: 0.04 * r, magic: 0.04 * r } }) },
+          describe: (r) => `-${pct(0.04 * r)} PHYSICAL AND MAGICAL DMG`, stats: (r) => ({ resist: { physical: 0.04 * r, magical: 0.04 * r } }) },
         { id: "second-wind", name: "SECOND WIND", tier: 5, maxRank: 2, cost: 2,
           describe: (r) => `+${0.25 * r}% MAX HP PER SECOND`, stats: (r) => ({ regenPct: 0.0025 * r }) },
       ],

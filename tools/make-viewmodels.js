@@ -373,6 +373,56 @@ function fingers(arm, curled) {
   }));
 }
 
+// ---------- 3а. Арбалет ----------
+// Ложа вдоль руки, плечи лука поперёк впереди, тетива и болт сверху. Прицел — по болту (точки sight)
+{
+  const arm = makeArm({ P: [0.2, -0.3, 0.02], BASE: qmul(quat(Y, -6), quat(X, -7)) });
+  fingers(arm, true);
+  const WOOD = [0.42, 0.28, 0.16];
+  const WOOD_DARK = [0.3, 0.2, 0.12];
+  arm.box([0, 0.03, 0.5], [0.04, 0.11, 0.05], WOOD_DARK); //        рукоять в кулаке
+  arm.box([0, 0.06, 0.32], [0.055, 0.09, 0.3], WOOD); //            приклад
+  arm.box([0, 0.1, 0.72], [0.06, 0.06, 0.56], WOOD); //             ложа
+  arm.box([0, 0.105, 1.0], [0.62, 0.04, 0.04], METAL); //           плечи лука
+  arm.box([0.29, 0.105, 0.94], [0.05, 0.03, 0.1], METAL); //         загнутые концы
+  arm.box([-0.29, 0.105, 0.94], [0.05, 0.03, 0.1], METAL);
+  arm.box([0, 0.06, 0.53], [0.012, 0.03, 0.04], METAL); //          спуск
+  arm.bones.push({ name: "string", parent: "arm", pos: arm.at(0, 0.11, 0.62) });
+  arm.parts.push({ bone: "string", center: arm.at(0, 0.11, 0.62), size: [0.56, 0.008, 0.008], color: [0.85, 0.85, 0.8] }); // тетива (натянута)
+  arm.bones.push({ name: "bolt", parent: "arm", pos: arm.at(0, 0.14, 0.8) });
+  arm.parts.push({ bone: "bolt", center: arm.at(0, 0.14, 0.8), size: [0.012, 0.012, 0.42], color: [0.74, 0.76, 0.8] }); // болт
+  arm.parts.push({ bone: "bolt", center: arm.at(0, 0.14, 1.02), size: [0.022, 0.022, 0.04], color: [0.36, 0.37, 0.41] }); // наконечник
+  arm.bones.push({ name: "sight", parent: "arm", pos: arm.at(0, 0.16, 1.0) });
+  arm.bones.push({ name: "sight_rear", parent: "arm", pos: arm.at(0, 0.16, 0.6) });
+  const muzzle = arm.at(0, 0.14, 1.05);
+  arm.bones.push({ name: "flash", parent: "arm", pos: muzzle, scale: [0, 0, 0] });
+  arm.parts.push({ bone: "flash", center: muzzle, size: [0.01, 0.01, 0.01], color: FLASH }); // вспышки нет — пустышка (клипу Shoot)
+  const STRING = arm.at(0, 0.11, 0.62), BOLT = arm.at(0, 0.14, 0.8);
+  const { at, pose } = arm;
+  writeGLB(out("fp-crossbow.glb"), buildGLB({
+    name: "FirstPersonCrossbow", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common,
+      Aim: [rotQ("arm", [0], [pose()]), move("arm", [0], [at(0, 0, 0)])],
+      // Выстрел: тетива хлопает вперёд, болт улетает (прячем), лёгкая отдача
+      Shoot: [
+        move("arm", [0, 0.05, 0.35], [at(0, 0, 0), at(0, 0.015, -0.06), at(0, 0, 0)]),
+        rotQ("arm", [0, 0.05, 0.35], [pose(), pose(-6), pose()]),
+        move("string", [0, 0.04], [STRING, [STRING[0], STRING[1], STRING[2] + 0.3]]),
+        scale("bolt", [0, 0.02], [[1, 1, 1], [0, 0, 0]]),
+      ],
+      // Взвод (перезарядка): арбалет носом вниз, тетива назад, новый болт — на место
+      Reload: [
+        rotQ("arm", [0, 0.25, 0.9, 1.2], [pose(), pose(30, 4, 10), pose(30, 4, 10), pose()]),
+        move("arm", [0, 0.25, 0.9, 1.2], [at(0, 0, 0), at(0, -0.06, -0.05), at(0, -0.06, -0.05), at(0, 0, 0)]),
+        move("string", [0, 0.3, 0.7], [[STRING[0], STRING[1], STRING[2] + 0.3], [STRING[0], STRING[1], STRING[2] + 0.3], STRING]),
+        scale("bolt", [0, 0.75, 0.85], [[0, 0, 0], [0, 0, 0], [1, 1, 1]]),
+        move("bolt", [0, 0.75, 0.95], [BOLT, [BOLT[0], BOLT[1] + 0.05, BOLT[2] - 0.1], BOLT]),
+      ],
+    },
+  }));
+}
+
 // ---------- 3б. Автомат ----------
 // Короче снайперки, магазин снизу (кость mag), мушка и целик сверху — прицел через них, как у пистолета
 {

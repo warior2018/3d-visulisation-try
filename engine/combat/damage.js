@@ -23,13 +23,17 @@ export function creditOf(e) {
   return who;
 }
 
+import { typeOf } from "./elements.js";
+
 export class Damage {
   // kind — вид атаки, от которой урон (melee / ranged / ...). По умолчанию — attack.kind;
   //        у урона от статуса (горение) — вид атаки, которая этот статус наложила
-  constructor({ amount, element = "physical", source = null, attack = null, tags = [], kind = null }) {
+  constructor({ amount, element = "physical", type = null, source = null, attack = null, tags = [], kind = null }) {
     this.amount = amount; //   сколько урона (до сопротивлений цели)
     this.base = amount; //     сколько было до модификаторов (счётчик: «сколько добавили таланты»)
     this.element = element; // стихия: "physical", "fire", "ice", "poison", "lightning", ...
+    // вид: "physical" / "magical" / "pure" (elements.js: DAMAGE_TYPES) — по стихии или явно (атака: damageType)
+    this.type = type || attack?.damageType || typeOf(element);
     this.source = source; //   кто нанёс (сущность или null — например, ловушка мира)
     this.victim = null; //     кого ударили (ставит entity.receive)
     this.attack = attack; //   какой атакой (Attack) — чтобы знать, мечом или магией

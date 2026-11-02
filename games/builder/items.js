@@ -5,7 +5,7 @@
 // ============================================================
 
 import {
-  PistolAbility, RifleAbility, AutoAbility, ShotgunAbility, MacheteAbility, WarHammerAbility, KatanaAbility, SpearAbility,
+  PistolAbility, RifleAbility, CrossbowAbility, AutoAbility, ShotgunAbility, MacheteAbility, WarHammerAbility, KatanaAbility, SpearAbility,
   GrenadesAbility, LauncherAbility, DynamiteAbility,
   drawHammer, drawBearTrap, drawSpikes, drawMedkit,
 } from "./abilities.js";
@@ -87,6 +87,7 @@ export const ITEMS = {
   auto: { name: "ASSAULT RIFLE", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, drawIcon: iconOf(AutoAbility) },
   shotgun: { name: "SHOTGUN", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, color: [120, 90, 60], drawIcon: iconOf(ShotgunAbility) },
   rifle: { name: "SNIPER RIFLE", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, drawIcon: iconOf(RifleAbility) },
+  crossbow: { name: "CROSSBOW", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, drawIcon: iconOf(CrossbowAbility) },
   grenades: { name: "GRENADES", slot: "weapon", weapon: true, class: "demo", maxStack: 1, color: [80, 98, 52], drawIcon: iconOf(GrenadesAbility) },
   launcher: { name: "GRENADE LAUNCHER", slot: "weapon", weapon: true, class: "demo", maxStack: 1, color: [80, 98, 52], drawIcon: iconOf(LauncherAbility) },
   dynamite: { name: "DYNAMITE", slot: "weapon", weapon: true, class: "demo", maxStack: 1, color: [190, 40, 34], drawIcon: iconOf(DynamiteAbility) },

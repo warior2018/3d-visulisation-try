@@ -8,13 +8,26 @@
 
 import { burn, chill, poison } from "./status.js";
 
-export const ELEMENTS = {
-  physical: { name: "PHYSICAL", color: [220, 220, 220] },
-  fire: { name: "FIRE", color: [255, 120, 40], status: burn, statusChance: 0.5 },
-  ice: { name: "ICE", color: [120, 200, 255], status: chill, statusChance: 0.6 },
-  poison: { name: "POISON", color: [120, 220, 80], status: poison, statusChance: 0.7 },
-  lightning: { name: "LIGHTNING", color: [250, 240, 120] },
+// type — вид урона, как в Dota 2: "physical" (режет броня — resist.physical), "magical" (режет сопротивление
+// магии — resist.magical, и ещё своё сопротивление стихии), "pure" — чистый: не режет ничего.
+// Стихия задаёт вид по умолчанию; урон может переопределить: new Damage({ ..., type: "pure" })
+export const DAMAGE_TYPES = {
+  physical: { name: "PHYSICAL", color: [235, 235, 235] },
+  magical: { name: "MAGICAL", color: [130, 180, 255] },
+  pure: { name: "PURE", color: [255, 215, 90] },
 };
+
+export const ELEMENTS = {
+  physical: { name: "PHYSICAL", color: [220, 220, 220], type: "physical" },
+  fire: { name: "FIRE", color: [255, 120, 40], status: burn, statusChance: 0.5, type: "magical" },
+  ice: { name: "ICE", color: [120, 200, 255], status: chill, statusChance: 0.6, type: "magical" },
+  poison: { name: "POISON", color: [120, 220, 80], status: poison, statusChance: 0.7, type: "magical" },
+  lightning: { name: "LIGHTNING", color: [250, 240, 120], type: "magical" },
+  pure: { name: "PURE", color: [255, 215, 90], type: "pure" }, // стихия «чистый урон» (например, у ловушек)
+};
+
+// Вид урона стихии (неизвестная стихия — магический)
+export const typeOf = (element) => ELEMENTS[element]?.type || (element === "physical" ? "physical" : "magical");
 
 export function defineElement(id, def) {
   ELEMENTS[id] = def;

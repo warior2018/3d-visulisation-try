@@ -118,7 +118,7 @@ export class Entity {
       this.report(damage, 0, false, true);
       return { dealt: 0, killed: false, blocked: true };
     }
-    const resist = this.stats.resist[damage.element] || 0;
+    const resist = resistTo(this.stats.resist, damage);
     const dealt = Math.max(0, Math.round(damage.amount * (1 - resist)));
     const hpBefore = this.stats.hp;
     const killed = dealt > 0 ? this.damage(dealt) : false;
@@ -300,6 +300,17 @@ export class Entity {
 }
 
 // Все сущности мира в одном месте
+// Сколько урона срезает сопротивление (0…0.95), по виду урона (как в Dota 2):
+//   физический — resist.physical (броня);
+//   магический — своя стихия (resist.fire...) и общая защита от магии (resist.magical), вместе: 1 − (1−a)(1−b);
+//   чистый — ничего не срезает
+export function resistTo(resist, damage) {
+  if (!resist || damage.type === "pure") return 0;
+  if (damage.type === "physical") return Math.min(0.95, resist.physical || 0);
+  const own = damage.element !== "physical" ? resist[damage.element] || 0 : 0;
+  return Math.min(0.95, 1 - (1 - own) * (1 - (resist.magical || 0)));
+}
+
 export class EntityManager {
   constructor() {
     this.list = [];

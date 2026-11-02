@@ -64,6 +64,33 @@ export default async function (t, g) {
   }
   t.check("динамит догорел — горящих фитилей не осталось", scene.fuses.length === 0);
   t.check("взрывы кого-то задели", hits > 0, `попаданий ${hits}`);
+  // Арбалет: три скелета в ряд перед героем — болт пробивает всех, каждому следующему меньше
+  {
+    for (const e of [...scene.entities.list]) if (e !== g.player && e.kind === "mob") scene.removeEntity(e);
+    // ровная площадка в воздухе: между героем и мишенями ничего нет
+    const P = g.player.position;
+    const bx = Math.floor(P.x), bz = Math.floor(P.z), by = 95;
+    for (let x = -1; x <= 1; x++) for (let z = -1; z <= 12; z++) scene.world.place(bx + x, by, bz + z, [90, 90, 90]);
+    P.x = bx + 0.5; P.y = by + 1; P.z = bz + 0.5;
+    scene.look.yaw = 0;
+    const a = g.equip("crossbow");
+    await g.frames(40);
+    const yaw = scene.look.yaw;
+    scene.look.pitch = 0;
+    const row = [4, 6, 8].map((d) => scene.spawn("skeleton", { x: P.x + Math.sin(yaw) * d, y: P.y, z: P.z + Math.cos(yaw) * d, yaw: yaw + Math.PI }));
+    for (const e of row) { e.brain = null; e.stats.maxHp = e.stats.hp = 5000; }
+    await g.frames(2);
+    for (const e of row) { e.position.x = P.x + Math.sin(yaw) * (4 + 2 * row.indexOf(e)); e.position.z = P.z + Math.cos(yaw) * (4 + 2 * row.indexOf(e)); e.position.y = P.y; }
+    ready(a);
+    scene.updateRig();
+    a.primary(scene);
+    await g.frames(2);
+    const lost = row.map((e) => 5000 - e.stats.hp);
+    t.check("арбалет: болт пробил всех троих", lost.every((n) => n > 0), lost.join(" / "));
+    t.check("арбалет: каждому следующему — меньше", lost[0] > lost[1] && lost[1] > lost[2], lost.join(" / "));
+    t.check("арбалет: после выстрела — взвод", a.attack.reloading);
+    for (const e of row) scene.removeEntity(e);
+  }
   // Обоймы выключены (CLIPS.enabled = false): ствол перезаряжается без обойм в сумке — магазин полный
   if (!g.C.CLIPS.enabled) {
     const a = g.equip("pistol");

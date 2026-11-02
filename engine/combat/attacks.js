@@ -32,12 +32,14 @@ export class Attack {
   // damage — число или [мин, макс]; element — стихия; cooldown — секунд между использованиями;
   // modifiers — модификаторы самой атаки (оружия)
   // fixedCooldown — перезарядку не ускоряют никакие модификаторы («атаки на 10 % чаще»): тяжёлое оружие
-  constructor({ id, name, damage = 10, element = "physical", cooldown = 0.5, modifiers = [], fixedCooldown = false }) {
+  // damageType — вид урона ("physical" / "magical" / "pure", elements.js); не задан — по стихии
+  constructor({ id, name, damage = 10, element = "physical", damageType = null, cooldown = 0.5, modifiers = [], fixedCooldown = false }) {
     this.id = id;
     this.name = name;
     this.kind = "attack"; // вид: melee / ranged / magic / item / trap — проставляют наследники
     this.damage = damage;
     this.element = element;
+    this.damageType = damageType;
     this.cooldown = cooldown;
     this.cooldownLeft = 0;
     this.fixedCooldown = fixedCooldown;
@@ -89,7 +91,7 @@ export class Attack {
   // Собрать пакет урона для цели: база → модификаторы → статус стихии
   makeDamage(owner, target, ctx) {
     const random = ctx.random || Math.random;
-    const base = (ctx.baseDamage ?? this.roll(random)) * (ctx.cleave ? this.arcMultiplier ?? 1 : 1); // взмах по сектору — свой множитель
+    const base = (ctx.baseDamage ?? this.roll(random)) * (ctx.cleave ? this.arcMultiplier ?? 1 : 1) * (ctx.damageScale ?? 1); // взмах по сектору — свой множитель; насквозь — слабее с каждой целью
     const d = new Damage({ amount: base, element: this.element, source: owner, attack: this, tags: [this.kind, ...this.extraTags] });
     // use — контекст этого удара: один и тот же для всех целей одного взмаха (сплеш катаны)
     const mctx = this.modifierContext(owner, target, ctx);
@@ -363,11 +365,15 @@ export class SlamAttack extends MeleeAttack {
 export class RangedAttack extends Attack {
   // pellets — дробь: столько лучей за выстрел, каждый с разбросом до spread (радианы; луч даёт игра —
   // ctx.aimSpread(range, spread) → { entity, part }); все дробины — один выстрел (ctx.use общий)
-  constructor({ range = 40, magazine = 0, reloadTime = 1.5, pellets = 1, spread = 0, ...rest }) {
+  // pierce — пробивает насквозь: до pierce целей на линии выстрела (арбалет), каждой следующей — pierceFalloff
+  //   от урона предыдущей (луч даёт игра: ctx.aimLine(range, pierce) → [{ entity, part }] по порядку)
+  constructor({ range = 40, magazine = 0, reloadTime = 1.5, pellets = 1, spread = 0, pierce = 1, pierceFalloff = 0.8, ...rest }) {
     super(rest);
     this.kind = "ranged";
     this.range = range;
     this.pellets = pellets;
+    this.pierce = pierce;
+    this.pierceFalloff = pierceFalloff;
     this.spread = spread;
     this.magazine = magazine;
     this.reloadTime = reloadTime;
@@ -438,6 +444,18 @@ export class RangedAttack extends Attack {
         const aimed = ctx.aimSpread(this.range, this.spread);
         ctx.onShot?.(aimed); // каждая дробина — свой след пули (игра рисует трассер)
         if (aimed?.entity) hits.push(...this.hitAll(owner, [aimed.entity], { ...ctx, part: aimed.part || null, use: ctx }));
+      }
+      return { hits };
+    }
+    if (this.pierce > 1 && !ctx.target && ctx.aimLine) {
+      // насквозь: все на линии (до pierce), каждый следующий — слабее (pierceFalloff)
+      const line = ctx.aimLine(this.range, this.pierce) || [];
+      ctx.onShot?.(line[0] || null);
+      const hits = [];
+      let k = 1;
+      for (const a of line) {
+        hits.push(...this.hitAll(owner, [a.entity], { ...ctx, part: a.part || null, damageScale: k }));
+        k *= this.pierceFalloff;
       }
       return { hits };
     }

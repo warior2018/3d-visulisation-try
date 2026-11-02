@@ -62,6 +62,7 @@ export class ShopPart {
         weapon("auto", SHOP.auto, `${ATTACKS.auto.damage} DMG FULL AUTO, MAG ${ATTACKS.auto.magazine}. MIND THE RECOIL`),
         weapon("shotgun", SHOP.shotgun, `${SG.pellets} PELLETS X ${SG.damage} DMG, MAG ${SG.magazine}. CLOSE RANGE. SKILL BLAST JUMP: STUNNING BLAST, THE KICK THROWS YOU BACK`),
         weapon("rifle", SHOP.rifle, `${ATTACKS.rifle.damage} DMG, MAG ${ATTACKS.rifle.magazine}. RMB - SCOPE`),
+        weapon("crossbow", SHOP.crossbow, `${ATTACKS.crossbow.damage} DMG, THE BOLT GOES THROUGH UP TO ${ATTACKS.crossbow.pierce} ENEMIES IN A LINE (-${Math.round((1 - ATTACKS.crossbow.pierceFalloff) * 100)}% EACH). RELOAD AFTER EVERY SHOT`),
         // Обоймы — у каждого ствола своя (R — вставить, недострелянная вернётся в сумку неполной)
         ...Object.entries(CLIPS.enabled ? CLIPS.items : {}).map(([gun, clip]) => supply(clip, SHOP[clip], 1, `FULL MAGAZINE FOR THE ${itemName(gun)} (${ATTACKS[gun].magazine}). R - RELOAD`)),
         // Ловушки — для всех классов (раздел ПРОЧЕЕ)

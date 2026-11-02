@@ -17,6 +17,24 @@ export class CombatPart {
     return this.aimedHit(reach)?.entity || null;
   }
 
+  // Все на линии прицела по порядку (до max, до первой стены): [{ entity, part }] — болт арбалета насквозь
+  aimedLine(reach, max) {
+    const cam = this.rig.camera;
+    const origin = cam.position, dir = cam.lookDirection();
+    const far = this.rig.behind + reach;
+    this.lastRay = { origin, dir, max: far };
+    const wall = this.world.raycast(origin, dir, far);
+    const limit = wall ? wall.t : far;
+    const out = [];
+    for (const e of this.entities.list) {
+      if (e === this.player || !e.alive || e.remote) continue;
+      const h = e.rayHitDetailed(origin, dir, limit);
+      if (h) out.push({ entity: e, part: h.part || null, t: h.t });
+    }
+    out.sort((a, b) => a.t - b.t);
+    return out.slice(0, max);
+  }
+
   // То же, но подробно: { entity, part } — part — часть тела (голова — хедшот) или null
   // spread — разброс (радианы): луч чуть в сторону от прицела (дробь дробовика)
   aimedHit(reach, spread = 0) {
@@ -68,6 +86,7 @@ export class CombatPart {
     return {
       aim: (range) => this.aimedHit(range), // { entity, part } — part: голова → хедшот
       aimSpread: (range, spread) => this.aimedHit(range, spread), // дробь: луч с разбросом
+      aimLine: (range, max) => this.aimedLine(range, max), //          насквозь (арбалет): все на линии до стены
       onShot: () => this.bulletTrace(), // выстрел: трассер и след на блоке
       entities: this.entities.list,
       // Удар по хитбоксу не бьёт сквозь стены

@@ -150,6 +150,36 @@ export class RifleAbility extends Ability {
   }
 }
 
+// Арбалет: болт насквозь (до 3 врагов на линии, ATTACKS.crossbow pierce), после каждого выстрела — взвод.
+// ПКМ — прицел (небольшое приближение)
+export class CrossbowAbility extends Ability {
+  constructor() {
+    super({
+      id: "crossbow", name: "CROSSBOW", viewModel: "fp-crossbow", moveSpeed: WEAPON_SPEED.crossbow, autoRepeat: true,
+      aim: AIM_AUTO, recoil: RECOIL_PISTOL, held: held("w-crossbow", "HoldRifle"), equipTime: EQUIP_TIME.crossbow,
+    });
+    this.attack = new RangedAttack(ATTACKS.crossbow);
+  }
+  update(dt, g) {
+    g.aiming = g.aimWanted() && !this.attack.reloading;
+  }
+  unequip(g) {
+    g.aiming = false;
+  }
+  primary(g) {
+    g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "ShootSniper", sound: "snap" });
+  }
+  action(name, g) {
+    return name === "reload" && g.reloadWeapon(this);
+  }
+  drawIcon(ui, x, y, s) {
+    ui.rect(x + s * 0.1, y + s * 0.47, s * 0.78, s * 0.08, [150, 100, 60]); // ложа
+    ui.rect(x + s * 0.68, y + s * 0.2, s * 0.07, s * 0.6, METAL); //           плечи лука
+    ui.rect(x + s * 0.58, y + s * 0.22, s * 0.04, s * 0.56, [220, 220, 210]); // тетива
+    ui.rect(x + s * 0.3, y + s * 0.44, s * 0.62, s * 0.03, [200, 205, 215]); // болт
+  }
+}
+
 // Автомат: очереди (зажал ЛКМ), обойма 30, отдача растёт с каждым выстрелом очереди
 export class AutoAbility extends Ability {
   constructor() {
@@ -688,6 +718,7 @@ export class HeldItemAbility extends HandAbility {
 export const ABILITY_FOR_ITEM = {
   pistol: () => new PistolAbility(),
   rifle: () => new RifleAbility(),
+  crossbow: () => new CrossbowAbility(),
   auto: () => new AutoAbility(),
   shotgun: () => new ShotgunAbility(),
   machete: () => new MacheteAbility(),
