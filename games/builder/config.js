@@ -501,30 +501,30 @@ export const ARMOR = {
     leather: {
       name: "LEATHER", color: [150, 105, 65],
       parts: {
-        helmet: { name: "HELMET", armor: 0.03, price: 20 },
-        chest: { name: "CHEST", armor: 0.06, price: 35 },
-        legs: { name: "LEGS", armor: 0.04, price: 25 },
-        boots: { name: "BOOTS", armor: 0.02, price: 15 },
+        helmet: { name: "HELMET", armor: 0.03, price: 240 },
+        chest: { name: "CHEST", armor: 0.06, price: 420 },
+        legs: { name: "LEGS", armor: 0.04, price: 300 },
+        boots: { name: "BOOTS", armor: 0.02, price: 180 },
       },
       full: { speed: 0.05, text: "+5% SPEED" },
     },
     iron: {
       name: "IRON", color: [150, 156, 168],
       parts: {
-        helmet: { name: "HELMET", armor: 0.05, speed: -0.02, price: 45 },
-        chest: { name: "CHEST", armor: 0.1, speed: -0.03, price: 85 },
-        legs: { name: "LEGS", armor: 0.07, speed: -0.02, price: 65 },
-        boots: { name: "BOOTS", armor: 0.04, speed: -0.01, price: 35 },
+        helmet: { name: "HELMET", armor: 0.05, speed: -0.02, price: 540 },
+        chest: { name: "CHEST", armor: 0.1, speed: -0.03, price: 1020 },
+        legs: { name: "LEGS", armor: 0.07, speed: -0.02, price: 780 },
+        boots: { name: "BOOTS", armor: 0.04, speed: -0.01, price: 420 },
       },
       full: { hp: 40, text: "+40 MAX HP" },
     },
     bone: {
       name: "BONE", color: [222, 214, 190],
       parts: {
-        helmet: { name: "HELMET", armor: 0.02, speed: 0.02, price: 30 },
-        chest: { name: "CHEST", armor: 0.03, speed: 0.02, price: 45 },
-        legs: { name: "LEGS", armor: 0.025, speed: 0.02, price: 40 },
-        boots: { name: "BOOTS", armor: 0.015, speed: 0.02, price: 25 },
+        helmet: { name: "HELMET", armor: 0.02, speed: 0.02, price: 360 },
+        chest: { name: "CHEST", armor: 0.03, speed: 0.02, price: 540 },
+        legs: { name: "LEGS", armor: 0.025, speed: 0.02, price: 480 },
+        boots: { name: "BOOTS", armor: 0.015, speed: 0.02, price: 300 },
       },
       full: { attackSpeed: 0.1, text: "+10% ATTACK SPEED" },
     },
@@ -559,17 +559,19 @@ export const SHAKE = {
   land: { from: 3, perBlock: 0.09, max: 0.8 },
 };
 
-// Магазин (клавиша B): цены в монетах (монеты выпадают из мобов)
-// Цены: базовое оружие класса — дёшево (стартовое и слабее), продвинутое — дороже и сильнее.
-// Монеты: скелет 5, зомби 8. Блоки — за пачку BUILD.pack. Базовое оружие класса — дёшево (если потерял)
+// Магазин (клавиша B): цены в монетах (монеты выпадают из мобов: скелет 5, зомби 8, раздутый 6, босс 160).
+// Доход: мобы появляются раз в ~1.7 с — если бить всех, ~200 монет в минуту, в нашествие ~550.
+// Цены — на столько игры: базовое оружие класса (если потерял) — полминуты; первое продвинутое — ~10 минут;
+// лучшее — ~20 минут. Расходники (ловушки, аптечки, блоки) — дёшево, чтобы не жалеть
 export const SHOP = {
-  machete: 20, "war-hammer": 70, katana: 90, spear: 80, //           боец: мачете ~43/с (двоим), молот ~28/с + оглушение, катана 75 всем
-  grenades: 20, launcher: 80, dynamite: 85, //            подрывник: граната ~33/с по площади, гранатомёт ~40/с, динамит 110 раз в 3 с
-  pistol: 20, auto: 70, shotgun: 75, rifle: 80, crossbow: 75, // стрелок: пистолет ~35/с, автомат ~48/с, дробовик ~49/с вблизи, снайперка 90, арбалет ~50/с насквозь
-  "bear-trap": 5, spikes: 8, //                          ловушки
-  "pistol-clip": 4, "auto-clip": 8, "shotgun-clip": 6, "rifle-clip": 8, // обоймы: пистолет 12, автомат 30, дробь 6, снайперка 5
-  builder: 10, block: 5, medkit: 10, medkitHeal: 40, //   прочее: молот-стройка, 16 блоков, аптечка
+  machete: 100, "war-hammer": 2000, spear: 3000, katana: 4500, //      боец: мачете ~43/с (двоим), молот ~28/с + оглушение, копьё — разбег, катана 75 всем
+  grenades: 100, launcher: 2000, dynamite: 3000, //                     подрывник: граната ~33/с по площади, гранатомёт ~40/с, динамит 110 раз в 3 с
+  pistol: 100, auto: 2000, shotgun: 2000, crossbow: 3000, rifle: 4500, // стрелок: пистолет ~35/с, автомат ~48/с, дробовик ~49/с вблизи, арбалет ~50/с насквозь, снайперка 90
+  "bear-trap": 25, spikes: 40, //                                       ловушки
+  "pistol-clip": 4, "auto-clip": 8, "shotgun-clip": 6, "rifle-clip": 8, // обоймы (CLIPS.enabled: false — не продаются)
+  builder: 50, block: 15, medkit: 60, medkitHeal: 40, //                 прочее: молот-стройка, 16 блоков, аптечка
 };
+// Броня — цены в ARMOR: кожа ~1150 за комплект, кость ~1700, железо ~2750
 // Аптечка: держишь ЛКМ useTime секунд (вокруг прицела заполняется круг, как в PEAK) — тогда лечит SHOP.medkitHeal;
 // отпустил раньше — не потратилась. Пока лечишься — медленнее на slow
 export const MEDKIT = { useTime: 2.5, slow: -0.5 };
