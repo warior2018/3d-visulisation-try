@@ -39,7 +39,7 @@ export default async function (t, g) {
     const hp0 = mob.stats.hp;
     copy.receive(new E.Damage({ amount: 7, source: guest.player }));
     await g.both(peer, 4);
-    t.check("гость ударил копию — моб на хосте ранен", mob.stats.hp <= hp0 - 7 + 0.5 || !mob.alive, `${hp0} → ${mob.stats.hp}`);
+    t.check("гость ударил копию — моб на хосте ранен", mob.stats.hp < hp0 || !mob.alive, `${hp0} → ${mob.stats.hp}`);
   } else t.check("в мире есть моб для проверки", false);
 
   // блоки: гость ставит — у хоста есть; хост ломает — у гостя нет

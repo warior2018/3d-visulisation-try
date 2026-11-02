@@ -11,9 +11,11 @@ export class MagicPart {
   // ---------- Магия, ножи, ловушки ----------
 
   // Точка у правой руки (откуда вылетают заклинания): чуть правее, ниже и впереди глаз — в осях взгляда
+  // В прицеле оружие уходит к центру экрана (ViewModel aim) — и ствол тоже: трассер летит из центра, а не справа
   handPoint() {
     const cam = this.look;
-    return toWorld(cam.position, viewBasis(cam.yaw, cam.pitch, cam.roll || 0), 0.22, -0.2, 0.6);
+    const k = 1 - Math.min(1, Math.max(0, this.aimT || 0)); // 1 — от бедра, 0 — прицелился до конца
+    return toWorld(cam.position, viewBasis(cam.yaw, cam.pitch, cam.roll || 0), 0.22 * k, -0.06 - 0.14 * k, 0.6);
   }
 
   // Куда смотрит прицел: первая сущность или блок на луче (не дальше range) — { point, entity }

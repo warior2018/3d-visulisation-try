@@ -17,7 +17,7 @@ export class AmmoPart {
 
   // Стрелку — стартовые обоймы пистолета (один раз: и новому, и выбравшему класс)
   giveAmmoOnce() {
-    if (this.ammoGiven) return;
+    if (this.ammoGiven || !CLIPS.enabled) return;
     this.ammoGiven = true;
     this.giveResource(CLIPS.items.pistol, CLIPS.start);
   }

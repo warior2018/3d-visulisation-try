@@ -63,7 +63,7 @@ export class ShopPart {
         weapon("shotgun", SHOP.shotgun, `${SG.pellets} PELLETS X ${SG.damage} DMG, MAG ${SG.magazine}. CLOSE RANGE. SKILL BLAST JUMP: STUNNING BLAST, THE KICK THROWS YOU BACK`),
         weapon("rifle", SHOP.rifle, `${ATTACKS.rifle.damage} DMG, MAG ${ATTACKS.rifle.magazine}. RMB - SCOPE`),
         // Обоймы — у каждого ствола своя (R — вставить, недострелянная вернётся в сумку неполной)
-        ...Object.entries(CLIPS.items).map(([gun, clip]) => supply(clip, SHOP[clip], 1, `FULL MAGAZINE FOR THE ${itemName(gun)} (${ATTACKS[gun].magazine}). R - RELOAD`)),
+        ...Object.entries(CLIPS.enabled ? CLIPS.items : {}).map(([gun, clip]) => supply(clip, SHOP[clip], 1, `FULL MAGAZINE FOR THE ${itemName(gun)} (${ATTACKS[gun].magazine}). R - RELOAD`)),
         // Ловушки — для всех классов (раздел ПРОЧЕЕ)
         supply("bear-trap", SHOP["bear-trap"], 1, `${BT.damage} DMG + ${TRAPS["bear-trap"].percentHp * 100}% HP, HOLDS ${TRAPS["bear-trap"].root} S. SNAPS TO A BLOCK`),
         supply("spikes", SHOP.spikes, 1, `${SP.damage} DMG TO ALL EVERY ${SP.rearm} S. PERMANENT, UP TO ${TRAPS.spikes.max}`),
@@ -117,7 +117,7 @@ export class ShopPart {
         if (!this.abilityCache.has(slot.item)) {
           const made = make();
           made.help ??= helpFor(made); // справка F1 (help.js)
-          if (made.attack?.magazine) made.attack.reserve = this.clipReserve(slot.item); // стволы заряжаются своими обоймами из сумки
+          if (made.attack?.magazine && CLIPS.enabled) made.attack.reserve = this.clipReserve(slot.item); // стволы заряжаются своими обоймами из сумки (CLIPS.enabled)
           this.abilityCache.set(slot.item, made);
           this.applyMagazines(); // талант MAGAZINE
         }

@@ -464,7 +464,9 @@ export const TRAPS = {
 // R — вставить обойму из сумки (самую полную): магазин полный, а недострелянная старая возвращается в сумку
 // НЕПОЛНОЙ обоймой (на ячейке — сколько в ней патронов; такие в стопку не складываются).
 // start — сколько обойм пистолета дают при выборе класса; refund — талант AMMO REFUND: патронов прямо в автомат
-export const CLIPS = { items: { pistol: "pistol-clip", auto: "auto-clip", shotgun: "shotgun-clip", rifle: "rifle-clip" }, start: 3 };
+// Обоймы из сумки (движок: RangedAttack.reserve). enabled: false — обоймы не нужны: перезарядка всегда полная,
+// запас бесконечный (кончается только магазин); в магазине их не продают. Вернуть — enabled: true
+export const CLIPS = { enabled: false, items: { pistol: "pistol-clip", auto: "auto-clip", shotgun: "shotgun-clip", rifle: "rifle-clip" }, start: 3 };
 // След пули (и у героя, и у мобов-стрелков): трассер — короткий светлый луч от ствола до попадания,
 // в блок — чёрная точка на holeLife секунд
 export const BULLET = { color: [255, 215, 110], core: [255, 250, 225], life: 0.07, width: 3, hole: [15, 15, 15], holeLife: 3, holeSize: 0.012 };

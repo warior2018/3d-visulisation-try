@@ -64,4 +64,14 @@ export default async function (t, g) {
   }
   t.check("динамит догорел — горящих фитилей не осталось", scene.fuses.length === 0);
   t.check("взрывы кого-то задели", hits > 0, `попаданий ${hits}`);
+  // Обоймы выключены (CLIPS.enabled = false): ствол перезаряжается без обойм в сумке — магазин полный
+  if (!g.C.CLIPS.enabled) {
+    const a = g.equip("pistol");
+    await g.frames(30);
+    a.attack.ammo = 0;
+    t.check("обоймы не нужны: запаса у ствола нет (бесконечный)", a.attack.reserve === null);
+    scene.reloadWeapon(a);
+    await g.frames(Math.ceil((a.attack.reloadTime || 2) * 60) + 30);
+    t.check("перезарядка без обойм — магазин полный", a.attack.ammo === a.attack.magazine, `${a.attack.ammo}/${a.attack.magazine}`);
+  }
 }
