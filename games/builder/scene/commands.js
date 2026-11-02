@@ -60,6 +60,7 @@ export function registerCommands(g) {
     p.x = x; p.z = z;
     p.y = y ?? g.world.surfaceY(x, z);
     g.player.velocity.x = g.player.velocity.y = g.player.velocity.z = 0;
+    g.groundY = undefined; // перенос — не прыжок: урона от падения за него нет
     return `AT ${x.toFixed(1)} ${p.y.toFixed(1)} ${z.toFixed(1)}`;
   } });
   c.command("pos", { help: "pos - where you are", run: () => { const p = g.player.position; return `XYZ ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}, YAW ${Math.round((g.look.yaw * 180) / Math.PI)}`; } });

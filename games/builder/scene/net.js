@@ -390,6 +390,7 @@ export class ClientNet {
         g.player.position.y = s.y;
         g.player.position.z = s.z;
         g.player.velocity.x = g.player.velocity.y = g.player.velocity.z = 0;
+        g.groundY = undefined; // перенесли в мир хоста — не падение
         this.ready = true;
         g.engine.log(`сеть: вошли в мир хоста — блоков ${w.blocks.size}`);
         g.engine.toast("CONNECTED", 2500);

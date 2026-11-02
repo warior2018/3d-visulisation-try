@@ -544,7 +544,7 @@ export const HAMMER = { slow: -0.4, fastFall: 30, leap: 0.8, step: 0.5, perStep:
 // 5 × 7 % = 35 %). Таланты на прыжок поднимают порог и режут урон: HIGH GROUND (sniper-jump) — всегда,
 // JUMP SLAM — пока молот в руках. Удар молотом с прыжка (молот ждёт земли) героя не ранит
 export const FALL_DAMAGE = {
-  from: 3, perBlock: 0.07,
+  from: 5, perBlock: 0.07, // с 5 блоков ниже места прыжка (до 5 — без урона), дальше 7 % макс. HP за блок
   highGround: { from: 2, mult: 0.5 }, //   + к порогу (блоков) и множитель урона
   jumpSlam: { from: 3, mult: 0.5 },
 };

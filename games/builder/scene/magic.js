@@ -94,7 +94,10 @@ export class MagicPart {
   onLand({ fall }) {
     const L = SHAKE.land;
     if (fall >= L.from) this.shake.add(Math.min(L.max, (fall - L.from + 1) * L.perBlock));
-    this.fallDamage(fall);
+    // Урон — от того, на сколько блоков ниже места, откуда оторвались от земли (прыжок на ровном месте — 0,
+    // спрыгнул с 5 блоков — 5, как бы высоко ни прыгал: таланты на прыжок не наказывают)
+    const drop = Math.max(0, (this.groundY ?? this.player.position.y) - this.player.position.y);
+    this.fallDamage(drop);
   }
 
   // Порог урона от падения (блоков) и множитель — с талантами на прыжок (FALL_DAMAGE)
@@ -115,7 +118,9 @@ export class MagicPart {
     if (slamming || this.fallGrace > 0) return; // первую секунду в мире (загрузка, появление) — не считаем
     const { from, mult } = this.fallRules();
     if (fall <= from) return;
-    const dmg = Math.round((fall - from) * FALL_DAMAGE.perBlock * p.stats.maxHp * mult);
+    // физический урон: THICK SKIN, IRON WILL и броня его режут, как удар
+    const resist = Math.min(0.9, p.stats.resist?.physical || 0);
+    const dmg = Math.round((fall - from) * FALL_DAMAGE.perBlock * p.stats.maxHp * mult * (1 - resist));
     if (dmg <= 0) return;
     p.damage(dmg);
     this.engine.sound.play("hurt");

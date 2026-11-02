@@ -308,6 +308,7 @@ export class GameScene extends Scene {
     p.position.z = at.z + 1;
     p.velocity.x = p.velocity.y = p.velocity.z = 0;
     p.stats.hp = p.stats.maxHp;
+    this.groundY = undefined;
     this.engine.sound.play("death");
     this.engine.toast("YOU DIED - BACK NEXT TO THE HOST", 3000);
     this.engine.log("гость погиб — встал рядом с хостом");
@@ -327,6 +328,7 @@ export class GameScene extends Scene {
     this.hammerControl(dt); // удар молотом: медленнее ходим, быстрее падаем; JUMP SLAM — прыжок выше
     this.spearControl(dt); //  разбег с копьём: поворот, разгон, кого насадили
     const move = (this.move = this.controller.update(dt, this.look.yaw));
+    if (player.onGround) this.groundY = player.position.y; // откуда оторвались от земли (урон от падения — от этой высоты)
     this.stamina?.update(dt, { running: (move.running && player.onGround) || this.spearRun.active }); // в прыжке бег не тратит
     this.syncEye(); // выстрел следующего тика — из глаз на новом месте
     this.blockCooldown = Math.max(0, (this.blockCooldown || 0) - dt);
