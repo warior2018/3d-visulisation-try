@@ -237,6 +237,18 @@ function mainMenu() {
       news: () => engine.push(new ChangelogScene({ entries: up ? up.entries : [] })),
       settings: () => game.openSettings(),
       quit: () => engine.quit(),
+      // ESC в главном меню — как пауза в игре: настройки, новости, выход на рабочий стол
+      escape: () => engine.push(new MenuScene({
+        title: "MENU", overlay: true,
+        items: [{ id: "settings", label: "SETTINGS" }, { id: "news", label: "WHAT'S NEW" }, { id: "quit", label: "QUIT TO DESKTOP" }, { id: "back", label: "BACK" }],
+        onBack: () => engine.pop(),
+        onSelect: (id) => {
+          engine.pop();
+          if (id === "settings") game.openSettings();
+          if (id === "news") engine.push(new ChangelogScene({ entries: up ? up.entries : [] }));
+          if (id === "quit") engine.quit();
+        },
+      })),
       update: () => up?.restart(engine),
       host: (worldId) => {
         touchWorld(worldId);

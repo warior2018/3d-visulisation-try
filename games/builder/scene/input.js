@@ -24,6 +24,7 @@ export class InputPart {
     if (has("interact")) this.interact();
     if (has("shop")) return this.openShop();
     if (has("ultimate")) this.useUltimate();
+    if (has("mount")) this.toggleMount(); // Z — маунт (scene/mount.js)
 
     // Панель цветов открыта: цифра — это цвет, а не смена способности
     const digit = DIGIT_KEYS.indexOf(event.scancode);
@@ -84,6 +85,7 @@ export class InputPart {
   // Игрок погиб: сохранение удаляем (следующая игра — с чистого мира), показываем экран гибели
   die() {
     if (this.dead) return;
+    this.dismountSteed(null);
     if (this.role === "client") return this.guestRespawn(); // гость: мир не наш — не стираем, встаём рядом с хостом
     this.dead = true;
     while (this.engine.scene !== this && this.engine.scenes.includes(this)) this.engine.pop(); // погибли под открытым окном — закрыть его

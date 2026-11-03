@@ -5,7 +5,7 @@
 // ============================================================
 
 import { itemName, ITEMS, isArmor, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
-import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
+import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, MOUNT, PLAYER, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
 import { ABILITY_FOR_ITEM, HeldItemAbility } from "../abilities.js";
@@ -72,6 +72,25 @@ export class ShopPart {
         supply("spikes", SHOP.spikes, 1, `${SP.damage} DMG TO ALL EVERY ${SP.rearm} S. PERMANENT, UP TO ${TRAPS.spikes.max}`),
         weapon("builder", SHOP.builder, "LMB - BREAK, RMB - PLACE A BLOCK. G - COLOR"),
         { ...supply(BUILD.item, SHOP.block, BUILD.pack, "BLOCKS FOR BUILDING (HAMMER)"), category: "other" },
+        // Маунт — один раз навсегда (этот герой): Z — позвать, исчезает от урона (scene/mount.js)
+        {
+          id: "mount", name: "MOUNT", price: MOUNT.price, category: "other", when: () => !this.hasMount,
+          describe: () => `${Input.label(this.settings.controls.bindings.mount)} - CALL. +${Math.round((MOUNT.speed / PLAYER.speed - 1) * 100)}% SPEED, SHIFT - GALLOP. ANY HIT THROWS YOU OFF, THEN ${MOUNT.cooldown} S COOLDOWN. OPENS THE MOUNT TALENT TAB`,
+          canGive: () => true,
+          give: () => {
+            this.hasMount = true;
+            this.applyClass(); // открыть вкладку талантов MOUNT
+            this.engine.toast(`MOUNT BOUGHT! ${Input.label(this.settings.controls.bindings.mount)} - CALL`, 3000);
+          },
+          drawIcon: (ui, x, y, s) => {
+            ui.rect(x + s * 0.12, y + s * 0.4, s * 0.62, s * 0.32, [120, 84, 60]); // туловище кабана
+            ui.rect(x + s * 0.66, y + s * 0.34, s * 0.24, s * 0.26, [100, 70, 50]); // голова
+            ui.rect(x + s * 0.86, y + s * 0.52, s * 0.08, s * 0.06, [230, 225, 205]); // клык
+            ui.rect(x + s * 0.3, y + s * 0.32, s * 0.26, s * 0.12, [150, 40, 34]); // седло
+            ui.rect(x + s * 0.18, y + s * 0.72, s * 0.1, s * 0.18, [90, 62, 45]);
+            ui.rect(x + s * 0.54, y + s * 0.72, s * 0.1, s * 0.18, [90, 62, 45]);
+          },
+        },
         { ...supply("medkit", SHOP.medkit, 1, `ITEM SLOT. HOLD LMB ${MEDKIT.useTime} S: +${SHOP.medkitHeal} HP`), category: "other" },
         // Броня (ARMOR): каждая часть — своя ячейка, срезает долю физического урона
         ...Object.entries(ARMOR.sets).flatMap(([setId, set]) => Object.entries(set.parts).map(([part, p]) =>

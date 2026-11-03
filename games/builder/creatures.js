@@ -86,6 +86,20 @@ export const CREATURES = {
     attack: "boarTusk", //       бивни (растут с миром: game-scene.js → scaleBoars)
     brain: () => new WanderBrain({ radius: 8, pause: [3, 7], lookRadius: 2.5, flee: { time: 4, speed: 3 } }), // ранили — убегает
   },
+  // Маунт героя (MOUNT): кабан под седлом, сам не думает; герой его не ранит; любой урон по нему — исчезает
+  steed: {
+    kind: "npc",
+    name: "MOUNT",
+    role: "mount",
+    maxHp: 1000,
+    speed: 1.4,
+    radius: 0.45,
+    height: 0.9,
+    inventorySize: 0,
+    model: "boar-saddle",
+    faction: "player",
+    protectedFrom: ["player"],
+  },
   // Страж: герой ранить не может (protectedFrom), а мобы — могут; сам бьёт мобов мечом
   warden: {
     kind: "npc",

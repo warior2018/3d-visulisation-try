@@ -80,6 +80,7 @@ export class SessionPart {
     // Класс героя: пока не выбран — открыты только общие вкладки талантов и раздел «ПРОЧЕЕ» магазина
     this.playerClass = CLASSES[saved?.progression?.class] ? saved.progression.class : null;
     this.ammoGiven = !!saved?.progression?.ammoGiven;
+    this.hasMount = !!saved?.progression?.mount; // куплен ли маунт (MOUNT)
     // Подкласс (второе оружие с SUBCLASS.level уровня) — только из оружия своего класса
     const sub = saved?.progression?.subclass;
     this.subclass = (SUBCLASS.weapons[this.playerClass] || []).includes(sub) ? sub : null;
@@ -220,8 +221,8 @@ export class SessionPart {
 
   saveNow(toast = true, { background = false } = {}) {
     if (this.dead) return; // погибли — мир уже удалён, сохранять нечего
-    const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss); // боссов не сохраняем (босс появится в логове заново)
-    const progression = { class: this.playerClass, subclass: this.subclass || null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
+    const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && e.type !== "steed"); // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
+    const progression = { class: this.playerClass, subclass: this.subclass || null, mount: !!this.hasMount, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
     this.autosaveIn = AUTOSAVE.every; // только что сохранились — следующее автосохранение отсчитываем заново
     if (this.role === "client") {
       // гость: мир — хоста (его не пишем), свой прогресс и вещи — в своё сохранение

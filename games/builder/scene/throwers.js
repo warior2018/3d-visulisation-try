@@ -46,7 +46,7 @@ export class ThrowersPart {
     const ray = this.lastRay;
     if (!ray) return;
     const { origin, dir, max } = ray;
-    const hit = this.entities.raycast(origin, dir, max, [this.player]);
+    const hit = this.entities.raycast(origin, dir, max, [this.player, this.player.mount]);
     const wall = this.world.raycast(origin, dir, max);
     const t = hit && (!wall || hit.t <= wall.t) ? hit.t : wall ? wall.t : max;
     const end = origin.add(dir.scale(t));

@@ -31,6 +31,7 @@ import { BuffsPart } from "./scene/buffs.js";
 import { BossesPart } from "./scene/bosses.js";
 import { InteractPart } from "./scene/interact.js";
 import { LootPart } from "./scene/loot.js";
+import { MountPart } from "./scene/mount.js";
 import { HostNet, ClientNet } from "./scene/net.js";
 import { Chat } from "./scene/chat.js";
 import { registerCommands } from "./scene/commands.js";
@@ -152,6 +153,7 @@ export class GameScene extends Scene {
     if (!e) return null;
     // Урон от героя (удар, выстрел, горение) — цифрой над целью: хедшот — крупно и красным, огонь — оранжевым
     e.onDamage = (d, dealt) => {
+      this.mountHurt(e, dealt); // ранили героя или его скакуна — маунт исчезает (scene/mount.js)
       if (d.source !== this.player || e === this.player || this.settings.general.damageNumbers === false) return;
       const head = d.part === "head";
       // цвет цифры: хедшот — красный, крит — золотой, горение — оранжевый; иначе по виду урона (как в Dota):
@@ -355,9 +357,15 @@ export class GameScene extends Scene {
     this.actionLock.update(dt);
     player.speedBonuses.lock = this.actionLock.moveSpeed;
     this.updateStance(dt); //  катана в руках — стойка: ниже рост и глаза
-    this.hammerControl(dt); // удар молотом: медленнее ходим, быстрее падаем; JUMP SLAM — прыжок выше
-    this.spearControl(dt); //  разбег с копьём: поворот, разгон, кого насадили
-    const move = (this.move = this.controller.update(dt, this.look.yaw));
+    this.mountCd = Math.max(0, (this.mountCd || 0) - dt); // перезарядка маунта (MOUNT)
+    let move;
+    if (player.mount) move = this.rideTick(dt); // верхом: ведём скакуна (scene/mount.js)
+    else {
+      this.hammerControl(dt); // удар молотом: медленнее ходим, быстрее падаем; JUMP SLAM — прыжок выше
+      this.spearControl(dt); //  разбег с копьём: поворот, разгон, кого насадили
+      move = this.controller.update(dt, this.look.yaw);
+    }
+    this.move = move;
     if (player.onGround) this.groundY = player.position.y; // откуда оторвались от земли (урон от падения — от этой высоты)
     this.stamina?.update(dt, { running: (move.running && player.onGround) || this.spearRun.active }); // в прыжке бег не тратит
     this.syncEye(); // выстрел следующего тика — из глаз на новом месте
@@ -536,7 +544,8 @@ export class GameScene extends Scene {
     // Взгляд вверх — голова назад (поворот вокруг X с минусом), не больше ±50°
     const look = Math.max(-0.87, Math.min(0.87, this.look.pitch));
     player.view?.animator.turnBone("head", [Math.sin(-look / 2), 0, 0, Math.cos(-look / 2)]);
-    if (this.spearRun.active) player.view?.animator.setBase("Walk", this.spearRun.speed / 4); // разбег — бежим
+    if (player.mount) player.view?.animator.setBase("Sit"); // в седле — сидим
+    else if (this.spearRun.active) player.view?.animator.setBase("Walk", this.spearRun.speed / 4); // разбег — бежим
     // стойка самурая: стоим — наклон 8°, идём — 20°, бежим (спринт) — 30°
     else if (this.lowStance) player.view?.animator.setBase(!move.moving ? "StanceIdle" : move.running ? "StanceRun" : "StanceWalk", move.moving ? move.speed / (move.running ? 5 : 3) : 1);
     else player.view?.animator.setBase(move.moving ? "Walk" : "Idle", move.moving ? move.speed / 4 : 1);
@@ -659,4 +668,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart]);

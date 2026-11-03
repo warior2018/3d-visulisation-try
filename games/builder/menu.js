@@ -21,14 +21,16 @@ import { ABILITY_FOR_ITEM } from "./abilities.js";
 import { listWorlds, createWorld, deleteWorld, updateWorld, touchWorld, MAX_WORLDS } from "./save.js";
 
 const ICONS_DIR = fileURLToPath(new URL("./assets/world-icons/", import.meta.url));
-const TABS = [
-  { id: "news", label: "WHAT'S NEW" },
-  { id: "skins", label: "SKINS" },
-  { id: "play", label: "PLAY" },
-  { id: "settings", label: "SETTINGS" },
-  // { id: "multiplayer", label: "MULTIPLAYER" }, — сетевая игра пока закрыта (персонажи по id, позже — аккаунты)
-  { id: "quit", label: "QUIT" },
+// Верхняя полоса (как в Overwatch): ИГРАТЬ — крупно по центру; вкладки слева прилипают к левому краю,
+// маленькие кнопки-значки — к правому (новости, друзья, настройки). ESC — меню: настройки / новости / выход.
+// Сетевая игра пока закрыта (персонажи по id, позже — аккаунты): вкладки MULTIPLAYER нет
+const LEFT_TABS = [{ id: "skins", label: "SKINS" }];
+const ICON_TABS = [
+  { id: "news", label: "WHAT'S NEW", icon: "news" },
+  { id: "friends", label: "FRIENDS", icon: "friends", soon: true },
+  { id: "settings", label: "SETTINGS", icon: "gear" },
 ];
+const SHIMMER = { every: 10, time: 0.9 }; // кнопка ИГРАТЬ переливается раз в every с
 
 // Картинки миров: все PNG из папки (имя файла без .png — id картинки)
 function loadIcons() {
@@ -107,6 +109,7 @@ export class MainMenu extends Scene {
   update(dt) {
     // плавно к целям (поворот круга)
     const ui = this.engine.ui;
+    this.clock = (this.clock || 0) + dt; // блик на кнопке ИГРАТЬ
     const k = Math.min(1, dt * 12);
     this.order().forEach((w, i) => {
       const t = this.slot(ui, i);
@@ -280,8 +283,7 @@ export class MainMenu extends Scene {
     const th = ui.theme;
     widgets.drawBackground(ui);
     // вкладки сверху — поровну
-    const tw = Math.floor(ui.width / TABS.length);
-    TABS.forEach((t, i) => ui.button("tab:" + t.id, t.label, tw * i + tw / 2, 30, tw - 8, 44, 3, this.tab === t.id));
+    this.drawTopBar(ui);
     if (this.tab === "play") this.drawPlay(ui);
     if (this.tab === "multiplayer") this.drawMultiplayer(ui);
     if (this.tab === "skins") this.drawSkins(ui);
@@ -292,6 +294,45 @@ export class MainMenu extends Scene {
       ui.button("update", label, ui.width - 24 - w / 2, ui.height - 24 - 26, w, 52, 2, true);
     }
     if (up) ui.text(`VERSION ${up.current}`, 24, ui.height - 36, 2, th.muted);
+  }
+
+  // Верхняя полоса: ИГРАТЬ по центру (крупно, раз в 10 с по ней пробегает блик), слева вкладки, справа значки
+  drawTopBar(ui) {
+    const th = ui.theme;
+    const pw = Math.min(340, ui.width * 0.26), ph = 62, cy = 38;
+    ui.button("tab:play", "PLAY", ui.width / 2, cy, pw, ph, 4, this.tab === "play");
+    // блик: светлая полоса наискось слева направо
+    const t = (this.clock || 0) % SHIMMER.every;
+    if (t < SHIMMER.time) {
+      const k = t / SHIMMER.time, x0 = ui.width / 2 - pw / 2, y0 = cy - ph / 2;
+      const bx = x0 - 40 + k * (pw + 80);
+      // интерфейс пишет пиксели поверх (без смешивания) — осветляем то, что уже нарисовано, сами
+      const px = ui.fb.pixels, W = ui.fb.width, fade = Math.sin(k * Math.PI);
+      for (let i = 2; i < ph - 2; i++) {
+        const sx = Math.round(bx - i * 0.5);
+        for (let qx = Math.max(Math.ceil(x0 + 2), sx); qx < Math.min(x0 + pw - 2, sx + 26); qx++) {
+          const j = Math.round(y0 + i) * W + qx, v = px[j];
+          const d = 1 - Math.abs(qx - sx - 13) / 13; // ярче в середине полосы
+          const a = 0.45 * fade * d;
+          const r = (v & 255) + (255 - (v & 255)) * a, g = ((v >>> 8) & 255) + (255 - ((v >>> 8) & 255)) * a, b = ((v >>> 16) & 255) + (235 - ((v >>> 16) & 255)) * a;
+          px[j] = ((v & 0xff000000) | (Math.round(b) << 16) | (Math.round(g) << 8) | Math.round(r)) >>> 0;
+        }
+      }
+      ui.dirty = true;
+    }
+    const sw = 150, sh = 40;
+    LEFT_TABS.forEach((tb, i) => ui.button("tab:" + tb.id, tb.label, 14 + sw / 2 + i * (sw + 8), cy, sw, sh, 2, this.tab === tb.id));
+    const iw = 48;
+    ICON_TABS.forEach((tb, i) => {
+      const x = ui.width - 14 - iw / 2 - (ICON_TABS.length - 1 - i) * (iw + 8);
+      ui.button("tab:" + tb.id, "", x, cy, iw, sh + 4, 2, false);
+      drawTabIcon(ui, tb.icon, x, cy, tb.soon ? th.muted : th.text);
+      if (tb.icon === "friends") ui.text("0", x + 12, cy + 5, 1, th.muted);
+      if (ui.isInside(ui.mouseX, ui.mouseY, x - iw / 2, cy - sh / 2, iw, sh)) {
+        ui.text(tb.label, Math.min(ui.width - 10, x + iw / 2), cy + sh / 2 + 10, 1, th.muted, "right");
+        if (tb.soon) ui.text("SOON", Math.min(ui.width - 10, x + iw / 2), cy + sh / 2 + 22, 1, th.warn, "right");
+      }
+    });
   }
 
   drawPlay(ui) {
@@ -394,6 +435,7 @@ export class MainMenu extends Scene {
   onButton(id) {
     const [kind, arg] = id.split(":");
     if (kind === "tab") {
+      if (arg === "friends") return this.actions.toast?.("FRIENDS - SOON");
       if (arg === "play" || arg === "multiplayer" || arg === "skins") this.tab = arg;
       else this.actions[arg]?.();
       return;
@@ -459,6 +501,7 @@ export class MainMenu extends Scene {
   }
 
   onKey(e) {
+    if (e.scancode === KEYS.ESCAPE) return this.actions.escape?.(); // меню: настройки / новости / выход
     if (this.tab !== "play") return;
     if (e.scancode === KEYS.LEFT) this.turn(1); //   ← — центральный уходит в конец, в центр — тот, что слева
     if (e.scancode === KEYS.RIGHT) this.turn(-1); // → — обратно
@@ -542,5 +585,29 @@ export class CreateWorldScene extends Scene {
       return;
     }
     this.engine.redraw();
+  }
+}
+
+// Значки верхней полосы — пиксельные, 20×20 вокруг (cx, cy)
+function drawTabIcon(ui, icon, cx, cy, color) {
+  const x = Math.round(cx - 10), y = Math.round(cy - 10);
+  const dark = [30, 30, 36];
+  if (icon === "news") { // газета: лист, заголовок, строки, колонка-картинка
+    ui.rect(x + 1, y + 2, 18, 16, color, 255);
+    ui.rect(x + 3, y + 4, 14, 3, dark, 255);
+    ui.rect(x + 3, y + 9, 6, 6, dark, 255);
+    for (const ly of [9, 12, 15]) ui.rect(x + 11, y + ly, 6, 1, dark, 255);
+  } else if (icon === "friends") { // голова и плечи
+    ui.circle(x + 8, y + 6, 4, color, 255);
+    ui.rect(x + 2, y + 13, 12, 6, color, 255);
+    ui.rect(x + 3, y + 12, 10, 1, color, 255);
+  } else if (icon === "gear") { // шестерёнка: зубцы, кольцо, дырка
+    const c = 10;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      ui.rect(Math.round(x + c + Math.cos(a) * 7.5 - 2), Math.round(y + c + Math.sin(a) * 7.5 - 2), 4, 4, color, 255);
+    }
+    ui.circle(x + c, y + c, 7, color, 255);
+    ui.circle(x + c, y + c, 3, dark, 255);
   }
 }

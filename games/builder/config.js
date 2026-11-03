@@ -62,11 +62,13 @@ export const GAME_DEFAULTS = {
       map: "key:M",
       interact: "key:F", // подобрать предмет под прицелом
       chat: "key:RETURN", // чат (и «/команда» — консоль)
+      mount: "key:Z", //    маунт: позвать / слезть (MOUNT)
     },
   },
 };
 
 export const GAME_ACTION_LABELS = {
+  mount: "MOUNT",
   item1: "ITEM 1",
   item2: "ITEM 2",
   skill1: "SKILL 1",
@@ -349,7 +351,19 @@ export function worldgenFor(size = 3, floating = false) {
 // damage — число или [мин, макс]; element — стихия ("physical", "fire", "ice", "poison"...);
 // modifiers — модификаторы, например [critical(0.1, 2)] (импорт из движка).
 const PUNCH_REACH = 2.5;
+// Маунт (как в Heroes of the Storm): покупается один раз в магазине (раздел ПРОЧЕЕ), зовётся клавишей Z
+// мгновенно, исчезает от ЛЮБОГО урона по герою или по нему (таланты вкладки MOUNT: урон меньше 4 / 8 / 12 %
+// макс. HP героя не сбрасывает), после — перезарядка cooldown с. Верхом: speed м/с, с Shift — ×runMultiplier.
+// Двуручное оружие в руках (twoHanded) — скакун тяжелеет: скорость ×heavy и без галопа. Скиллы движения оружия
+// (ИАЙ, отскок дробовика, разбег с копьём) — сначала слезаем, потом скилл. Молот верхом не бьёт под себя
+// (ATTACKS.hammerSwing: медленный взмах в сторону, слабее)
+export const MOUNT = {
+  price: 2500, cooldown: 10, speed: 7.5, runMultiplier: 1.45, jumpHeight: 1.1, seat: 0.75, heavy: 0.55,
+  twoHanded: ["war-hammer", "spear", "rifle", "auto", "shotgun", "launcher", "crossbow"],
+};
+
 export const ATTACKS = {
+  hammerSwing: { id: "hammer-swing", name: "SADDLE SWING", damage: 40, reach: 3.2, cooldown: 1.7, arc: 150, maxTargets: 4 }, // молот верхом (MOUNT)
   // Рука игрока: ближний бой
   // Ближний бой игрока бьёт по ХИТБОКСУ — сектору arc° перед собой длиной reach (движок: MeleeAttack),
   // до maxTargets врагов (ближние первыми). Хедшотов у ближнего боя нет.

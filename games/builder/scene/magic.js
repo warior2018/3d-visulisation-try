@@ -23,7 +23,7 @@ export class MagicPart {
     const cam = this.rig.camera;
     const dir = cam.lookDirection();
     const max = range + this.rig.behind;
-    const hit = this.entities.raycast(cam.position, dir, max, [this.player]);
+    const hit = this.entities.raycast(cam.position, dir, max, [this.player, this.player.mount]);
     const wall = this.world.raycast(cam.position, dir, max);
     const t = Math.min(hit?.t ?? max, wall?.t ?? max);
     return { point: cam.position.add(dir.scale(t)), entity: hit && (!wall || hit.t <= wall.t) ? hit.entity : null };

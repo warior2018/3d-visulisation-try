@@ -65,6 +65,7 @@ export class BuffsPart {
     const cl = crit && this.playerClass === "melee" ? critCooldown(p, "fighter-crit") : 0;
     if (cl > 0) list.push({ icon: "CRT", color: [255, 210, 80], progress: 1 - cl / (crit > 1 ? 7 : 8), left: cl });
     // Разбег с копьём
+    if (this.mountCd > 0) list.push({ icon: "MNT", color: [200, 160, 110], progress: 1 - this.mountCd / this.mountCooldown(), left: this.mountCd }); // маунт (Z)
     if (this.spearCd > 0) list.push({ icon: "CHG", color: [255, 200, 90], progress: 1 - this.spearCd / SPEAR.cooldown, left: this.spearCd });
     return list;
   }
@@ -80,6 +81,7 @@ export class BuffsPart {
   startSpearCharge() {
     if (this.spearRun.active) return;
     if (this.spearCd > 0) return this.engine.toast(`CHARGE READY IN ${Math.ceil(this.spearCd)} S`, 700);
+    this.beforeMovementSkill(); // верхом — сначала слезть (MOUNT)
     if (this.stamina && (this.stamina.value < SPEAR.minStamina || this.stamina.exhausted)) return this.noStamina(); // выдохся — не разбежаться
     // Талант MOMENTUM: разгон до +30/60/90 % скорости (за rampTime с), а насквозь — на +2/4/6 врагов больше
     const r = this.talents.rank("spear-momentum");

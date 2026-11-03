@@ -337,6 +337,7 @@ export class KatanaAbility extends Ability {
   // Q: рывок туда, куда смотрим (в 3D) — режет всех на пути
   iai(g) {
     if (this.busy || this.iaiLeft > 0 || g.abilities.equipping) return;
+    g.beforeMovementSkill?.(); // верхом — сначала слезть (MOUNT)
     const I = KATANA_IAI;
     g.player.speedBonuses.iai = 0;
     this.iaiReadyAt = performance.now() / 1000 + I.cooldown;
@@ -461,12 +462,14 @@ export class WarHammerAbility extends Ability {
   constructor() {
     super({ id: "war-hammer", name: "WAR HAMMER", viewModel: "fp-war-hammer", moveSpeed: WEAPON_SPEED.warHammer, autoRepeat: true, held: held("w-war-hammer", "HoldHammer"), equipTime: EQUIP_TIME.warHammer });
     this.attack = new SlamAttack(ATTACKS.warHammer);
+    this.swing = new MeleeAttack(ATTACKS.hammerSwing); // верхом: под себя не бьём — медленный взмах в сторону
     this.blocks = true;
   }
   secondary(g) {
     g.tryBlock(this);
   }
   primary(g) {
+    if (g.player.mount) return void g.useAttack(this.swing, { anim: "Attack", bodyAnim: "MacheteSlash", sound: "swing", hitSound: "hit" });
     g.useAttack(this.attack, { anim: "Attack", bodyAnim: "HammerSlam", sound: "swing", ctx: { radius: g.talentStats?.hammerSlam || ATTACKS.warHammer.radius, fallMultiplier: (fall) => g.slamFallMultiplier(fall), onSlam: (c, r, hits, info) => g.hammerSlam(c, r, hits, info) } });
   }
   drawIcon(ui, x, y, s) {
@@ -498,6 +501,7 @@ export class ShotgunAbility extends Ability {
   blast(g) {
     const B = SHOTGUN_BLAST;
     if (this.blastLeft > 0 || g.abilities.equipping) return;
+    g.beforeMovementSkill?.(); // верхом — сначала слезть (MOUNT)
     const used = g.useAttack(this.blastAttack, {
       anim: "Shoot", bodyAnim: "ShootShotgun", sound: "shot",
       onHit: (hit) => hit.target.alive && hit.target.addStatus?.(stun(B.stun)()),

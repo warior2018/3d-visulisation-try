@@ -118,7 +118,8 @@ export class ProgressionPart {
   applyClass() {
     const c = CLASSES[this.playerClass];
     const sub = c && this.subclass ? [weaponTab(this.subclass)] : [];
-    this.talents.allow(c ? [c.tab, ...sub, ...COMMON_TABS] : COMMON_TABS);
+    const extra = this.hasMount ? ["mount"] : []; // вкладка маунта — когда куплен
+    this.talents.allow(c ? [c.tab, ...sub, ...COMMON_TABS, ...extra] : [...COMMON_TABS, ...extra]);
     this.dressHero();
   }
 

@@ -27,7 +27,7 @@ export class CombatPart {
     const limit = wall ? wall.t : far;
     const out = [];
     for (const e of this.entities.list) {
-      if (e === this.player || !e.alive || e.remote) continue;
+      if (e === this.player || e === this.player.mount || !e.alive || e.remote) continue;
       const h = e.rayHitDetailed(origin, dir, limit);
       if (h) out.push({ entity: e, part: h.part || null, t: h.t });
     }
@@ -51,7 +51,7 @@ export class CombatPart {
     }
     this.lastRay = { origin, dir, max: this.rig.behind + reach }; // для следа пули (bulletTrace)
     // Себя и своего скакуна (верхом) луч не задевает
-    const hit = this.entities.raycast(origin, dir, this.rig.behind + reach, [this.player]);
+    const hit = this.entities.raycast(origin, dir, this.rig.behind + reach, [this.player, this.player.mount]);
     if (!hit) return null;
     const wall = this.world.raycast(origin, dir, hit.t);
     if (wall && wall.t < hit.t) return null; // между нами блок

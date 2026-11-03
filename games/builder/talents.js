@@ -218,3 +218,17 @@ for (const [cls, items] of Object.entries(SUBCLASS.weapons)) {
   const min = shiftCols(tab.talents);
   tab.sections = tab.sections.filter((sec) => tab.talents.some((t) => Math.abs(t.col - (sec.col - min)) <= 0.5)).map((sec) => ({ ...sec, col: sec.col - min }));
 }
+
+// ---------- МАУНТ (видна, когда маунт куплен: config.js → MOUNT) ----------
+// Правила читает scene/mount.js: mountGuard — доля макс. HP героя, урон меньше которой не сбрасывает с седла
+TALENT_TREE.tabs.splice(TALENT_TREE.tabs.length - 1, 0, {
+  id: "mount", name: "MOUNT", note: "BOUGHT IN THE SHOP. Z - CALL / DISMOUNT",
+  talents: [
+    { id: "mount-saddle", name: "STEADY SADDLE", tier: 1, maxRank: 3,
+      describe: (r) => `HITS UNDER ${at([4, 8, 12], r)}% OF YOUR MAX HP DON'T THROW YOU OFF`, stats: (r) => ({ mountGuard: at([0.04, 0.08, 0.12], r) }) },
+    { id: "mount-swift", name: "SWIFT HOOVES", tier: 1, maxRank: 2,
+      describe: (r) => `+${pct(at([0.1, 0.2], r))} MOUNTED SPEED`, stats: (r) => ({ mountSpeed: at([0.1, 0.2], r) }) },
+    { id: "mount-call", name: "QUICK CALL", tier: 2, maxRank: 2,
+      describe: (r) => `MOUNT COOLDOWN -${at([2, 4], r)} S`, stats: (r) => ({ mountCooldown: at([2, 4], r) }) },
+  ],
+});
