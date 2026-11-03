@@ -77,7 +77,7 @@ export const ITEMS = {
     },
   },
   skull: { name: "SKULL", color: [190, 185, 165], maxStack: 8 },
-  coin: { name: "COIN", color: [235, 190, 60], maxStack: 99 },
+  coin: { name: "COIN", color: [235, 190, 60], maxStack: 999999 }, // монеты — одной стопкой (цены до тысяч)
   // Оружие по классам: базовое (стартовое) и покупное
   machete: { name: "MACHETE", slot: "weapon", weapon: true, class: "melee", maxStack: 1, drawIcon: iconOf(MacheteAbility) },
   "war-hammer": { name: "WAR HAMMER", slot: "weapon", weapon: true, class: "melee", maxStack: 1, color: [120, 124, 134], drawIcon: iconOf(WarHammerAbility) },

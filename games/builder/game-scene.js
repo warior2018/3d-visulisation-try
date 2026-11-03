@@ -30,6 +30,7 @@ import { PetsPart } from "./scene/pets.js";
 import { BuffsPart } from "./scene/buffs.js";
 import { BossesPart } from "./scene/bosses.js";
 import { InteractPart } from "./scene/interact.js";
+import { LootPart } from "./scene/loot.js";
 import { HostNet, ClientNet } from "./scene/net.js";
 import { Chat } from "./scene/chat.js";
 import { registerCommands } from "./scene/commands.js";
@@ -352,6 +353,7 @@ export class GameScene extends Scene {
   // логова, нашествие. Это и есть то, что в сетевой игре считает хост
   tickWorld(dt) {
     const { engine, player } = this;
+    this.updateResidents(dt); // страж погиб — вернётся через минуту
     // Большой мир — по частям: раз в секунду подгрузить близкие куски, выгрузить дальние (ChunkStore.stream)
     this.streamIn = (this.streamIn ?? 1) - dt;
     if (this.streamIn <= 0) {
@@ -630,4 +632,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart]);

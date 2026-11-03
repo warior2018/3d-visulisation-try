@@ -153,6 +153,8 @@ export const TALENT_TREE = {
           describe: (r) => `+${0.5 * r}% MAX HP PER SECOND`, stats: (r) => ({ regenPct: 0.005 * r }) },
         { id: "thick-skin", name: "THICK SKIN", tier: 2, maxRank: 2,
           describe: (r) => `-${pct(0.1 * r)} PHYSICAL DMG`, stats: (r) => ({ resist: { physical: 0.1 * r } }) },
+        { id: "fortune", name: "FORTUNE", tier: 2, maxRank: 3,
+          describe: (r) => `+${20 * r}% LUCK: GEAR DROPS MORE OFTEN AND RARER`, stats: (r) => ({ luck: 0.2 * r }) },
         { id: "light-step", name: "LIGHT STEP", tier: 2, maxRank: 4,
           describe: (r) => `+${pct(0.05 * r)} SPEED`, stats: (r) => ({ speed: 0.05 * r }) },
         { id: "unbreakable", name: "UNBREAKABLE", tier: 3, maxRank: 1,

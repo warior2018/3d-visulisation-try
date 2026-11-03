@@ -8,6 +8,7 @@ import { num } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
 import { ITEMS, isWeapon, isArmor } from "../items.js";
 import { CLASSES } from "../config.js";
+import { rarityData } from "./loot.js";
 
 export function registerCommands(g) {
   const c = g.engine.console;
@@ -24,11 +25,12 @@ export function registerCommands(g) {
     if (g.player.stats.maxMana) g.player.stats.mana = g.player.stats.maxMana;
     return "HEALED";
   } });
-  c.command("give", { help: "give <item> [count] - item to inventory (no item - list)", cheat: true, run: ([id, n]) => {
+  c.cvar("luck", { help: "luck <0..10> - extra luck (gear drops: chance and rarity), on top of talents", cheat: true, get: () => +(g.luckBonus || 0).toFixed(2), set: (v) => { g.luckBonus = Math.max(0, Math.min(10, num(v))); } });
+  c.command("give", { help: "give <item> [count] [rare|epic|legendary] - item to inventory (no item - list)", cheat: true, run: ([id, n, rarity]) => {
     if (!id) return "ITEMS: " + Object.keys(ITEMS).join(", ");
     if (!ITEMS[id]) throw new Error(`no item "${id}" (give - list)`);
     const count = n ? Math.max(1, Math.round(num(n, "count"))) : 1;
-    const left = isWeapon(id) || isArmor(id) ? g.giveItem(id, count) : g.giveResource(id, count);
+    const left = isWeapon(id) || isArmor(id) ? g.giveItem(id, count, rarityData(rarity)) : g.giveResource(id, count);
     return `GIVEN ${count - left} ${id}${left ? ` (NO ROOM FOR ${left})` : ""}`;
   } });
   c.command("spawn", { help: "spawn <creature> [count] - in front of you (no name - list)", cheat: true, run: ([type, n]) => {

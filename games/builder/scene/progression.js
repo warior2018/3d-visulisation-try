@@ -5,7 +5,7 @@
 // ============================================================
 
 import { TROPHY_TALENTS, TROPHY } from "../talents.js";
-import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3 } from "../../../engine/index.js";
+import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3, rarityOf } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
 import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD } from "../config.js";
 import { ITEMS } from "../items.js";
@@ -55,7 +55,8 @@ export class ProgressionPart {
 
   // Сколько физического урона срезает надетая броня (сумма частей, ITEMS[id].armor)
   armorValue() {
-    return (this.player.armor?.slots || []).reduce((sum, sl) => sum + (sl ? ITEMS[sl.item]?.armor || 0 : 0), 0);
+    // редкая часть брони — крепче (× 1 + power редкости)
+    return (this.player.armor?.slots || []).reduce((sum, sl) => sum + (sl ? (ITEMS[sl.item]?.armor || 0) * (1 + rarityOf(sl.data?.rarity).power) : 0), 0);
   }
 
   // Скорость от надетой брони (железо тяжёлое, кость лёгкая): сумма частей, ITEMS[id].speed

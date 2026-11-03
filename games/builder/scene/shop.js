@@ -7,7 +7,7 @@
 import { itemName, ITEMS, isArmor, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
 import { ATTACKS, CLASSES, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
 import { signedPct } from "./shared.js";
-import { Shop, ShopScene, InventoryScene, Input, Vec3 } from "../../../engine/index.js";
+import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
 import { ABILITY_FOR_ITEM, HeldItemAbility } from "../abilities.js";
 import { helpFor } from "../help.js";
 
@@ -91,16 +91,18 @@ export class ShopPart {
   }
 
   // Выдать предмет: сначала в хотбар (сразу под рукой), не влез — в сумку
-  giveItem(id, count = 1) {
+  // data — свои данные экземпляра (редкость: { rarity, color, label })
+  giveItem(id, count = 1, data = null) {
     const p = this.player;
+    const o = data ? { data } : {};
     if (isArmor(id)) {
       // Броня: в свою ячейку, если она пустая (сразу надета), иначе — в сумку
-      const left = p.inventory.add(id, p.armor.add(id, count));
+      const left = p.inventory.add(id, p.armor.add(id, count, o), o);
       this.applyTalents();
       return left;
     }
-    let left = p.hotbar.add(id, count);
-    if (left > 0) left = p.inventory.add(id, left);
+    let left = p.hotbar.add(id, count, o);
+    if (left > 0) left = p.inventory.add(id, left, o);
     this.syncAbilities();
     return left;
   }
@@ -123,6 +125,8 @@ export class ShopPart {
           this.applyMagazines(); // талант MAGAZINE
         }
         ability = this.abilityCache.get(slot.item);
+        // редкость экземпляра в руках: сила атаки (+10 % RARE, +20 % EPIC, +35 % LEGENDARY)
+        if (ability.attack) ability.attack.power = 1 + rarityOf(slot.data?.rarity).power;
       }
       bar.set(i, ability);
     });

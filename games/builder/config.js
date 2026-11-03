@@ -563,10 +563,38 @@ export const SHAKE = {
 // Доход: мобы появляются раз в ~1.7 с — если бить всех, ~200 монет в минуту, в нашествие ~550.
 // Цены — на столько игры: базовое оружие класса (если потерял) — полминуты; первое продвинутое — ~10 минут;
 // лучшее — ~20 минут. Расходники (ловушки, аптечки, блоки) — дёшево, чтобы не жалеть
+// Тиры (уровни) вещей: у каждого тира — своя цена. Оружие: T1 — базовое класса, T4 — лучшее.
+// Броня — по комплектам: кожа T1, кость T2, железо T3 (цены частей — в ARMOR)
+export const TIERS = {
+  1: { name: "T1", price: 100, color: [170, 170, 170] },
+  2: { name: "T2", price: 2000, color: [120, 200, 120] },
+  3: { name: "T3", price: 3000, color: [110, 170, 255] },
+  4: { name: "T4", price: 4500, color: [230, 150, 255] },
+};
+export const ITEM_TIER = {
+  machete: 1, pistol: 1, grenades: 1, //                      боец: мачете ~43/с, стрелок: пистолет ~35/с, подрывник: граната ~33/с
+  "war-hammer": 2, auto: 2, shotgun: 2, launcher: 2, //       молот ~28/с + оглушение, автомат ~48/с, дробовик ~49/с вблизи, гранатомёт ~40/с
+  spear: 3, crossbow: 3, dynamite: 3, //                      копьё — разбег, арбалет ~50/с насквозь, динамит 110 раз в 3 с
+  katana: 4, rifle: 4, //                                     катана 75 всем, снайперка 90
+};
+export const ARMOR_TIER = { leather: 1, bone: 2, iron: 3 };
+const tierPrice = (id) => TIERS[ITEM_TIER[id]].price;
+
+// Добыча: удача и редкость (движок: engine/economy/loot.js — COMMON / RARE / EPIC / LEGENDARY).
+//   gear — шанс, что моб уронит вещь (оружие или часть брони); босс — всегда (bossGear), в нашествие — чаще;
+//   tiers(n) — какого тира вещь (n — сколько мобов уже появилось: позже — лучше);
+//   sell — продать стражу: доля цены магазина (× редкость.sell); ресурсы — по своей цене
+export const LOOT = {
+  gear: 0.015, invasionMult: 1.5, bossGear: 1,
+  tiers: (n) => ({ 1: Math.max(10, 60 - n / 8), 2: 30, 3: Math.min(35, 5 + n / 20), 4: Math.min(25, n / 40) }),
+  sell: 0.25,
+  resources: { bone: 1, skull: 3, block: 0 },
+};
+
 export const SHOP = {
-  machete: 100, "war-hammer": 2000, spear: 3000, katana: 4500, //      боец: мачете ~43/с (двоим), молот ~28/с + оглушение, копьё — разбег, катана 75 всем
-  grenades: 100, launcher: 2000, dynamite: 3000, //                     подрывник: граната ~33/с по площади, гранатомёт ~40/с, динамит 110 раз в 3 с
-  pistol: 100, auto: 2000, shotgun: 2000, crossbow: 3000, rifle: 4500, // стрелок: пистолет ~35/с, автомат ~48/с, дробовик ~49/с вблизи, арбалет ~50/с насквозь, снайперка 90
+  machete: tierPrice("machete"), "war-hammer": tierPrice("war-hammer"), spear: tierPrice("spear"), katana: tierPrice("katana"),
+  grenades: tierPrice("grenades"), launcher: tierPrice("launcher"), dynamite: tierPrice("dynamite"),
+  pistol: tierPrice("pistol"), auto: tierPrice("auto"), shotgun: tierPrice("shotgun"), crossbow: tierPrice("crossbow"), rifle: tierPrice("rifle"),
   "bear-trap": 25, spikes: 40, //                                       ловушки
   "pistol-clip": 4, "auto-clip": 8, "shotgun-clip": 6, "rifle-clip": 8, // обоймы (CLIPS.enabled: false — не продаются)
   builder: 50, block: 15, medkit: 60, medkitHeal: 40, //                 прочее: молот-стройка, 16 блоков, аптечка

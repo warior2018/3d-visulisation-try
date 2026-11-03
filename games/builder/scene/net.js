@@ -421,7 +421,7 @@ export class ClientNet {
         // хост отдал подобранное: как обычный подбор; не влезло — обратно хосту на землю
         const fake = { item: msg.item, count: msg.count, data: msg.data, age: 0 };
         let left;
-        if (isWeapon(fake.item) || isArmor(fake.item)) left = g.giveItem(fake.item, fake.count);
+        if (isWeapon(fake.item) || isArmor(fake.item)) left = g.giveItem(fake.item, fake.count, fake.data);
         else left = g.giveResource(fake.item, fake.count, fake.data);
         const got = fake.count - left;
         if (got > 0) {

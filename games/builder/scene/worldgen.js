@@ -203,7 +203,7 @@ export class WorldgenPart {
       }
       return;
     }
-    const left = isWeapon(p.item) || isArmor(p.item) ? this.giveItem(p.item, p.count) : this.giveResource(p.item, p.count, p.data);
+    const left = isWeapon(p.item) || isArmor(p.item) ? this.giveItem(p.item, p.count, p.data) : this.giveResource(p.item, p.count, p.data);
     const got = p.count - left;
     if (got === 0) {
       if (quiet) p.delay = p.age + 1; // некуда — пробуем снова через секунду (освободил место — само подберётся)

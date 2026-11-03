@@ -11,6 +11,7 @@ export class InteractPart {
   // ---------- Взаимодействие (клавиша interact, по умолчанию F) ----------
   // Предмет на земле под прицелом — подобрать
   interact() {
+    if (this.tryTrade()) return; // страж под прицелом — торговля (scene/loot.js)
     const item = this.aimedPickup(PICKUP_REACH);
     if (item) this.pickUp(item.pickup);
   }
@@ -59,6 +60,7 @@ export class InteractPart {
     if (dropped) this.engine.sound.play("loot", { at: e.position });
     // Свои трофеи класса: стрелку — патроны, магу — сфера души
     if (e.kind !== "mob") return;
+    this.dropGear(e); // вещь с редкостью (удача, тиры) — scene/loot.js
     const near = (k = 0.6) => ({ x: e.position.x + (Math.random() - 0.5) * k, y: e.position.y + 0.5, z: e.position.z + (Math.random() - 0.5) * k });
     // AMMO REFUND (стрелок): убийство из автомата — +15 патронов прямо в его магазин (не больше полного)
     if (this.talentStats.rifleRefund && e.lastHitBy === this.player && e.lastHitAttack === ATTACKS.auto.id) {

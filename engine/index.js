@@ -114,3 +114,5 @@ export { TextInputScene } from "./scenes/text-input-scene.js";
 export { DevConsole, num } from "./core/console.js";
 export { ConsoleScene } from "./scenes/console-scene.js";
 export { LineInputScene } from "./scenes/line-input-scene.js";
+export { RARITIES, rarityOf, rarityWeights, rollRarity, chance, pickWeighted as pickWeightedKey } from "./economy/loot.js";
+export { TradeScene } from "./scenes/trade-scene.js";

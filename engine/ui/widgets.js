@@ -88,6 +88,8 @@ export function drawInventoryGrid(ui, inventory, itemInfo, { cols = 5, size = 10
 // Предмет в ячейке: значок (свой или цветной квадрат), название, количество
 export function drawItem(ui, itemInfo, slot, x, y, size, { name = true } = {}) {
   const info = itemInfo(slot.item);
+  // Цвет экземпляра (редкость: data.color) — рамка по краю ячейки
+  if (slot.data?.color) ui.frame(x + 2, y + 2, size - 4, size - 4, slot.data.color, 3);
   const icon = Math.round(size * 0.48);
   const ix = x + size / 2 - icon / 2;
   const iy = y + size * 0.14;
