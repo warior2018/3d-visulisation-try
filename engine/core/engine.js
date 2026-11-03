@@ -50,7 +50,7 @@ export const ENGINE_DEFAULTS = {
   version: 1,
   video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true, lighting: true },
   interface: { language: "en", showFps: false }, // язык надписей (engine/ui/i18n.js), счётчик FPS слева сверху
-  audio: { master: 80, effects: 100 },
+  audio: { master: 80, effects: 100, music: 60, voices: 100 }, // каналы громкости (engine/audio/sound.js)
   controls: {
     sensitivity: 5, // 1–10
     aimSensitivity: 100, // в прицеле, % от того, что задаёт оружие (engine/input/aim.js)
@@ -351,7 +351,10 @@ export class Engine {
     if (all || what === "brightness") this.renderer.brightness = s.video.brightness / 100;
     if (all || what === "lighting") this.renderer.setLighting?.(s.video.lighting !== false);
     if ((all || what === "vsync") && this.renderer.vsync !== s.video.vsync) this.renderer.setVsync(s.video.vsync);
-    if (all || what === "audio") this.sound.setVolume((s.audio.master / 100) * (s.audio.effects / 100));
+    if (all || what === "audio") {
+      this.sound.setVolume(s.audio.master / 100);
+      this.sound.setChannels({ effects: s.audio.effects / 100, music: s.audio.music / 100, voices: s.audio.voices / 100 });
+    }
     if (all || what === "mouse") this.mouse.sensitivity = 0.0005 * s.controls.sensitivity;
     if (all || what === "language") locale.set(s.interface?.language);
     if (what === "language" || what === "fps") this.redraw();
@@ -567,6 +570,7 @@ export class Engine {
     const dt = this.smoothDt(raw);
     this.syncSize();
 
+    this.sound.update?.(); // микшер: долить смесь (музыка, длинные звуки)
     if (this.toastState && start > this.toastState.until) {
       this.toastState = null;
       this.redraw();
@@ -671,6 +675,7 @@ export class Engine {
     const saved = (what, fn) => (v) => { fn(v); this.settings.save(); this.applySettings(what); };
     c.cvar("sensitivity", { help: "sensitivity <1..10> - mouse sensitivity", get: () => S().controls.sensitivity, set: saved("mouse", (v) => { S().controls.sensitivity = Math.max(1, Math.min(10, num(v))); }) });
     c.cvar("invert_y", { help: "invert_y 0/1 - invert mouse up/down", get: () => (S().controls.invertY ? 1 : 0), set: saved("mouse", (v) => { S().controls.invertY = v !== "0"; }) });
+    c.cvar("music", { help: "music <0..100> - music volume", get: () => S().audio.music, set: saved("audio", (v) => { S().audio.music = Math.round(Math.max(0, Math.min(100, num(v)))); }) });
     c.cvar("volume", { help: "volume <0..100> - master volume", get: () => S().audio.master, set: saved("audio", (v) => { S().audio.master = Math.round(Math.max(0, Math.min(100, num(v)))); }) });
     c.command("binds", { help: "binds - all actions and their keys", run: () => Object.entries(S().controls.bindings).map(([a, b]) => `${a} = ${b}`) });
     c.command("bind", { help: "bind <action> <key> - put an action on a key (bind jump space, bind shop b, bind primary mouse:left)", run: ([action, key]) => {

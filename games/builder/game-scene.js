@@ -32,6 +32,7 @@ import { BossesPart } from "./scene/bosses.js";
 import { InteractPart } from "./scene/interact.js";
 import { LootPart } from "./scene/loot.js";
 import { MountPart } from "./scene/mount.js";
+import { AudioPart } from "./scene/audio.js";
 import { HostNet, ClientNet } from "./scene/net.js";
 import { Chat } from "./scene/chat.js";
 import { registerCommands } from "./scene/commands.js";
@@ -358,6 +359,7 @@ export class GameScene extends Scene {
     player.speedBonuses.lock = this.actionLock.moveSpeed;
     this.updateStance(dt); //  катана в руках — стойка: ниже рост и глаза
     this.mountCd = Math.max(0, (this.mountCd || 0) - dt); // перезарядка маунта (MOUNT)
+    this.updateAudio(dt); // музыка (мир / бой / нашествие) и эхо вокруг (scene/audio.js)
     let move;
     if (player.mount) move = this.rideTick(dt); // верхом: ведём скакуна (scene/mount.js)
     else {
@@ -668,4 +670,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart]);

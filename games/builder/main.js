@@ -17,6 +17,7 @@ import { loadModels } from "./load-models.js";
 import { migrateOldSaves, touchWorld, setProfile } from "./save.js";
 import { MainMenu } from "./menu.js";
 import { installSkins } from "./skins.js";
+import { loadMusic } from "./music.js";
 import { ITEMS } from "./items.js";
 import { RU } from "./lang/ru.js";
 
@@ -56,6 +57,9 @@ const engine = await Engine.create({
   }
 }
 engine.sound.defineAll(SOUNDS);
+// голоса существ — свой канал громкости (VOICES)
+for (const v of ["growl", "mobDeath"]) engine.sound.define(v, SOUNDS[v], { channel: "voices" });
+loadMusic(engine.sound); // музыка: мир / бой / нашествие (music.js)
 // Языки: надписи в коде — английские, русский — словарём (настройки → INTERFACE → LANGUAGE)
 engine.locale.add("ru", RU);
 engine.applySettings("language");

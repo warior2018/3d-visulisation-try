@@ -473,6 +473,10 @@ export const SOUNDS = {
   trapSet: mix(tone(300, 200, 90, 6), noise(40, 10, 0.6)), //         поставил ловушку
 };
 
+// Музыка и окружение звука (scene/audio.js): раз в every с решаем трек; бой — моб охотится на героя ближе
+// fightRadius, держится fightHold с после; смена треков — fade с; эхо — лучи до echoRange м
+export const MUSIC_STATE = { every: 0.5, fightRadius: 32, fightHold: 6, fade: 2.5, echoRange: 10 };
+
 // Объёмный звук: до refDistance — в полную силу, дальше maxDistance — не слышно (≈ дальность прорисовки)
 export const HEARING = { refDistance: 3, maxDistance: 45, rolloff: 1 };
 

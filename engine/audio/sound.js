@@ -14,8 +14,14 @@
 //   - сзади — чуть глуше.
 //  Без at — звук «в голове» (интерфейс, свои шаги и выстрелы).
 //
-//  СМЕШИВАНИЕ. Звуки накладываются, а не перебивают друг друга: при новом звуке берём
-//  то, что ещё не проиграно (хвост очереди), подмешиваем новый и отдаём заново.
+//  СМЕШИВАНИЕ (микшер). Играющие звуки — «голоса»: у каждого своя позиция. Устройству отдаём смесь
+//  на LEAD секунд вперёд (update() каждый кадр доливает). Новый звук должен зазвучать СРАЗУ, а не через
+//  LEAD: тогда «отматываем» голоса на то, что ещё не проиграно, чистим очередь и смешиваем заново — уже с ним.
+//
+//  КАНАЛЫ громкости: effects (по умолчанию), music, voices (голоса существ), ui. setChannels({ music: 0.5 }).
+//  МУЗЫКА: defineMusic(name, samples) — петля; music(name) — плавно сменить (crossfade), music(null) — тишина.
+//  ОКРУЖЕНИЕ: environment = (at) => ({ muffle 0..1, echo 0..1 }) — игра говорит, глушат ли звук стены
+//  (между ушами и точкой) и эхо (пещера, тесная комната). Звук обрабатывается один раз и кэшируется.
 // ============================================================
 
 import sdl from "@kmamal/sdl";
@@ -57,15 +63,51 @@ export function mix(...sounds) {
   return out.map((v) => Math.max(-1, Math.min(1, v)));
 }
 
+export const LEAD = 0.25; // сколько секунд смеси держим в очереди устройства
+
+// Обработанная копия звука: muffle — глуше (стены: срезаем высокие), echo — эхо (3 отражения)
+export function processSamples(src, { muffle = 0, echo = 0 } = {}) {
+  let out = src;
+  if (muffle > 0) {
+    const a = 1 - 0.88 * muffle; // одно-полюсный фильтр: чем меньше a, тем глуше
+    out = new Float32Array(src.length);
+    let y = 0;
+    for (let i = 0; i < src.length; i++) out[i] = y += (src[i] - y) * a;
+    const k = 1 - 0.45 * muffle; // сквозь стену ещё и тише
+    for (let i = 0; i < out.length; i++) out[i] *= k;
+  }
+  if (echo > 0) {
+    const taps = [[0.09, 0.45], [0.17, 0.3], [0.28, 0.18]].map(([t, g]) => [Math.round(t * RATE), g * echo]);
+    const extra = taps.at(-1)[0];
+    const e = new Float32Array(out.length + extra);
+    e.set(out);
+    for (const [d, g] of taps) for (let i = 0; i < out.length; i++) e[i + d] += out[i] * g;
+    for (let i = 0; i < e.length; i++) e[i] = Math.max(-1, Math.min(1, e[i]));
+    out = e;
+  }
+  return out;
+}
+
 export class Sound {
   // hearing: refDistance — до этого расстояния в полную силу; maxDistance — дальше не слышно;
-  // rolloff — как быстро затихает (1 — естественно: вдвое дальше — примерно вдвое тише)
-  constructor({ refDistance = 3, maxDistance = 45, rolloff = 1 } = {}) {
-    this.volume = 1; // 0..1
+  // rolloff — как быстро затихает (1 — естественно: вдвое дальше — примерно вдвое тише).
+  // device — своё устройство (тесты): { play, clear, put(buffer), queued() → байт в очереди, close }
+  constructor({ refDistance = 3, maxDistance = 45, rolloff = 1, device = undefined } = {}) {
+    this.volume = 1; // общая громкость 0..1 (master)
+    this.channels = { effects: 1, music: 1, voices: 1, ui: 1 };
     this.hearing = { refDistance, maxDistance, rolloff };
     this.listener = null; // { x, y, z, yaw } — где «уши» (обычно глаза героя)
-    this.tail = new Float32Array(0); // что последнее отдали в очередь (стерео: L, R, L, R...)
     this.sounds = { click: tone(1400, 1100, 35, 6) }; // щелчок кнопок интерфейса — свой у движка
+    this.channelOf = { click: "ui" };
+    this.tracks = {}; //  музыка: имя -> сэмплы (петля)
+    this.voices = []; //  что играет: { buf, pos, gl, gr, channel, loop, gain, target, rate }
+    this.current = null; // имя музыки, что играет (или затихает к ней)
+    this.environment = null; // (at) => { muffle, echo } — от игры
+    this.processed = new Map(); // кэш обработанных звуков
+    if (device !== undefined) {
+      this.device = device;
+      return;
+    }
     try {
       // Стерео, 48 кГц, числа float32; маленький буфер — меньше задержка между кликом и звуком.
       // Библиотека окна бывает двух версий: SDL3 (@kmamal/sdl 1.x) и SDL2 (0.11) — звук открывается по-разному.
@@ -84,18 +126,28 @@ export class Sound {
     }
   }
 
-  // Добавить звук (массив чисел -1..1) под именем
-  define(name, samples) {
+  // Добавить звук (массив чисел -1..1) под именем; channel — канал громкости (effects / voices / ui)
+  define(name, samples, { channel = "effects" } = {}) {
     this.sounds[name] = samples;
+    this.channelOf[name] = channel;
   }
 
   // Несколько сразу: { place: tone(...), remove: tone(...) }
-  defineAll(map) {
-    for (const [name, samples] of Object.entries(map)) this.define(name, samples);
+  defineAll(map, opts) {
+    for (const [name, samples] of Object.entries(map)) this.define(name, samples, opts);
+  }
+
+  defineMusic(name, samples) {
+    this.tracks[name] = samples;
   }
 
   setVolume(volume) {
     this.volume = Math.max(0, Math.min(1, volume));
+  }
+
+  // Громкость каналов: { effects, music, voices, ui } (0..1)
+  setChannels(map) {
+    for (const [k, v] of Object.entries(map)) this.channels[k] = Math.max(0, Math.min(1, Number(v) || 0));
   }
 
   // Где «уши»: позиция и поворот (yaw, как у камеры)
@@ -125,34 +177,138 @@ export class Sound {
     return { gain, pan: right * Math.min(1, flat / ref) }; // совсем рядом — почти по центру
   }
 
-  // Проиграть. at — точка мира (объёмный звук), volume — своя громкость звука
-  play(name, { at = null, volume = 1 } = {}) {
-    const samples = this.sounds[name];
-    if (!this.device || !samples || this.volume === 0) return;
+  // Звук с окружением: стены глушат, пещера — эхо (кэш по ступеням 0 / ⅓ / ⅔ / 1)
+  shaped(name, env) {
+    const q = (v) => Math.round(Math.max(0, Math.min(1, v || 0)) * 3) / 3;
+    const muffle = q(env?.muffle), echo = q(env?.echo);
+    const src = this.sounds[name];
+    if (!muffle && !echo) return src;
+    const key = `${name}|${muffle}|${echo}`;
+    if (!this.processed.has(key)) this.processed.set(key, processSamples(src, { muffle, echo }));
+    return this.processed.get(key);
+  }
+
+  // Проиграть. at — точка мира (объёмный звук), volume — своя громкость звука, channel — канал (иначе — как
+  // при define). env — окружение (иначе спросим environment(at), если игра его дала)
+  play(name, { at = null, volume = 1, channel = null, env = undefined } = {}) {
+    if (!this.device || !this.sounds[name] || this.volume === 0) return;
+    const ch = channel || this.channelOf[name] || "effects";
     const { gain, pan } = this.spatial(at);
-    const g = gain * volume * this.volume;
-    if (g < 0.01) return; // слишком далеко — не тратим время
+    const g = gain * volume;
+    if (g * this.volume * (this.channels[ch] ?? 1) < 0.01) return; // слишком далеко или канал выключен
+    const e = env !== undefined ? env : this.environment?.(at) || null;
+    const buf = this.shaped(name, e);
     // Равномощная панорама: в центре оба канала по ~0.7, сбоку — один громче
     const angle = ((pan + 1) * Math.PI) / 4;
-    const gl = Math.cos(angle) * Math.SQRT2 * g;
-    const gr = Math.sin(angle) * Math.SQRT2 * g;
+    this.rewind();
+    this.voices.push({ buf, pos: 0, gl: Math.cos(angle) * Math.SQRT2 * g, gr: Math.sin(angle) * Math.SQRT2 * g, channel: ch, loop: false, gain: 1, target: 1, rate: 0 });
+    this.refill(true);
+  }
 
-    // Хвост: что из прошлых звуков ещё не проиграно (в очереди устройства)
-    const queuedFrames = Math.floor((this.device.queued() || 0) / 8); // 2 канала × 4 байта
-    const tailFrames = Math.min(queuedFrames, this.tail.length / 2);
-    const frames = Math.max(tailFrames, samples.length);
-    const out = new Float32Array(frames * 2);
-    out.set(this.tail.subarray(this.tail.length - tailFrames * 2));
-    for (let i = 0; i < samples.length; i++) {
-      out[i * 2] = Math.max(-1, Math.min(1, out[i * 2] + samples[i] * gl));
-      out[i * 2 + 1] = Math.max(-1, Math.min(1, out[i * 2 + 1] + samples[i] * gr));
+  // Музыка: плавно (fade с) перейти на трек name; null — затихнуть. Тот же трек — ничего
+  music(name, { fade = 2 } = {}) {
+    if (name === this.current) return;
+    this.current = name;
+    const step = 1 / Math.max(0.05, fade) / RATE; // на сколько меняется громкость за сэмпл
+    for (const v of this.voices) if (v.channel === "music") { v.target = 0; v.rate = step; }
+    const buf = name && this.tracks[name];
+    if (!buf || !this.device) return;
+    this.rewind();
+    this.voices.push({ buf, pos: 0, gl: 1, gr: 1, channel: "music", loop: true, gain: 0, target: 1, rate: step, name });
+    this.refill(true);
+  }
+
+  // Каждый кадр: долить смесь в очередь (музыка и длинные звуки не кончаются на полуслове)
+  update() {
+    if (this.device && this.voices.length) this.refill(false);
+  }
+
+  queuedFrames() {
+    return Math.floor((Number(this.device?.queued?.()) || 0) / 8); // 2 канала × 4 байта
+  }
+
+  // То, что лежит в очереди, но ещё не прозвучало, — «вернуть» голосам (их позиции назад), очередь — очистить
+  rewind() {
+    const q = this.queuedFrames();
+    if (!q) return;
+    for (const v of this.voices) {
+      v.pos -= q;
+      if (v.loop && v.pos < 0) v.pos = ((v.pos % v.buf.length) + v.buf.length) % v.buf.length;
+      if (v.rate) v.gain = Math.max(0, Math.min(1, v.gain - Math.sign(v.target - v.gain) * v.rate * q)); // и затухание назад
     }
-    this.device.clear(); // старая очередь — заменяем смешанной
-    this.device.put(Buffer.from(out.buffer));
-    this.tail = out;
+    this.device.clear();
+  }
+
+  // Смешать и отдать, чтобы в очереди было не меньше LEAD с (force — после rewind: с нуля)
+  refill(force) {
+    const want = Math.round(LEAD * RATE);
+    const have = force ? 0 : this.queuedFrames();
+    if (have >= want / 2 && !force) return;
+    const n = want - have;
+    const out = this.render(n);
+    if (out) this.device.put(Buffer.from(out.buffer));
+  }
+
+  // Смесь всех голосов на n кадров вперёд (стерео L, R, L, R...); голоса сдвигаются на n
+  render(n) {
+    const out = new Float32Array(n * 2);
+    const master = this.volume;
+    for (const v of this.voices) {
+      const chGain = master * (this.channels[v.channel] ?? 1);
+      const len = v.buf.length;
+      for (let i = 0; i < n; i++) {
+        let idx = v.pos + i;
+        if (idx < 0) continue;
+        if (idx >= len) {
+          if (!v.loop) break;
+          idx %= len;
+        }
+        if (v.rate && v.gain !== v.target) v.gain = v.gain < v.target ? Math.min(v.target, v.gain + v.rate) : Math.max(v.target, v.gain - v.rate);
+        const s = v.buf[idx] * v.gain * chGain;
+        out[i * 2] += s * v.gl;
+        out[i * 2 + 1] += s * v.gr;
+      }
+      v.pos += n;
+      if (v.loop) v.pos %= len;
+    }
+    for (let i = 0; i < out.length; i++) out[i] = Math.max(-1, Math.min(1, out[i]));
+    // Отыгравшие (с запасом на «отмотку» — их хвост может быть ещё в очереди) и затихшую музыку — убираем
+    const keep = Math.round(LEAD * RATE) * 2;
+    this.voices = this.voices.filter((v) => (v.loop ? !(v.target === 0 && v.gain === 0) : v.pos < v.buf.length + keep));
+    return out;
   }
 
   close() {
     if (this.device) this.device.close();
   }
+}
+
+// WAV (PCM 16 бит или float 32, моно/стерео) → моно Float32Array на 48 кГц (свою музыку можно положить файлом)
+export function decodeWAV(buf) {
+  const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const tag = (o) => String.fromCharCode(u8[o], u8[o + 1], u8[o + 2], u8[o + 3]);
+  if (tag(0) !== "RIFF" || tag(8) !== "WAVE") throw new Error("not a WAV file");
+  let fmt = null, data = null;
+  for (let o = 12; o + 8 <= u8.length;) {
+    const id = tag(o), size = dv.getUint32(o + 4, true);
+    if (id === "fmt ") fmt = { format: dv.getUint16(o + 8, true), channels: dv.getUint16(o + 10, true), rate: dv.getUint32(o + 12, true), bits: dv.getUint16(o + 22, true) };
+    if (id === "data") data = { start: o + 8, size };
+    o += 8 + size + (size & 1);
+  }
+  if (!fmt || !data) throw new Error("WAV without fmt/data");
+  const bytes = fmt.bits / 8, frames = Math.floor(data.size / (bytes * fmt.channels));
+  const read = (i, c) => {
+    const o = data.start + (i * fmt.channels + c) * bytes;
+    return fmt.format === 3 ? dv.getFloat32(o, true) : fmt.bits === 16 ? dv.getInt16(o, true) / 32768 : (u8[o] - 128) / 128;
+  };
+  const k = fmt.rate / RATE, n = Math.floor(frames / k);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const src = Math.min(frames - 1, Math.floor(i * k));
+    let sum = 0;
+    for (let c = 0; c < fmt.channels; c++) sum += read(src, c);
+    out[i] = sum / fmt.channels;
+  }
+  return out;
 }

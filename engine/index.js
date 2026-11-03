@@ -49,7 +49,7 @@ export { MapScene } from "./scenes/map-scene.js";
 // Ввод и звук
 export { Input, KEYS } from "./input/input.js";
 export { MouseLook } from "./input/mouse.js";
-export { Sound, tone, noise, mix } from "./audio/sound.js";
+export { Sound, tone, noise, mix, processSamples, decodeWAV, LEAD } from "./audio/sound.js";
 
 // Мир: сущности, инвентарь, физика, управление, кубики
 export { Entity, EntityManager } from "./world/entity.js";

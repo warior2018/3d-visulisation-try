@@ -17,6 +17,7 @@ export class SessionPart {
 
   enter() {
     Object.assign(this.engine.sound.hearing, HEARING); // объёмный звук: радиус слышимости и затухание (config.js)
+    this.engine.sound.environment = (at) => this.soundEnvironment(at); // стены глушат, в пещере — эхо (scene/audio.js)
     // Мир из слота: размер и летающие острова (info.json; старые миры — с полом, большие)
     const info = this.role === "client" ? {} : worldInfo();
     this.world.floor = !info.floating;
@@ -191,6 +192,7 @@ export class SessionPart {
   }
 
   exit() {
+    this.engine.sound.environment = null;
     this.net?.close(); // сетевая игра — закрыть (гости отключатся / мы отключимся от хоста)
     this.net = null;
     this.ultimate?.detach(); // перестать слушать журнал боя

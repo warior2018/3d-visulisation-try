@@ -299,7 +299,10 @@ export class MainMenu extends Scene {
   // Верхняя полоса: ИГРАТЬ по центру (крупно, раз в 10 с по ней пробегает блик), слева вкладки, справа значки
   drawTopBar(ui) {
     const th = ui.theme;
-    const pw = Math.min(340, ui.width * 0.26), ph = 62, cy = 38;
+    // одна сплошная полоса во всю ширину; ИГРАТЬ — выше и шире, выступает вниз из полосы
+    const barH = 48, pw = Math.min(340, ui.width * 0.26), ph = 66, cy = ph / 2;
+    ui.rect(0, 0, ui.width, barH, th.window.titleBar, 250);
+    ui.rect(0, barH, ui.width, 2, th.window.border, 255);
     ui.button("tab:play", "PLAY", ui.width / 2, cy, pw, ph, 4, this.tab === "play");
     // блик: светлая полоса наискось слева направо
     const t = (this.clock || 0) % SHIMMER.every;
@@ -320,17 +323,19 @@ export class MainMenu extends Scene {
       }
       ui.dirty = true;
     }
-    const sw = 150, sh = 40;
-    LEFT_TABS.forEach((tb, i) => ui.button("tab:" + tb.id, tb.label, 14 + sw / 2 + i * (sw + 8), cy, sw, sh, 2, this.tab === tb.id));
-    const iw = 48;
+    // вкладки слева — встык друг к другу и к левому краю, по высоте полосы
+    const sw = 150, sh = barH, by = barH / 2;
+    LEFT_TABS.forEach((tb, i) => ui.button("tab:" + tb.id, tb.label, sw / 2 + i * sw, by, sw + 1, sh, 2, this.tab === tb.id));
+    // значки справа — встык к правому краю
+    const iw = 56;
     ICON_TABS.forEach((tb, i) => {
-      const x = ui.width - 14 - iw / 2 - (ICON_TABS.length - 1 - i) * (iw + 8);
-      ui.button("tab:" + tb.id, "", x, cy, iw, sh + 4, 2, false);
-      drawTabIcon(ui, tb.icon, x, cy, tb.soon ? th.muted : th.text);
-      if (tb.icon === "friends") ui.text("0", x + 12, cy + 5, 1, th.muted);
-      if (ui.isInside(ui.mouseX, ui.mouseY, x - iw / 2, cy - sh / 2, iw, sh)) {
-        ui.text(tb.label, Math.min(ui.width - 10, x + iw / 2), cy + sh / 2 + 10, 1, th.muted, "right");
-        if (tb.soon) ui.text("SOON", Math.min(ui.width - 10, x + iw / 2), cy + sh / 2 + 22, 1, th.warn, "right");
+      const x = ui.width - iw / 2 - (ICON_TABS.length - 1 - i) * iw;
+      ui.button("tab:" + tb.id, "", x, by, iw + 1, sh, 2, false);
+      drawTabIcon(ui, tb.icon, x, by, tb.soon ? th.muted : th.text);
+      if (tb.icon === "friends") ui.text("0", x + 12, by + 5, 1, th.muted);
+      if (ui.isInside(ui.mouseX, ui.mouseY, x - iw / 2, 0, iw, sh)) {
+        ui.text(tb.label, Math.min(ui.width - 10, x + iw / 2), barH + 10, 1, th.muted, "right");
+        if (tb.soon) ui.text("SOON", Math.min(ui.width - 10, x + iw / 2), barH + 22, 1, th.warn, "right");
       }
     });
   }
@@ -506,6 +511,11 @@ export class MainMenu extends Scene {
     if (e.scancode === KEYS.LEFT) this.turn(1); //   ← — центральный уходит в конец, в центр — тот, что слева
     if (e.scancode === KEYS.RIGHT) this.turn(-1); // → — обратно
     if (e.scancode === KEYS.RETURN) this.onButton("play");
+  }
+
+  enter() {
+    this.engine.sound.environment = null; // в меню — без стен и эха
+    this.engine.sound.music("calm");
   }
 
   exit() {

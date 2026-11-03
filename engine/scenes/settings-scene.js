@@ -101,6 +101,10 @@ export class SettingsScene extends Scene {
             change: (dir) => { step(s.audio, "master", dir, 10, 0, 100); e.applySettings("audio"); } },
           { id: "effects", label: "EFFECTS", arrows: true, value: () => `${s.audio.effects}%`,
             change: (dir) => { step(s.audio, "effects", dir, 10, 0, 100); e.applySettings("audio"); } },
+          { id: "music", label: "MUSIC", arrows: true, value: () => `${s.audio.music ?? 60}%`,
+            change: (dir) => { step(s.audio, "music", dir, 10, 0, 100); e.applySettings("audio"); } },
+          { id: "voices", label: "VOICES", arrows: true, value: () => `${s.audio.voices ?? 100}%`,
+            change: (dir) => { step(s.audio, "voices", dir, 10, 0, 100); e.applySettings("audio"); } },
         ],
       },
       {
