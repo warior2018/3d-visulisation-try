@@ -44,6 +44,7 @@ import { drawToast, drawTechPanel } from "../ui/widgets.js";
 import { Input } from "../input/input.js";
 import { MouseLook } from "../input/mouse.js";
 import { Sound } from "../audio/sound.js";
+import { Gamepad, PAD_DEFAULTS } from "../input/gamepad.js";
 
 // Настройки, которые есть у любой игры на движке. Игра добавляет свои (deepMerge).
 export const ENGINE_DEFAULTS = {
@@ -52,6 +53,8 @@ export const ENGINE_DEFAULTS = {
   interface: { language: "en", showFps: false }, // язык надписей (engine/ui/i18n.js), счётчик FPS слева сверху
   audio: { master: 80, effects: 100, music: 60, voices: 100 }, // каналы громкости (engine/audio/sound.js)
   controls: {
+    pad: { ...PAD_DEFAULTS }, // геймпад: действие → кнопка (engine/input/gamepad.js)
+    padSensitivity: 5, //  скорость взгляда стиком, 1–10
     sensitivity: 5, // 1–10
     aimSensitivity: 100, // в прицеле, % от того, что задаёт оружие (engine/input/aim.js)
     invertY: false,
@@ -173,6 +176,9 @@ export class Engine {
     this.ui = new UI(window.width, window.height);
     this.ui.theme = makeTheme(theme);
     this.input = new Input(window, settings.data.controls.bindings);
+    // Геймпад: те же действия, что и клавиши (engine/input/gamepad.js); в меню — курсор и клик
+    this.pad = new Gamepad({ bindings: settings.data.controls.pad, onButton: (b, down) => this.padButton(b, down) });
+    this.input.pad = this.pad;
     this.mouse = new MouseLook(window);
     this.sound = new Sound();
 
@@ -500,6 +506,47 @@ export class Engine {
     scene.onPress(actions, event);
   }
 
+  // Геймпад каждый кадр: в мире правый стик — взгляд (как мышь), в меню любой стик — курсор
+  updatePad(dt) {
+    const pad = this.pad;
+    if (!pad?.connected) return;
+    const s = this.settings.data.controls;
+    if (this.scene?.captureMouse) {
+      const d = pad.look(dt, (s.padSensitivity ?? 5) / 5);
+      const k = this.mouse.sensitivity || 1;
+      this.mouse.dx += d.dx / k;
+      this.mouse.dy += (s.invertY ? -d.dy : d.dy) / k;
+      return;
+    }
+    const a = pad.stick("left"), b = pad.stick("right");
+    const x = a.x + b.x, y = a.y + b.y;
+    if (!x && !y) return;
+    this.ensureUI();
+    const speed = 900 * dt;
+    const nx = Math.max(0, Math.min(this.ui.width - 1, (this.ui.mouseX < 0 ? this.ui.width / 2 : this.ui.mouseX) + x * speed));
+    const ny = Math.max(0, Math.min(this.ui.height - 1, (this.ui.mouseY < 0 ? this.ui.height / 2 : this.ui.mouseY) + y * speed));
+    this.scene?.onMouseMove?.({ x: nx, y: ny });
+    this.ui.setMouse(Math.round(nx), Math.round(ny));
+    this.redraw();
+  }
+
+  // Кнопка геймпада: в мире — действие (как клавиша); в меню south (A) — клик там, где курсор
+  padButton(button, down) {
+    if (!down || !this.scene) return;
+    this.lastPad = performance.now();
+    if (!this.scene.captureMouse && button === "south") {
+      this.ensureUI();
+      const id = this.ui.hitTest(this.ui.mouseX, this.ui.mouseY);
+      if (id) {
+        this.sound.play("click");
+        this.scene.onButton(id, {});
+      } else this.scene.onMouseDown?.({ x: this.ui.mouseX, y: this.ui.mouseY, button: "left" });
+      this.redraw();
+      return;
+    }
+    this.press({ pad: button });
+  }
+
   // ---------- Цикл ----------
 
   run() {
@@ -571,6 +618,7 @@ export class Engine {
     this.syncSize();
 
     this.sound.update?.(); // микшер: долить смесь (музыка, длинные звуки)
+    this.updatePad(dt);
     if (this.toastState && start > this.toastState.until) {
       this.toastState = null;
       this.redraw();
@@ -677,6 +725,16 @@ export class Engine {
     c.cvar("invert_y", { help: "invert_y 0/1 - invert mouse up/down", get: () => (S().controls.invertY ? 1 : 0), set: saved("mouse", (v) => { S().controls.invertY = v !== "0"; }) });
     c.cvar("music", { help: "music <0..100> - music volume", get: () => S().audio.music, set: saved("audio", (v) => { S().audio.music = Math.round(Math.max(0, Math.min(100, num(v)))); }) });
     c.cvar("volume", { help: "volume <0..100> - master volume", get: () => S().audio.master, set: saved("audio", (v) => { S().audio.master = Math.round(Math.max(0, Math.min(100, num(v)))); }) });
+    c.command("padbinds", { help: "padbinds - gamepad buttons of all actions", run: () => [this.pad?.connected ? `GAMEPAD: ${this.pad.name}` : "NO GAMEPAD", ...Object.entries(this.pad?.bindings || {}).map(([a, b]) => `${a} = ${b}`)] });
+    c.command("padbind", { help: "padbind <action> <button> - gamepad button for an action (south, east, west, north, leftShoulder, rightTrigger, dpadUp...)", run: ([action, button]) => {
+      if (!action || !(action in S().controls.bindings) && !(action in PAD_DEFAULTS)) throw new Error(`no such action: ${action ?? ""}`);
+      if (!button) return `${action} = ${this.pad.bindings[action] ?? "-"}`;
+      S().controls.pad[action] = button;
+      this.pad.bindings[action] = button;
+      this.settings.save();
+      return `${action} = ${button}`;
+    } });
+    c.cvar("pad_sensitivity", { help: "pad_sensitivity <1..10> - gamepad look speed", get: () => S().controls.padSensitivity, set: saved("mouse", (v) => { S().controls.padSensitivity = Math.max(1, Math.min(10, num(v))); }) });
     c.command("binds", { help: "binds - all actions and their keys", run: () => Object.entries(S().controls.bindings).map(([a, b]) => `${a} = ${b}`) });
     c.command("bind", { help: "bind <action> <key> - put an action on a key (bind jump space, bind shop b, bind primary mouse:left)", run: ([action, key]) => {
       const b = S().controls.bindings;

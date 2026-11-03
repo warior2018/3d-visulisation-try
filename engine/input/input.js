@@ -58,6 +58,7 @@ export class Input {
   // Забыть нажатия, которые ещё никто не забрал (wasPressed). Движок зовёт, пока мир клавиш не читает
   // (меню, пауза, окно поверх мира): иначе пробел, нажатый в меню, — прыжок сразу после него
   flushPressed() {
+    this.pad?.flushPressed();
     if (this.pressedKeys.size) this.pressedKeys.clear();
     if (this.pressedButtons.size) this.pressedButtons.clear();
   }
@@ -66,6 +67,7 @@ export class Input {
   // кадра или тика — всё равно true (isDown бы его пропустил); одно нажатие — ровно один true, сколько бы тиков
   // ни прошло за кадр. Для прыжка, двойного прыжка и т. п. Клавиши и кнопки мыши
   wasPressed(action) {
+    if (this.pad?.wasPressed(action)) return true;
     const [type, name] = (this.bindings[action] || ":").split(":");
     const set = type === "key" ? this.pressedKeys : type === "mouse" ? this.pressedButtons : null;
     const code = type === "key" ? SC[name] : BUTTON[name];
@@ -74,8 +76,9 @@ export class Input {
     return true;
   }
 
-  // Зажато ли действие прямо сейчас (для ходьбы, бега)
+  // Зажато ли действие прямо сейчас (для ходьбы, бега). Геймпад (this.pad) — тоже
   isDown(action) {
+    if (this.pad?.isDown(action)) return true;
     const [type, name] = (this.bindings[action] || ":").split(":");
     if (type === "key") return this.keys.has(SC[name]);
     if (type === "mouse") return this.buttons.has(BUTTON[name]);
@@ -89,6 +92,7 @@ export class Input {
 
   // Какие действия запускает это событие. event: { scancode } или { button }
   actionsFor(event) {
+    if (event.pad !== undefined) return this.pad ? this.pad.actionsFor(event.pad) : []; // кнопка геймпада
     const binding = Input.bindingFromEvent(event);
     if (!binding) return [];
     return Object.keys(this.bindings).filter((a) => this.bindings[a] === binding);

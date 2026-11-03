@@ -48,6 +48,7 @@ export { MapScene } from "./scenes/map-scene.js";
 
 // Ввод и звук
 export { Input, KEYS } from "./input/input.js";
+export { Gamepad, PAD_DEFAULTS } from "./input/gamepad.js";
 export { MouseLook } from "./input/mouse.js";
 export { Sound, tone, noise, mix, processSamples, decodeWAV, LEAD } from "./audio/sound.js";
 

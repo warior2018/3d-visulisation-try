@@ -117,6 +117,8 @@ export class SettingsScene extends Scene {
             change: (dir) => { s.controls.aimSensitivity ??= 100; step(s.controls, "aimSensitivity", dir, 10, 20, 200); } },
           { id: "invert", label: "INVERT MOUSE", value: () => onOff(s.controls.invertY),
             change: () => { s.controls.invertY = !s.controls.invertY; } },
+          { id: "padSens", label: "GAMEPAD SENSITIVITY", arrows: true, value: () => (e.pad?.connected ? String(s.controls.padSensitivity ?? 5) : `${s.controls.padSensitivity ?? 5} (NO GAMEPAD)`),
+            change: (dir) => { s.controls.padSensitivity ??= 5; step(s.controls, "padSensitivity", dir, 1, 1, 10); } },
           { type: "bindings" },
         ],
       },

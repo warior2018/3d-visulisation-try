@@ -156,6 +156,7 @@ export class GameScene extends Scene {
     // Урон от героя (удар, выстрел, горение) — цифрой над целью: хедшот — крупно и красным, огонь — оранжевым
     e.onDamage = (d, dealt) => {
       this.mountHurt(e, dealt); // ранили героя или его скакуна — маунт исчезает (scene/mount.js)
+      if (e === this.player) this.engine.pad?.rumble(Math.min(1, 0.25 + dealt / 40), 140); // по нам попали — вибрация геймпада
       if (d.source !== this.player || e === this.player || this.settings.general.damageNumbers === false) return;
       const head = d.part === "head";
       // цвет цифры: хедшот — красный, крит — золотой, горение — оранжевый; иначе по виду урона (как в Dota):
