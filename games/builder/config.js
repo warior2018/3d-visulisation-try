@@ -5,6 +5,7 @@
 
 import { fileURLToPath } from "node:url";
 import { tone, noise, mix, ELEMENTS } from "../../engine/index.js";
+import { SKIN_DEFAULTS } from "./skins.js";
 
 // Огонь (ОГНЕННЫЕ ПУЛИ) поджигает при КАЖДОМ попадании (в движке по умолчанию — с шансом 50 %)
 ELEMENTS.fire.statusChance = 1;
@@ -25,6 +26,7 @@ export const BACKUP = { every: 600, keep: 2 };
 
 // Свои настройки игры — добавляются к настройкам движка (видео, аудио, управление)
 export const GAME_DEFAULTS = {
+  skins: { ...SKIN_DEFAULTS }, // выбранные скины: id цели → id скина (skins.js; вкладка SKINS в меню)
   general: {
     cameraMode: "first", // "first" — от 1-го лица, "third" — от 3-го
     minimap: true, //       показывать миникарту
@@ -34,6 +36,9 @@ export const GAME_DEFAULTS = {
     headBob: true, //      покачивание предмета в руке при ходьбе и беге (как в Minecraft; камера не качается)
     screenShake: true, //  тряска камеры от ударов, взрывов, приземлений и при быстром падении (прицел не сдвигает)
     autoLoot: true, //     автоподбор предметов рядом (V)
+    intro: true, //        заставка при запуске
+    uiStyle: 0, //         стиль окон (THEMES)
+    profileId: "", //      id игрока: к нему в мире привязан персонаж (создаётся при первом запуске)
   },
   controls: {
     bindings: {

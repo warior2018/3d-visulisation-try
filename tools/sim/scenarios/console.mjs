@@ -45,7 +45,7 @@ export default async function (t, g) {
   // гостю читы нельзя
   scene.role = "client";
   con.exec("give bone 1");
-  t.check("гость сетевой игры: читы запрещены", scene.itemCount("bone") === bones + 15 && /not allowed/.test(last()));
+  t.check("гость сетевой игры: читы запрещены", scene.itemCount("bone") === bones + 15 && /cheat - not for a guest/.test(last()));
   con.exec("pos");
   t.check("гость: обычные команды можно", /XYZ/.test(last()));
   scene.role = "solo";

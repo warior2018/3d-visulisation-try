@@ -124,6 +124,19 @@ export class ProgressionPart {
 
   // Одежда героя по классу (CLASSES[id].outfit — своя модель: стрелок в плаще, подрывник в комбинезоне;
   // боец и герой без класса — в юкате, "hero"). Сменилась — модель героя другая (анимации те же)
+  // Скины сменились (консоль skin): переодеть героя, модели от 1-го лица — заново
+  refreshSkins() {
+    const p = this.player;
+    if (p?.view) {
+      const name = p.view.name;
+      this.game.models.detach(p);
+      this.game.models.attach(p, name);
+    }
+    for (const vm of this.viewModels?.values() || []) if (vm.holder) this.game.models.detach(vm.holder);
+    this.viewModels?.clear();
+    this.viewModelName = null;
+  }
+
   dressHero() {
     const p = this.player;
     const name = CLASSES[this.playerClass]?.outfit || "hero";

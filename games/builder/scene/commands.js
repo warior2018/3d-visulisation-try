@@ -9,10 +9,13 @@ import { CREATURES } from "../creatures.js";
 import { ITEMS, isWeapon, isArmor } from "../items.js";
 import { CLASSES } from "../config.js";
 import { rarityData } from "./loot.js";
+import { SKIN_TARGETS, skinTarget, skinOf } from "../skins.js";
 
 export function registerCommands(g) {
   const c = g.engine.console;
-  c.allowCheats = () => g.role !== "client";
+  // Читы — только в мире, где их включили при создании (info.cheats; в старых мирах — включены), и не у гостя
+  c.allowCheats = () => g.role !== "client" && g.cheats !== false;
+  c.cheatsOff = () => (g.role === "client" ? "not for a guest of a network game" : "cheats are off in this world (a checkbox when you create a world)");
   const ahead = (dist) => {
     const p = g.player.position, y = g.look.yaw;
     const x = p.x + Math.sin(y) * dist, z = p.z + Math.cos(y) * dist;
@@ -64,6 +67,20 @@ export function registerCommands(g) {
     g.player.velocity.x = g.player.velocity.y = g.player.velocity.z = 0;
     g.groundY = undefined; // перенос — не прыжок: урона от падения за него нет
     return `AT ${x.toFixed(1)} ${p.y.toFixed(1)} ${z.toFixed(1)}`;
+  } });
+  // Скины — не чит (только внешний вид)
+  c.command("skin", { help: "skin <target> [skin] - change a skin (no target - list, no skin - choices)", run: ([id, sk]) => {
+    const S = g.engine.settings.data;
+    if (!id) return SKIN_TARGETS.map((t) => `${t.id}: ${skinOf(S, t).id} (${t.skins.map((s) => s.id).join(", ")})`);
+    const t = skinTarget(id);
+    if (!t) throw new Error(`no such target: ${id} (skin - list)`);
+    if (!sk) return `${t.id}: ${skinOf(S, t).id} (${t.skins.map((s) => s.id).join(", ")})`;
+    const s = t.skins.find((x) => x.id === sk.toLowerCase());
+    if (!s) throw new Error(`no such skin for ${t.id}: ${sk}`);
+    S.skins[t.id] = s.id;
+    g.engine.settings.save();
+    g.refreshSkins();
+    return `${t.id}: ${s.id}`;
   } });
   c.command("pos", { help: "pos - where you are", run: () => { const p = g.player.position; return `XYZ ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}, YAW ${Math.round((g.look.yaw * 180) / Math.PI)}`; } });
   c.command("invasion", { help: "invasion start [seconds] | stop", cheat: true, run: ([what, s]) => {

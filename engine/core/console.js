@@ -28,8 +28,12 @@ export class DevConsole {
           const c = this.commands.get(args[0].toLowerCase()) || this.cvars.get(args[0].toLowerCase());
           return c ? c.help || args[0] : `unknown: ${args[0]}`;
         }
-        const names = [...this.commands.keys(), ...[...this.cvars.keys()].map((n) => n + " (var)")].sort();
-        return ["COMMANDS: " + names.join(", "), "HELP <NAME> - DETAILS. TAB - COMPLETE, UP/DOWN - HISTORY"];
+        // * — чит: работает, только где читы разрешены (allowCheats)
+        const mark = (n, x) => (x.cheat ? "*" : "") + n;
+        const names = [...[...this.commands].map(([n, x]) => mark(n, x)), ...[...this.cvars].map(([n, x]) => mark(n, x) + " (var)")].sort((a, b) => a.replace("*", "").localeCompare(b.replace("*", "")));
+        const out = ["COMMANDS: " + names.join(", "), "HELP <NAME> - DETAILS. TAB - COMPLETE, UP/DOWN - HISTORY"];
+        if (names.some((n) => n.startsWith("*"))) out.push(`* - CHEAT${this.allowCheats() ? "" : ": " + (this.cheatsOff?.() || "NOT ALLOWED HERE")}`);
+        return out;
       },
     });
     this.command("clear", { help: "clear - clear the console", run: () => { this.lines.length = 0; this.version++; } });
@@ -80,7 +84,7 @@ export class DevConsole {
         continue;
       }
       if ((c || v).cheat && !this.allowCheats() && !(v && !args.length)) {
-        this.error(`${name}: cheats are not allowed here`);
+        this.error(`${name}: cheat - ${this.cheatsOff?.() || "not allowed here"}`);
         continue;
       }
       try {

@@ -116,10 +116,10 @@ export function listWorlds() {
 }
 
 // size — 1 / 2 / 3 (config: WORLD_SIZES); новые миры — летающие острова (floating)
-export function createWorld({ name, icon, size = 2, floating = true }) {
+export function createWorld({ name, icon, size = 2, floating = true, cheats = false }) {
   let id = 1;
   while (fs.existsSync(path.join(WORLDS, String(id)))) id++;
-  writeInfo(id, { name: String(name || `WORLD ${id}`).slice(0, 20), icon: icon || "island", size, floating, created: new Date().toISOString(), lastPlayed: Date.now() });
+  writeInfo(id, { name: String(name || `WORLD ${id}`).slice(0, 20), icon: icon || "island", size, floating, cheats: !!cheats, created: new Date().toISOString(), lastPlayed: Date.now() });
   return String(id);
 }
 

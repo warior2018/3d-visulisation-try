@@ -20,6 +20,7 @@ export class SessionPart {
     // Мир из слота: размер и летающие острова (info.json; старые миры — с полом, большие)
     const info = this.role === "client" ? {} : worldInfo();
     this.world.floor = !info.floating;
+    this.cheats = info.cheats !== false; // читы консоли (галочка при создании мира; у старых миров — включены)
     this.worldgen = worldgenFor(info.size || 3, !!info.floating);
     const saved = loadGame(this.world); // блоки — сразу в мир; null — нового мира ещё нет
     // Рельеф: по зерну из сохранения (кубики уже в blocks — только высота земли для расчётов)
@@ -38,6 +39,7 @@ export class SessionPart {
 
     const p = saved?.player;
     this.player = this.spawn("player", p || { x: 0, y: 0, z: 0 });
+    this.player.skinned = true; // свои скины (skins.js) — на своём герое
     // Туман войны на карте (движок: FogOfWar): что герой уже разведал — из сохранения
     this.fog = new FogOfWar(MAP_FOG);
     this.fog.load(saved?.fog);

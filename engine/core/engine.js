@@ -666,6 +666,21 @@ export class Engine {
     c.cvar("fps_show", { help: "fps_show 0/1 - FPS counter", get: () => (this.settings.data.interface.showFps ? 1 : 0), set: (v) => { this.settings.data.interface.showFps = v !== "0"; this.settings.save(); this.redraw(); } });
     c.cvar("brightness", { help: "brightness <30..200> - picture brightness, %", get: () => this.settings.data.video.brightness, set: (v) => { this.settings.data.video.brightness = Math.round(Math.max(30, Math.min(200, num(v)))); this.settings.save(); this.applySettings("brightness"); } });
     c.cvar("lighting", { help: "lighting 0/1 - block lighting (sky, shade under roofs, corners)", get: () => (this.settings.data.video.lighting !== false ? 1 : 0), set: (v) => { this.settings.data.video.lighting = v !== "0"; this.settings.save(); this.applySettings("lighting"); } });
+    // Не читы: настройки и клавиши — то же, что в окне настроек
+    const S = () => this.settings.data;
+    const saved = (what, fn) => (v) => { fn(v); this.settings.save(); this.applySettings(what); };
+    c.cvar("sensitivity", { help: "sensitivity <1..10> - mouse sensitivity", get: () => S().controls.sensitivity, set: saved("mouse", (v) => { S().controls.sensitivity = Math.max(1, Math.min(10, num(v))); }) });
+    c.cvar("invert_y", { help: "invert_y 0/1 - invert mouse up/down", get: () => (S().controls.invertY ? 1 : 0), set: saved("mouse", (v) => { S().controls.invertY = v !== "0"; }) });
+    c.cvar("volume", { help: "volume <0..100> - master volume", get: () => S().audio.master, set: saved("audio", (v) => { S().audio.master = Math.round(Math.max(0, Math.min(100, num(v)))); }) });
+    c.command("binds", { help: "binds - all actions and their keys", run: () => Object.entries(S().controls.bindings).map(([a, b]) => `${a} = ${b}`) });
+    c.command("bind", { help: "bind <action> <key> - put an action on a key (bind jump space, bind shop b, bind primary mouse:left)", run: ([action, key]) => {
+      const b = S().controls.bindings;
+      if (!action || !(action in b)) throw new Error(`no such action (binds - list): ${action ?? ""}`);
+      if (!key) return `${action} = ${b[action]}`;
+      b[action] = (key.includes(":") ? key : `key:${key}`).toUpperCase().replace(/^KEY:/, "key:").replace(/^MOUSE:/, "mouse:");
+      this.settings.save();
+      return `${action} = ${b[action]}`;
+    } });
     c.command("stats", { help: "stats - fps, frame time, ticks", run: () => `FPS ${this.fps ?? "-"}, FRAME ${(this.cpuAvg ?? 0).toFixed(2)} MS, TICK ${this.fixed.rate} HZ, TICKS ${this.fixed.count}, DROPPED ${this.fixed.dropped}, TIMESCALE ${this.timeScale}` });
     c.command("profile", { help: "profile - write a profiler report to log.txt (opens the profiler page)", run: () => {
       this.techPanel = 2;

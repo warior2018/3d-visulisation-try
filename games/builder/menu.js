@@ -15,15 +15,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Scene, Camera, Vec3, loadPNG, rarityOf, translate, widgets, KEYS } from "../../engine/index.js";
 import { CLASSES, WORLD_SIZES } from "./config.js";
-import { itemName } from "./items.js";
+import { itemName, ITEMS } from "./items.js";
+import { SKIN_CATEGORIES, SKIN_TARGETS, skinOf, drawSkinIcon } from "./skins.js";
 import { ABILITY_FOR_ITEM } from "./abilities.js";
 import { listWorlds, createWorld, deleteWorld, updateWorld, touchWorld, MAX_WORLDS } from "./save.js";
 
 const ICONS_DIR = fileURLToPath(new URL("./assets/world-icons/", import.meta.url));
 const TABS = [
   { id: "news", label: "WHAT'S NEW" },
-  { id: "settings", label: "SETTINGS" },
+  { id: "skins", label: "SKINS" },
   { id: "play", label: "PLAY" },
+  { id: "settings", label: "SETTINGS" },
   // { id: "multiplayer", label: "MULTIPLAYER" }, — сетевая игра пока закрыта (персонажи по id, позже — аккаунты)
   { id: "quit", label: "QUIT" },
 ];
@@ -57,6 +59,11 @@ export class MainMenu extends Scene {
     this.camera = new Camera({ position: new Vec3(0, 1.63, 5.9), fovDeg: 40 });
     this.camera.yaw = Math.PI; // смотрим на героя (он у начала координат, лицом к нам)
     this.hero = null; //  { key, entity } — герой показанного мира
+    // вкладка SKINS: раздел, выбранная цель (оружие, класс...), скин под мышью (примерка на герое)
+    this.skinCat = "weapons";
+    this.skinPick = null;
+    this.skinHover = null;
+    this.skinHero = null; // { key, entity }
     this.reload();
   }
 
@@ -112,6 +119,7 @@ export class MainMenu extends Scene {
       this.anim.set(w.id, a);
     });
     this.updateHero(dt);
+    this.updateSkinHero(dt);
     this.engine.redraw();
   }
 
@@ -128,7 +136,7 @@ export class MainMenu extends Scene {
       if (this.hero) models.detach(this.hero.entity);
       this.hero = null;
       if (key) {
-        const e = { position: new Vec3(0, 0, 0), yaw: 0, alive: true, hurtTime: 99, deadTime: 0, scale: 1, roll: 0, tilt: 0 };
+        const e = { position: new Vec3(0, 0, 0), yaw: 0, alive: true, hurtTime: 99, deadTime: 0, scale: 1, roll: 0, tilt: 0, skinned: true };
         try {
           models.attach(e, CLASSES[w.cls]?.outfit || "hero");
           const held = w.weapon && ABILITY_FOR_ITEM[w.weapon.item]?.()?.held;
@@ -147,8 +155,119 @@ export class MainMenu extends Scene {
   }
 
   view() {
-    if (this.tab !== "play" || !this.hero) return null;
-    return { camera: this.camera, world: null, characters: this.game.models.drawList([this.hero.entity]) };
+    const h = this.tab === "play" ? this.hero : this.tab === "skins" ? this.skinHero : null;
+    if (!h) return null;
+    return { camera: this.camera, world: null, characters: this.game.models.drawList([h.entity]) };
+  }
+
+  // Примерка на вкладке SKINS: герой в скине (класс) или герой с предметом в руке в скине; медленно вертится
+  updateSkinHero(dt) {
+    const models = this.game.models;
+    const t = this.tab === "skins" && SKIN_TARGETS.find((x) => x.id === this.skinPick);
+    const skin = t && (this.skinHover || skinOf(this.engine.settings.data, t).id);
+    const key = t && t.category !== "armor" ? `${t.id}:${skin}` : null;
+    if (this.skinHero?.key !== key) {
+      const yaw = this.skinHero?.entity.yaw || 0;
+      if (this.skinHero) models.detach(this.skinHero.entity);
+      this.skinHero = null;
+      if (key) {
+        const e = { position: new Vec3(0, 0, 0), yaw, alive: true, hurtTime: 99, deadTime: 0, scale: 1, roll: 0, tilt: 0, skinned: true, skinOverride: { [t.id]: skin } };
+        try {
+          models.attach(e, t.category === "character" ? t.models[0] : "hero");
+          const held = t.items[0] && ABILITY_FOR_ITEM[t.items[0]]?.()?.held;
+          if (held) {
+            models.hold(e, held.model, held);
+            e.view?.animator.setOverlay(held.pose ?? null);
+          }
+          e.view?.animator.setBase("Idle", 1);
+          this.skinHero = { key, entity: e };
+        } catch (err) {
+          this.engine.log("меню: примерка скина не показалась: " + err.message);
+        }
+      }
+    }
+    if (this.skinHero) {
+      this.skinHero.entity.yaw += dt * 0.7;
+      models.update([this.skinHero.entity], dt);
+    }
+  }
+
+  // Главные цвета модели цели (самые частые, до 5) — полоски-образец скина, если у цели нет значка (герои)
+  palette(t) {
+    this.palettes ||= new Map();
+    if (this.palettes.has(t.id)) return this.palettes.get(t.id);
+    const c = this.game.models.models.get(t.models[0])?.model.colors;
+    const count = new Map();
+    for (let i = 0; c && i < c.length; i += 3) {
+      const k = `${c[i].toFixed(2)},${c[i + 1].toFixed(2)},${c[i + 2].toFixed(2)}`;
+      count.set(k, (count.get(k) || 0) + 1);
+    }
+    const out = [...count].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k]) => k.split(",").map(Number));
+    this.palettes.set(t.id, out);
+    return out;
+  }
+
+  drawSwatch(ui, t, skin, x, y, w, h) {
+    const cols = this.palette(t);
+    if (!cols.length) return;
+    const sw = w / cols.length;
+    cols.forEach((c, i) => {
+      const p = (skin.paint && skin.paint(...c)) || c;
+      ui.rect(Math.round(x + i * sw), y, Math.ceil(sw), h, p.map((v) => Math.round(v * 255)), 255);
+    });
+  }
+
+  // Вкладка SKINS: разделы → предметы раздела → скины выбранного (клик — надеть; под мышью — примерка)
+  drawSkins(ui) {
+    const th = ui.theme;
+    const S = this.engine.settings.data;
+    const cw = Math.min(220, Math.floor((ui.width - 80) / SKIN_CATEGORIES.length) - 10);
+    SKIN_CATEGORIES.forEach((c, i) => ui.button("scat:" + c.id, c.name, ui.width / 2 + (i - (SKIN_CATEGORIES.length - 1) / 2) * (cw + 10), 92, cw, 38, 2, this.skinCat === c.id));
+    const list = SKIN_TARGETS.filter((t) => t.category === this.skinCat);
+    if (!list.some((t) => t.id === this.skinPick)) this.skinPick = list[0]?.id ?? null;
+    const box = this.heroBox(ui);
+    // слева — предметы раздела (значок — в надетом скине)
+    const left = 24, top = 140, cell = 104, cols = Math.max(1, Math.floor((box.x - left - 24) / (cell + 8)));
+    list.forEach((t, i) => {
+      const x = left + (i % cols) * (cell + 8), y = top + Math.floor(i / cols) * (cell + 30);
+      const on = t.id === this.skinPick;
+      ui.rect(x, y, cell, cell, th.window.fill, 235);
+      ui.frame(x, y, cell, cell, on ? th.accent : th.window.border, on ? 3 : 2);
+      const s = skinOf(S, t);
+      if (!drawSkinIcon(ui, ITEMS, t, s, x + cell * 0.22, y + cell * 0.18, cell * 0.56)) this.drawSwatch(ui, t, s, x + 14, y + 18, cell - 28, cell - 44);
+      if (s.id !== "default") ui.text(s.name, x + cell / 2, y + cell - 16, 1, th.accent, "center");
+      ui.text(t.name, x + cell / 2, y + cell + 6, 1, on ? th.text : th.muted, "center");
+      ui.buttons.push({ id: "spick:" + t.id, x, y, w: cell, h: cell + 22 });
+    });
+    // в центре — примерка (3D: окошко прозрачное); у брони пока только значок
+    const t = SKIN_TARGETS.find((x) => x.id === this.skinPick);
+    if (!t) return;
+    ui.text(t.name, box.x + box.w / 2, box.y - 34, 3, th.accent, "center");
+    ui.frame(box.x - 3, box.y - 3, box.w + 6, box.h + 6, th.window.border, 3);
+    if (t.category === "armor") {
+      const s = t.skins.find((x) => x.id === this.skinHover) || skinOf(S, t);
+      ui.rect(box.x, box.y, box.w, box.h, th.window.fill, 235);
+      drawSkinIcon(ui, ITEMS, t, s, box.x + box.w * 0.2, box.y + box.h * 0.25, box.w * 0.6);
+      ui.text("ARMOR ON THE HERO - LATER", box.x + box.w / 2, box.y + box.h - 30, 1, th.muted, "center");
+    } else ui.rect(box.x, box.y, box.w, box.h, [0, 0, 0], 0);
+    // справа — скины (все открыты)
+    const rx = box.x + box.w + 30, rw = Math.min(420, ui.width - rx - 24), ch = 84;
+    const mx = ui.mouseX, my = ui.mouseY;
+    this.skinHover = null;
+    t.skins.forEach((s, i) => {
+      const y = box.y + i * (ch + 10);
+      const worn = skinOf(S, t).id === s.id;
+      const over = mx >= rx && mx < rx + rw && my >= y && my < y + ch;
+      if (over) this.skinHover = s.id;
+      ui.rect(rx, y, rw, ch, th.window.fill, 240);
+      ui.frame(rx, y, rw, ch, worn ? th.accent : over ? th.text : th.window.border, worn ? 3 : 2);
+      if (!drawSkinIcon(ui, ITEMS, t, s, rx + 12, y + 12, ch - 24)) this.drawSwatch(ui, t, s, rx + 12, y + 12, ch - 24, ch - 24);
+      ui.text(s.name, rx + ch + 4, y + 14, 2, worn ? th.accent : th.text);
+      ui.text(s.text || "", rx + ch + 4, y + 40, 1, th.muted);
+      if (worn) ui.text("EQUIPPED", rx + rw - 12, y + 14, 1, th.accent, "right");
+      ui.buttons.push({ id: "sskin:" + s.id, x: rx, y, w: rw, h: ch });
+    });
+    ui.text("ALL SKINS ARE UNLOCKED FOR NOW", rx, box.y + t.skins.length * (ch + 10) + 8, 1, th.muted);
   }
 
   // окошко героя (там UI прозрачный — видно 3D) — внизу по центру
@@ -165,6 +284,7 @@ export class MainMenu extends Scene {
     TABS.forEach((t, i) => ui.button("tab:" + t.id, t.label, tw * i + tw / 2, 30, tw - 8, 44, 3, this.tab === t.id));
     if (this.tab === "play") this.drawPlay(ui);
     if (this.tab === "multiplayer") this.drawMultiplayer(ui);
+    if (this.tab === "skins") this.drawSkins(ui);
     const up = this.updater;
     if (up?.available) {
       const label = `UPDATE TO ${up.available.version}`;
@@ -256,6 +376,7 @@ export class MainMenu extends Scene {
     if (w.armor?.length) line(`ARMOR: ${w.armor.length}/4`, th.muted);
     if (w.hides) line(`TROLL HIDES: ${w.hides}`, th.muted);
     if (w.crowns) line(`BONE CROWNS: ${w.crowns}`, th.muted);
+    if (w.cheats !== false) line("CONSOLE CHEATS: ON", th.warn);
     const talents = Object.values(w.talents || {}).reduce((a, b) => a + b, 0);
     if (talents) line(`TALENT RANKS: ${talents}`, th.muted);
   }
@@ -273,7 +394,7 @@ export class MainMenu extends Scene {
   onButton(id) {
     const [kind, arg] = id.split(":");
     if (kind === "tab") {
-      if (arg === "play" || arg === "multiplayer") this.tab = arg;
+      if (arg === "play" || arg === "multiplayer" || arg === "skins") this.tab = arg;
       else this.actions[arg]?.();
       return;
     }
@@ -281,6 +402,16 @@ export class MainMenu extends Scene {
     if (kind === "update") return this.actions.update?.();
     if (kind === "host") return this.worlds[0] ? this.actions.host(this.worlds[0].id) : this.actions.toast?.("CREATE A WORLD FIRST");
     if (kind === "join") return this.actions.join();
+    if (kind === "scat") return void (this.skinCat = arg);
+    if (kind === "spick") return void (this.skinPick = arg);
+    if (kind === "sskin" && this.skinPick) {
+      this.engine.settings.data.skins[this.skinPick] = arg;
+      this.engine.settings.save();
+      this.engine.sound?.play?.("learn");
+      if (this.hero) this.game.models.detach(this.hero.entity); // герой мира — переодеть (новый скин)
+      this.hero = null;
+      return;
+    }
     const c = this.center;
     if (!c) return;
     if (kind === "play") {
@@ -306,8 +437,8 @@ export class MainMenu extends Scene {
     const n = this.worlds.length + 1;
     this.engine.push(new CreateWorldScene({
       icons: this.icons, iconIds: this.iconIds, name: `WORLD ${n}`,
-      onCreate: ({ name, icon, size }) => {
-        createWorld({ name: name || `WORLD ${n}`, icon, size, floating: true });
+      onCreate: ({ name, icon, size, cheats }) => {
+        createWorld({ name: name || `WORLD ${n}`, icon, size, floating: true, cheats });
         this.reload(); // новый — играли «только что»: он в центре
       },
     }));
@@ -351,6 +482,7 @@ export class CreateWorldScene extends Scene {
     this.name = name;
     this.icon = iconIds[Math.floor(Math.random() * iconIds.length)] || "island";
     this.size = 2;
+    this.cheats = false; // читы консоли в этом мире (выдать, призвать, бессмертие...) — только с галочкой
     this.onCreate = onCreate;
   }
 
@@ -361,7 +493,7 @@ export class CreateWorldScene extends Scene {
   drawUI(ui) {
     const th = ui.theme;
     widgets.drawDim(ui, 210);
-    const W = 620, H = 470, x = ui.width / 2 - W / 2, y = ui.height / 2 - H / 2;
+    const W = 620, H = 520, x = ui.width / 2 - W / 2, y = ui.height / 2 - H / 2;
     ui.rect(x, y, W, H, th.window.fill, 245);
     ui.frame(x, y, W, H, th.window.border, 3);
     ui.text("NEW WORLD", ui.width / 2, y + 18, 3, th.accent, "center");
@@ -380,7 +512,8 @@ export class CreateWorldScene extends Scene {
     // размер
     ui.text("SIZE", x + 30, y + 305, 2, th.muted);
     for (const k of [1, 2, 3]) ui.button("size:" + k, `${k} ${WORLD_SIZES[k].name}`, x + 30 + (k - 1) * 190 + 90, y + 345, 180, 44, 2, this.size === k);
-    ui.text("FLOATING ISLANDS: DON'T FALL OFF THE EDGE", ui.width / 2, y + 380, 1, th.muted, "center");
+    ui.text("FLOATING ISLANDS: DON'T FALL OFF THE EDGE", ui.width / 2, y + 378, 1, th.muted, "center");
+    ui.button("cheats", this.cheats ? "[X] CONSOLE CHEATS" : "[ ] CONSOLE CHEATS", ui.width / 2, y + 404, 300, 34, 2, this.cheats);
     ui.button("create", "CREATE", ui.width / 2 - 110, y + H - 40, 200, 48, 3, true);
     ui.button("cancel", "CANCEL", ui.width / 2 + 110, y + H - 40, 200, 48, 3);
   }
@@ -402,9 +535,10 @@ export class CreateWorldScene extends Scene {
       this.icon = this.iconIds[(i + Number(arg) + this.iconIds.length) % this.iconIds.length];
     }
     if (kind === "size") this.size = Number(arg);
+    if (kind === "cheats") this.cheats = !this.cheats;
     if (kind === "create") {
       this.engine.pop();
-      this.onCreate({ name: this.name.trim(), icon: this.icon, size: this.size });
+      this.onCreate({ name: this.name.trim(), icon: this.icon, size: this.size, cheats: this.cheats });
       return;
     }
     this.engine.redraw();

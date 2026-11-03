@@ -16,6 +16,8 @@ import { GameScene } from "./game-scene.js";
 import { loadModels } from "./load-models.js";
 import { migrateOldSaves, touchWorld, setProfile } from "./save.js";
 import { MainMenu } from "./menu.js";
+import { installSkins } from "./skins.js";
+import { ITEMS } from "./items.js";
 import { RU } from "./lang/ru.js";
 
 migrateOldSaves(); // до создания движка: он сразу читает settings.json
@@ -83,6 +85,7 @@ try {
 } catch (e) {
   console.warn("Модель не загружена:", e.message, "(npm run make:skeleton создаст её)");
 }
+installSkins(models, ITEMS, engine.settings); // скины: перекраска своих моделей и значков (skins.js)
 
 // Своя вкладка настроек — ОБЩИЕ. Вкладки ВИДЕО/АУДИО/УПРАВЛЕНИЕ добавит движок.
 function generalTab() {

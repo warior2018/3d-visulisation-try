@@ -10,6 +10,7 @@
 // ============================================================
 
 import { loadGLB } from "./gltf.js";
+import { paintColors } from "./paint.js";
 import { Animator } from "./animator.js";
 import { fromTRS, quatY, quatX, quatMultiply, multiply } from "../math/mat4.js";
 
@@ -21,12 +22,27 @@ export class ModelLibrary {
     this.renderer = renderer;
     this.models = new Map(); // имя -> { model, mesh, mirrorX }
     this.freeSkins = new Map(); // имя -> [свободные skin]
+    // Скины: resolve(name, owner) → какую модель на самом деле взять (owner — сущность, которую одеваем).
+    // Игра ставит свой: например "w-katana" у своего героя → variant("w-katana", "sakura", кисть)
+    this.resolve = (name) => name;
+  }
+
+  // Вариант модели name, перекрашенный кистью paint (engine/graphics/paint.js) — грузится один раз,
+  // при первом спросе. Вернёт имя варианта ("name@key") или name, если такой модели нет
+  variant(name, key, paint) {
+    const id = `${name}@${key}`;
+    if (this.models.has(id)) return id;
+    const base = this.models.get(name);
+    if (!base?.file) return name;
+    this.load(id, base.file, { ...base.opts, paint });
+    return id;
   }
 
   // mirrorX — отразить модель по X (если в файле левое и правое перепутаны относительно нашего мира)
   // recolor — перекрасить вершины: [{ from: [r, g, b], to: [r, g, b] }] (цвета 0..1).
   //   Так из одной модели получаются разноцветные: например, блок в руке под цвет палитры.
-  load(name, file, { mirrorX = false, recolor = [] } = {}) {
+  // paint — кисть (r, g, b) → [r, g, b] | null на все вершины после recolor (скины: engine/graphics/paint.js)
+  load(name, file, { mirrorX = false, recolor = [], paint = null } = {}) {
     const model = loadGLB(file);
     for (const { from, to } of recolor) {
       const c = model.colors;
@@ -35,7 +51,8 @@ export class ModelLibrary {
         if (same) c.set(to, i);
       }
     }
-    this.models.set(name, { model, mesh: this.renderer.createMesh(model), mirrorX });
+    if (paint) paintColors(model.colors, paint);
+    this.models.set(name, { model, mesh: this.renderer.createMesh(model), mirrorX, file, opts: { mirrorX, recolor } });
     return model;
   }
 
@@ -44,12 +61,14 @@ export class ModelLibrary {
   }
 
   // Одеть сущность в модель: появится entity.view = { skin, animator, ... }
+  // name — какую спросили (view.name), key — какая на самом деле (скин: resolve)
   attach(entity, name) {
-    const m = this.models.get(name);
+    const key = this.resolve(name, entity) || name;
+    const m = this.models.get(key);
     if (!m) return false; // такой модели нет — сущность живёт, но невидима
     entity.view = {
-      name,
-      skin: this.freeSkins.get(name)?.pop() || this.renderer.createSkin(m.mesh),
+      name, key, owner: entity,
+      skin: this.freeSkins.get(key)?.pop() || this.renderer.createSkin(m.mesh),
       animator: new Animator(m.model),
       modelMatrix: new Float32Array(16),
       tint: new Float32Array(4),
@@ -78,13 +97,14 @@ export class ModelLibrary {
 
   // Прицепить модель name к кости bone модели v — { name, bone, node, skin, ... } или null (нет модели / кости)
   mount(v, name, { bone, position = [0, 0, 0], rotation = [0, 0, 0, 1] }) {
-    const m = name && this.models.get(name);
+    const key = name && (this.resolve(name, v.owner) || name);
+    const m = key && this.models.get(key);
     if (!m) return null;
     const node = v.animator.model.nodes.findIndex((n) => n.name === bone);
     if (node < 0) return null;
     return {
-      name, bone, node,
-      skin: this.freeSkins.get(name)?.pop() || this.renderer.createSkin(m.mesh),
+      name, key, bone, node,
+      skin: this.freeSkins.get(key)?.pop() || this.renderer.createSkin(m.mesh),
       animator: new Animator(m.model),
       offset: fromTRS(position, rotation),
       modelMatrix: new Float32Array(16),
@@ -93,8 +113,9 @@ export class ModelLibrary {
   }
 
   release(held) {
-    if (!this.freeSkins.has(held.name)) this.freeSkins.set(held.name, []);
-    this.freeSkins.get(held.name).push(held.skin);
+    const key = held.key || held.name;
+    if (!this.freeSkins.has(key)) this.freeSkins.set(key, []);
+    this.freeSkins.get(key).push(held.skin);
   }
 
   // Снять модель (сущность исчезла): буфер — в запас
@@ -103,8 +124,7 @@ export class ModelLibrary {
     if (!v) return;
     if (v.held) this.release(v.held);
     if (v.extra) this.release(v.extra);
-    if (!this.freeSkins.has(v.name)) this.freeSkins.set(v.name, []);
-    this.freeSkins.get(v.name).push(v.skin);
+    this.release(v);
     entity.view = null;
   }
 

@@ -82,6 +82,27 @@ export class UI {
     this.dirty = true;
   }
 
+  // Нарисовать draw() и перекрасить кистью brush (engine/graphics/paint.js) только то, что он нарисовал в
+  // прямоугольнике x, y, w, h (фон под ним не трогаем) — значок в скине предмета
+  paintRegion(x, y, w, h, draw, brush) {
+    const { fb } = this;
+    const x0 = Math.max(0, Math.floor(x)), y0 = Math.max(0, Math.floor(y));
+    const x1 = Math.min(fb.width, Math.ceil(x + w)), y1 = Math.min(fb.height, Math.ceil(y + h));
+    if (!brush || x1 <= x0 || y1 <= y0) return draw();
+    const rw = x1 - x0, before = new Uint32Array(rw * (y1 - y0)), px = fb.pixels;
+    for (let py = y0; py < y1; py++) before.set(px.subarray(py * fb.width + x0, py * fb.width + x1), (py - y0) * rw);
+    draw();
+    for (let py = y0; py < y1; py++) {
+      for (let qx = x0; qx < x1; qx++) {
+        const i = py * fb.width + qx, v = px[i];
+        if (v === before[(py - y0) * rw + qx - x0]) continue;
+        const c = brush((v & 255) / 255, ((v >>> 8) & 255) / 255, ((v >>> 16) & 255) / 255);
+        if (c) px[i] = ((v & 0xff000000) | (Math.round(c[2] * 255) << 16) | (Math.round(c[1] * 255) << 8) | Math.round(c[0] * 255)) >>> 0;
+      }
+    }
+    this.dirty = true;
+  }
+
   // Один пиксель
   pixel(x, y, color, alpha = 255) {
     const { fb } = this;

@@ -55,6 +55,9 @@ export async function createGame({ world = "copy", immortal = true } = {}) {
   engine.renderer.fadeDist = C.VIEW_DISTANCE;
   const models = new E.ModelLibrary(engine.renderer);
   loadModels(models);
+  const { installSkins } = await import(path.join(ROOT, "games", "builder", "skins.js"));
+  const { ITEMS } = await import(path.join(ROOT, "games", "builder", "items.js"));
+  installSkins(models, ITEMS, settings);
   const game = { models, openSettings() {}, toMenu() {} };
   const scene = new GameScene(game);
   // Окна выбора класса и второго оружия (при входе без класса, на 1-м и 10-м уровне) останавливают мир —
