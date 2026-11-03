@@ -33,6 +33,7 @@ import { InteractPart } from "./scene/interact.js";
 import { LootPart } from "./scene/loot.js";
 import { MountPart } from "./scene/mount.js";
 import { AudioPart } from "./scene/audio.js";
+import { heroAnimStates } from "./hero-anim.js";
 import { HostNet, ClientNet } from "./scene/net.js";
 import { Chat } from "./scene/chat.js";
 import { registerCommands } from "./scene/commands.js";
@@ -544,13 +545,18 @@ export class GameScene extends Scene {
     player.roll = -this.look.roll;
     // Голова героя смотрит вверх / вниз туда же, куда камера (поверх анимации; движок: animator.turnBone).
     // Взгляд вверх — голова назад (поворот вокруг X с минусом), не больше ±50°
+    // Корпус тоже наклоняется к прицелу: треть наклона — позвоночник, остальное — голова (больше ±50° не гнёмся)
     const look = Math.max(-0.87, Math.min(0.87, this.look.pitch));
-    player.view?.animator.turnBone("head", [Math.sin(-look / 2), 0, 0, Math.cos(-look / 2)]);
-    if (player.mount) player.view?.animator.setBase("Sit"); // в седле — сидим
-    else if (this.spearRun.active) player.view?.animator.setBase("Walk", this.spearRun.speed / 4); // разбег — бежим
-    // стойка самурая: стоим — наклон 8°, идём — 20°, бежим (спринт) — 30°
-    else if (this.lowStance) player.view?.animator.setBase(!move.moving ? "StanceIdle" : move.running ? "StanceRun" : "StanceWalk", move.moving ? move.speed / (move.running ? 5 : 3) : 1);
-    else player.view?.animator.setBase(move.moving ? "Walk" : "Idle", move.moving ? move.speed / 4 : 1);
+    const spine = look * 0.35, head = look - spine;
+    player.view?.animator.turnBone("spine", [Math.sin(-spine / 2), 0, 0, Math.cos(-spine / 2)]);
+    player.view?.animator.turnBone("head", [Math.sin(-head / 2), 0, 0, Math.cos(-head / 2)]);
+    // Клип тела — автомат состояний (hero-anim.js): верхом, разбег, в воздухе, стойка, бег, шаг, стоим
+    this.airTime = player.onGround || player.mount ? 0 : (this.airTime || 0) + dt;
+    (this.heroAnim ||= heroAnimStates()).update(player.view?.animator, {
+      mounted: !!player.mount, spear: this.spearRun.active, spearSpeed: this.spearRun.speed,
+      air: !player.onGround && !player.mount, airTime: this.airTime, stance: this.lowStance,
+      moving: move.moving, running: move.running, speed: move.speed,
+    }, dt);
     const walking = move.moving && player.onGround && this.aimT < 0.5; // в прыжке и в прицеле рука не качается
     const vm = this.viewModel();
     // Рука на ходу не машет своей анимацией — её покачивает HeadBob.hand (дугой, как в Minecraft)

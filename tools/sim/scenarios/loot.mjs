@@ -16,11 +16,11 @@ export default async function (t, g) {
   const L = await import(g.root + "games/builder/scene/loot.js");
   let drops = 0;
   const mob = { position: { x: 0, y: 0, z: 0 }, name: "TEST" };
-  for (let i = 0; i < 4000; i++) if (scene.rollGear(mob)) drops++;
-  t.check("моб роняет вещь ~1.5 % (без удачи)", drops > 30 && drops < 100, `${drops} из 4000`);
+  for (let i = 0; i < 20000; i++) if (scene.rollGear(mob)) drops++;
+  t.check("моб роняет вещь ~1.5 % (без удачи)", drops > 150 && drops < 500, `${drops} из 20000`);
   scene.luckBonus = 1;
   let lucky = 0;
-  for (let i = 0; i < 4000; i++) if (scene.rollGear(mob)) lucky++;
+  for (let i = 0; i < 20000; i++) if (scene.rollGear(mob)) lucky++;
   t.check("удача +100 % — вдвое чаще", lucky > drops * 1.6, `${drops} → ${lucky}`);
   scene.luckBonus = 0;
   t.check("босс — всегда", [1, 2, 3, 4, 5].every(() => !!scene.rollGear({ ...mob, boss: true })));

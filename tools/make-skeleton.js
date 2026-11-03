@@ -274,6 +274,45 @@ const ANIMATIONS = {
     rot("chest", Y, t5, [6, 0, -6, 0, 6]),
     move("hips", t5, [hipsRest, [0, 0.93, 0], hipsRest, [0, 0.93, 0], hipsRest]),
   ],
+  // Бег (спринт): шаг шире, колени выше, руки сильнее, корпус наклонён вперёд
+  Run: [
+    rot("upperLeg_L", X, t5, [-50, 0, 40, 0, -50]),
+    rot("upperLeg_R", X, t5, [40, 0, -50, 0, 40]),
+    rot("lowerLeg_L", X, t5, [20, 80, 15, 10, 20]),
+    rot("lowerLeg_R", X, t5, [15, 10, 20, 80, 15]),
+    rot("foot_L", X, t5, [25, -50, -50, -10, 25]),
+    rot("foot_R", X, t5, [-50, -10, 25, -50, -50]),
+    rot("upperArm_L", X, t5, [45, 0, -45, 0, 45]),
+    rot("upperArm_R", X, t5, [-45, 0, 45, 0, -45]),
+    rot("forearm_L", X, t5, [-50, -40, -60, -40, -50]),
+    rot("forearm_R", X, t5, [-60, -40, -50, -40, -60]),
+    rot("chest", X, t5, [12, 14, 12, 14, 12]),
+    rot("head", X, t5, [-10, -12, -10, -12, -10]),
+    move("hips", t5, [hipsRest, [0, 0.9, 0], hipsRest, [0, 0.9, 0], hipsRest]),
+  ],
+  // В воздухе (прыжок, падение): колени подогнуты, руки чуть в стороны и вверх
+  Air: [
+    rot("upperLeg_L", X, [0, 1], [-35, -40]),
+    rot("upperLeg_R", X, [0, 1], [-15, -10]),
+    rot("lowerLeg_L", X, [0, 1], [55, 60]),
+    rot("lowerLeg_R", X, [0, 1], [35, 30]),
+    rot("upperArm_L", Z, [0, 1], [35, 40]),
+    rot("upperArm_R", Z, [0, 1], [-35, -40]),
+    rot("forearm_L", X, [0, 1], [-20, -25]),
+    rot("forearm_R", X, [0, 1], [-20, -25]),
+  ],
+  // Павший (поза для падения тела — его заваливает движок): руки раскинуты, ноги расслаблены
+  Fallen: [
+    rot("upperArm_L", Z, [0], [70]),
+    rot("upperArm_R", Z, [0], [-70]),
+    rot("forearm_L", X, [0], [-15]),
+    rot("forearm_R", X, [0], [-10]),
+    rotQ("upperLeg_L", [0], [qmul(quat(Z, 12), quat(X, -10))]),
+    rotQ("upperLeg_R", [0], [qmul(quat(Z, -8), quat(X, 5))]),
+    rot("lowerLeg_L", X, [0], [15]),
+    rot("lowerLeg_R", X, [0], [5]),
+    rot("head", Y, [0], [25]),
+  ],
   // Удар: правая рука замахивается вверх и резко бьёт вниз, корпус поворачивается
   Attack: [
     rot("upperArm_R", X, [0, 0.25, 0.4, 0.7], [0, -150, -40, 0]),

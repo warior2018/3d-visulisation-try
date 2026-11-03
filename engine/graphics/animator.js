@@ -5,11 +5,13 @@
 //   1. Для каждой кости берём «позу покоя» (как в файле).
 //   2. Накладываем основной клип (Idle/Walk): ищем два ближайших ключевых кадра
 //      и интерполируем между ними (mix для сдвигов, slerp для поворотов).
-//   3. Если клип только что сменился — 0.2 с плавно смешиваем старый и новый.
+//   3. Если клип только что сменился — плавно (0.2 с или свой fade, по кривой smoothstep) смешиваем
+//      старое и новое. Сменился посреди перехода — смешиваем от ТЕКУЩЕЙ позы (без рывка).
 //   3б. Слой (overlay) — клип-поза поверх основного, только на свои кости, крутится по кругу:
 //      например, руки держат винтовку (HoldRifle), а ноги при этом шагают (Walk).
 //   4. Сверху накладываем «разовый» клип (Attack) — только на те кости, которые он двигает.
-//      Поэтому можно бить на ходу: руки бьют, ноги продолжают шагать.
+//      Поэтому можно бить на ходу: руки бьют, ноги продолжают шагать. Вход и выход — короткое смешивание
+//      (ONESHOT_IN / ONESHOT_OUT), а не рывок.
 //   5. Проходим по дереву костей от корня (рекурсия!): мировая матрица кости =
 //      матрица родителя × своя. Кисть зависит от предплечья, оно — от плеча...
 //   6. Матрица для видеокарты = мировая матрица кости × обратная матрица привязки.
@@ -18,6 +20,8 @@
 import { fromTRS, multiply, lerp, slerp } from "../math/mat4.js";
 
 const FADE = 0.2; // секунд на плавный переход между клипами
+const ONESHOT_IN = 0.06, ONESHOT_OUT = 0.1; // разовый клип входит и выходит плавно
+const smooth = (k) => k * k * (3 - 2 * k);
 
 export class Animator {
   constructor(model) {
@@ -31,6 +35,8 @@ export class Animator {
     this.base = { name: null, time: 0, speed: 1 }; // основной клип, крутится по кругу
     this.fadeFrom = null; //                         предыдущий клип, пока идёт переход
     this.fadeTime = 0;
+    this.fadeLen = FADE; //                           сколько длится этот переход
+    this.frozen = null; //                            сменили клип посреди перехода — от какой позы смешиваем
     this.oneShot = null; //                           разовый клип поверх: { name, time }
     this.overlay = null; //                           слой-поза поверх основного: { name, time }
     this.boneTurns = new Map(); //                     доворот костей поверх всех клипов: узел → кватернион (lookAt)
@@ -39,6 +45,9 @@ export class Animator {
     // существ новые массивы на каждую кость каждый кадр — это мегабайты мусора в секунду и паузы сборщика
     this.pose = this.restPose();
     this.fromPose = this.restPose(); // поза старого клипа во время плавного перехода
+    this.shotPose = this.restPose(); // поза разового клипа (смешивается поверх)
+    this.frozenPose = this.restPose();
+    this.touched = new Map(); //       клип → узлы, которые он двигает
     this.global = model.nodes.map(() => new Float32Array(16));
     this.jointMatrices = new Float32Array(model.skin.joints.length * 16);
     // Порядок обхода костей: родитель раньше детей (мировая матрица кости = родителя × своя)
@@ -76,16 +85,32 @@ export class Animator {
   }
 
   // Основной клип (меняется каждый кадр игрой: стоим — Idle, идём — Walk)
-  setBase(name, speed = 1) {
+  // fade — секунд на переход к нему (по умолчанию FADE)
+  setBase(name, speed = 1, fade = FADE) {
     if (this.base.name === name) {
       this.base.speed = speed;
       return;
     }
     if (this.base.name) {
+      if (this.fadeFrom) {
+        // ещё не доиграл прошлый переход — запомнить, как стоим сейчас, и смешивать от этого
+        for (let i = 0; i < this.pose.length; i++) {
+          const p = this.pose[i], f = this.frozenPose[i];
+          copy3(p.t, f.t); copy4(p.r, f.r); copy3(p.s, f.s);
+        }
+        this.frozen = true;
+      } else this.frozen = false;
       this.fadeFrom = { ...this.base };
       this.fadeTime = 0;
+      this.fadeLen = Math.max(0.01, fade);
     }
     this.base = { name, time: 0, speed };
+  }
+
+  // Узлы, которые двигает клип (для смешивания разового клипа только по ним)
+  nodesOf(name) {
+    if (!this.touched.has(name)) this.touched.set(name, [...new Set((this.clips.get(name)?.channels || []).map((c) => c.node))]);
+    return this.touched.get(name);
   }
 
   // Слой поверх основного клипа (null — убрать). Тот же — ничего не меняем
@@ -110,7 +135,7 @@ export class Animator {
     if (this.fadeFrom) {
       this.fadeFrom.time += dt * this.fadeFrom.speed;
       this.fadeTime += dt;
-      if (this.fadeTime >= FADE) this.fadeFrom = null;
+      if (this.fadeTime >= this.fadeLen) this.fadeFrom = null;
     }
     if (this.oneShot) {
       this.oneShot.time += dt * (this.oneShot.speed ?? 1);
@@ -123,9 +148,12 @@ export class Animator {
 
     // 3. Плавный переход: смешиваем позу старого клипа с новой (результат — прямо в pose)
     if (this.fadeFrom) {
-      const from = this.resetPose(this.fromPose);
-      this.sample(this.fadeFrom.name, this.fadeFrom.time, true, from);
-      const k = this.fadeTime / FADE; // 0 — ещё старый клип, 1 — уже новый
+      let from = this.frozenPose;
+      if (!this.frozen) {
+        from = this.resetPose(this.fromPose);
+        this.sample(this.fadeFrom.name, this.fadeFrom.time, true, from);
+      }
+      const k = smooth(Math.min(1, this.fadeTime / this.fadeLen)); // 0 — ещё старое, 1 — уже новый клип
       for (let i = 0; i < pose.length; i++) {
         const p = pose[i], f = from[i];
         lerp(f.t, p.t, k, p.t);
@@ -140,8 +168,27 @@ export class Animator {
       this.sample(this.overlay.name, this.overlay.time, true, pose);
     }
 
-    // 4. Разовый клип поверх
-    if (this.oneShot) this.sample(this.oneShot.name, this.oneShot.time, false, pose);
+    // 4. Разовый клип поверх — со смешиванием на входе и выходе
+    if (this.oneShot) {
+      const { name, time } = this.oneShot, len = this.clips.get(name).duration;
+      const w = Math.min(1, time / ONESHOT_IN, Math.max(0, len - time) / ONESHOT_OUT);
+      if (w >= 0.999) this.sample(name, time, false, pose);
+      else {
+        const nodes = this.nodesOf(name), shot = this.shotPose;
+        for (const i of nodes) {
+          const p = pose[i], s = shot[i];
+          copy3(p.t, s.t); copy4(p.r, s.r); copy3(p.s, s.s);
+        }
+        this.sample(name, time, false, shot);
+        const k = smooth(Math.max(0, w));
+        for (const i of nodes) {
+          const p = pose[i], s = shot[i];
+          lerp(p.t, s.t, k, p.t);
+          slerp(p.r, s.r, k, p.r);
+          lerp(p.s, s.s, k, p.s);
+        }
+      }
+    }
 
     // 5. Доворот костей (голова смотрит туда, куда камера) — поверх всего, в осях самой кости
     for (const [i, q] of this.boneTurns) copy4(qmul(pose[i].r, q), pose[i].r);

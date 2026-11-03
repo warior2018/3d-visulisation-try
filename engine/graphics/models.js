@@ -15,7 +15,17 @@ import { Animator } from "./animator.js";
 import { fromTRS, quatY, quatX, quatMultiply, multiply } from "../math/mat4.js";
 
 const HURT_FLASH = 0.25; // секунд красной вспышки после удара
-const FALL_TIME = 0.5; //   за сколько павший заваливается на спину
+const FALL_TIME = 0.55; //  за сколько павший валится на землю (с ускорением, как под силой тяжести)
+// Падение тела: куда валится (по id — у каждого своё): на спину, вперёд, на бок. Чуть отскакивает от земли
+const FALL_SIDES = [[-1, 0], [1, 0], [0, 1], [0, -1], [-1, 0]];
+function fallRotation(e) {
+  const k = Math.min(e.deadTime / FALL_TIME, 1);
+  const ease = k * k; //                                       ускоряется к земле
+  const bounce = k >= 1 ? Math.max(0, Math.sin(Math.min(1, (e.deadTime - FALL_TIME) / 0.25) * Math.PI)) * 0.08 : 0;
+  const angle = (Math.PI / 2) * ease - bounce;
+  const [fx, fz] = FALL_SIDES[(e.id ?? 0) % FALL_SIDES.length];
+  return fx ? quatX(fx * -angle) : [0, 0, Math.sin((fz * angle) / 2), Math.cos((fz * angle) / 2)];
+}
 
 export class ModelLibrary {
   constructor(renderer) {
@@ -147,6 +157,11 @@ export class ModelLibrary {
         continue;
       }
       e.animDt = 0;
+      // Павший: поза «Fallen» (если есть в модели) плавно, а потом анимация замирает
+      if (!e.alive) {
+        if (a.clips.has("Fallen")) a.setBase("Fallen", 1, 0.3);
+        if (e.deadTime > FALL_TIME + 0.4) continue;
+      }
       a.update(Math.min(t, 0.5)); // долго не считали — не прыгаем дальше полсекунды
     }
   }
@@ -164,7 +179,7 @@ export class ModelLibrary {
       let rotation = quatY(e.renderYaw ?? e.yaw);
       if (e.tilt) rotation = quatMultiply(rotation, quatX(e.tilt)); // наклон вперёд (ловушка на стене — tilt π/2)
       if (e.roll) rotation = quatMultiply(rotation, [0, 0, Math.sin(e.roll / 2), Math.cos(e.roll / 2)]);
-      if (!e.alive) rotation = quatMultiply(rotation, quatX(-Math.min(e.deadTime / FALL_TIME, 1) * (Math.PI / 2)));
+      if (!e.alive) rotation = quatMultiply(rotation, fallRotation(e));
       const p = e.renderPosition || e.position;
       const k = e.scale ?? 1; // размер (маленький скелет — 0.6, большая турель — 2)
       fromTRS([p.x, p.y + (e.drawOffsetY || 0), p.z], rotation, [(v.mirrorX ? -1 : 1) * k, k, k], v.modelMatrix);
