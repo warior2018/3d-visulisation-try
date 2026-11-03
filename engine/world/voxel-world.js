@@ -86,6 +86,11 @@ export class VoxelWorld {
     return this.blocks.has(key(x, y, z));
   }
 
+  // Блок в клетке ({ x, y, z, color... }) или null
+  get(x, y, z) {
+    return this.blocks.get(key(x, y, z)) || null;
+  }
+
   // Верхний блок столбика (x, z) — что видно сверху (для миникарты). null — пусто
   topBlock(x, z) {
     const k = (x + 524288) * 1048576 + (z + 524288);

@@ -67,14 +67,14 @@ export default async function (t, g) {
   guest.slashes.add({ origin: guest.player.position, yaw: 0, pitch: 0, arc: 90, reach: 2 });
   await g.both(peer, 5);
   t.check("след удара гостя виден у хоста", host.slashes.list.length > sl0);
-  const bm0 = guest.beams.list?.length ?? 0;
+  const bm0 = (guest.beams.list?.length ?? 0) + (guest.fx?.list.length ?? 0); // луч — плоский или 3D-частицами
   let heard = 0;
   const play = guest.engine.sound.play;
   guest.net.fx.sound = (args) => { if (args[0] === "shot") heard++; };
   host.beams.add({ from: host.player.position, to: { x: host.player.position.x + 5, y: host.player.position.y, z: host.player.position.z }, life: 1 });
   host.engine.sound.play("shot");
   await g.both(peer, 5);
-  t.check("луч выстрела хоста виден у гостя", (guest.beams.list?.length ?? 1) > bm0);
+  t.check("луч выстрела хоста виден у гостя", (guest.beams.list?.length ?? 0) + (guest.fx?.list.length ?? 0) > bm0);
   t.check("звук выстрела хоста слышен у гостя (из точки, где хост)", heard === 1, `${heard}`);
   t.check("свои эффекты гостю не возвращаются (без эха)", guest.slashes.list.length === 1, `${guest.slashes.list.length}`);
   void play;

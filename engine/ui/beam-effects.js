@@ -15,6 +15,9 @@ export class BeamEffects {
   constructor() {
     this.list = [];
     this.marks = []; // точки в мире (следы пуль): { at, color, life, size, age }
+    // Частицы в 3D (engine/graphics/particles.js): есть — лучи и точки рисуются ими, с глубиной (стены
+    // закрывают); нет (видеокарта не смогла) — как раньше, плоско поверх мира
+    this.particles = null;
   }
 
   get active() {
@@ -23,11 +26,19 @@ export class BeamEffects {
 
   // Точка в мире: квадратик size метров (на экране — меньше вдали), живёт life секунд, в конце гаснет
   mark(at, { color = [20, 20, 20], life = 3, size = 0.05 } = {}) {
+    if (this.particles) return this.particles.emit({ at, life, size: Math.max(0.03, size * 3), color, grow: 1, fade: true });
     this.marks.push({ at: { ...at }, color, life, size, age: 0 });
     if (this.marks.length > 200) this.marks.shift(); // не копим бесконечно
   }
 
   add({ from, to, color = [255, 255, 255], life = 0.2, width = 6, core = [255, 255, 255] }) {
+    if (this.particles) {
+      // ширина в точках экрана → метры: снаружи цвет луча, внутри — яркая сердцевина
+      const size = Math.max(0.025, width * 0.011);
+      this.particles.line(from, to, { size, life, color, alpha: 0.75, step: size * 1.6 });
+      this.particles.line(from, to, { size: size * 0.5, life, color: core, alpha: 1, step: size * 1.6 });
+      return;
+    }
     this.list.push({ from: { ...from }, to: { ...to }, color, core, life, width, age: 0 });
   }
 

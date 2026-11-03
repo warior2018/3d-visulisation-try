@@ -32,6 +32,7 @@ export class BuildingPart {
   removeBlock() {
     if (!this.building || !this.target?.block) return;
     const b = this.target.block;
+    this.blockFx(b.x, b.y, b.z, this.world.get?.(b.x, b.y, b.z)?.color); // крошка блока (scene/effects.js)
     this.world.remove(b.x, b.y, b.z);
     // Блок возвращается в сумку (не влез — падает на землю на месте блока)
     if (BUILD.refundOnBreak) {

@@ -18,6 +18,8 @@ export class SessionPart {
   enter() {
     Object.assign(this.engine.sound.hearing, HEARING); // объёмный звук: радиус слышимости и затухание (config.js)
     this.engine.sound.environment = (at) => this.soundEnvironment(at); // стены глушат, в пещере — эхо (scene/audio.js)
+    // видеокарта собрала шейдер частиц — лучи и следы пуль рисуются в 3D (стены их закрывают); нет — плоско
+    this.beams.particles = this.engine.renderer?.particlePipeline ? this.fx : null;
     // Мир из слота: размер и летающие острова (info.json; старые миры — с полом, большие)
     const info = this.role === "client" ? {} : worldInfo();
     this.world.floor = !info.floating;

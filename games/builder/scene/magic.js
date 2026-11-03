@@ -35,6 +35,7 @@ export class MagicPart {
     const extra = damage !== 1 ? { baseDamage: attack.roll() * damage } : {};
     const r = attack.burst(this.player, point, this.combatContext({ ...extra, onHit: (h) => this.onPlayerHit(h) }), { include, radius });
     this.engine.sound.play("boom", { at: point });
+    this.boomFx(point, radius); // огонь и дым (scene/effects.js)
     this.shakeNear(point, SHAKE.explosion); // взрыв рядом — тряхнуло
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;

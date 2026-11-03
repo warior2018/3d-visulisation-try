@@ -64,6 +64,7 @@ export class ThrowersPart {
   bulletHole(origin, dir, t) {
     const p = { x: origin.x + dir.x * (t - 0.02), y: origin.y + dir.y * (t - 0.02), z: origin.z + dir.z * (t - 0.02) };
     this.beams.mark(p, { color: BULLET.hole, life: BULLET.holeLife, size: BULLET.holeSize });
+    this.sparkFx(p); // искры и пыль (scene/effects.js)
   }
 
   // Моб стреляет из пистолета: мгновенный луч из руки в грудь цели с разбросом spread; первым на пути —

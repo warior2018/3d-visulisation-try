@@ -9,6 +9,7 @@ import gpu from "@kmamal/gpu";
 import { SHADERS } from "./shaders.js";
 
 const DEPTH_FORMAT = "depth24plus";
+import { PARTICLE_SHADER, FLOATS_PER_PARTICLE } from "./particles.js";
 import { FLOATS_PER_CUBE, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js"; // x, y, z, r, g, b на кубик
 const MAX_JOINTS = 64; //     столько костей помещается в шейдер (array<mat4x4f, 64>)
 // Буфер одного существа: матрица модели (64 байта) + оттенок vec4 (16) + матрицы костей
@@ -32,6 +33,7 @@ export class GPURenderer {
     const info = adapter.info || {};
     renderer.adapterName = [info.vendor, info.architecture, info.device, info.description].filter(Boolean).join(" / ") || "?";
     renderer.gpuFlags = flags;
+    await renderer.initParticles(); // частицы с глубиной — если шейдер не собрался, без них (эффекты — плоские)
     return renderer;
   }
 
@@ -269,6 +271,51 @@ export class GPURenderer {
     this.worldStats.rebuilt += rebuilt;
   }
 
+  // Конвейер частиц (engine/graphics/particles.js): свой шейдер в своём модуле, под «ловушкой ошибок» —
+  // не собрался (старая видеокарта, ошибка в шейдере) — this.particlePipeline = null, игра рисует эффекты плоско
+  async initParticles() {
+    const device = this.device;
+    try {
+      device.pushErrorScope?.("validation");
+      const module = device.createShaderModule({ code: PARTICLE_SHADER });
+      const pipeline = device.createRenderPipeline({
+        layout: "auto",
+        vertex: {
+          module, entryPoint: "particle_vs",
+          buffers: [
+            { arrayStride: 6 * 4, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }, { shaderLocation: 1, offset: 12, format: "float32x3" }] },
+            {
+              arrayStride: FLOATS_PER_PARTICLE * 4, stepMode: "instance",
+              attributes: [
+                { shaderLocation: 2, offset: 0, format: "float32x3" },
+                { shaderLocation: 3, offset: 12, format: "float32" },
+                { shaderLocation: 4, offset: 16, format: "float32x4" },
+              ],
+            },
+          ],
+        },
+        fragment: {
+          module, entryPoint: "particle_fs",
+          targets: [{ format: this.output.getPreferredFormat(), blend: {
+            color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" },
+            alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" },
+          } }],
+        },
+        depthStencil: { format: DEPTH_FORMAT, depthWriteEnabled: false, depthCompare: "less" }, // стены закрывают, сами — нет
+      });
+      const bind = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: this.uniformBuffer } }] });
+      const err = device.popErrorScope ? await device.popErrorScope() : null;
+      if (err) throw new Error(err.message || String(err));
+      this.particlePipeline = pipeline;
+      this.particleBind = bind;
+      this.particleCapacity = 0;
+    } catch (e) {
+      this.particlePipeline = null;
+      this.particleError = e.message;
+      console.warn("Частицы в 3D недоступны:", e.message);
+    }
+  }
+
   // Включить / выключить освещение кубиков — все куски пересобрать
   setLighting(on) {
     if (this.lighting === !!on) return;
@@ -339,7 +386,8 @@ export class GPURenderer {
   //        blur: { radius, feather?, strength?, dim?, center? } — размыть всё ВНЕ круга (оптика прицела).
   //          radius и feather — доли меньшей стороны экрана (0.4 — круг почти во всю высоту),
   //          strength — сила размытия в долях высоты (0.015 ≈ 11 пикселей на 720p), center — [0.5, 0.5].
-  render({ camera, world, ghost, ui, characters = [], viewModels = [], blur = null }) {
+  // particles — engine/graphics/particles.js (data, count): кубики-частицы с глубиной, после персонажей
+  render({ camera, world, ghost, ui, characters = [], viewModels = [], blur = null, particles = null }) {
     const { device } = this;
     // Размер окна поменялся, а события об этом не было (так бывает на Маке при смене
     // полного экрана) — перенастраиваемся сами. Иначе картинка вывода, буфер глубины
@@ -436,6 +484,23 @@ export class GPURenderer {
 
     // персонажи: сначала отдаём их матрицы, потом рисуем треугольники модели
     if (camera) this.drawCharacters(pass, characters);
+
+    // частицы: прозрачные кубики с проверкой глубины (за стеной не видно), глубину сами не пишут
+    if (camera && particles?.count && this.particlePipeline) {
+      const n = particles.count, bytes = n * FLOATS_PER_PARTICLE * 4;
+      if (n > this.particleCapacity) {
+        if (this.particleBuffer) this.retire(this.particleBuffer);
+        this.particleCapacity = Math.ceil(n * 1.5);
+        this.particleBuffer = device.createBuffer({ size: this.particleCapacity * FLOATS_PER_PARTICLE * 4, usage: gpu.GPUBufferUsage.VERTEX | gpu.GPUBufferUsage.COPY_DST });
+      }
+      device.queue.writeBuffer(this.particleBuffer, 0, particles.data.buffer, particles.data.byteOffset, bytes);
+      pass.setPipeline(this.particlePipeline);
+      pass.setBindGroup(0, this.particleBind);
+      pass.setVertexBuffer(0, this.cubeVertexBuffer);
+      pass.setVertexBuffer(1, this.particleBuffer);
+      pass.draw(this.cubeVertexCount, n);
+      this.worldStats.particles = n;
+    }
 
     // призрак нового блока
     if (ghost) {

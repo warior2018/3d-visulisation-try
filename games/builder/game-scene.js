@@ -7,7 +7,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Charge, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
+import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Particles, Charge, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
 import { LIFETIME, THROW, SPEAR, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH } from "./config.js";
 import { HandAbility, IN_HAND } from "./abilities.js";
 import { helpFor } from "./help.js";
@@ -34,6 +34,7 @@ import { LootPart } from "./scene/loot.js";
 import { MountPart } from "./scene/mount.js";
 import { AudioPart } from "./scene/audio.js";
 import { heroAnimStates } from "./hero-anim.js";
+import { EffectsPart } from "./scene/effects.js";
 import { HostNet, ClientNet } from "./scene/net.js";
 import { Chat } from "./scene/chat.js";
 import { registerCommands } from "./scene/commands.js";
@@ -94,6 +95,7 @@ export class GameScene extends Scene {
     });
     this.fuses = []; // горящие фитили лежащего динамита: { left, at, lit, boom } (updateFuses)
     this.beams = new BeamEffects(); // лучи: ледяная стрела, искры взрыва, круги посоха огня
+    this.fx = new Particles(); // частицы в 3D (с глубиной): кровь, искры, дым, лучи и трассеры (через beams)
     this.spearRun = new Charge(SPEAR.charge); // разбег с копьём (ПКМ): движок — бег вперёд и поворот взглядом
     this.spearCd = 0;
     this.look = new Camera(); //   глаза героя: где и куда смотрит
@@ -156,6 +158,7 @@ export class GameScene extends Scene {
     // Урон от героя (удар, выстрел, горение) — цифрой над целью: хедшот — крупно и красным, огонь — оранжевым
     e.onDamage = (d, dealt) => {
       this.mountHurt(e, dealt); // ранили героя или его скакуна — маунт исчезает (scene/mount.js)
+      this.hitFx(e, d, dealt); //  брызги «крови» (scene/effects.js)
       if (e === this.player) this.engine.pad?.rumble(Math.min(1, 0.25 + dealt / 40), 140); // по нам попали — вибрация геймпада
       if (d.source !== this.player || e === this.player || this.settings.general.damageNumbers === false) return;
       const head = d.part === "head";
@@ -537,6 +540,7 @@ export class GameScene extends Scene {
     this.slashes.update(dt);
     this.crescents.update(dt);
     this.beams.update(dt);
+    this.fx.update(dt);
 
     // 2. Анимации героя: тело «для мира» и рука «для экрана»
     // От 3-го лица: оружие в руке (или катана на бедре), руки держат его (слой поверх ходьбы)
@@ -619,6 +623,7 @@ export class GameScene extends Scene {
       ghost: this.engine.scene === this ? this.ghost : null,
       characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list], firstPerson ? this.player : null),
       viewModels: vm ? [vm] : [], // рука — слой «для экрана», только от 1-го лица
+      particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
       // Оптика: всё вне круга прицела размыто (круг — в hud.js → SCOPE)
       blur: this.scoped && playing ? { radius: SCOPE.size - SCOPE.blurInset, feather: 0.008, strength: 0.018, dim: 0.35 } : null,
     };
@@ -677,4 +682,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart]);

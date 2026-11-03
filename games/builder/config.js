@@ -560,6 +560,17 @@ export const TRAPS = {
 export const CLIPS = { enabled: false, items: { pistol: "pistol-clip", auto: "auto-clip", shotgun: "shotgun-clip", rifle: "rifle-clip" }, start: 3 };
 // След пули (и у героя, и у мобов-стрелков): трассер — короткий светлый луч от ствола до попадания,
 // в блок — чёрная точка на holeLife секунд
+// Частицы (scene/effects.js): «кровь» по виду существа, сколько брызг (3 + урон / bloodPer, не больше bloodMax),
+// огонь и дым взрыва, искры пули, пыль
+export const FX = {
+  blood: {
+    default: [165, 18, 18], skeleton: [225, 218, 196], lich: [190, 170, 230], npc: [170, 200, 235], warden: [170, 200, 235],
+    zombie: [95, 140, 55], bloater: [120, 150, 45], troll: [120, 60, 40], boar: [150, 20, 20], steed: [150, 20, 20],
+  },
+  bloodPer: 8, bloodMax: 16,
+  fire: [255, 140, 40], fireCore: [255, 235, 160], smoke: [70, 70, 76], spark: [255, 215, 120], dust: [150, 145, 135],
+};
+
 export const BULLET = { color: [255, 215, 110], core: [255, 250, 225], life: 0.07, width: 3, hole: [15, 15, 15], holeLife: 3, holeSize: 0.012,
   // Трассер огнестрела — видно, откуда стреляли: чем мощнее выстрел, тем дольше висит и толще (по id атаки).
   // Нет в списке (арбалет — болт без пороха) — трассера нет, только след на блоке
