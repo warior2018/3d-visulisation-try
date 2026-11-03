@@ -6,6 +6,12 @@
 //        (x, y, z, r, g, b на кубик — как ждёт шейдер); кубики, закрытые со всех сторон, не рисуем:
 //        внутри холма их тысячи, а видно только кожу. Вернёт { data, count } (data может быть новым,
 //        если out не хватило)
+//    exposedFaces(world, chunk, out) — то же, но ПО ГРАНЯМ: 6 списков (+X, −X, +Y, −Y, +Z, −Z — порядок граней
+//        кубика у рисовальщика), в каждом — кубики, у которых открыта эта грань. Рисуем 6 вершин на грань, а
+//        не 36 на кубик: на ровной земле у кубика открыт только верх — в 6 раз меньше треугольников.
+//        Вернёт { data, starts[6], counts[6], total }
+//    facesFacing(view, chunk) — какие из 6 списков вообще могут быть видны (грань +X видна только тому, кто
+//        правее неё): у куска справа от камеры его грани +X — все спиной, их и не рисуем
 //    chunkInView(view, chunk) — попадает ли кусок в кадр: не дальше дымки и не за спиной / сбоку
 //        view — viewOf(camera, aspect, maxDist): заранее посчитанное направление взгляда и угол обзора
 // ============================================================
@@ -64,6 +70,60 @@ export function exposedCubes(world, chunk, out = null, light = false) {
     n++;
   }
   return { data, count: n };
+}
+
+// Грани в порядке рисовальщика (gpu-renderer.js → buildCubeMesh): +X, −X, +Y, −Y, +Z, −Z
+export const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+
+export function exposedFaces(world, chunk, out = null, light = false) {
+  // открытые грани каждого кубика — сначала посчитать (сколько всего), потом разложить по 6 спискам
+  const counts = [0, 0, 0, 0, 0, 0];
+  const list = [];
+  for (const b of chunk.blocks) {
+    const { x, y, z } = b;
+    let mask = 0;
+    if (!world.has(x + 1, y, z)) mask |= 1;
+    if (!world.has(x - 1, y, z)) mask |= 2;
+    if (!world.has(x, y + 1, z)) mask |= 4;
+    if (!world.isSolid(x, y - 1, z)) mask |= 8; // снизу — блок или пол мира
+    if (!world.has(x, y, z + 1)) mask |= 16;
+    if (!world.has(x, y, z - 1)) mask |= 32;
+    if (!mask) continue;
+    for (let f = 0; f < 6; f++) if (mask & (1 << f)) counts[f]++;
+    list.push(b, mask);
+  }
+  const total = counts.reduce((a, c) => a + c, 0);
+  const data = out && out.length >= total * FLOATS_PER_CUBE ? out : new Float32Array(Math.max(64, total) * FLOATS_PER_CUBE);
+  const starts = [0, 0, 0, 0, 0, 0];
+  for (let f = 1; f < 6; f++) starts[f] = starts[f - 1] + counts[f - 1];
+  const at = [...starts];
+  for (let i = 0; i < list.length; i += 2) {
+    const b = list[i], mask = list[i + 1];
+    const k = light ? lightOf(world, b.x, b.y, b.z) / 255 : 1 / 255;
+    const r = b.color[0] * k, g = b.color[1] * k, bl = b.color[2] * k;
+    for (let f = 0; f < 6; f++) {
+      if (!(mask & (1 << f))) continue;
+      const o = at[f]++ * FLOATS_PER_CUBE;
+      data[o] = b.x; data[o + 1] = b.y; data[o + 2] = b.z;
+      data[o + 3] = r; data[o + 4] = g; data[o + 5] = bl;
+    }
+  }
+  return { data, starts, counts, total };
+}
+
+// Какие списки граней куска могут быть повёрнуты к камере (битовая маска: 1 — +X ... 32 — −Z).
+// Грань +X кубика x лежит в плоскости x + 1 и видна, только если камера правее: у куска [x0, x0 + 16) все
+// такие плоскости не левее x0 + 1 — камера левее x0 + 1 не видит ни одной. Остальные — так же
+export function facesFacing(v, chunk) {
+  const x0 = chunk.cx * CHUNK, z0 = chunk.cz * CHUNK, x1 = x0 + CHUNK, z1 = z0 + CHUNK;
+  let m = 0;
+  if (v.x > x0 + 1) m |= 1;
+  if (v.x < x1 - 1) m |= 2;
+  if (v.y > chunk.minY + 1) m |= 4;
+  if (v.y < chunk.maxY) m |= 8;
+  if (v.z > z0 + 1) m |= 16;
+  if (v.z < z1 - 1) m |= 32;
+  return m;
 }
 
 // Камера -> то, что нужно для отсечения кусков (раз в кадр). maxDist — дальше по горизонтали не рисуем

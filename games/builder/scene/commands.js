@@ -68,6 +68,15 @@ export function registerCommands(g) {
     g.groundY = undefined; // перенос — не прыжок: урона от падения за него нет
     return `AT ${x.toFixed(1)} ${p.y.toFixed(1)} ${z.toFixed(1)}`;
   } });
+  // Разгон героя (MOVEMENT) — подбор ощущения: move_ground 0.2, move_air 0.3... (0 — мгновенно). Не чит:
+  // только «как ощущается», скорость та же
+  for (const [k, what] of [["ground", "reach walk speed on the ground"], ["stop", "stop on the ground"], ["air", "change direction in the air"], ["airStop", "stop in the air"], ["over", "lose extra speed after a dash"]]) {
+    c.cvar(`move_${k.toLowerCase()}`, { help: `move_${k.toLowerCase()} <seconds> - time to ${what} (0 - instant)`, get: () => g.controller?.accel?.[k] ?? 0, set: (v) => {
+      const n = Math.max(0, Math.min(3, num(v)));
+      g.controller.accel ||= {};
+      g.controller.accel[k] = n || 0.001;
+    } });
+  }
   // Скины — не чит (только внешний вид)
   c.command("skin", { help: "skin <target> [skin] - change a skin (no target - list, no skin - choices)", run: ([id, sk]) => {
     const S = g.engine.settings.data;

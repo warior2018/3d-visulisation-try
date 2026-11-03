@@ -9,7 +9,7 @@ import gpu from "@kmamal/gpu";
 import { SHADERS } from "./shaders.js";
 
 const DEPTH_FORMAT = "depth24plus";
-import { FLOATS_PER_CUBE, exposedCubes, viewOf, chunkInView } from "./chunk-mesh.js"; // x, y, z, r, g, b на кубик
+import { FLOATS_PER_CUBE, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js"; // x, y, z, r, g, b на кубик
 const MAX_JOINTS = 64; //     столько костей помещается в шейдер (array<mat4x4f, 64>)
 // Буфер одного существа: матрица модели (64 байта) + оттенок vec4 (16) + матрицы костей
 const SKIN_BYTES = 64 + 16 + MAX_JOINTS * 64;
@@ -277,13 +277,16 @@ export class GPURenderer {
     this.worldVersion = -1;
   }
 
-  // Собрать кусок: только кубики с открытыми гранями. Буфер — с запасом (растёт, если мало)
+  // Собрать кусок: открытые грани, по 6 спискам (chunk-mesh.js → exposedFaces). Буфер — с запасом
   buildChunk(world, chunk, m) {
-    const { data, count } = exposedCubes(world, chunk, this.chunkScratch, this.lighting);
+    const { data, starts, counts, total } = exposedFaces(world, chunk, this.chunkScratch, this.lighting);
+    const count = total;
     this.chunkScratch = data;
     if (!m) this.chunkMeshes.set(chunk, (m = { chunk, version: 0, buffer: null, capacity: 0, count: 0 }));
     m.version = chunk.version;
     m.count = count;
+    m.starts = starts;
+    m.counts = counts;
     if (!count) return;
     if (count > m.capacity) {
       if (m.buffer) this.retire(m.buffer);
@@ -407,22 +410,28 @@ export class GPURenderer {
       pass.draw(3);
     }
 
-    // кубики мира — по куску на команду (36 вершин × кубиков куска); куски вне кадра и за дымкой пропускаем
+    // мир — по граням: на кусок до 6 команд (6 вершин × граней списка, грани кубика в буфере вершин идут
+    // подряд по 6 — firstVertex = 6 · грань). Куски вне кадра и за дымкой и грани спиной к камере — пропускаем
     if (world && camera) {
       pass.setPipeline(this.cubePipeline);
       pass.setBindGroup(0, this.cubeBind);
       pass.setVertexBuffer(0, this.cubeVertexBuffer);
       const v = viewOf(camera, width / height, this.fadeDist * 1.15, this.cullView);
-      let drawn = 0, cubes = 0;
+      let drawn = 0, faces = 0;
       for (const m of this.chunkMeshes.values()) {
         if (!m.count || !chunkInView(v, m.chunk)) continue;
+        const facing = facesFacing(v, m.chunk);
         pass.setVertexBuffer(1, m.buffer);
-        pass.draw(this.cubeVertexCount, m.count);
+        for (let f = 0; f < 6; f++) {
+          if (!m.counts[f] || !(facing & (1 << f))) continue;
+          pass.draw(6, m.counts[f], f * 6, m.starts[f]);
+          faces += m.counts[f];
+        }
         drawn++;
-        cubes += m.count;
       }
       this.worldStats.drawn = drawn;
-      this.worldStats.cubes = cubes;
+      this.worldStats.cubes = faces; // теперь — граней в кадре (по 2 треугольника)
+      this.worldStats.faces = faces;
     }
 
     // персонажи: сначала отдаём их матрицы, потом рисуем треугольники модели

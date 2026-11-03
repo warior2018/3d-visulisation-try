@@ -655,7 +655,7 @@ export class GameScene extends Scene {
     const kb = (b) => (b / 1024).toFixed(0);
     return [
       `WORLD  BLOCKS ${this.world.blocks.size}  FOG CHUNKS ${this.fog.chunks.size}`,
-      `CHUNKS ${this.world.chunks.size} (ON DISK ${saveStore.onDisk.size})  DRAWN ${this.engine.renderer?.worldStats?.drawn ?? "-"}  CUBES ${this.engine.renderer?.worldStats?.cubes ?? "-"}`, // куски мира: всего / в кадре, кубиков в кадре (закрытые не рисуем)
+      `CHUNKS ${this.world.chunks.size} (ON DISK ${saveStore.onDisk.size})  DRAWN ${this.engine.renderer?.worldStats?.drawn ?? "-"}  FACES ${this.engine.renderer?.worldStats?.faces ?? "-"}`, // куски мира: всего / в кадре, граней в кадре (закрытые и спиной не рисуем)
       `ENTITIES ${list.length} (ALIVE ${alive.length})  MOBS ${mobs.length}/${this.spawner.max}  BOSSES ${mobs.filter((e) => e.boss).length}`,
       `PICKUPS ${this.pickups.list.length}  PROJECTILES ${this.projectiles.list.length}  TRAPS ${this.traps.list.length}`,
       `SPAWNED ${this.spawner.spawned}  INVASION ${this.invasion.active ? `ON (${this.invasionKind?.id}) ${Math.ceil(this.invasion.timeLeft)} S` : "OFF"}`,

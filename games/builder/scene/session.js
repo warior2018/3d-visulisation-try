@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, worldgenFor } from "../config.js";
+import { HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, worldgenFor } from "../config.js";
 import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../save.js";
 import { Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, profiler } from "../../../engine/index.js";
 import { maxStack, hotbarAccepts, armorAccepts } from "../items.js";
@@ -57,6 +57,7 @@ export class SessionPart {
     }
     this.controller = new CharacterController(this.player, this.engine.input, this.physics, PLAYER);
     this.controller.onLand = (land) => this.onLand(land); // приземлился: толчок камеры (и урон от падения)
+    this.controller.accel = { ...MOVEMENT }; // разгон и торможение — не мгновенные (config.js → MOVEMENT)
     // Выносливость (движок: Stamina): бег и разбег с копьём тратят, удары ближнего боя — тоже (MELEE_STAMINA)
     // STAMINA.enabled: false — выносливости нет (this.stamina = null): бег без предела, удары бесплатно
     this.stamina = STAMINA.enabled ? new Stamina(STAMINA) : null;

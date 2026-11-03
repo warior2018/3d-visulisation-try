@@ -6,7 +6,7 @@
 // ============================================================
 
 import { mount, dismount, updateRider } from "../../../engine/index.js";
-import { MOUNT } from "../config.js";
+import { MOUNT, MOUNT_MOVEMENT } from "../config.js";
 
 export class MountPart {
   get mounted() {
@@ -36,6 +36,7 @@ export class MountPart {
     steed.mountOf = p;
     this.rideController = mount(p, steed, { input: this.engine.input, physics: this.physics });
     if (!this.rideController) return this.removeEntity(steed);
+    this.rideController.accel = { ...MOUNT_MOVEMENT }; // скакун разгоняется дольше героя
     this.aiming = false;
     this.engine.sound.play("equip");
     this.syncEye();

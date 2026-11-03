@@ -139,6 +139,13 @@ export const PALETTE_SURFACE = { 5: "slip" };
 // согнуты, герой ниже — и коробка столкновений, и глаза (game-scene.js → updateStance)
 export const HERO_SCALE = 1.6 / 1.8;
 export const STANCE = { height: 1.4, eyeHeight: 1.28 };
+// Разгон героя (движок: CharacterController.accel), секунд: ground — до скорости шага на земле, stop —
+// остановиться, air / airStop — то же в воздухе (меньше — резче управление в полёте, как в Overwatch),
+// over — сбросить скорость сверх бега (после рывка / отброса). Пробный вариант — подбираем (консоль: move_*)
+export const MOVEMENT = { ground: 0.2, stop: 0.1, air: 0.3, airStop: 0.8, over: 0.35 };
+// Маунт разгоняется дольше (тяжёлый зверь)
+export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
+
 export const PLAYER = {
   height: 1.6, //     рост (коробка столкновений)
   eyeHeight: 1.48, // глаза над ногами (метры)

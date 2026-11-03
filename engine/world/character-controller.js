@@ -110,6 +110,27 @@ export class CharacterController {
     this.sinceGround = 0; //         сколько секунд уже в воздухе
     this.jumped = false; //          в воздухе — потому что прыгнули (а не сошли с края)
     this.jumpBuffer = 0; //          нажатие «про запас» ещё действует столько секунд
+    // Разгон (как в Overwatch): не мгновенная скорость, а за время. null — мгновенно (как раньше).
+    //   { ground, stop, air, airStop, over } — секунд: разогнаться до шага на земле, остановиться на земле,
+    //   разогнаться / затормозить в воздухе (меньше — резче управление в полёте), сбросить лишнюю скорость
+    //   (после рывка или отброса быстрее шага — не тянется вечно). Разворот = торможение + разгон
+    this.accel = null;
+  }
+
+  // Горизонтальная скорость → к цели (tx, tz), не быстрее, чем позволяет разгон (вектором: смена направления
+  // тоже требует времени — как у машины «0–100», только за доли секунды)
+  approach(entity, tx, tz, dt) {
+    const a = this.accel, v = entity.velocity;
+    const air = !entity.onGround;
+    const want = Math.hypot(tx, tz), have = Math.hypot(v.x, v.z);
+    const base = Math.max(0.1, this.speed);
+    let time = want > 0.01 ? (air ? a.air : a.ground) : (air ? a.airStop : a.stop);
+    if (have > Math.max(want, base * this.runMultiplier) + 0.05) time = Math.min(time, a.over ?? time); // лишняя скорость
+    const rate = (base / Math.max(0.01, time)) * dt; // м/с за этот шаг
+    const dx = tx - v.x, dz = tz - v.z, d = Math.hypot(dx, dz);
+    if (d <= rate) { v.x = tx; v.z = tz; return; }
+    v.x += (dx / d) * rate;
+    v.z += (dz / d) * rate;
   }
 
   // yaw — куда смотрит игрок: «вперёд» — это туда.
@@ -134,8 +155,12 @@ export class CharacterController {
     const sin = Math.sin(yaw);
     const cos = Math.cos(yaw);
     const k = moving ? speed / len : 0;
-    entity.velocity.x = (sin * fwd + cos * side) * k;
-    entity.velocity.z = (cos * fwd - sin * side) * k;
+    const tx = (sin * fwd + cos * side) * k, tz = (cos * fwd - sin * side) * k;
+    if (this.accel) this.approach(entity, tx, tz, dt);
+    else {
+      entity.velocity.x = tx;
+      entity.velocity.z = tz;
+    }
     // Разбег (engine/world/charge.js) — бежим сами, куда смотрим; клавиши не действуют
     if (entity.charge?.active) {
       const v = entity.charge.velocity;
