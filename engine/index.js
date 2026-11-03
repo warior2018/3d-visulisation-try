@@ -120,5 +120,6 @@ export { TradeScene } from "./scenes/trade-scene.js";
 export { decodePNG, loadPNG, encodePNG } from "./ui/png.js";
 export * as paint from "./graphics/paint.js";
 export { AnimStates } from "./graphics/anim-states.js";
+export { lightOf, LIGHT } from "./graphics/chunk-mesh.js";
 export { Particles, FLOATS_PER_PARTICLE } from "./graphics/particles.js";
 export { IntroScene } from "./scenes/intro-scene.js";

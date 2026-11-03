@@ -35,6 +35,9 @@ export class ModelLibrary {
     // Скины: resolve(name, owner) → какую модель на самом деле взять (owner — сущность, которую одеваем).
     // Игра ставит свой: например "w-katana" у своего героя → variant("w-katana", "sakura", кисть)
     this.resolve = (name) => name;
+    // Свет на моделях: lightAt(position) → 0..1 (как у блоков: под крышей и в пещере — темнее). Игра ставит
+    // свою (по миру); null — все модели в полную силу. Темнее — тот же оттенок (tint) чёрным: шейдер прежний
+    this.lightAt = null;
   }
 
   // Вариант модели name, перекрашенный кистью paint (engine/graphics/paint.js) — грузится один раз,
@@ -186,7 +189,13 @@ export class ModelLibrary {
 
       // Красная вспышка после удара: от 0.7 до 0
       const flash = e.hurtTime < HURT_FLASH ? 0.7 * (1 - e.hurtTime / HURT_FLASH) : 0;
-      v.tint.set([1, 0.12, 0.12, flash]);
+      if (flash > 0) v.tint.set([1, 0.12, 0.12, flash]);
+      else {
+        // свет места: плавно (за ~0.3 с) к тому, что вокруг, — вошёл под крышу, и модель потемнела
+        const want = this.lightAt ? this.lightAt(p, e) : 1;
+        v.light = v.light === undefined ? want : v.light + (want - v.light) * 0.15;
+        v.tint.set([0, 0, 0, Math.max(0, Math.min(0.85, 1 - v.light))]);
+      }
 
       out.push({ skin: v.skin, modelMatrix: v.modelMatrix, jointMatrices: v.animator.jointMatrices, tint: v.tint });
 

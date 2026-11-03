@@ -36,6 +36,8 @@ export class ViewModel {
     // Покачивание на ходу (как в Minecraft): сдвиг в осях камеры и крен — ставит игра (HeadBob.hand)
     this.sway = { x: 0, y: 0, z: 0, roll: 0 };
     this.sights = this.findSights();
+    this.light = 1; // свет места, где стоит герой (0..1): под крышей рука темнее — как модели (models.lightAt)
+    this.tint = new Float32Array(4);
   }
 
   // Мушка и целик в позе покоя (координаты камеры) — или null, если их нет в модели
@@ -119,7 +121,8 @@ export class ViewModel {
     const p = mul3(C, [T[0] + this.sway.x * k, T[1] + this.sway.y * k, T[2] + this.sway.z * k]);
     const e = camera.position;
     this.matrix.set([M[0], M[1], M[2], 0, M[3], M[4], M[5], 0, M[6], M[7], M[8], 0, e.x + p[0], e.y + p[1], e.z + p[2], 1]);
-    return { skin: v.skin, modelMatrix: this.matrix, jointMatrices: v.animator.jointMatrices, tint: null };
+    this.tint.set([0, 0, 0, Math.max(0, Math.min(0.85, 1 - this.light))]);
+    return { skin: v.skin, modelMatrix: this.matrix, jointMatrices: v.animator.jointMatrices, tint: this.light < 1 ? this.tint : null };
   }
 
   dispose() {

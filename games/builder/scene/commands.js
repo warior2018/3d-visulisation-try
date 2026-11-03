@@ -77,6 +77,8 @@ export function registerCommands(g) {
       g.controller.accel[k] = n || 0.001;
     } });
   }
+  c.cvar("daytime", { help: "daytime <0..1> - time of day (0 midnight, 0.5 noon)", cheat: true, get: () => +(g.dayTime ?? 0).toFixed(3), set: (v) => { g.dayTime = ((num(v) % 1) + 1) % 1; } });
+  c.cvar("daynight", { help: "daynight 0/1 - day and night cycle", get: () => (g.engine.settings.data.general.dayNight !== false ? 1 : 0), set: (v) => { g.engine.settings.data.general.dayNight = v !== "0"; g.engine.settings.save(); } });
   // Скины — не чит (только внешний вид)
   c.command("skin", { help: "skin <target> [skin] - change a skin (no target - list, no skin - choices)", run: ([id, sk]) => {
     const S = g.engine.settings.data;

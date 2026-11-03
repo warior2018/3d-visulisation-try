@@ -20,6 +20,7 @@ export class SessionPart {
     this.engine.sound.environment = (at) => this.soundEnvironment(at); // стены глушат, в пещере — эхо (scene/audio.js)
     // видеокарта собрала шейдер частиц — лучи и следы пуль рисуются в 3D (стены их закрывают); нет — плоско
     this.beams.particles = this.engine.renderer?.particlePipeline ? this.fx : null;
+    this.game.models.lightAt = (p, e) => this.lightHere(p, e); // свет на моделях: под крышей темнее (scene/daylight.js)
     // Мир из слота: размер и летающие острова (info.json; старые миры — с полом, большие)
     const info = this.role === "client" ? {} : worldInfo();
     this.world.floor = !info.floating;
@@ -85,6 +86,7 @@ export class SessionPart {
     this.playerClass = CLASSES[saved?.progression?.class] ? saved.progression.class : null;
     this.ammoGiven = !!saved?.progression?.ammoGiven;
     this.hasMount = !!saved?.progression?.mount; // куплен ли маунт (MOUNT)
+    if (Number.isFinite(saved?.progression?.dayTime)) this.dayTime = saved.progression.dayTime; // время суток
     // Подкласс (второе оружие с SUBCLASS.level уровня) — только из оружия своего класса
     const sub = saved?.progression?.subclass;
     this.subclass = (SUBCLASS.weapons[this.playerClass] || []).includes(sub) ? sub : null;
@@ -196,6 +198,8 @@ export class SessionPart {
 
   exit() {
     this.engine.sound.environment = null;
+    this.game.models.lightAt = null;
+    this.resetDaylight();
     this.net?.close(); // сетевая игра — закрыть (гости отключатся / мы отключимся от хоста)
     this.net = null;
     this.ultimate?.detach(); // перестать слушать журнал боя
@@ -227,7 +231,7 @@ export class SessionPart {
   saveNow(toast = true, { background = false } = {}) {
     if (this.dead) return; // погибли — мир уже удалён, сохранять нечего
     const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && e.type !== "steed"); // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
-    const progression = { class: this.playerClass, subclass: this.subclass || null, mount: !!this.hasMount, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
+    const progression = { class: this.playerClass, subclass: this.subclass || null, mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
     this.autosaveIn = AUTOSAVE.every; // только что сохранились — следующее автосохранение отсчитываем заново
     if (this.role === "client") {
       // гость: мир — хоста (его не пишем), свой прогресс и вещи — в своё сохранение

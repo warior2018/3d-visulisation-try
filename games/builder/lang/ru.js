@@ -309,6 +309,7 @@ export const RU = {
   "DAMAGE X${k}": "УРОН X${k}",
   "DASH ${IAI.distance} M FORWARD, X${IAI.damage} DMG TO ALL ON THE PATH. COOLDOWN ${IAI.cooldown} S": "РЫВОК НА ${IAI.distance} М ВПЕРЁД, X${IAI.damage} УРОНА ВСЕМ НА ПУТИ. ПЕРЕЗАРЯДКА ${IAI.cooldown} С",
   "DASH ${IAI.distance} M WHERE YOU LOOK (UP AND DOWN TOO), X${IAI.damage} DMG TO ALL ON THE PATH. COOLDOWN ${IAI.cooldown} S": "РЫВОК НА ${IAI.distance} М ТУДА, КУДА СМОТРИШЬ (И ВВЕРХ, И ВНИЗ), X${IAI.damage} УРОНА ВСЕМ НА ПУТИ. ПЕРЕЗАРЯДКА ${IAI.cooldown} С",
+  "DAY / NIGHT": "ДЕНЬ И НОЧЬ",
   "DEADLY MIST": "СМЕРТЕЛЬНЫЙ ТУМАН",
   "DEEP FREEZE": "ГЛУБОКАЯ ЗАМОРОЗКА",
   "DEFAULT": "ОБЫЧНЫЙ",

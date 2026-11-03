@@ -35,6 +35,7 @@ import { MountPart } from "./scene/mount.js";
 import { AudioPart } from "./scene/audio.js";
 import { heroAnimStates } from "./hero-anim.js";
 import { EffectsPart } from "./scene/effects.js";
+import { DaylightPart } from "./scene/daylight.js";
 import { HostNet, ClientNet } from "./scene/net.js";
 import { Chat } from "./scene/chat.js";
 import { registerCommands } from "./scene/commands.js";
@@ -541,6 +542,7 @@ export class GameScene extends Scene {
     this.crescents.update(dt);
     this.beams.update(dt);
     this.fx.update(dt);
+    this.updateDaylight(dt); // время суток и яркость мира (scene/daylight.js)
 
     // 2. Анимации героя: тело «для мира» и рука «для экрана»
     // От 3-го лица: оружие в руке (или катана на бедре), руки держат его (слой поверх ходьбы)
@@ -616,7 +618,9 @@ export class GameScene extends Scene {
     const firstPerson = this.rig.mode !== "third";
     // Рука «для экрана» — только пока играем: под паузой и окнами она лишь мешала бы
     const playing = this.engine.scene === this;
-    const vm = firstPerson && playing && !this.scoped ? this.viewModel()?.draw(camera) : null;
+    const arm = this.viewModel();
+    if (arm) arm.light = this.lightHere(this.player.position, this.player); // под крышей рука темнее
+    const vm = firstPerson && playing && !this.scoped ? arm?.draw(camera) : null;
     return {
       camera,
       world: this.world,
@@ -682,4 +686,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart]);

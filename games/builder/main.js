@@ -151,6 +151,12 @@ function generalTab() {
         change: () => (s.general.intro = s.general.intro === false),
       },
       {
+        id: "dayNight",
+        label: "DAY / NIGHT",
+        value: () => (s.general.dayNight !== false ? "ON" : "OFF"),
+        change: () => (s.general.dayNight = s.general.dayNight === false),
+      },
+      {
         id: "lighting",
         label: "LIGHTING",
         value: () => (engine.settings.data.video.lighting !== false ? "ON" : "OFF"),

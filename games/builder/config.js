@@ -37,6 +37,7 @@ export const GAME_DEFAULTS = {
     screenShake: true, //  тряска камеры от ударов, взрывов, приземлений и при быстром падении (прицел не сдвигает)
     autoLoot: true, //     автоподбор предметов рядом (V)
     intro: true, //        заставка при запуске
+    dayNight: true, //     смена дня и ночи (DAY)
     uiStyle: 0, //         стиль окон (THEMES)
     profileId: "", //      id игрока: к нему в мире привязан персонаж (создаётся при первом запуске)
   },
@@ -560,6 +561,10 @@ export const TRAPS = {
 export const CLIPS = { enabled: false, items: { pistol: "pistol-clip", auto: "auto-clip", shotgun: "shotgun-clip", rifle: "rifle-clip" }, start: 3 };
 // След пули (и у героя, и у мобов-стрелков): трассер — короткий светлый луч от ствола до попадания,
 // в блок — чёрная точка на holeLife секунд
+// День и ночь (scene/daylight.js): сутки — length с; ночью картинка темнее до night (доля яркости),
+// рассвет и закат — по dusk доли суток. Выключить — настройки (DAY / NIGHT) или консоль daynight 0
+export const DAY = { length: 1200, night: 0.5, dusk: 0.08, start: 0.3 };
+
 // Частицы (scene/effects.js): «кровь» по виду существа, сколько брызг (3 + урон / bloodPer, не больше bloodMax),
 // огонь и дым взрыва, искры пули, пыль
 export const FX = {
