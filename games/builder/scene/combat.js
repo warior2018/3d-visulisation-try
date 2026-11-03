@@ -87,7 +87,7 @@ export class CombatPart {
       aim: (range) => this.aimedHit(range), // { entity, part } — part: голова → хедшот
       aimSpread: (range, spread) => this.aimedHit(range, spread), // дробь: луч с разбросом
       aimLine: (range, max) => this.aimedLine(range, max), //          насквозь (арбалет): все на линии до стены
-      onShot: () => this.bulletTrace(), // выстрел: трассер и след на блоке
+      onShot: (_, attack) => this.bulletTrace(attack?.id), // выстрел: трассер (по оружию) и след на блоке
       entities: this.entities.list,
       // Удар по хитбоксу не бьёт сквозь стены
       blocked: (owner, target) => this.blockedBetween(owner, target),

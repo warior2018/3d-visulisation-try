@@ -40,9 +40,9 @@ export class ThrowersPart {
     this.engine.sound.play("swing", { at: e.position });
   }
 
-  // След выстрела героя: короткий трассер от ствола до того, во что попал луч (последний aimedHit),
-  // в блок — чёрная точка на пару секунд (BULLET)
-  bulletTrace() {
+  // След выстрела героя: трассер от ствола до того, во что попал луч (последний aimedHit) — сколько висит,
+  // зависит от оружия (BULLET.trace; арбалет — без трассера); в блок — чёрная точка на пару секунд
+  bulletTrace(attackId) {
     const ray = this.lastRay;
     if (!ray) return;
     const { origin, dir, max } = ray;
@@ -50,8 +50,14 @@ export class ThrowersPart {
     const wall = this.world.raycast(origin, dir, max);
     const t = hit && (!wall || hit.t <= wall.t) ? hit.t : wall ? wall.t : max;
     const end = origin.add(dir.scale(t));
-    this.beams.add({ from: this.handPoint(), to: end, color: BULLET.color, core: BULLET.core, life: BULLET.life, width: BULLET.width });
+    this.tracer(this.handPoint(), end, attackId);
     if (wall && t === wall.t) this.bulletHole(origin, dir, t);
+  }
+
+  // Трассер выстрела (BULLET.trace по id атаки); оружия нет в списке — ничего
+  tracer(from, to, attackId) {
+    const tr = BULLET.trace[attackId];
+    if (tr) this.beams.add({ from, to, color: BULLET.color, core: BULLET.core, life: tr.life, width: tr.width });
   }
 
   // Чёрная точка там, где пуля ударила в блок (чуть ближе к стрелку — чтобы её не закрывала сама грань)
@@ -81,7 +87,7 @@ export class ThrowersPart {
       this.engine.sound.play(hit.entity === this.player ? "hurt" : "hit", { at: hit.entity.position });
       this.engine.log(`${e.name} → ${hit.entity.name}: ${ATTACKS[w.attack].name} -${res?.dealt ?? 0} HP`);
     }
-    this.beams.add({ from, to: { x: from.x + dir.x * t, y: from.y + dir.y * t, z: from.z + dir.z * t }, color: BULLET.color, core: BULLET.core, life: BULLET.life, width: BULLET.width });
+    this.tracer(from, { x: from.x + dir.x * t, y: from.y + dir.y * t, z: from.z + dir.z * t }, ATTACKS[w.attack].id);
     if (wall && t === wall.t) this.bulletHole(from, dir, t);
     e.view?.animator.playOnce("Shoot");
     this.engine.sound.play("shot", { at: e.position });

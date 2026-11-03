@@ -37,7 +37,7 @@ export class WorldgenPart {
   }
 
   generateWorld() {
-    const W = WORLDGEN;
+    const W = this.worldgen || WORLDGEN; // размер мира и летающие острова (окно создания: worldgenFor)
     const rnd = Math.random;
     const range = ([a, b]) => randomInt(rnd, a, b);
     const pick = (list) => list[Math.floor(rnd() * list.length)];

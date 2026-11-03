@@ -4,10 +4,10 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { TROPHY_TALENTS, TROPHY } from "../talents.js";
+import { TROPHY_TALENTS, TROPHY, weaponTab } from "../talents.js";
 import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3, rarityOf } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
-import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD } from "../config.js";
+import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS } from "../config.js";
 import { ITEMS } from "../items.js";
 
 export class ProgressionPart {
@@ -109,6 +109,7 @@ export class ProgressionPart {
     this.engine.toast(`LEVEL ${this.experience.level}! +${gained} PTS (${key})`, 3000);
     this.engine.log(`новый уровень: ${this.experience.level}`);
     if (!this.playerClass) this.askClass(); // первый новый уровень — пора выбрать класс
+    else if (this.needsSubclass()) this.askSubclass(); // SUBCLASS.level — второе оружие
   }
 
   // ---------- Классы (config.js → CLASSES) ----------
@@ -116,7 +117,8 @@ export class ProgressionPart {
   // Что открыто классу: вкладки талантов (свой класс + общие) и раздел магазина (магазин спрашивает сам — when)
   applyClass() {
     const c = CLASSES[this.playerClass];
-    this.talents.allow(c ? [c.tab, ...COMMON_TABS] : COMMON_TABS);
+    const sub = c && this.subclass ? [weaponTab(this.subclass)] : [];
+    this.talents.allow(c ? [c.tab, ...sub, ...COMMON_TABS] : COMMON_TABS);
     this.dressHero();
   }
 
@@ -167,6 +169,50 @@ export class ProgressionPart {
     this.engine.sound.play("learn");
     this.engine.toast(`CLASS: ${c.name}${refunded ? ` (REFUNDED POINTS: ${refunded})` : ""}`, 3000);
     this.engine.log(`выбран класс ${id}${refunded ? `, возвращено очков ${refunded}` : ""}, выдано ${item} x${count}`);
+    this.save(false);
+    if (this.needsSubclass()) this.askSubclass(); // класс выбрали поздно — сразу и второе оружие
+  }
+
+  // ---------- Подкласс (config.js → SUBCLASS) ----------
+
+  // Пора выбрать второе оружие: класс есть, уровень дорос, а подкласса нет (гость сетевой игры — не спрашиваем)
+  needsSubclass() {
+    return !!this.playerClass && !this.subclass && this.role !== "client" && this.experience.level >= SUBCLASS.level;
+  }
+
+  // Окно выбора второго оружия своего класса. Закрыть, не выбрав, нельзя; оружие не выдаём — его можно купить
+  askSubclass() {
+    if (this.choosingClass) return;
+    const list = SUBCLASS.weapons[this.playerClass] || [];
+    if (!list.length) return;
+    this.choosingClass = true;
+    this.engine.push(new ChoiceScene({
+      title: "CHOOSE YOUR SECOND WEAPON",
+      subtitle: "ONLY IT CAN BE BOUGHT IN THE SHOP, AND IT OPENS ITS OWN TALENT TAB. THE CHOICE IS FINAL",
+      required: true,
+      lock: 1,
+      options: list.map((id) => ({
+        id, name: ITEMS[id].name, describe: this.shop.slots.find((s) => s.id === id)?.describe?.() || "",
+        drawIcon: (ui, x, y, s) => ITEMS[id]?.drawIcon?.(ui, x, y, s),
+      })),
+      onPick: (id) => this.chooseSubclass(id),
+    }));
+  }
+
+  // Подкласс выбран: очки в ветках другого покупного оружия класса — обратно; открыты его вкладка и покупка
+  chooseSubclass(id) {
+    this.choosingClass = false;
+    if (!(SUBCLASS.weapons[this.playerClass] || []).includes(id)) return;
+    this.subclass = id;
+    let refunded = 0;
+    for (const w of SUBCLASS.weapons[this.playerClass]) if (w !== id) refunded += this.talents.refundTab(weaponTab(w));
+    this.applyClass();
+    this.applyTalents();
+    this.engine.sound.play("learn");
+    const key = Input.label(this.settings.controls.bindings.shop);
+    const text = `SECOND WEAPON: ${ITEMS[id].name}. BUY IT IN THE SHOP (${key})`;
+    this.engine.toast(refunded ? `${text} (REFUNDED POINTS: ${refunded})` : text, 4000);
+    this.engine.log(`выбран подкласс ${id}${refunded ? `, возвращено очков ${refunded}` : ""}`);
     this.save(false);
   }
 }

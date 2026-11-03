@@ -98,10 +98,12 @@ export default async function (t, g) {
 
   // сохранение у гостя: мир — хоста, не пишем; прогресс — в своё сохранение
   const fs = await import("node:fs");
-  const metaFile = g.dir + "/world/meta.json";
-  const chunksBefore = fs.existsSync(g.dir + "/world/chunks") ? fs.readdirSync(g.dir + "/world/chunks").length : 0;
+  const S = await import(g.root + "games/builder/save.js");
+  const metaFile = S.SAVE_FILE;
+  const chunksDir = S.SAVE_DIR + "/chunks";
+  const chunksBefore = fs.existsSync(chunksDir) ? fs.readdirSync(chunksDir).length : 0;
   guest.save(false);
-  const chunksAfter = fs.existsSync(g.dir + "/world/chunks") ? fs.readdirSync(g.dir + "/world/chunks").length : 0;
+  const chunksAfter = fs.existsSync(chunksDir) ? fs.readdirSync(chunksDir).length : 0;
   t.check("гость не пишет мир хоста в своё сохранение", chunksAfter === chunksBefore);
   if (fs.existsSync(metaFile)) {
     const meta = JSON.parse(fs.readFileSync(metaFile, "utf8"));

@@ -39,6 +39,7 @@ export class VoxelWorld {
     // перерисовку, а искать сверху вниз — до maxY обращений на столбик. Поставили / сломали — поправляем
     this.tops = new Map();
     this.chunks = new Map(); // chunkKey(cx, cz) -> Chunk
+    this.floor = true; //       true — ниже y = 0 сплошной пол; false — пусто (летающие острова: падаем в бездну)
     // onChange(x, y, z, block | null) — поставили (block) или сломали (null) блок: сеть рассылает изменения.
     // Загрузка и clear() его не зовут
     this.onChange = null;
@@ -109,7 +110,7 @@ export class VoxelWorld {
 
   // Твёрдая ли клетка: блок или пол (всё, что ниже y = 0). Это спрашивает физика.
   isSolid(x, y, z) {
-    return y < 0 || this.blocks.has(key(x, y, z));
+    return (y < 0 && this.floor) || this.blocks.has(key(x, y, z));
   }
 
   // surface — особая поверхность блока (null — обычная): "slip" — скользкая, на ней не устоять (физика:
@@ -219,7 +220,8 @@ export class VoxelWorld {
       if (t > maxDist) break;
 
       const place = { x: x + normal[0], y: y + normal[1], z: z + normal[2] };
-      if (y < 0) return { block: null, place, t }; // упёрлись в пол
+      if (y < 0 && this.floor) return { block: null, place, t }; // упёрлись в пол
+      if (y < -256) return null; //                           бездна (пола нет) — дальше нечего искать
       if (this.has(x, y, z)) return { block: { x, y, z }, place, t };
     }
     return null;

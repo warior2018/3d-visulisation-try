@@ -5,7 +5,7 @@
 // ============================================================
 
 import { itemName, ITEMS, isArmor, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
-import { ATTACKS, CLASSES, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
+import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
 import { ABILITY_FOR_ITEM, HeldItemAbility } from "../abilities.js";
@@ -17,6 +17,8 @@ export class ShopPart {
     // Оружие и инструмент — без ограничений: выбросил случайно — купи снова
     const weapon = (id, price, text) => ({
       id, name: itemName(id), price, describe: () => text, category: ITEMS[id].class || "other",
+      // покупное оружие класса — только выбранное на SUBCLASS.level уровне (подкласс)
+      when: SUBCLASS_WEAPONS.has(id) ? () => this.subclass === id : undefined,
       canGive: () => this.canTake(id, 1) || "NO ROOM IN INVENTORY",
       give: () => this.giveItem(id),
       drawIcon: (ui, x, y, s) => ITEMS[id].drawIcon(ui, x, y, s),

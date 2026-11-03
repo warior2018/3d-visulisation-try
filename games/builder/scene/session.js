@@ -4,11 +4,11 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE } from "../config.js";
-import { loadGame, saveGame, saveGuestProgress, SAVE_DIR } from "../save.js";
+import { HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, worldgenFor } from "../config.js";
+import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../save.js";
 import { Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, profiler } from "../../../engine/index.js";
 import { maxStack, hotbarAccepts, armorAccepts } from "../items.js";
-import { TROPHY } from "../talents.js";
+import { TROPHY, TALENT_TREE, weaponTab } from "../talents.js";
 import { DEFAULT_SPAWNS, RESIDENTS, mobGrowth } from "../creatures.js";
 import { pickWeighted, PROF } from "./shared.js";
 
@@ -17,6 +17,10 @@ export class SessionPart {
 
   enter() {
     Object.assign(this.engine.sound.hearing, HEARING); // объёмный звук: радиус слышимости и затухание (config.js)
+    // Мир из слота: размер и летающие острова (info.json; старые миры — с полом, большие)
+    const info = this.role === "client" ? {} : worldInfo();
+    this.world.floor = !info.floating;
+    this.worldgen = worldgenFor(info.size || 3, !!info.floating);
     const saved = loadGame(this.world); // блоки — сразу в мир; null — нового мира ещё нет
     // Рельеф: по зерну из сохранения (кубики уже в blocks — только высота земли для расчётов)
     // Параметры рельефа — из сохранения (старые миры — TERRAIN_V1: тогда остров был меньше)
@@ -74,11 +78,16 @@ export class SessionPart {
     // Класс героя: пока не выбран — открыты только общие вкладки талантов и раздел «ПРОЧЕЕ» магазина
     this.playerClass = CLASSES[saved?.progression?.class] ? saved.progression.class : null;
     this.ammoGiven = !!saved?.progression?.ammoGiven;
+    // Подкласс (второе оружие с SUBCLASS.level уровня) — только из оружия своего класса
+    const sub = saved?.progression?.subclass;
+    this.subclass = (SUBCLASS.weapons[this.playerClass] || []).includes(sub) ? sub : null;
     this.applyClass();
-    // Очки во вкладках чужих классов (старые сохранения, перестройка дерева) — обратно
+    // Очки во вкладках чужих классов и не своего второго оружия (старые сохранения, перестройка дерева) — обратно.
+    // Подкласс ещё не выбран — ветки оружия своего класса ждут выбора (вернутся тогда)
     if (this.playerClass) {
       let back = 0;
-      for (const [id, c] of Object.entries(CLASSES)) if (id !== this.playerClass) back += this.talents.refundTab(c.tab);
+      const mine = new Set(this.subclass ? [] : (SUBCLASS.weapons[this.playerClass] || []).map(weaponTab));
+      for (const tab of TALENT_TREE.tabs) if (!this.talents.isAllowed(tab.id) && !mine.has(tab.id)) back += this.talents.refundTab(tab.id);
       if (back) this.engine.log(`очки из вкладок чужих классов возвращены: ${back}`);
     }
     TROPHY.hp = saved?.progression?.trophies?.hp || 0; //         набранное талантом «ТРОФЕИ»
@@ -107,7 +116,8 @@ export class SessionPart {
     const view = this.engine.renderer?.fadeDist || 60; // дальность прорисовки
     const around = () => this.player.position;
     // Не у героя под носом и не внутри построек (иначе физика вытолкнет моба на крышу)
-    const far = (x, z) => Math.hypot(x - this.player.position.x, z - this.player.position.z) < SPAWN.minPlayerDistance || this.onStructure(x, z);
+    const far = (x, z) => Math.hypot(x - this.player.position.x, z - this.player.position.z) < SPAWN.minPlayerDistance || this.onStructure(x, z)
+      || (!this.world.floor && !this.world.topBlock(Math.floor(x), Math.floor(z))); // летающие острова: не над бездной
     this.spawner = new Spawner({
       ...SPAWN,
       around, radius: view, minRadius: SPAWN.minPlayerDistance,
@@ -209,7 +219,7 @@ export class SessionPart {
   saveNow(toast = true, { background = false } = {}) {
     if (this.dead) return; // погибли — мир уже удалён, сохранять нечего
     const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss); // боссов не сохраняем (босс появится в логове заново)
-    const progression = { class: this.playerClass, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
+    const progression = { class: this.playerClass, subclass: this.subclass || null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
     this.autosaveIn = AUTOSAVE.every; // только что сохранились — следующее автосохранение отсчитываем заново
     if (this.role === "client") {
       // гость: мир — хоста (его не пишем), свой прогресс и вещи — в своё сохранение

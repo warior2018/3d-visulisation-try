@@ -53,7 +53,7 @@ export class BossesPart {
   arenaSpot() {
     const T = this.terrain;
     if (!T) return null;
-    const A = WORLDGEN.arena;
+    const A = (this.worldgen || WORLDGEN).arena;
     const rnd = seededRandom(T.seed * 7 + 3);
     const flat = T.discs.filter((d) => !d.main && d.r - d.edge >= A.radius && !T.mountains.some((m) => Math.hypot(m.x - d.x, m.z - d.z) < 1));
     let x, z;
@@ -75,7 +75,7 @@ export class BossesPart {
 
   // Построить площадку: выровнять землю, круглый жёлтый настил в блок высотой и 4 каменных столба по краям
   buildArena(a) {
-    const W = WORLDGEN;
+    const W = this.worldgen || WORLDGEN;
     const g = a.y - 1;
     flattenArea(this.world, { x: a.x - a.r, z: a.z - a.r, w: a.r * 2 + 1, d: a.r * 2 + 1, y: g, top: W.colors.grass, fill: W.colors.dirt });
     for (let i = -a.r; i <= a.r; i++) for (let k = -a.r; k <= a.r; k++) {

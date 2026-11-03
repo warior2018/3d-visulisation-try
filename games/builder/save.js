@@ -25,14 +25,128 @@ import { readJSON, ChunkStore, writeAtomic, renameSafe } from "../../engine/inde
 import { SAVES, PLAYER, BACKUP, STREAM } from "./config.js";
 import { creatureToJSON } from "./creatures.js";
 
-export const SAVE_DIR = path.join(SAVES, "world");
-export const SAVE_FILE = path.join(SAVE_DIR, "meta.json"); // всё, кроме блоков
-const OLD_FILE = path.join(SAVES, "world.json"); //            формат 6 и раньше: всё в одном файле
-const BACKUPS = path.join(SAVES, "backups");
-export const store = new ChunkStore(SAVE_DIR);
+// Миры — слоты: saves/worlds/<id>/ — в каждом свой мир (world/: meta.json + chunks/), копии (backups/),
+// погибшие миры (dead/) и info.json — имя, картинка, когда играли в последний раз (меню «ИГРАТЬ»).
+// Какой мир сейчас — useWorld(id); пути ниже переключаются вместе с ним (export let — живые ссылки)
+const WORLDS = path.join(SAVES, "worlds");
+export const MAX_WORLDS = 9;
+export let currentWorld = null;
+export let WORLD_ROOT = null;
+export let SAVE_DIR = null;
+export let SAVE_FILE = null; // всё, кроме блоков
+let OLD_FILE = null; //        формат 6 и раньше: всё в одном файле
+let BACKUPS = null;
+let DEAD = null;
+export let store = null;
 let lastBackup = 0;
 
-// Есть ли сохранённый мир (в любом формате)
+export function useWorld(id) {
+  currentWorld = String(id);
+  WORLD_ROOT = path.join(WORLDS, currentWorld);
+  SAVE_DIR = path.join(WORLD_ROOT, "world");
+  SAVE_FILE = path.join(SAVE_DIR, "meta.json");
+  OLD_FILE = path.join(WORLD_ROOT, "world.json");
+  BACKUPS = path.join(WORLD_ROOT, "backups");
+  DEAD = path.join(WORLD_ROOT, "dead");
+  store = new ChunkStore(SAVE_DIR);
+  lastBackup = 0;
+  return currentWorld;
+}
+
+const infoFile = (id) => path.join(WORLDS, String(id), "info.json");
+const readInfo = (id) => {
+  try { return JSON.parse(fs.readFileSync(infoFile(id), "utf8")); } catch { return null; }
+};
+const writeInfo = (id, info) => {
+  fs.mkdirSync(path.dirname(infoFile(id)), { recursive: true });
+  writeAtomic(infoFile(id), JSON.stringify(info, null, 2), true);
+};
+
+// Старые сохранения (один мир в saves/) — в слот 1 (один раз)
+function migrateToSlots() {
+  if (fs.existsSync(WORLDS)) return;
+  const any = ["world", "world.json"].some((f) => fs.existsSync(path.join(SAVES, f)));
+  if (!any) return;
+  const root = path.join(WORLDS, "1");
+  fs.mkdirSync(root, { recursive: true });
+  for (const f of ["world", "world.json", "world-v6.json", "dead", "backups"]) {
+    const from = path.join(SAVES, f);
+    if (fs.existsSync(from)) renameSafe(from, path.join(root, f));
+  }
+  writeInfo("1", { name: "WORLD 1", icon: "island", created: new Date().toISOString(), lastPlayed: Date.now() });
+}
+
+// Что показать в меню о мире: уровень, класс, здоровье, оружие в руках, бонусы (из meta.json)
+function summaryOf(id) {
+  const meta = path.join(WORLDS, String(id), "world", "meta.json");
+  let d = null;
+  try { d = JSON.parse(fs.readFileSync(meta, "utf8")); } catch {}
+  if (!d && fs.existsSync(path.join(WORLDS, String(id), "world.json"))) return { saved: true, old: true };
+  if (!d) return { saved: false };
+  const mine = d.players?.[PROFILE];
+  if (d.players && Object.keys(d.players).length && !mine) return { saved: true, noCharacter: true };
+  if (mine) Object.assign(d, { player: mine.player, progression: mine.progression });
+  const pr = d.progression || {};
+  const hb = d.player?.hotbar;
+  const weapon = Array.isArray(hb) ? hb[0] : Array.isArray(hb?.slots) ? hb.slots[0] : null; // ячейка оружия
+  return {
+    saved: true,
+    level: pr.experience?.level || 1,
+    cls: pr.class || null,
+    hp: Math.round(d.player?.hp ?? 0),
+    weapon: weapon ? { item: weapon.item, rarity: weapon.data?.rarity || null } : null,
+    armor: (d.player?.armor || []).filter(Boolean).map((a) => a.item),
+    hides: pr.trollHides || 0,
+    crowns: pr.boneCrowns || 0,
+    talents: pr.talents?.ranks || {},
+    savedAt: d.savedAt || null,
+  };
+}
+
+// Сведения о текущем мире (имя, картинка, размер, летающие ли острова) — из info.json
+export const worldInfo = () => readInfo(currentWorld) || {};
+
+// Все миры: сначала тот, в который играли последним
+export function listWorlds() {
+  if (!fs.existsSync(WORLDS)) return [];
+  return fs.readdirSync(WORLDS)
+    .filter((id) => /^\d+$/.test(id) && readInfo(id))
+    .map((id) => ({ id, ...readInfo(id), ...summaryOf(id) }))
+    .sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0));
+}
+
+// size — 1 / 2 / 3 (config: WORLD_SIZES); новые миры — летающие острова (floating)
+export function createWorld({ name, icon, size = 2, floating = true }) {
+  let id = 1;
+  while (fs.existsSync(path.join(WORLDS, String(id)))) id++;
+  writeInfo(id, { name: String(name || `WORLD ${id}`).slice(0, 20), icon: icon || "island", size, floating, created: new Date().toISOString(), lastPlayed: Date.now() });
+  return String(id);
+}
+
+export function updateWorld(id, patch) {
+  const info = readInfo(id);
+  if (info) writeInfo(id, { ...info, ...patch });
+}
+
+// Играем в этот мир: он — текущий и первый в списке
+export function touchWorld(id) {
+  updateWorld(id, { lastPlayed: Date.now() });
+  useWorld(id);
+}
+
+// Удалить мир из списка: не насовсем — папка уходит в saves/deleted/
+export function deleteWorld(id) {
+  const from = path.join(WORLDS, String(id));
+  if (!fs.existsSync(from)) return;
+  const dir = path.join(SAVES, "deleted");
+  fs.mkdirSync(dir, { recursive: true });
+  renameSafe(from, path.join(dir, `world-${id}-${new Date().toISOString().replace(/[:.]/g, "-")}`));
+}
+
+migrateToSlots();
+useWorld(listWorlds()[0]?.id || "1");
+
+// Есть ли сохранённый мир (в любом формате) — у текущего слота
 export const hasSave = () => fs.existsSync(SAVE_FILE) || fs.existsSync(OLD_FILE);
 
 // Раньше (до разделения на движок и игры) сохранения лежали в nodejs_visual/saves.
@@ -55,15 +169,29 @@ export function migrateOldSaves() {
 
 // Записать мир. background — в фоне (автосохранение: игра не ждёт диска); иначе — сразу и до конца.
 // Вернёт { blocks, chunks, bytes } — блоков в мире, сколько кусков пишем и их размер
+// Персонажи привязаны к миру по id игрока (PROFILE: id из настроек; позже — аккаунты): в meta.players[id] —
+// герой и прогресс каждого, кто играл в этом мире. player / progression сверху — того, кто сохранял последним
+// (старые сохранения — только они)
+let PROFILE = "local";
+export const setProfile = (id) => (PROFILE = String(id || "local"));
+export const profileId = () => PROFILE;
+
+function playersOf() {
+  try { return JSON.parse(fs.readFileSync(SAVE_FILE, "utf8")).players || {}; } catch { return {}; }
+}
+
 export function saveGame({ world, player, look, creatures, progression, spawned = 0, pickups = [], traps = [], fog = null, worldgen = null, background = false }) {
   const p = player.position;
   const w = store.save(world, { sync: !background }); // сначала куски: при них дописываются имена поверхностей
+  const me = { x: p.x, y: p.y, z: p.z, yaw: look.yaw, pitch: look.pitch, hp: player.stats.hp, mana: player.stats.mana, inventory: player.inventory.toJSON(), hotbar: player.hotbar?.toJSON(), armor: player.armor?.toJSON() };
+  const players = { ...playersOf(), [PROFILE]: { player: me, progression } };
   const meta = JSON.stringify({
-    version: 7,
+    version: 8,
     progression, // { experience: { level, xp }, talents: { points, ranks } }
     spawned, //    сколько скелетов уже появилось (каждый следующий крепче)
     savedAt: new Date().toISOString(),
-    player: { x: p.x, y: p.y, z: p.z, yaw: look.yaw, pitch: look.pitch, hp: player.stats.hp, mana: player.stats.mana, inventory: player.inventory.toJSON(), hotbar: player.hotbar?.toJSON(), armor: player.armor?.toJSON() },
+    player: me,
+    players, //    все персонажи этого мира: { id игрока: { player, progression } }
     entities: creatures.map(creatureToJSON),
     pickups, //    [{ item, count, x, y, z }] — что лежит на земле
     traps, //      [{ type, x, y, z, yaw, age }] — поставленные ловушки
@@ -74,7 +202,7 @@ export function saveGame({ world, player, look, creatures, progression, spawned 
   });
   const after = () => {
     // старый формат больше не нужен — отложить (не стирать: вдруг что-то пошло не так)
-    if (fs.existsSync(OLD_FILE)) renameSafe(OLD_FILE, path.join(SAVES, "world-v6.json"));
+    if (fs.existsSync(OLD_FILE)) renameSafe(OLD_FILE, path.join(WORLD_ROOT, "world-v6.json"));
   };
   if (background) {
     store.busy = store.busy
@@ -121,6 +249,15 @@ export function loadGame(world) {
   if (fs.existsSync(SAVE_FILE)) {
     const data = readJSON(SAVE_FILE, (d) => d && d.player && d.version >= 7);
     if (!data) return null;
+    // свой персонаж этого мира (по id игрока); в мире есть другие, а меня нет — новый персонаж (класс — заново)
+    if (data.players && Object.keys(data.players).length) {
+      const mine = data.players[PROFILE];
+      if (mine) Object.assign(data, { player: mine.player, progression: mine.progression });
+      else {
+        const any = Object.values(data.players)[0].player;
+        Object.assign(data, { player: { x: any.x, y: any.y, z: any.z, yaw: any.yaw, pitch: 0 }, progression: {}, newCharacter: true });
+      }
+    }
     // большой мир — только куски вокруг героя (остальные подгрузит store.stream по пути)
     let files = 0;
     try { files = fs.readdirSync(path.join(SAVE_DIR, "chunks")).filter((f) => f.endsWith(".bin")).length; } catch {}
@@ -145,7 +282,7 @@ export function deleteSave() {
   store.world = null; // следующий мир пишется с нуля
   store.saved.clear();
   if (!what) return null;
-  const dir = path.join(SAVES, "dead");
+  const dir = DEAD;
   fs.mkdirSync(dir, { recursive: true });
   const name = `world-${new Date().toISOString().replace(/[:.]/g, "-")}${what === OLD_FILE ? ".json" : ""}`;
   try {

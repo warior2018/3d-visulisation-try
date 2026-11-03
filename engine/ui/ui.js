@@ -57,6 +57,31 @@ export class UI {
     }
   }
 
+  // Картинка (engine/ui/png.js: { width, height, data RGBA }) в прямоугольник w × h — «по пикселям» (пиксель-арт
+  // остаётся чётким). circle — вписать в круг (что за кругом — не рисуем); alpha — общая прозрачность 0…1;
+  // dim — затемнить (0…1). Полностью прозрачные пиксели картинки пропускаем, остальные — как есть
+  image(img, x, y, w, h, { circle = false, alpha = 1, dim = 0 } = {}) {
+    if (!img) return;
+    const { fb } = this;
+    const x0 = Math.max(0, Math.round(x)), y0 = Math.max(0, Math.round(y));
+    const x1 = Math.min(fb.width, Math.round(x + w)), y1 = Math.min(fb.height, Math.round(y + h));
+    const cx = x + w / 2, cy = y + h / 2, r2 = (Math.min(w, h) / 2) ** 2;
+    const px = fb.pixels, d = img.data, k = 1 - dim;
+    for (let py = y0; py < y1; py++) {
+      const sy = Math.min(img.height - 1, Math.floor(((py - y) / h) * img.height));
+      const row = py * fb.width;
+      for (let qx = x0; qx < x1; qx++) {
+        if (circle && (qx + 0.5 - cx) ** 2 + (py + 0.5 - cy) ** 2 > r2) continue;
+        const sx = Math.min(img.width - 1, Math.floor(((qx - x) / w) * img.width));
+        const i = (sy * img.width + sx) * 4;
+        const a = Math.round(d[i + 3] * alpha);
+        if (a === 0) continue;
+        px[row + qx] = ((a << 24) | (Math.round(d[i + 2] * k) << 16) | (Math.round(d[i + 1] * k) << 8) | Math.round(d[i] * k)) >>> 0;
+      }
+    }
+    this.dirty = true;
+  }
+
   // Один пиксель
   pixel(x, y, color, alpha = 255) {
     const { fb } = this;

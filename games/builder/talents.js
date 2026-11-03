@@ -13,7 +13,7 @@
 //  (game-scene.js → applyTalents и места, где это работает).
 // ============================================================
 
-import { HAMMER, FALL_DAMAGE } from "./config.js";
+import { HAMMER, FALL_DAMAGE, SUBCLASS } from "./config.js";
 import {
   damageMultiplier, cooldownReduction, lifesteal, guaranteedCrit, withStatus, convertTo, bleed, stun, Slow,
   firstHit, vsStunned, headshotBonus, rampPerHit, onlyAttack, reachBonus,
@@ -54,7 +54,7 @@ export const TALENT_TREE = {
   tabs: [
     // ---------- БОЕЦ ----------
     {
-      id: "melee", name: "FIGHTER", kind: "melee", note: "BASE: MACHETE. SHOP: WAR HAMMER, KATANA, SPEAR",
+      id: "melee", name: "FIGHTER", kind: "melee", note: "BASE: MACHETE. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB",
       sections: [{ name: "WAR HAMMER", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "KATANA", col: 4.5 }, { name: "SPEAR", col: 6 }],
       talents: [
         { id: "hammer-stun", name: "STUN", maxRank: 3, cost: SIDE, col: 0, row: 0,
@@ -90,7 +90,7 @@ export const TALENT_TREE = {
     },
     // ---------- СТРЕЛОК ----------
     {
-      id: "ranged", name: "RANGER", kind: "ranged", note: "BASE: PISTOL. SHOP: RIFLE, SHOTGUN, SNIPER",
+      id: "ranged", name: "RANGER", kind: "ranged", note: "BASE: PISTOL. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB",
       sections: [{ name: "RIFLE", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "SHOTGUN", col: 4 }, { name: "SNIPER", col: 5 }],
       talents: [
         { id: "rifle-grenade", name: "GRENADE", maxRank: 1, cost: SIDE, col: 0, row: 0,
@@ -119,7 +119,7 @@ export const TALENT_TREE = {
     // Всё — взрывы (вид атак "blast"): гранаты (база), гранатомёт и динамит (магазин). Правила (радиус, фитиль,
     // бомбочки кассеты) — stats, их читает game-scene.js → throwBomb и abilities.js
     {
-      id: "demo", name: "DEMOLITIONIST", kind: "blast", note: "BASE: GRENADES. SHOP: GRENADE LAUNCHER, DYNAMITE",
+      id: "demo", name: "DEMOLITIONIST", kind: "blast", note: "BASE: GRENADES. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB",
       sections: [{ name: "GRENADES", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "LAUNCHER", col: 4 }, { name: "DYNAMITE", col: 5 }],
       talents: [
         { id: "grenade-shrapnel", name: "SHRAPNEL", maxRank: 2, cost: SIDE, col: 0, row: 0,
@@ -177,3 +177,44 @@ export const TALENT_TREE = {
   ],
   tierPoints: [0, 2, 4, 6, 12], // ярусы — только у ВЫЖИВАНИЯ (у классов — стрелки requires); 5-й — ветеранский
 };
+
+// ---------- ПОДКЛАСС: вкладки оружия ----------
+// Ветки покупного оружия вынесены из вкладок классов в свои вкладки "w-<предмет>": видна (и действует) только
+// вкладка оружия, выбранного на SUBCLASS.level уровне (scene/progression.js → askSubclass). В каждой — свои
+// таланты оружия + MASTERY (+урон этим оружием)
+export const weaponTab = (item) => `w-${item}`;
+const WEAPON_BRANCH = { // предмет → [id атаки, имя вкладки, приставка id талантов, которые туда переезжают]
+  "war-hammer": ["war-hammer", "WAR HAMMER", "hammer-"], katana: ["katana", "KATANA", "katana-"], spear: [["spear", "spear-charge"], "SPEAR", "spear-"],
+  auto: ["auto", "ASSAULT RIFLE", "rifle-"], shotgun: ["shotgun", "SHOTGUN", "shotgun-"], rifle: ["rifle", "SNIPER", "sniper-head"], crossbow: ["crossbow", "CROSSBOW", null],
+  launcher: ["launcher", "LAUNCHER", "launcher-"], dynamite: ["dynamite", "DYNAMITE", "dynamite-"],
+};
+// Свои таланты у оружия, у которого их было мало
+const EXTRA = {
+  crossbow: [{ id: "crossbow-head", name: "HEADSHOT", maxRank: 2, cost: SIDE, col: 0, row: 0,
+    describe: (r) => `CROSSBOW HEADSHOTS X${at([1.5, 2], r)} MORE`, modifiers: (r) => [onlyAttack("crossbow", headshotBonus(at([1.5, 2], r)))] }],
+};
+const shiftCols = (list) => {
+  const min = Math.min(...list.map((t) => t.col));
+  for (const t of list) t.col -= min;
+  return min;
+};
+for (const [cls, items] of Object.entries(SUBCLASS.weapons)) {
+  const tab = TALENT_TREE.tabs.find((t) => t.id === cls);
+  for (const item of items) {
+    const [attack, name, prefix] = WEAPON_BRANCH[item];
+    const moved = prefix ? tab.talents.filter((t) => t.id.startsWith(prefix)) : [];
+    tab.talents = tab.talents.filter((t) => !moved.includes(t));
+    const talents = [...moved, ...(EXTRA[item] || [])];
+    if (talents.length) shiftCols(talents);
+    const row = talents.length ? Math.max(...talents.map((t) => t.row)) + 1 : 0;
+    const cols = talents.length ? Math.max(...talents.map((t) => t.col)) : 0;
+    talents.push({ id: `${item}-mastery`, name: "MASTERY", maxRank: 3, cost: SIDE, col: cols / 2, row,
+      describe: (r) => `+${pct(at([0.1, 0.2, 0.3], r))} DMG WITH THE ${name}`, modifiers: (r) => [onlyAttack(attack, damageMultiplier(1 + at([0.1, 0.2, 0.3], r)))] });
+    TALENT_TREE.tabs.splice(TALENT_TREE.tabs.indexOf(tab) + 1 + items.indexOf(item), 0, {
+      id: weaponTab(item), name, kind: tab.kind, weapon: item, note: "SUBCLASS WEAPON: ITS OWN BRANCH", talents,
+    });
+  }
+  // В классе остались общие ветки (и базовое оружие) — сдвигаем к левому краю, подписи — следом
+  const min = shiftCols(tab.talents);
+  tab.sections = tab.sections.filter((sec) => tab.talents.some((t) => Math.abs(t.col - (sec.col - min)) <= 0.5)).map((sec) => ({ ...sec, col: sec.col - min }));
+}

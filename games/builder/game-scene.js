@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Charge, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
-import { LIFETIME, THROW, SPEAR, PROGRESSION, PLAYER, AUTOSAVE, STREAM, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH } from "./config.js";
+import { LIFETIME, THROW, SPEAR, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH } from "./config.js";
 import { HandAbility, IN_HAND } from "./abilities.js";
 import { helpFor } from "./help.js";
 import { TALENT_TREE } from "./talents.js";
@@ -269,7 +269,9 @@ export class GameScene extends Scene {
     // Старое сохранение (уровень уже есть, а класса нет) — выбрать класс сразу при входе в мир
     if (!this.classChecked) {
       this.classChecked = true;
-      if (!this.playerClass && this.experience.level > 1) return this.askClass();
+      // нет класса (новый мир, новый персонаж) — сразу выбор класса, мир стоит, пока не выбран
+      if (!this.playerClass && this.role !== "client") return this.askClass();
+      if (this.needsSubclass()) return this.askSubclass(); // уровень уже 10+, а второе оружие не выбрано
     }
 
     this.tickPlayer(dt, input); // 1. свой герой: оружие, движение
@@ -300,6 +302,30 @@ export class GameScene extends Scene {
     if (!n) return "SOLO GAME";
     if (n.role === "host") return [`HOST, PORT ${n.server.port}, GUESTS ${n.guests.size}`, ...[...n.guests.values()].map((q) => `  ${q.name}: PING ${q.ping ?? "?"} MS`)];
     return `GUEST, PING ${n.ping ?? "?"} MS, ${n.ready ? "IN THE HOST WORLD" : "CONNECTING"}`;
+  }
+
+  // Летающие острова (пола нет): кто упал ниже FLOATING.voidY — герой теряет FLOATING.voidDamage макс. HP и
+  // возвращается на последнее твёрдое место; мобы и предметы исчезают
+  voidCheck(dt) {
+    const p = this.player, F = FLOATING;
+    this.safeIn = (this.safeIn ?? 0) - dt;
+    if (p.onGround && this.safeIn <= 0) {
+      this.safeIn = 0.5;
+      if (this.world.has(Math.floor(p.position.x), Math.floor(p.position.y - 0.5), Math.floor(p.position.z))) this.safePos = { x: p.position.x, y: p.position.y, z: p.position.z };
+    }
+    if (p.position.y < F.voidY && p.alive) {
+      const at = this.safePos || { x: 0, y: this.world.surfaceY(0, 0) + 1, z: 0 };
+      const dmg = Math.round(p.stats.maxHp * F.voidDamage);
+      p.position.x = at.x; p.position.y = at.y + 0.2; p.position.z = at.z;
+      p.velocity.x = p.velocity.y = p.velocity.z = 0;
+      this.groundY = undefined;
+      if (!this.god) p.damage(dmg);
+      this.engine.sound.play("hurt");
+      this.engine.toast(`FELL INTO THE VOID: -${dmg} HP`, 2000);
+      this.engine.log(`упал в бездну: -${dmg} HP, вернулся на ${at.x.toFixed(1)}, ${at.y.toFixed(1)}, ${at.z.toFixed(1)}`);
+    }
+    for (const e of [...this.entities.list]) if (e !== p && !e.remote && e.position.y < F.voidY) this.removeEntity(e);
+    for (const it of [...this.pickups.list]) if (it.position.y < F.voidY) this.pickups.remove(it);
   }
 
   // Гость погиб: в чужом мире ничего не стираем — встаём рядом с хостом с полным здоровьем
@@ -354,6 +380,7 @@ export class GameScene extends Scene {
   tickWorld(dt) {
     const { engine, player } = this;
     this.updateResidents(dt); // страж погиб — вернётся через минуту
+    if (!this.world.floor) this.voidCheck(dt); // летающие острова: упал в бездну
     // Большой мир — по частям: раз в секунду подгрузить близкие куски, выгрузить дальние (ChunkStore.stream)
     this.streamIn = (this.streamIn ?? 1) - dt;
     if (this.streamIn <= 0) {

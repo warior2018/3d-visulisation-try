@@ -44,7 +44,7 @@ export default async function (t, g) {
   // 4. Пробел под живым окном (инвентарь) — после закрытия не прыгаем
   await land(60);
   scene.openInventory();
-  t.check("инвентарь открылся поверх живого мира", engine.scene !== scene && engine.scene.live);
+  t.check("инвентарь открылся поверх мира (одиночная игра — мир на паузе)", engine.scene !== scene && !engine.scene.live);
   await g.frames(3);
   engine.input.pressedKeys.add(jumpCode);
   await g.frames(3);

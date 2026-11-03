@@ -27,7 +27,7 @@ struct Uniforms {
   far: f32,           // дальняя граница видимости
   brightness: f32,    // яркость из настроек: 1 — как есть, 0.5 — темнее, 1.5 — светлее
   roll: f32,          // крен камеры (наклон головы вбок), > 0 — голова вправо
-  _pad1: f32,
+  voidSky: f32,       // 1 — пола нет (летающие острова): внизу — бездна вместо земли и сетки
   _pad2: f32,
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -38,6 +38,7 @@ const GROUND_FAR   = vec3f( 52.0,  58.0,  70.0) / 255.0;
 const GROUND_NEAR  = vec3f( 34.0,  38.0,  46.0) / 255.0;
 const HORIZON_LINE = vec3f(190.0, 205.0, 230.0) / 255.0;
 const GRID         = vec3f(160.0, 175.0, 200.0) / 255.0;
+const VOID_DEEP    = vec3f( 14.0,  16.0,  30.0) / 255.0;
 const LIGHT_DIR    = vec3f(-0.42, 0.84, -0.34);   // откуда светит «солнце» (длина ≈ 1)
 
 // Если окно ждёт «линейные» цвета — переводим, иначе всё выглядело бы выцветшим
@@ -111,7 +112,10 @@ fn sky_fs(in: ScreenOut) -> @location(0) vec4f {
 
   // Луч вверх — небо, вниз — земля
   let sky = mix(SKY_HORIZON, SKY_TOP, smoothstep(0.0, 0.5, dir.y));
-  let ground = mix(GROUND_FAR, GROUND_NEAR, smoothstep(0.0, 0.5, -dir.y));
+  let voidMode = u.voidSky > 0.5;
+  let solidGround = mix(GROUND_FAR, GROUND_NEAR, smoothstep(0.0, 0.5, -dir.y));
+  let abyss = mix(SKY_HORIZON, VOID_DEEP, smoothstep(0.0, 0.6, -dir.y)); // бездна: от горизонта вниз темнеет
+  let ground = select(solidGround, abyss, voidMode);
   let isGround = dir.y < 0.0;
   var color = select(sky, ground, isGround);
 
@@ -124,7 +128,7 @@ fn sky_fs(in: ScreenOut) -> @location(0) vec4f {
   let dist = t * length(dir.xz);
   let fade = (1.0 - smoothstep(u.fadeDist * 0.4, u.fadeDist, dist))
            * (1.0 - smoothstep(0.15, 0.6, max(perPixel.x, perPixel.y)));
-  color = mix(color, GRID, select(0.0, onLine * 0.35 * fade, isGround));
+  color = mix(color, GRID, select(0.0, onLine * 0.35 * fade, isGround && !voidMode));
 
   // Линия горизонта ~1.5 пикселя
   let line = 1.0 - smoothstep(0.0, fwidth(dir.y) * 1.5, abs(dir.y));

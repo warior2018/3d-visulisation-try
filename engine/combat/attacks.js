@@ -351,7 +351,7 @@ export class SlamAttack extends MeleeAttack {
 }
 
 // ---------- Дальний бой ----------
-// ctx.onShot(aimed) — после каждого луча по прицелу (и каждой дробины): игре — нарисовать след пули.
+// ctx.onShot(aimed, attack) — после каждого луча по прицелу (и каждой дробины): игре — нарисовать след пули.
 // Сейчас — мгновенный луч (hitscan): попали в то, что под прицелом, если оно ближе range.
 // Снаряды, летящие по дуге, — следующий шаг (будет projectile: true).
 //
@@ -443,7 +443,7 @@ export class RangedAttack extends Attack {
       const hits = [];
       for (let i = 0; i < this.pellets; i++) {
         const aimed = ctx.aimSpread(this.range, this.spread);
-        ctx.onShot?.(aimed); // каждая дробина — свой след пули (игра рисует трассер)
+        ctx.onShot?.(aimed, this); // каждая дробина — свой след пули (игра рисует трассер)
         if (aimed?.entity) hits.push(...this.hitAll(owner, [aimed.entity], { ...ctx, part: aimed.part || null, use: ctx }));
       }
       return { hits };
@@ -451,7 +451,7 @@ export class RangedAttack extends Attack {
     if (this.pierce > 1 && !ctx.target && ctx.aimLine) {
       // насквозь: все на линии (до pierce), каждый следующий — слабее (pierceFalloff)
       const line = ctx.aimLine(this.range, this.pierce) || [];
-      ctx.onShot?.(line[0] || null);
+      ctx.onShot?.(line[0] || null, this);
       const hits = [];
       let k = 1;
       for (const a of line) {
@@ -461,7 +461,7 @@ export class RangedAttack extends Attack {
       return { hits };
     }
     const aimed = ctx.target ? null : ctx.aim?.(this.range);
-    if (!ctx.target) ctx.onShot?.(aimed); // выстрел по прицелу: игра рисует трассер и след на блоке
+    if (!ctx.target) ctx.onShot?.(aimed, this); // выстрел по прицелу: игра рисует трассер и след на блоке
     const target = ctx.target || aimed?.entity || null;
     return { hits: this.hitAll(owner, [target], aimed?.part ? { ...ctx, part: aimed.part } : ctx) };
   }

@@ -116,3 +116,5 @@ export { ConsoleScene } from "./scenes/console-scene.js";
 export { LineInputScene } from "./scenes/line-input-scene.js";
 export { RARITIES, rarityOf, rarityWeights, rollRarity, chance, pickWeighted as pickWeightedKey } from "./economy/loot.js";
 export { TradeScene } from "./scenes/trade-scene.js";
+export { decodePNG, loadPNG, encodePNG } from "./ui/png.js";
+export { IntroScene } from "./scenes/intro-scene.js";

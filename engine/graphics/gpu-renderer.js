@@ -364,6 +364,7 @@ export class GPURenderer {
     d[11] = this.far;
     d[12] = this.brightness;
     d[13] = camera?.roll || 0; // крен (наклон головы вбок)
+    d[14] = world && world.floor === false ? 1 : 0; // пола нет — внизу бездна (летающие острова)
     device.queue.writeBuffer(this.uniformBuffer, 0, d);
 
     if (world) this.updateWorld(world);

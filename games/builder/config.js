@@ -85,6 +85,36 @@ export const THEME = {
   backdrop: { top: [34, 30, 30], bottom: [12, 11, 14] },
 };
 
+// Стили интерфейса (настройка UI STYLE, стрелками): «кость» — своя тема игры, остальные — на выбор
+export const THEMES = [
+  { name: "BONE", theme: THEME },
+  { name: "VOID", theme: {} }, // тема движка как есть
+  {
+    name: "EMBER", theme: {
+      accent: [255, 150, 70],
+      window: { border: [150, 70, 40], titleBar: [50, 20, 14], titleText: [255, 220, 190], fill: [22, 12, 10] },
+      button: { fill: [44, 22, 16], hover: [120, 50, 25], border: [150, 70, 40], hoverBorder: [255, 170, 90] },
+      backdrop: { top: [44, 18, 12], bottom: [10, 6, 6] },
+    },
+  },
+  {
+    name: "FROST", theme: {
+      accent: [140, 210, 255],
+      window: { border: [80, 120, 160], titleBar: [18, 30, 46], titleText: [220, 240, 255], fill: [10, 16, 24] },
+      button: { fill: [20, 32, 48], hover: [40, 80, 120], border: [80, 120, 160], hoverBorder: [160, 220, 255] },
+      backdrop: { top: [20, 36, 56], bottom: [6, 10, 16] },
+    },
+  },
+  {
+    name: "MOSS", theme: {
+      accent: [170, 220, 110],
+      window: { border: [90, 120, 70], titleBar: [24, 34, 20], titleText: [220, 240, 200], fill: [12, 18, 12] },
+      button: { fill: [26, 38, 24], hover: [60, 90, 45], border: [90, 120, 70], hoverBorder: [190, 235, 140] },
+      backdrop: { top: [26, 40, 24], bottom: [8, 12, 8] },
+    },
+  },
+];
+
 export const CAMERA_MODES = { first: "FIRST PERSON", third: "THIRD PERSON" };
 
 export const PALETTE = [
@@ -282,6 +312,34 @@ export const WORLDGEN = {
   islandStuff: { houses: [1, 2], piles: [0, 2], towerChance: 0.3, trees: [3, 6] },
   keepClear: 6, //           радиус пустоты вокруг места появления героя и жителей
 };
+
+// Размер мира (окно создания: 1 / 2 / 3) — во сколько раз главный остров, расстояния и число построек
+// от WORLDGEN (3 — как WORLDGEN). floating — летающие острова: пола нет, под островами — каменный корень
+export const WORLD_SIZES = {
+  1: { name: "SMALL", scale: 0.6 },
+  2: { name: "MEDIUM", scale: 0.8 },
+  3: { name: "LARGE", scale: 1 },
+};
+export const FLOATING = { underside: 0.3, voidY: -40, voidDamage: 0.35 }; // глубина корня (× радиус), где бездна, сколько HP стоит падение
+export function worldgenFor(size = 3, floating = false) {
+  const k = WORLD_SIZES[size]?.scale ?? 1;
+  const W = WORLDGEN, T = W.terrain;
+  const sc = (v) => Math.round(v * k), pair = ([a, b]) => [sc(a), sc(b)];
+  const cnt = (v) => Math.max(1, Math.round(v * k * k));
+  return {
+    ...W,
+    terrain: {
+      ...T,
+      radius: sc(T.radius), edge: Math.max(8, sc(T.edge)),
+      mountains: { ...T.mountains, count: Math.max(1, Math.round(T.mountains.count * k)), radius: pair(T.mountains.radius), distance: pair(T.mountains.distance) },
+      islands: { ...T.islands, count: [Math.max(1, Math.round(T.islands.count[0] * k)), Math.max(2, Math.round(T.islands.count[1] * k))], distance: pair(T.islands.distance) },
+    },
+    colors: { ...W.colors, underside: floating ? FLOATING.underside : 0 },
+    houses: cnt(W.houses), towers: cnt(W.towers), piles: cnt(W.piles), trees: cnt(W.trees),
+    area: W.area.map(sc),
+    arena: { ...W.arena, distance: sc(W.arena.distance) },
+  };
+}
 // Атаки — параметры для классов движка (engine/combat/attacks.js).
 // damage — число или [мин, макс]; element — стихия ("physical", "fire", "ice", "poison"...);
 // modifiers — модификаторы, например [critical(0.1, 2)] (импорт из движка).
@@ -472,7 +530,14 @@ export const TRAPS = {
 export const CLIPS = { enabled: false, items: { pistol: "pistol-clip", auto: "auto-clip", shotgun: "shotgun-clip", rifle: "rifle-clip" }, start: 3 };
 // След пули (и у героя, и у мобов-стрелков): трассер — короткий светлый луч от ствола до попадания,
 // в блок — чёрная точка на holeLife секунд
-export const BULLET = { color: [255, 215, 110], core: [255, 250, 225], life: 0.07, width: 3, hole: [15, 15, 15], holeLife: 3, holeSize: 0.012 };
+export const BULLET = { color: [255, 215, 110], core: [255, 250, 225], life: 0.07, width: 3, hole: [15, 15, 15], holeLife: 3, holeSize: 0.012,
+  // Трассер огнестрела — видно, откуда стреляли: чем мощнее выстрел, тем дольше висит и толще (по id атаки).
+  // Нет в списке (арбалет — болт без пороха) — трассера нет, только след на блоке
+  trace: {
+    pistol: { life: 0.3, width: 3 }, auto: { life: 0.2, width: 3 }, shotgun: { life: 0.16, width: 2 },
+    rifle: { life: 1.1, width: 5 }, "mob-pistol": { life: 0.35, width: 3 },
+  },
+};
 
 // Выносливость (движок: Stamina): 100; бег (спринт) и разбег с копьём — drain в секунду (100 / 11 ≈ 9 с бега),
 // восстанавливается regen в секунду через delay с после траты; выдохся — бегать снова, когда наберётся recover.
@@ -666,10 +731,17 @@ export const RECOIL_AUTO = {
 // уровне выбираешь класс — открываются его вкладка талантов и его раздел магазина (остальные не видны),
 // и даётся стартовое оружие. tab — вкладка талантов, shop — раздел магазина (= класс предметов, items.js)
 export const CLASSES = {
-  melee: { name: "FIGHTER", tab: "melee", shop: "melee", starter: ["machete", 1], text: "MELEE: MACHETE. SHOP: WAR HAMMER, KATANA, SPEAR. BLOCK ON RMB" },
-  ranged: { name: "RANGER", tab: "ranged", shop: "ranged", outfit: "hero-ranged", starter: ["pistol", 1], text: "RANGED: PISTOL. SHOP: RIFLE, SHOTGUN, SNIPER" },
-  demo: { name: "DEMOLITIONIST", tab: "demo", shop: "demo", outfit: "hero-demo", starter: ["grenades", 1], text: "EXPLOSIVES: GRENADES. SHOP: GRENADE LAUNCHER, DYNAMITE. EVERYTHING BLOWS UP IN AN AREA" },
+  melee: { name: "FIGHTER", tab: "melee", shop: "melee", starter: ["machete", 1], text: "MELEE: MACHETE, BLOCK ON RMB. LEVEL 10: WAR HAMMER, KATANA OR SPEAR" },
+  ranged: { name: "RANGER", tab: "ranged", shop: "ranged", outfit: "hero-ranged", starter: ["pistol", 1], text: "RANGED: PISTOL. LEVEL 10: ASSAULT RIFLE, SHOTGUN, SNIPER OR CROSSBOW" },
+  demo: { name: "DEMOLITIONIST", tab: "demo", shop: "demo", outfit: "hero-demo", starter: ["grenades", 1], text: "EXPLOSIVES: GRENADES, EVERYTHING BLOWS UP IN AN AREA. LEVEL 10: GRENADE LAUNCHER OR DYNAMITE" },
 };
+// Подкласс: на SUBCLASS.level уровне герой выбирает ОДНО покупное оружие своего класса — только его можно купить,
+// и открывается его вкладка талантов (talents.js → weaponTab). Остальное покупное оружие класса закрыто
+export const SUBCLASS = {
+  level: 10,
+  weapons: { melee: ["war-hammer", "katana", "spear"], ranged: ["auto", "shotgun", "rifle", "crossbow"], demo: ["launcher", "dynamite"] },
+};
+export const SUBCLASS_WEAPONS = new Set(Object.values(SUBCLASS.weapons).flat());
 // outfit — модель героя этого класса (одежда; без него — юката "hero"), main.js грузит её
 // Вкладки талантов, открытые всем (и до выбора класса). у классов — своя вкладка
 export const COMMON_TABS = ["survival"];

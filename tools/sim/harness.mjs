@@ -28,6 +28,14 @@ export async function createGame({ world = "copy", immortal = true } = {}) {
     // мир в новом формате (папка: meta.json + chunks/) — тоже копией
     const worldDir = path.join(REAL_SAVES, "world");
     if (fs.existsSync(path.join(worldDir, "meta.json"))) fs.cpSync(worldDir, path.join(dir, "world"), { recursive: true, filter: (f) => !f.endsWith(".tmp") });
+    // слоты миров (saves/worlds/<id>): копия самого свежего (без копий и погибших миров)
+    const worlds = path.join(REAL_SAVES, "worlds");
+    if (fs.existsSync(worlds)) {
+      const ids = fs.readdirSync(worlds).filter((id) => fs.existsSync(path.join(worlds, id, "info.json")));
+      const info = (id) => { try { return JSON.parse(fs.readFileSync(path.join(worlds, id, "info.json"), "utf8")); } catch { return {}; } };
+      const best = ids.sort((a, b) => (info(b).lastPlayed || 0) - (info(a).lastPlayed || 0))[0];
+      if (best) fs.cpSync(path.join(worlds, best), path.join(dir, "worlds", "1"), { recursive: true, filter: (f) => !/[\\/](backups|dead)([\\/]|$)/.test(f) && !f.endsWith(".tmp") });
+    }
   }
   process.env.VOID_SAVES = dir + path.sep;
 
@@ -49,6 +57,10 @@ export async function createGame({ world = "copy", immortal = true } = {}) {
   loadModels(models);
   const game = { models, openSettings() {}, toMenu() {} };
   const scene = new GameScene(game);
+  // Окна выбора класса и второго оружия (при входе без класса, на 1-м и 10-м уровне) останавливают мир —
+  // тесты встали бы. Классы и подклассы проверяет свой сценарий (chooseClass / chooseSubclass напрямую)
+  scene.askClass = () => {};
+  scene.askSubclass = () => {};
   engine.setScene(scene);
   settings.data.general.autoLoot = false; // автоподбор выключен: случайные подборы не меняют хотбар посреди теста
 
@@ -63,6 +75,8 @@ export async function createGame({ world = "copy", immortal = true } = {}) {
       e2.running = false;
       const game2 = { models, net, openSettings() {}, toMenu() { game2.left = true; } };
       const s2 = new GameScene(game2);
+      s2.askClass = () => {};
+      s2.askSubclass = () => {};
       e2.setScene(s2);
       const peer = {
         engine: e2, scene: s2, game: game2,
@@ -94,9 +108,6 @@ export async function createGame({ world = "copy", immortal = true } = {}) {
         if (!g.scene.immortalPatched) {
           g.scene.immortalPatched = true;
           g.scene.die = () => { g.scene.player.stats.hp = g.scene.player.stats.maxHp; };
-          // новый мир (нет копии сохранения): первый же уровень открыл бы окно выбора класса поверх мира —
-          // мир замер бы посреди теста. Классы проверяет свой сценарий (chooseClass напрямую)
-          g.scene.askClass = () => {};
         }
       }
       engine.lastTime = performance.now() - dt * 1000;

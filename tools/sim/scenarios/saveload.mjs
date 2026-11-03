@@ -21,6 +21,7 @@ export default async function (t, g) {
   scene.save(false);
   // Новая сцена с того же сохранения (как после перезапуска игры)
   const fresh = new GameScene(game);
+  fresh.askClass = fresh.askSubclass = () => {}; // окно выбора класса остановило бы мир
   engine.setScene(fresh);
   g.scene = fresh;
   const q = fresh.player;
@@ -38,11 +39,11 @@ export default async function (t, g) {
   // Новый формат: папка world/ (meta.json + chunks/), старый world.json отложен
   const fs = await import("node:fs");
   const path = await import("node:path");
-  const W = path.join(g.dir, "world");
+  const S = await import(path.join(g.root || process.cwd(), "games", "builder", "save.js"));
+  const W = S.SAVE_DIR; // мир текущего слота: saves/worlds/<id>/world
   t.check("мир — папкой: meta.json + куски", fs.existsSync(path.join(W, "meta.json")) && fs.readdirSync(path.join(W, "chunks")).some((f) => f.endsWith(".bin")));
   t.check("старый world.json больше не мешает (отложен или его не было)", !fs.existsSync(path.join(g.dir, "world.json")));
   // Второе сохранение без изменений — ни одного куска; один блок — один кусок (+ соседи, если на краю)
-  const S = await import(path.join(g.root || process.cwd(), "games", "builder", "save.js"));
   fresh.save(false);
   t.check("сохранение без изменений — кусков не пишем", S.store.lastWrite.chunks === 0, `${S.store.lastWrite.chunks}`);
   fresh.world.remove(base.x + 4, base.y, base.z);
@@ -55,9 +56,10 @@ export default async function (t, g) {
   await g.frames(3);
   await S.store.idle();
   t.check("автосохранение записало мир в фоне", fs.statSync(path.join(W, "meta.json")).mtimeMs > metaAt && S.store.lastWrite.chunks >= 1);
-  t.check("копия мира в backups/", fs.existsSync(path.join(g.dir, "backups")) && fs.readdirSync(path.join(g.dir, "backups")).some((f) => f.startsWith("world-")));
+  t.check("копия мира в backups/", fs.existsSync(path.join(S.WORLD_ROOT, "backups")) && fs.readdirSync(path.join(S.WORLD_ROOT, "backups")).some((f) => f.startsWith("world-")));
   // И снова загрузка: блок от автосохранения на месте, сломанный — нет
   const again = new GameScene(game);
+  again.askClass = again.askSubclass = () => {};
   engine.setScene(again);
   g.scene = again;
   t.check("после автосохранения: новый блок есть, сломанный — нет", again.world.has(base.x + 4, base.y + 3, base.z) && !again.world.has(base.x + 4, base.y, base.z));

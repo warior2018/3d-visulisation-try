@@ -74,7 +74,7 @@ export class LootPart {
   // Торговля со стражем: всё из сумки, что он берёт
   openTrade(npc) {
     const bag = this.player.inventory;
-    this.engine.push(new TradeScene({
+    this.pushLive(new TradeScene({
       title: npc.name || "WARDEN",
       currency: "COINS",
       money: () => this.itemCount("coin"),

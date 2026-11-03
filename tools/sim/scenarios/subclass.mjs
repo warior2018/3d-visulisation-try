@@ -1,0 +1,26 @@
+// Подкласс: на SUBCLASS.level уровне — второе оружие своего класса. Только его можно купить, видна его вкладка
+// талантов, очки из веток другого покупного оружия класса возвращаются
+export default async function (t, g) {
+  const { scene, C } = g;
+  scene.playerClass = null;
+  scene.subclass = null;
+  scene.chooseClass("melee");
+  scene.experience.level = 1;
+  t.check("до 10 уровня второе оружие не спрашивают", !scene.needsSubclass());
+  t.check("до выбора катану не купить", !scene.shop.slots.find((s) => s.id === "katana").when());
+  t.check("вкладки оружия класса скрыты", !scene.talents.isAllowed("w-katana") && !scene.talents.isAllowed("w-spear"));
+  scene.experience.level = C.SUBCLASS.level;
+  t.check("на 10 уровне — пора выбрать", scene.needsSubclass());
+  // очки, вложенные в копьё (старое сохранение), вернутся при выборе катаны
+  scene.talents.ranks["spear-momentum"] = 2;
+  const before = scene.talents.points;
+  scene.chooseSubclass("katana");
+  await g.frames(3);
+  t.check("подкласс выбран", scene.subclass === "katana");
+  t.check("катану можно купить, копьё и молот — нет", scene.shop.slots.find((s) => s.id === "katana").when() && !scene.shop.slots.find((s) => s.id === "spear").when() && !scene.shop.slots.find((s) => s.id === "war-hammer").when());
+  t.check("вкладка катаны открыта, копья — нет", scene.talents.isAllowed("w-katana") && !scene.talents.isAllowed("w-spear"));
+  t.check("очки из ветки копья вернулись", scene.talents.rank("spear-momentum") === 0 && scene.talents.points === before + 4, `${before} → ${scene.talents.points}`);
+  t.check("больше не спрашивает", !scene.needsSubclass());
+  scene.chooseSubclass("rifle");
+  t.check("чужое оружие подклассом не стать", scene.subclass === "katana");
+}

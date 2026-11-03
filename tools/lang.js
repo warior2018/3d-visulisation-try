@@ -25,7 +25,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = path.dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 const DICT = path.join(ROOT, "games/builder/lang/ru.js");
 const SCAN = ["engine", "games/builder"]; //                                  где искать надписи
-const SKIP = ["engine/ui/font.js", "engine/ui/i18n.js", "games/builder/lang", "engine/core/console.js", "games/builder/scene/commands.js"]; // где не искать (консоль разработчика — по-английски, как в Source)
+const SKIP = ["engine/ui/font.js", "engine/ui/i18n.js", "games/builder/lang", "engine/core/console.js", "games/builder/scene/commands.js", "engine/ui/png.js"]; // где не искать (консоль разработчика — по-английски, как в Source)
 // Надписи, которые переводить не нужно (клавиши, служебное, имена)
 // Тех. панель (F3) — служебные строки, не переводим
 const TECH = /^(VOID ENGINE|VOID PROFILER|FRAME |TICK |CHUNKS |RAM |GPU |WORLD {2}|ENTITIES |PICKUPS |SPAWNED |XYZ |VIEW |DISK {2}|SYSTEM {2}|GC |HEAP |HITCHES |LAST |MARKUP |OTHER \(|MOBS |\$\{name\} |\$\{"OTHER|  TOP: |  \$\{last)/;
