@@ -18,6 +18,7 @@ export class InputPart {
     if (has("chat")) return this.chat.open(); // чат; «/команда» — консоль
     if (has("inventory")) return this.openInventory();
     if (has("talents")) return this.openTalents();
+    if (has("map")) this.hints?.event("map");
     if (has("map")) return this.pushLive(new MapScene({ map: () => this.mapData(), radius: 60, info: () => this.coordsText(), legend: "RED CROSS - WORLD CENTER (0, 0). PURPLE SKULL - BOSS" }));
     if (has("save")) this.save();
     if (has("autoLoot")) this.toggleAutoLoot(); // V — автоподбор вкл/выкл (вид камеры — только в настройках)
@@ -95,14 +96,7 @@ export class InputPart {
     const archived = deleteSave();
     this.engine.log(`игрок погиб (уровень ${this.experience.level}, ${this.talentsSummary()}) — мир начнётся заново; старое сохранение: ${archived || "не было"}`);
     this.engine.sound.play("death");
-    this.engine.push(new MenuScene({
-      title: "YOU DIED",
-      overlay: true,
-      lock: 1.5, // в пылу боя (кликаешь ЛКМ) не прокликать экран гибели, не заметив его
-      footer: () => "WORLD, LEVEL AND TALENTS ARE LOST - A NEW RUN STARTS",
-      items: [{ id: "menu", label: "MAIN MENU" }],
-      onSelect: () => this.game.toMenu(),
-    }));
+    this.showDeathSummary(); // окно итогов и рекорды мира (scene/run-stats.js); в пылу боя не прокликать — lock
   }
 
   toggleAutoLoot() {

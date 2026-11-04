@@ -41,6 +41,7 @@ export { drawPortrait } from "./ui/portrait.js";
 
 // Готовые сцены
 export { MenuScene } from "./scenes/menu-scene.js";
+export { SummaryScene } from "./scenes/summary-scene.js";
 export { CrashScene, crashReport } from "./scenes/crash-scene.js";
 export { SettingsScene, RESOLUTIONS, RENDER_SCALES, windowSizes } from "./scenes/settings-scene.js";
 export { InventoryScene } from "./scenes/inventory-scene.js";
@@ -126,3 +127,4 @@ export { lightOf, LIGHT } from "./graphics/chunk-mesh.js";
 export { Particles, FLOATS_PER_PARTICLE } from "./graphics/particles.js";
 export { IntroScene } from "./scenes/intro-scene.js";
 export { watchModule, applyLive, applyModule } from "./core/hot-reload.js";
+export { Hints } from "./progression/hints.js";

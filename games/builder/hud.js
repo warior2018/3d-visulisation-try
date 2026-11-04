@@ -8,7 +8,7 @@
 //  Кусочки рисования — из движка (engine/ui/widgets.js, engine/ui/minimap.js).
 // ============================================================
 
-import { widgets, drawMinimap, drawPortrait, Input, HudParts } from "../../engine/index.js";
+import { widgets, drawMinimap, drawPortrait, Input, HudParts, translate } from "../../engine/index.js";
 import { PALETTE, PORTRAIT, PORTRAIT_PALETTE, CLASSES, TRAPS, DAMAGE_DIR } from "./config.js";
 import { TROPHY, TROPHY_TALENTS, trophyPct } from "./talents.js";
 import { itemName } from "./items.js";
@@ -96,6 +96,25 @@ export const HUD_PARTS = [
       if (k <= 0) return;
       const { cx, cy } = center(ui);
       ui.text("BLOCKED!", cx, cy + 26, 3, [140, 200, 255], "center", Math.round(255 * Math.min(1, k / 10)));
+    },
+  },
+  {
+    id: "hint", // подсказка новичку (hints.js): сверху посередине, под всплывающими надписями; выполнил — галочка
+    watch: (g) => {
+      const h = g.hints?.current;
+      return h ? [h.id, Math.round(h.k * 10), h.finished, key(g, "talents")] : null;
+    },
+    draw: (ui, g) => {
+      const h = g.hints?.current;
+      if (!h) return;
+      // {action} — клавиша из настроек; перевод — до подстановки клавиш (в словаре — текст с {action})
+      const text = translate(h.text).replace(/\{(\w+)\}/g, (m, a) => (g.settings.controls.bindings[a] !== undefined ? key(g, a) || "-" : m));
+      const a = Math.round(255 * h.k);
+      const w = Math.min(ui.width - 40, text.length * 12 + 90), x = Math.round(ui.width / 2 - w / 2), y = 70;
+      ui.rect(x, y, w, 38, [16, 20, 28], Math.round(200 * h.k));
+      ui.rect(x, y, 4, 38, h.finished ? [120, 230, 140] : GOLD, a);
+      ui.text(h.finished ? "OK" : "TIP", x + 16, y + 12, 2, h.finished ? [120, 230, 140] : GOLD, "left", a);
+      ui.text(text, x + 62, y + 12, 2, TEXT, "left", a);
     },
   },
   {

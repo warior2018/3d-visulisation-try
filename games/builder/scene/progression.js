@@ -89,6 +89,7 @@ export class ProgressionPart {
   }
 
   openTalents() {
+    this.hints?.event("talents");
     this.pushLive(new TalentScene({
       talents: this.talents,
       onLearn: (id) => {

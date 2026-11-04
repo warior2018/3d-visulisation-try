@@ -121,6 +121,7 @@ export class ShopPart {
   }
 
   openShop() {
+    this.hints?.event("shop");
     this.pushLive(new ShopScene({
       shop: this.shop,
       buyer: this.player,

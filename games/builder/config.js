@@ -43,6 +43,8 @@ export const GAME_DEFAULTS = {
     menuBg: "void", bgAllPages: true, bgSkins: "", bgSettings: "",
     uiStyle: 0, //         стиль окон (THEMES)
     profileId: "", //      id игрока: к нему в мире привязан персонаж (создаётся при первом запуске)
+    hints: true, //        подсказки новичку (hints.js)
+    hintsDone: [], //      какие подсказки уже выполнены (второй раз не показываем)
   },
   controls: {
     bindings: {

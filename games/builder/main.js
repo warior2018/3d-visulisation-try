@@ -160,6 +160,24 @@ function generalTab() {
         change: () => (s.general.aimMode = s.general.aimMode === "toggle" ? "hold" : "toggle"),
       },
       {
+        id: "hints",
+        label: "TIPS FOR NEWCOMERS",
+        value: () => (s.general.hints !== false ? "ON" : "OFF"),
+        change: () => {
+          s.general.hints = s.general.hints === false;
+          for (const sc of engine.scenes) if (sc.hints) sc.hints.enabled = s.general.hints;
+        },
+      },
+      {
+        id: "hintsReset",
+        label: "SHOW TIPS AGAIN",
+        value: () => (s.general.hintsDone?.length ? `${s.general.hintsDone.length} SEEN` : "-"),
+        change: () => {
+          s.general.hintsDone = [];
+          for (const sc of engine.scenes) sc.hints?.reset();
+        },
+      },
+      {
         id: "damageNumbers",
         label: "DAMAGE NUMBERS",
         value: () => (s.general.damageNumbers !== false ? "ON" : "OFF"),
