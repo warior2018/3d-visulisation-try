@@ -7,7 +7,7 @@
 import { TROPHY_TALENTS, TROPHY, weaponTab } from "../talents.js";
 import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3, rarityOf } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
-import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS } from "../config.js";
+import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, subclassOptions } from "../config.js";
 import { ITEMS } from "../items.js";
 
 export class ProgressionPart {
@@ -194,39 +194,71 @@ export class ProgressionPart {
     return !!this.playerClass && !this.subclass && this.role !== "client" && this.experience.level >= SUBCLASS.level;
   }
 
-  // Окно выбора второго оружия своего класса. Закрыть, не выбрав, нельзя; оружие не выдаём — его можно купить
+  // Окно выбора второго оружия: покупные своего класса или базовое (тогда оно сильно крепнет). Закрыть, не
+  // выбрав, нельзя. Выбранное — сразу в руки; в магазине — его улучшения (WEAPON_UPGRADES)
   askSubclass() {
     if (this.choosingClass) return;
-    const list = SUBCLASS.weapons[this.playerClass] || [];
+    const list = subclassOptions(this.playerClass);
     if (!list.length) return;
+    const starter = CLASSES[this.playerClass].starter[0];
     this.choosingClass = true;
     this.engine.push(new ChoiceScene({
       title: "CHOOSE YOUR SECOND WEAPON",
-      subtitle: "ONLY IT CAN BE BOUGHT IN THE SHOP, AND IT OPENS ITS OWN TALENT TAB. THE CHOICE IS FINAL",
+      subtitle: "YOU GET IT RIGHT AWAY. THE SHOP THEN SELLS ITS UPGRADES. THE CHOICE IS FINAL",
       required: true,
       lock: 1,
       options: list.map((id) => ({
-        id, name: ITEMS[id].name, describe: this.shop.slots.find((s) => s.id === id)?.describe?.() || "",
+        id, name: ITEMS[id].name,
+        describe: id === starter ? `KEEP YOUR BASE WEAPON: +${Math.round(WEAPON_UPGRADES.primaryPick * 100)}% DMG RIGHT AWAY, THEN ITS BIG UPGRADES` : this.shop.slots.find((s) => s.id === id)?.describe?.() || "",
         drawIcon: (ui, x, y, s) => ITEMS[id]?.drawIcon?.(ui, x, y, s),
       })),
       onPick: (id) => this.chooseSubclass(id),
     }));
   }
 
-  // Подкласс выбран: очки в ветках другого покупного оружия класса — обратно; открыты его вкладка и покупка
+  // Подкласс выбран: оружие — сразу (базовое — уже есть); очки в ветках другого оружия класса — обратно;
+  // открыта его вкладка талантов (если есть)
   chooseSubclass(id) {
     this.choosingClass = false;
-    if (!(SUBCLASS.weapons[this.playerClass] || []).includes(id)) return;
+    if (!subclassOptions(this.playerClass).includes(id)) return;
     this.subclass = id;
     let refunded = 0;
-    for (const w of SUBCLASS.weapons[this.playerClass]) if (w !== id) refunded += this.talents.refundTab(weaponTab(w));
+    for (const w of SUBCLASS.weapons[this.playerClass] || []) if (w !== id) refunded += this.talents.refundTab(weaponTab(w));
     this.applyClass();
     this.applyTalents();
+    const starter = CLASSES[this.playerClass].starter[0];
+    if (id !== starter && !this.itemCount(id)) {
+      const left = this.giveItem(id);
+      if (left > 0) this.pickups.add(id, left, this.player.position.add(new Vec3(0, 0.5, 0))); // некуда — рядом на землю
+    }
+    this.syncAbilities(); // сила базового (если выбрали его) — сразу
     this.engine.sound.play("learn");
-    const key = Input.label(this.settings.controls.bindings.shop);
-    const text = `SECOND WEAPON: ${ITEMS[id].name}. BUY IT IN THE SHOP (${key})`;
+    const text = id === starter ? `BASE WEAPON MASTERED: ${ITEMS[id].name} +${Math.round(WEAPON_UPGRADES.primaryPick * 100)}% DMG` : `SECOND WEAPON: ${ITEMS[id].name}`;
     this.engine.toast(refunded ? `${text} (REFUNDED POINTS: ${refunded})` : text, 4000);
     this.engine.log(`выбран подкласс ${id}${refunded ? `, возвращено очков ${refunded}` : ""}`);
     this.save(false);
+  }
+
+  // ---------- Улучшения оружия (WEAPON_UPGRADES) ----------
+
+  // Насколько сильнее оружие item от улучшений: базовое — свои уровни (и «освоено» + улучшения второго, если его
+  // выбрали на 10 уровне), второе — свои
+  upgradeBonus(item) {
+    const U = WEAPON_UPGRADES, up = this.upgrades || {};
+    const starter = CLASSES[this.playerClass]?.starter[0];
+    let k = 0;
+    if (item === starter) k += (up.primary || 0) * U.primary.bonus;
+    if (item === this.subclass) k += (up.second || 0) * U.second.bonus + (item === starter ? U.primaryPick : 0);
+    return k;
+  }
+
+  // Купить следующий уровень улучшения: track — "primary" / "second". Вернёт true, если купили
+  upgradeWeapon(track) {
+    const U = WEAPON_UPGRADES[track];
+    this.upgrades ||= { primary: 0, second: 0 };
+    if ((this.upgrades[track] || 0) >= U.prices.length) return false;
+    this.upgrades[track] = (this.upgrades[track] || 0) + 1;
+    this.syncAbilities();
+    return true;
   }
 }

@@ -36,6 +36,11 @@ export class Shop {
   }
 
   // Цена позиции сейчас (число или функция)
+  // Название позиции: строка или () => строка (меняется: «УЛУЧШИТЬ ПИСТОЛЕТ 2/3»)
+  nameOf(slot) {
+    return typeof slot.name === "function" ? slot.name() : slot.name;
+  }
+
   priceOf(slot) {
     return typeof slot.price === "function" ? slot.price() : slot.price;
   }

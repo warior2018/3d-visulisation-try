@@ -804,6 +804,20 @@ export const SUBCLASS = {
   weapons: { melee: ["war-hammer", "katana", "spear"], ranged: ["auto", "shotgun", "rifle", "crossbow"], demo: ["launcher", "dynamite"] },
 };
 export const SUBCLASS_WEAPONS = new Set(Object.values(SUBCLASS.weapons).flat());
+// Что можно выбрать на SUBCLASS.level: базовое оружие класса (усиливается — primaryPick) или одно из покупных
+export const subclassOptions = (cls) => (CLASSES[cls] ? [CLASSES[cls].starter[0], ...(SUBCLASS.weapons[cls] || [])] : []);
+
+// Улучшения оружия в магазине (+урон этим оружием, по уровням):
+//   primary — базовое оружие класса: 50 / 100 монет, +10 % за уровень (есть с начала)
+//   second  — оружие, выбранное на 10 уровне (выдаётся сразу): 200 / 400 / 600 монет, +15 % за уровень
+//   primaryPick — на 10 уровне выбрал базовое вместо нового: у нового урон в разы больше, поэтому базовое
+//                 сразу крепнет (+60 %) и дальше улучшается как второе (200 / 400 / 600)
+export const WEAPON_UPGRADES = {
+  primary: { prices: [50, 100], bonus: 0.1 },
+  second: { prices: [200, 400, 600], bonus: 0.15 },
+  primaryPick: 0.6,
+  rebuy: 100, // потерял выбранное оружие — купить снова
+};
 // outfit — модель героя этого класса (одежда; без него — юката "hero"), main.js грузит её
 // Вкладки талантов, открытые всем (и до выбора класса). у классов — своя вкладка
 export const COMMON_TABS = ["survival"];

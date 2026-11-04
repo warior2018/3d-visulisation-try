@@ -5,7 +5,7 @@
 // ============================================================
 
 import { itemName, ITEMS, isArmor, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
-import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, MOUNT, PLAYER, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
+import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
 import { ABILITY_FOR_ITEM, HeldItemAbility } from "../abilities.js";
@@ -16,9 +16,9 @@ export class ShopPart {
   makeShop() {
     // Оружие и инструмент — без ограничений: выбросил случайно — купи снова
     const weapon = (id, price, text) => ({
-      id, name: itemName(id), price, describe: () => text, category: ITEMS[id].class || "other",
-      // покупное оружие класса — только выбранное на SUBCLASS.level уровне (подкласс)
-      when: SUBCLASS_WEAPONS.has(id) ? () => this.subclass === id : undefined,
+      id, name: itemName(id), price: SUBCLASS_WEAPONS.has(id) ? WEAPON_UPGRADES.rebuy : price, describe: () => text, category: ITEMS[id].class || "other",
+      // покупное оружие класса — только выбранное на SUBCLASS.level уровне (выдаётся сразу; здесь — если потерял)
+      when: SUBCLASS_WEAPONS.has(id) ? () => this.subclass === id && !this.itemCount(id) : undefined,
       canGive: () => this.canTake(id, 1) || "NO ROOM IN INVENTORY",
       give: () => this.giveItem(id),
       drawIcon: (ui, x, y, s) => ITEMS[id].drawIcon(ui, x, y, s),
@@ -48,6 +48,7 @@ export class ShopPart {
           id, name: CLASSES[id].name,
           when: () => CLASSES[this.playerClass]?.shop === id,
         })),
+        { id: "upgrades", name: "UPGRADES", when: () => !!this.playerClass },
         { id: "other", name: "OTHER" },
       ],
       slots: [
@@ -72,6 +73,26 @@ export class ShopPart {
         supply("spikes", SHOP.spikes, 1, `${SP.damage} DMG TO ALL EVERY ${SP.rearm} S. PERMANENT, UP TO ${TRAPS.spikes.max}`),
         weapon("builder", SHOP.builder, "LMB - BREAK, RMB - PLACE A BLOCK. G - COLOR"),
         { ...supply(BUILD.item, SHOP.block, BUILD.pack, "BLOCKS FOR BUILDING (HAMMER)"), category: "other" },
+        // Улучшения оружия: базовое (50 / 100) и выбранное на 10 уровне (200 / 400 / 600) — +урон за уровень
+        ...["primary", "second"].map((track) => {
+          const U = WEAPON_UPGRADES[track];
+          const item = () => (track === "primary" ? CLASSES[this.playerClass]?.starter[0] : this.subclass);
+          const lvl = () => this.upgrades?.[track] || 0;
+          return {
+            id: "upgrade-" + track,
+            name: () => (item() ? `UPGRADE ${itemName(item())} ${lvl() + 1}/${U.prices.length}` : "UPGRADE"),
+            price: () => U.prices[Math.min(lvl(), U.prices.length - 1)],
+            category: "upgrades",
+            when: () => !!item() && lvl() < U.prices.length && (track === "primary" || !!this.subclass),
+            describe: () => `+${Math.round(U.bonus * 100)}% DMG WITH THIS WEAPON (NOW +${Math.round((this.upgradeBonus(item()) || 0) * 100)}%)`,
+            canGive: () => lvl() < U.prices.length || "MAXED",
+            give: () => this.upgradeWeapon(track),
+            drawIcon: (ui, x, y, s) => {
+              ITEMS[item()]?.drawIcon?.(ui, x, y, s);
+              ui.text("+", x + s * 0.72, y - s * 0.05, 2, [120, 230, 120]);
+            },
+          };
+        }),
         // Маунт — один раз навсегда (этот герой): Z — позвать, исчезает от урона (scene/mount.js)
         {
           id: "mount", name: "MOUNT", price: MOUNT.price, category: "other", when: () => !this.hasMount,
@@ -106,7 +127,7 @@ export class ShopPart {
       ctx: this,
       onBuy: (slot) => {
         this.engine.sound.play("loot");
-        this.engine.log(`куплено: ${slot.name}`);
+        this.engine.log(`куплено: ${this.shop.nameOf(slot)}`);
       },
     }));
   }
@@ -147,7 +168,8 @@ export class ShopPart {
         }
         ability = this.abilityCache.get(slot.item);
         // редкость экземпляра в руках: сила атаки (+10 % RARE, +20 % EPIC, +35 % LEGENDARY)
-        if (ability.attack) ability.attack.power = 1 + rarityOf(slot.data?.rarity).power;
+        // и улучшения этого оружия в магазине (WEAPON_UPGRADES)
+        if (ability.attack) ability.attack.power = (1 + rarityOf(slot.data?.rarity).power) * (1 + (this.upgradeBonus?.(slot.item) || 0));
       }
       bar.set(i, ability);
     });

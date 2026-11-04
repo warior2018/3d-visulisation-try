@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, worldgenFor } from "../config.js";
+import { HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, subclassOptions, worldgenFor } from "../config.js";
 import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../save.js";
 import { Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, profiler } from "../../../engine/index.js";
 import { maxStack, hotbarAccepts, armorAccepts } from "../items.js";
@@ -91,7 +91,9 @@ export class SessionPart {
     if (Number.isFinite(saved?.progression?.dayTime)) this.dayTime = saved.progression.dayTime; // время суток
     // Подкласс (второе оружие с SUBCLASS.level уровня) — только из оружия своего класса
     const sub = saved?.progression?.subclass;
-    this.subclass = (SUBCLASS.weapons[this.playerClass] || []).includes(sub) ? sub : null;
+    this.subclass = subclassOptions(this.playerClass).includes(sub) ? sub : null;
+    const up = saved?.progression?.upgrades; // улучшения оружия (WEAPON_UPGRADES)
+    this.upgrades = { primary: Math.max(0, Number(up?.primary) || 0), second: Math.max(0, Number(up?.second) || 0) };
     this.applyClass();
     // Очки во вкладках чужих классов и не своего второго оружия (старые сохранения, перестройка дерева) — обратно.
     // Подкласс ещё не выбран — ветки оружия своего класса ждут выбора (вернутся тогда)
@@ -233,7 +235,7 @@ export class SessionPart {
   saveNow(toast = true, { background = false } = {}) {
     if (this.dead) return; // погибли — мир уже удалён, сохранять нечего
     const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && e.type !== "steed"); // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
-    const progression = { class: this.playerClass, subclass: this.subclass || null, mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
+    const progression = { class: this.playerClass, subclass: this.subclass || null, upgrades: { ...(this.upgrades || {}) }, mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
     this.autosaveIn = AUTOSAVE.every; // только что сохранились — следующее автосохранение отсчитываем заново
     if (this.role === "client") {
       // гость: мир — хоста (его не пишем), свой прогресс и вещи — в своё сохранение

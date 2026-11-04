@@ -76,7 +76,7 @@ export class ShopScene extends Scene {
     const icon = 56;
     ui.rect(x + 10, y + 10, icon, icon, [14, 16, 22], 255);
     s.drawIcon?.(ui, x + 10, y + 10, icon, this.ctx);
-    ui.text(s.name, x + 76, y + 14, 2, th.text);
+    ui.text(this.shop.nameOf(s), x + 76, y + 14, 2, th.text);
     const desc = s.describe?.(this.ctx) || "";
     // Описание — до 3 строк, переносим по словам; длинное (другой язык) — мелким шрифтом, до 6 строк
     const big = lines(desc, 15);
@@ -100,7 +100,7 @@ export class ShopScene extends Scene {
     }
     if (kind === "buy") {
       const r = this.shop.buy(slotId, this.buyer, this.ctx);
-      this.message = r.ok ? { text: `BOUGHT: ${r.slot.name}`, ok: true } : { text: r.reason, ok: false };
+      this.message = r.ok ? { text: `BOUGHT: ${this.shop.nameOf(r.slot)}`, ok: true } : { text: r.reason, ok: false };
       if (r.ok) this.onBuy(r.slot);
     }
     this.engine.redraw();

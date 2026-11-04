@@ -17,7 +17,7 @@ export default async function (t, g) {
   scene.chooseSubclass("katana");
   await g.frames(3);
   t.check("подкласс выбран", scene.subclass === "katana");
-  t.check("катану можно купить, копьё и молот — нет", scene.shop.slots.find((s) => s.id === "katana").when() && !scene.shop.slots.find((s) => s.id === "spear").when() && !scene.shop.slots.find((s) => s.id === "war-hammer").when());
+  t.check("катана выдана сразу; копьё и молот не продаются", scene.itemCount("katana") + scene.pickups.list.filter((p) => p.item === "katana").length > 0 && !scene.shop.slots.find((s) => s.id === "spear").when() && !scene.shop.slots.find((s) => s.id === "war-hammer").when());
   t.check("вкладка катаны открыта, копья — нет", scene.talents.isAllowed("w-katana") && !scene.talents.isAllowed("w-spear"));
   t.check("очки из ветки копья вернулись", scene.talents.rank("spear-momentum") === 0 && scene.talents.points === before + 4, `${before} → ${scene.talents.points}`);
   t.check("больше не спрашивает", !scene.needsSubclass());
