@@ -147,14 +147,18 @@ export class MainMenu extends Scene {
             models.hold(e, held.model, held);
             e.view?.animator.setOverlay(held.pose ?? null);
           }
-          e.view?.animator.setBase("Idle", 1);
+          e.view?.animator.setBase(stanceFor(held), 1); // стойка этого оружия (катана — самурайская)
+          e.pose = held?.pose ?? null; //                 слой «руки держат оружие» — каждый кадр (updateHero)
           this.hero = { key, entity: e };
         } catch (err) {
           this.engine.log("меню: герой не показался: " + err.message);
         }
       }
     }
-    if (this.hero) models.update([this.hero.entity], dt);
+    if (this.hero) {
+      this.hero.entity.view?.animator.setOverlay(this.hero.entity.pose ?? null);
+      models.update([this.hero.entity], dt);
+    }
   }
 
   view() {
@@ -184,7 +188,8 @@ export class MainMenu extends Scene {
             models.hold(e, held.model, held);
             e.view?.animator.setOverlay(held.pose ?? null);
           }
-          e.view?.animator.setBase("Idle", 1);
+          e.view?.animator.setBase(stanceFor(held), 1); // стойка этого оружия (катана — самурайская)
+          e.pose = held?.pose ?? null; //                 слой «руки держат оружие» — каждый кадр (updateHero)
           this.skinHero = { key, entity: e };
         } catch (err) {
           this.engine.log("меню: примерка скина не показалась: " + err.message);
@@ -193,6 +198,7 @@ export class MainMenu extends Scene {
     }
     if (this.skinHero) {
       this.skinHero.entity.yaw += dt * 0.7;
+      this.skinHero.entity.view?.animator.setOverlay(this.skinHero.entity.pose ?? null);
       models.update([this.skinHero.entity], dt);
     }
   }
@@ -729,3 +735,7 @@ export class WorldSettingsScene extends Scene {
     this.engine.redraw();
   }
 }
+
+// Стойка героя в меню с оружием в руках: катана — самурайская стойка (как в игре), остальное — обычная
+// (руки держат оружие — слой held.pose)
+const stanceFor = (held) => (held?.model?.startsWith("w-katana") ? "StanceIdle" : "Idle");
