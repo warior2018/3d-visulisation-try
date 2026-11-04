@@ -697,6 +697,44 @@ export const FALL_DAMAGE = {
   jumpSlam: { from: 3, mult: 0.5 },
 };
 
+// Острова (scene/islands.js), только в новых мирах: мосты — с главного острова на маленькие (с шансом chance,
+// ширина width, перила — столбик через post блоков); на самом дальнем острове моста нет, зато там — СУНДУК:
+// открыть (F рядом) — coins монет (+perLevel за уровень героя) и вещь не ниже rarity
+export const ISLANDS = {
+  bridge: { chance: 0.75, width: 3, post: 4, deck: [120, 84, 52], rail: [92, 64, 40] },
+  chest: { reach: 2.6, coins: 150, perLevel: 15, rarity: "epic", color: [196, 150, 60], band: [90, 70, 40] },
+};
+
+// Задания стража (scene/quests.js): одно за раз. kinds — какие бывают и с какого уровня (level), count — сколько
+// [от, до], reward — монет за штуку (perUnit) или сразу (flat); опыт — xp × монет. Награда растёт с уровнем: +perLevel
+// за уровень героя. Не выполнил — можно отказаться (новое через cooldown с)
+export const QUESTS = {
+  perLevel: 0.08, xp: 1.5, cooldown: 20,
+  kinds: [
+    { id: "kill-any", kind: "kill", target: "any", count: [12, 25], perUnit: 4, title: "KILL {n} MONSTERS" },
+    { id: "kill-skeleton", kind: "kill", target: "skeleton", count: [10, 20], perUnit: 5, title: "KILL {n} SKELETONS" },
+    { id: "kill-zombie", kind: "kill", target: "zombie", count: [6, 12], perUnit: 7, title: "KILL {n} ZOMBIES" },
+    { id: "bring-bone", kind: "bring", item: "bone", count: [8, 16], perUnit: 4, title: "BRING {n} BONES" },
+    { id: "bring-skull", kind: "bring", item: "skull", count: [2, 5], perUnit: 15, title: "BRING {n} SKULLS" },
+    { id: "elite", kind: "kill", target: "elite", count: [1, 1], flat: 80, level: 5, title: "KILL AN ELITE MONSTER" },
+    { id: "boss", kind: "kill", target: "boss", count: [1, 1], flat: 300, level: 8, title: "KILL A BOSS" },
+  ],
+};
+
+// Элитные мобы (scene/elites.js): с from-го появившегося каждый с шансом chance (в нашествие — ×invasion) — элита:
+// больше (scale), крепче (hp), бьёт сильнее (damage), опыта ×xp, гарантированная вещь (не ниже rare) и coins монет.
+// Аура — одна из auras: swift — быстрее; thorns — отражает share ближнего урона обратно; healer — лечит мобов
+// вокруг (radius м) на heal их макс. HP раз в every с; frenzy — рядом мобы бьют сильнее (сила — damage)
+export const ELITE = {
+  from: 25, chance: 0.05, invasion: 0.5, scale: 1.25, hp: 3, damage: 1.35, xp: 4, coins: 25,
+  auras: {
+    swift: { name: "SWIFT", color: [120, 220, 255], speed: 0.45 },
+    thorns: { name: "THORNS", color: [230, 120, 60], share: 0.3 },
+    healer: { name: "HEALER", color: [120, 240, 140], radius: 7, heal: 0.05, every: 1 },
+    frenzy: { name: "FRENZY", color: [240, 70, 90], radius: 7, damage: 0.3 },
+  },
+};
+
 // Чувство удара (scene/feel.js): stop — стоп-кадр (мир на time с замедляется до scale) при ударе героя на from+
 // урона или хедшоте; knock — отлёт задетого моба (м/с, на time с, вверх — up) от атак с этим id (боссы — ×boss);
 // kick — встряска картинки при тяжёлом ударе (прицел не сдвигается); headSound — звук хедшота

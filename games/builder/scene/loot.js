@@ -45,12 +45,13 @@ export class LootPart {
   rollGear(e) {
     const boss = !!e.boss;
     const base = boss ? LOOT.bossGear : LOOT.gear * (this.invasion?.active ? LOOT.invasionMult : 1);
-    if (!chance(base, this.luck())) return null;
+    if (!e.elite && !chance(base, this.luck())) return null; // элита (ELITE) — вещь всегда
     const tier = Number(pickWeightedKey(LOOT.tiers(this.spawner?.spawned || 0)));
     const pool = Object.keys(ITEMS).filter((id) => (isWeapon(id) || isArmor(id)) && tierOf(id) === tier);
     if (!pool.length) return null;
     const item = pool[Math.floor(Math.random() * pool.length)];
-    return { item, rarity: rollRarity(this.luck()) };
+    const rarity = rollRarity(this.luck());
+    return { item, rarity: e.elite && rarity === "common" ? "rare" : rarity }; // с элиты — не ниже RARE
   }
 
   dropGear(e) {
@@ -110,7 +111,7 @@ export class LootPart {
     const e = this.lookTarget;
     if (!e || e.type !== "warden" || !e.alive || e.remote) return false;
     if (Math.hypot(e.position.x - this.player.position.x, e.position.z - this.player.position.z) > INTERACT_REACH + 1) return false;
-    this.openTrade(e);
+    this.openWarden(e); // окно стража: задания и торговля (scene/quests.js)
     return true;
   }
 

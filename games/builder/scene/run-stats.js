@@ -51,6 +51,7 @@ export class RunStatsPart {
   }
 
   countKill(e) {
+    if (e.kind === "mob") this.questKill?.(e); // задание стража (scene/quests.js)
     if (!this.run || e.kind !== "mob") return;
     this.run.kills++;
     if (e.boss) this.run.bosses++;

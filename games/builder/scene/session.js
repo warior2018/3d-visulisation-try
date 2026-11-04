@@ -40,6 +40,7 @@ export class SessionPart {
       this.arena = this.arenaSpot();
       if (this.arena) this.buildArena(this.arena);
     }
+    this.treasure = saved?.worldgen?.treasure || null; // сундук на дальнем острове (scene/islands.js)
     if (!saved) this.generateWorld(); // новый мир: рельеф, постройки, деревья
     // Камни и прочее на земле. В сохранениях до камней их нет — разбрасываем, чтобы было из чего строить
     if (Array.isArray(saved?.pickups)) this.pickups.loadFrom(saved.pickups);
@@ -105,6 +106,7 @@ export class SessionPart {
     const up = saved?.progression?.upgrades; // улучшения оружия (WEAPON_UPGRADES)
     this.upgrades = { primary: Math.max(0, Number(up?.primary) || 0), second: Math.max(0, Number(up?.second) || 0) };
     this.loadRunStats(saved?.progression?.run); // итоги забега (scene/run-stats.js)
+    this.loadQuests(saved?.progression?.quests); // задания стража (scene/quests.js)
     this.applyClass();
     // Очки во вкладках чужих классов и не своего второго оружия (старые сохранения, перестройка дерева) — обратно.
     // Подкласс ещё не выбран — ветки оружия своего класса ждут выбора (вернутся тогда)
@@ -156,6 +158,7 @@ export class SessionPart {
         const ranged = Math.random() < (kind?.rangedShare ?? MOB_RANGED.chance);
         const e = this.spawn(type, { x, y: this.world.surfaceY(x, z), z, yaw: Math.random() * Math.PI * 2, ...growth, ranged }); // на земле (на холме — на вершине столбика)
         if (kind?.speed) e.speedBonuses.invasion = kind.speed; // быстрое нашествие: +30 % скорости
+        this.maybeElite(e, index); // редкая элита с аурой и добычей (scene/elites.js)
         this.scaleWardens(); // мобы крепчают — и страж тоже
         this.scaleBoars(); //   и кабаны
         this.engine.log(`появился ${e.name} №${index + 1}: ${x.toFixed(1)}, ${z.toFixed(1)}, +${growth.bonusHp} HP, урон ×${growth.damageMult.toFixed(2)} +${growth.bonusDamage}, удар ${e.attack?.damage}${e.rangedDamage ? `, бросок ${e.rangedDamage}` : ""}`);
@@ -245,8 +248,8 @@ export class SessionPart {
 
   saveNow(toast = true, { background = false } = {}) {
     if (this.dead) return; // погибли — мир уже удалён, сохранять нечего
-    const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && e.type !== "steed"); // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
-    const progression = { class: this.playerClass, subclass: this.subclass || null, upgrades: { ...(this.upgrades || {}) }, run: this.runStatsJSON(), mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
+    const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && !e.elite && e.type !== "steed"); // элиту не сохраняем // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
+    const progression = { class: this.playerClass, subclass: this.subclass || null, upgrades: { ...(this.upgrades || {}) }, run: this.runStatsJSON(), quests: this.questsJSON(), mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
     this.autosaveIn = AUTOSAVE.every; // только что сохранились — следующее автосохранение отсчитываем заново
     if (this.role === "client") {
       // гость: мир — хоста (его не пишем), свой прогресс и вещи — в своё сохранение
@@ -255,7 +258,7 @@ export class SessionPart {
       if (toast) this.engine.toast(ok ? "PROGRESS SAVED" : "NO OWN SAVE - PROGRESS NOT SAVED");
       return;
     }
-    const r = saveGame({ background, world: this.world, player: this.player, look: this.look, creatures, progression, spawned: this.spawner.spawned, pickups: this.pickups.toJSON(), traps: this.traps.toJSON(), fog: this.fog.toJSON(), worldgen: this.terrain ? { seed: this.terrain.seed, terrain: this.terrainParams || TERRAIN_V1, ...(this.arena ? { arena: this.arena } : {}) } : null });
+    const r = saveGame({ background, world: this.world, player: this.player, look: this.look, creatures, progression, spawned: this.spawner.spawned, pickups: this.pickups.toJSON(), traps: this.traps.toJSON(), fog: this.fog.toJSON(), worldgen: this.terrain ? { seed: this.terrain.seed, terrain: this.terrainParams || TERRAIN_V1, ...(this.arena ? { arena: this.arena } : {}), ...(this.treasure ? { treasure: this.treasure } : {}) } : null });
     const what = `${r.blocks} блоков, записано кусков ${r.chunks} (${(r.bytes / 1024).toFixed(0)} КБ)${r.removed ? `, убрано ${r.removed}` : ""}${background ? ", в фоне" : ""}`;
     if (!background) console.log(`Сохранено: ${what} -> ${SAVE_DIR}`);
     this.engine.log(`сохранено${background ? " (авто)" : ""}: ${what}, уровень ${this.experience.level}, ${this.talentsSummary()}`);

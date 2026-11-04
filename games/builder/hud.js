@@ -9,7 +9,7 @@
 // ============================================================
 
 import { widgets, drawMinimap, drawPortrait, Input, HudParts, translate } from "../../engine/index.js";
-import { PALETTE, PORTRAIT, PORTRAIT_PALETTE, CLASSES, TRAPS, DAMAGE_DIR } from "./config.js";
+import { PALETTE, PORTRAIT, PORTRAIT_PALETTE, CLASSES, TRAPS, DAMAGE_DIR, ELITE } from "./config.js";
 import { TROPHY, TROPHY_TALENTS, trophyPct } from "./talents.js";
 import { itemName } from "./items.js";
 
@@ -188,7 +188,7 @@ export const HUD_PARTS = [
       const p = g.player, t = g.lookTarget;
       if (!t) return null;
       if (t.boss && t.aggro === p) return null; // у босса уже есть своя полоса вверху (boss-bar) — вторую не рисуем
-      const d = { name: t.name, hp: t.stats.hp, max: t.stats.maxHp, npc: t.kind === "npc" };
+      const d = { name: t.name, hp: t.stats.hp, max: t.stats.maxHp, npc: t.kind === "npc", elite: t.elite || null };
       if (!d.npc) return d;
       d.hurtable = !t.invulnerable;
       if (!t.canBeDamagedBy(p)) d.hint = "FRIENDLY: CAN'T BE HURT";
@@ -204,6 +204,8 @@ export const HUD_PARTS = [
       } else {
         ui.text(`${d.name}  ${d.hp}/${d.max}`, cx, cy - 70, 2, TEXT, "center");
         drawBar(ui, cx - 80, cy - 50, 160, 14, d.hp, d.max);
+        const A = d.elite && ELITE.auras[d.elite];
+        if (A) ui.text(translate("ELITE: ") + translate(A.name), cx, cy - 90, 2, A.color, "center"); // элита: какая аура
       }
     },
   },
@@ -391,6 +393,21 @@ export const HUD_PARTS = [
     watch: (g) => (g.engine.updater?.available ? [g.engine.updater.available.version, !!g.invasion?.active] : null),
     draw: (ui, g, d) => {
       if (d) ui.text(`UPDATE ${d[0]}: GO TO THE MAIN MENU`, ui.width / 2, d[1] ? 110 : 70, 2, GOLD, "center");
+    },
+  },
+  {
+    id: "quest", // задание стража: строчка под миникартой (scene/quests.js); выполнено — зелёным
+    watch: (g) => (g.quest ? [g.quest.id, g.questProgress(), g.quest.count, g.settings.general.minimap, g.settings.general.minimapSide] : null),
+    draw: (ui, g, d) => {
+      if (!d) return;
+      const [, done, count, mini, side] = d;
+      const ready = done >= count;
+      const text = `${g.questTitle(g.quest)} ${done}/${count}`;
+      const y = mini ? 18 + 168 + 32 : 18;
+      const right = !mini || side !== "left";
+      const x = right ? ui.width - 18 : 18;
+      ui.text(ready ? "QUEST DONE - BACK TO THE WARDEN" : "QUEST", x, y, 1, ready ? [120, 230, 140] : GOLD, right ? "right" : "left");
+      ui.text(text, x, y + 12, 2, ready ? [120, 230, 140] : TEXT, right ? "right" : "left");
     },
   },
   {

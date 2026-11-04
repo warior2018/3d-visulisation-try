@@ -18,6 +18,9 @@ import { NO_INPUT, PROF, CORPSE_TIME, mixParts } from "./scene/shared.js";
 import { SAVE_DIR, SAVE_FILE, store as saveStore } from "./save.js";
 import { SessionPart } from "./scene/session.js";
 import { FeelPart } from "./scene/feel.js";
+import { ElitesPart } from "./scene/elites.js";
+import { QuestsPart } from "./scene/quests.js";
+import { IslandsPart } from "./scene/islands.js";
 import { RunStatsPart } from "./scene/run-stats.js";
 import { InputPart } from "./scene/input.js";
 import { BuildingPart } from "./scene/building.js";
@@ -165,6 +168,7 @@ export class GameScene extends Scene {
       this.hitFx(e, d, dealt); //  брызги «крови» (scene/effects.js)
       this.combatHit(e, d, dealt); // в бою: ранили героя или он кого-то (scene/out-of-combat.js)
       this.statDamage(e, d, dealt); // итоги забега: урон чем / кто бил (scene/run-stats.js)
+      this.eliteHurt(e, d, dealt); // элита с шипами — часть урона обратно (scene/elites.js)
       this.hitFeel(e, d, dealt); //   стоп-кадр, отлёт, звук хедшота; по герою — откуда бьют (scene/feel.js)
       if (e === this.player) this.engine.pad?.rumble(Math.min(1, 0.25 + dealt / 40), 140); // по нам попали — вибрация геймпада
       if (d.source !== this.player || e === this.player || this.settings.general.damageNumbers === false) return;
@@ -372,6 +376,8 @@ export class GameScene extends Scene {
     this.updateStance(dt); //  катана в руках — стойка: ниже рост и глаза
     this.mountCd = Math.max(0, (this.mountCd || 0) - dt); // перезарядка маунта (MOUNT)
     this.updateOutOfCombat(dt); // вне боя: +скорость, ×регенерация (scene/out-of-combat.js)
+    this.updateQuests(dt); // задания стража (scene/quests.js)
+    this.updateElites(dt); // ауры элитных мобов (scene/elites.js)
     this.hints?.update(this, dt); // подсказки новичку (hints.js)
     this.tickRunStats(dt); //     итоги забега: время (scene/run-stats.js)
     this.updateDamageDirs(dt); //   дуги «откуда бьют» гаснут (scene/feel.js)
@@ -697,4 +703,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart]);

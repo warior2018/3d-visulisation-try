@@ -27,7 +27,8 @@ export default async function (t, g) {
   // моб охотится рядом (ближе 5 блоков) — в бою, даже без урона
   mob.position.x = p.position.x + 3;
   mob.aggro = p;
-  await g.frames(2);
+  // мозги моба могут за кадр сменить цель / шагнуть — держим его рядом и злым (проверяем саму отметку «в бою»)
+  await g.frames(2, 1 / 60, () => { mob.aggro = p; mob.position.x = p.position.x + 3; mob.position.z = p.position.z; mob.position.y = p.position.y; });
   t.check("моб-охотник ближе 5 блоков — в бою", scene.outOfCombat === false);
   // все ушли (и случайно появившиеся рядом мобы тоже), урона давно не было — вне боя
   for (const e of [...scene.entities.list]) if (e !== p && e.kind === "mob") scene.removeEntity(e);

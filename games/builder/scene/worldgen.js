@@ -143,6 +143,7 @@ export class WorldgenPart {
         n++;
       }
     }
+    this.buildIslands(rnd); // мосты на маленькие острова и сундук на дальнем (scene/islands.js)
     const count = (k) => spots.filter((s) => s.kind === k).length;
     this.engine.log(`новый мир: рельеф ${terrainBlocks} кубиков (зерно ${this.terrain.seed}), ${count("house")} домиков, ${count("tower")} башен, ${count("pile")} куч, ${trees} деревьев; всего ${this.world.blocks.size} блоков`);
   }

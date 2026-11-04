@@ -121,6 +121,7 @@ export class AmmoPart {
           const t = Math.ceil(this.lairTimers[i] || 0);
           return { x: site.x + 0.5, z: site.z + 0.5, icon: "skull", color: alive ? [190, 90, 255] : [120, 100, 140], label: alive ? "BOSS" : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`, clamp: true, always: true };
         }),
+        ...this.chestMarker(), // сундук на дальнем острове (scene/islands.js)
         // Временная метка: центр мира (0, 0). Если за краем карты — прижата к краю
         { x: 0, z: 0, icon: "cross", color: [255, 80, 80], label: "0,0", clamp: true, always: true },
       ],

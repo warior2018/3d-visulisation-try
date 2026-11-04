@@ -41,6 +41,7 @@ export { drawPortrait } from "./ui/portrait.js";
 
 // Готовые сцены
 export { MenuScene } from "./scenes/menu-scene.js";
+export { DialogScene } from "./scenes/dialog-scene.js";
 export { SummaryScene } from "./scenes/summary-scene.js";
 export { CrashScene, crashReport } from "./scenes/crash-scene.js";
 export { SettingsScene, RESOLUTIONS, RENDER_SCALES, windowSizes } from "./scenes/settings-scene.js";

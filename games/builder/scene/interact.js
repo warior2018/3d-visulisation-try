@@ -11,6 +11,7 @@ export class InteractPart {
   // ---------- Взаимодействие (клавиша interact, по умолчанию F) ----------
   // Предмет на земле под прицелом — подобрать
   interact() {
+    if (this.tryChest()) return; // сундук на дальнем острове рядом — открыть (scene/islands.js)
     if (this.tryTrade()) return; // страж под прицелом — торговля (scene/loot.js)
     const item = this.aimedPickup(PICKUP_REACH);
     if (item) this.pickUp(item.pickup);
