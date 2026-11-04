@@ -49,7 +49,7 @@ import { Gamepad, PAD_DEFAULTS } from "../input/gamepad.js";
 // Настройки, которые есть у любой игры на движке. Игра добавляет свои (deepMerge).
 export const ENGINE_DEFAULTS = {
   version: 1,
-  video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true, lighting: true },
+  video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true, lighting: true, renderScale: 100 }, // renderScale — % пикселей, в которые рисуется мир
   interface: { language: "en", showFps: false }, // язык надписей (engine/ui/i18n.js), счётчик FPS слева сверху
   audio: { master: 80, effects: 100, music: 60, voices: 100, muteUnfocused: true }, // каналы громкости (engine/audio/sound.js); без фокуса — тишина
   controls: {
@@ -194,6 +194,7 @@ export class Engine {
 
     this.applySettings("audio");
     this.applySettings("mouse");
+    this.applySettings("renderScale");
     this.listen();
 
     // Любая непойманная ошибка — сначала в журнал, потом как обычно (с текстом в терминале)
@@ -320,7 +321,7 @@ export class Engine {
       `FRAME ${(this.cpuAvg ?? 0).toFixed(2)} MS AVG, ${(this.cpuMax ?? 0).toFixed(1)} MS MAX`,
       `TICK ${this.fixed.rate} HZ, ${this.fixed.count} TICKS, ${this.fixed.dropped} DROPPED`, // тикрейт; dropped — тики, выброшенные из-за заминок
       `RAM ${mb(m.rss)} MB  HEAP ${mb(m.heapUsed)}/${mb(m.heapTotal)} MB  EXT ${mb(m.external)} MB`,
-      `WINDOW ${this.ui.width}x${this.ui.height}  PIXEL RATIO ${(this.pixelRatio || 1).toFixed(2)}`,
+      `WINDOW ${this.ui.width}x${this.ui.height}  PIXEL RATIO ${(this.pixelRatio || 1).toFixed(2)}  3D ${this.renderer?.renderSize?.join("x") || "-"}`,
       `GPU ${this.renderer?.adapterName || "?"}`,
     ];
     const owner = [...this.scenes].reverse().find((s) => s.techLines);
@@ -355,6 +356,7 @@ export class Engine {
     if (all || what === "fullscreen") this.applyFullscreen();
     if ((all || what === "resolution") && !this.window.fullscreen) this.applyWindowSize();
     if (all || what === "brightness") this.renderer.brightness = s.video.brightness / 100;
+    if (all || what === "renderScale") this.renderer.renderScale = (s.video.renderScale ?? 100) / 100;
     if (all || what === "lighting") this.renderer.setLighting?.(s.video.lighting !== false);
     if ((all || what === "vsync") && this.renderer.vsync !== s.video.vsync) this.renderer.setVsync(s.video.vsync);
     if (all || what === "audio") {

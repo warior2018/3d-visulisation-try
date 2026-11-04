@@ -431,10 +431,17 @@ export class GPURenderer {
     // 2. Записываем команды кадра
     const encoder = device.createCommandEncoder();
     const screenView = this.output.getCurrentTextureView();
-    // С размытием мир рисуем не на экран, а в свою картинку (её потом размоет blur_fs)
-    const blurOn = !!(blur && camera);
-    if (blurOn) this.prepareBlur(blur);
+    // Мир рисуем не на экран, а в свою картинку, если: размытие (оптика) или масштаб рендера < 100 %
+    // (картинка мира меньше экрана — быстрее; потом растягиваем на экран тем же blur_fs, без размытия).
+    // Интерфейс — всегда в полном разрешении экрана
+    const scale = camera ? Math.max(0.3, Math.min(1, this.renderScale ?? 1)) : 1;
+    const blurOn = !!(camera && (blur || scale < 0.999));
+    const rw = blurOn ? Math.max(1, Math.round(width * scale)) : width;
+    const rh = blurOn ? Math.max(1, Math.round(height * scale)) : height;
+    if (blurOn) this.prepareBlur(blur, rw, rh);
     const colorView = blurOn ? this.sceneView : screenView;
+    const depthView = blurOn ? this.sceneDepthView : this.depthTexture.createView();
+    this.renderSize = [rw, rh]; // тех. панели: во сколько пикселей рисуется мир
     let pass = encoder.beginRenderPass({
       colorAttachments: [{
         view: colorView,
@@ -443,13 +450,13 @@ export class GPURenderer {
         storeOp: "store",
       }],
       depthStencilAttachment: {
-        view: this.depthTexture.createView(),
+        view: depthView,
         depthClearValue: 1, // 1 = «бесконечно далеко»
         depthLoadOp: "clear",
         depthStoreOp: "store",
       },
     });
-    pass.setViewport(0, 0, width, height, 0, 1);
+    pass.setViewport(0, 0, rw, rh, 0, 1);
 
     // небо, земля, сетка — только если есть камера (в меню мира нет вообще)
     if (camera) {
@@ -518,13 +525,13 @@ export class GPURenderer {
       pass = encoder.beginRenderPass({
         colorAttachments: [{ view: colorView, loadOp: "load", storeOp: "store" }],
         depthStencilAttachment: {
-          view: this.depthTexture.createView(),
+          view: depthView,
           depthClearValue: 1,
           depthLoadOp: "clear",
           depthStoreOp: "store",
         },
       });
-      pass.setViewport(0, 0, width, height, 0, 1);
+      pass.setViewport(0, 0, rw, rh, 0, 1);
       this.drawCharacters(pass, viewModels);
     }
 
@@ -533,7 +540,7 @@ export class GPURenderer {
       pass.end();
       pass = encoder.beginRenderPass({
         colorAttachments: [{ view: screenView, clearValue: { r: 0, g: 0, b: 0, a: 1 }, loadOp: "clear", storeOp: "store" }],
-        depthStencilAttachment: { view: this.depthTexture.createView(), depthLoadOp: "load", depthStoreOp: "store" },
+        depthStencilAttachment: { view: this.depthTexture.createView(), depthClearValue: 1, depthLoadOp: "clear", depthStoreOp: "store" },
       });
       pass.setViewport(0, 0, width, height, 0, 1);
       pass.setPipeline(this.blurPipeline);
@@ -555,16 +562,21 @@ export class GPURenderer {
   }
 
   // Картинка для мира под размытием (размер — как у окна) и параметры круга
-  prepareBlur(b) {
+  // Картинка мира (rw × rh — меньше экрана при масштабе рендера) и её буфер глубины. b — размытие (оптика)
+  // или null: тогда только растягиваем на экран (круг «резко» — на весь экран)
+  prepareBlur(b, rw = this.width, rh = this.height) {
     const { width, height } = this;
-    if (!this.sceneTexture || this.sceneSize !== `${width}x${height}`) {
+    if (!this.sceneTexture || this.sceneSize !== `${rw}x${rh}`) {
       if (this.sceneTexture) this.retire(this.sceneTexture);
+      if (this.sceneDepth) this.retire(this.sceneDepth);
       this.sceneTexture = this.device.createTexture({
-        size: [width, height],
+        size: [rw, rh],
         format: this.format,
         usage: gpu.GPUTextureUsage.RENDER_ATTACHMENT | gpu.GPUTextureUsage.TEXTURE_BINDING,
       });
-      this.sceneSize = `${width}x${height}`;
+      this.sceneDepth = this.device.createTexture({ size: [rw, rh], format: DEPTH_FORMAT, usage: gpu.GPUTextureUsage.RENDER_ATTACHMENT });
+      this.sceneDepthView = this.sceneDepth.createView();
+      this.sceneSize = `${rw}x${rh}`;
       this.sceneView = this.sceneTexture.createView();
       this.blurBind = this.device.createBindGroup({
         layout: this.blurPipeline.getBindGroupLayout(0),
@@ -576,8 +588,11 @@ export class GPURenderer {
       });
     }
     const m = Math.min(width, height);
-    const [cx, cy] = b.center || [0.5, 0.5];
-    this.blurData.set([cx, cy, b.radius * m, (b.feather ?? 0.01) * m, width, height, (b.strength ?? 0.015) * height, b.dim ?? 0.15]);
+    if (!b) this.blurData.set([0.5, 0.5, 1e6, 1, width, height, 0, 0]); // без размытия: везде «резко»
+    else {
+      const [cx, cy] = b.center || [0.5, 0.5];
+      this.blurData.set([cx, cy, b.radius * m, (b.feather ?? 0.01) * m, width, height, (b.strength ?? 0.015) * height, b.dim ?? 0.15]);
+    }
     this.device.queue.writeBuffer(this.blurBuffer, 0, this.blurData);
   }
 

@@ -28,6 +28,12 @@ export default async function (t, g) {
   t.check("разрешения: до размера экрана, и сам экран в списке", sizes.every(([w, h]) => w <= 1512 && h <= 949) && sizes.some(([w, h]) => w === 1512 && h === 949), sizes.map((x) => x.join("x")).join(" "));
   const big = E.windowSizes({ usable: { width: 3840, height: 2100 } });
   t.check("большой экран — и 2560×1440", big.some(([w]) => w === 2560));
+  // масштаб рендера: в настройках — проценты, у рисовальщика — доля
+  engine.settings.data.video.renderScale = 75;
+  engine.applySettings("renderScale");
+  t.check("масштаб рендера 75 % — у рисовальщика 0.75", engine.renderer.renderScale === 0.75);
+  engine.settings.data.video.renderScale = 100;
+  engine.applySettings("renderScale");
   // фон страницы: картинка от игры (setBackgroundSource) — своя у каждой страницы, нет — градиент
   const img = E.loadPNG(path.join(root, "games/builder/assets/backgrounds/void.png"));
   const asked = [];

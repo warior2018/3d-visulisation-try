@@ -705,6 +705,7 @@ export const RU = {
   "RELOAD": "ПЕРЕЗАРЯДКА",
   "RELOADING": "ПЕРЕЗАРЯДКА",
   "REMOVE THE BLOCK UNDER THE CROSSHAIR": "УБРАТЬ БЛОК ПОД ПРИЦЕЛОМ",
+  "RENDER SCALE": "МАСШТАБ РЕНДЕРА",
   "REPEATED METEOR": "ПОВТОРНЫЙ МЕТЕОР",
   "RESET": "СБРОСИТЬ",
   "RESOLUTION": "РАЗРЕШЕНИЕ",

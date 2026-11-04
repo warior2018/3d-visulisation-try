@@ -23,6 +23,7 @@ import { drawBackground, drawDim } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";
 
 const LANGUAGE_NAMES = { en: "ENGLISH", ru: "РУССКИЙ" }; // названия — всегда на своём языке
+export const RENDER_SCALES = [100, 90, 80, 75, 67, 50]; // % пикселей мира (интерфейс — всегда в полном разрешении)
 export const RESOLUTIONS = [[960, 600], [1280, 720], [1280, 800], [1440, 900], [1600, 900], [1680, 1050], [1920, 1080], [1920, 1200], [2560, 1440], [3840, 2160]];
 
 // Размеры окна для этого экрана: из списка — что помещается в рабочую область, плюс сама рабочая область
@@ -60,6 +61,12 @@ export class SettingsScene extends Scene {
     const s = this.settings.data;
     const step = (obj, key, dir, by, min, max) => (obj[key] = Math.max(min, Math.min(max, obj[key] + dir * by)));
     const onOff = (v) => (v ? "ON" : "OFF");
+    // Масштаб рендера: мир рисуется в эту долю пикселей и растягивается на экран (меньше — быстрее, мягче)
+    const stepScale = (dir) => {
+      const i = Math.max(0, RENDER_SCALES.indexOf(s.video.renderScale ?? 100));
+      s.video.renderScale = RENDER_SCALES[Math.max(0, Math.min(RENDER_SCALES.length - 1, i - dir))];
+      e.applySettings("renderScale");
+    };
     return [
       {
         id: "video",
@@ -72,17 +79,24 @@ export class SettingsScene extends Scene {
             id: "res", label: "RESOLUTION", arrows: true,
             value: () => {
               const w = e.window, r = e.pixelRatio || 1;
-              if (w.fullscreen) return `NATIVE ${w.pixelWidth}X${w.pixelHeight}`;
+              if (w.fullscreen) {
+                const k = (s.video.renderScale ?? 100) / 100;
+                return k >= 0.999 ? `NATIVE ${w.pixelWidth}X${w.pixelHeight}` : `${Math.round(w.pixelWidth * k)}X${Math.round(w.pixelHeight * k)}`;
+              }
               return r > 1.01 ? `${s.video.width}X${s.video.height} (${Math.round(s.video.width * r)}X${Math.round(s.video.height * r)} PX)` : `${s.video.width}X${s.video.height}`;
             },
             change: (dir) => {
-              if (e.window.fullscreen) return;
+              // во весь экран окно всегда во весь экран — стрелки выбирают, во сколько пикселей рисуется мир
+              if (e.window.fullscreen) return stepScale(dir);
               const list = windowSizes(e.window.display);
               const i = list.findIndex(([w, h]) => w === s.video.width && h === s.video.height);
               [s.video.width, s.video.height] = list[(i < 0 ? 0 : i + dir + list.length) % list.length];
               e.applySettings("resolution");
             },
           },
+          { id: "renderScale", label: "RENDER SCALE", arrows: true,
+            value: () => `${s.video.renderScale ?? 100}%`,
+            change: (dir) => stepScale(dir) },
           { id: "fullscreen", label: "FULLSCREEN", value: () => onOff(s.video.fullscreen),
             change: () => { s.video.fullscreen = !s.video.fullscreen; e.applySettings("fullscreen"); } },
           { id: "bright", label: "BRIGHTNESS", arrows: true, value: () => `${s.video.brightness}%`,
