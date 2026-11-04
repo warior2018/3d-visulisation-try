@@ -390,54 +390,61 @@ export const MOUNT = {
 };
 
 export const ATTACKS = {
-  katanaSaddle: { id: "katana-saddle", name: "SADDLE SLASH", damage: 60, reach: 3.4, cooldown: 1.3, arc: 150, maxTargets: 5 }, // катана верхом (MOUNT)
-  hammerSwing: { id: "hammer-swing", name: "SADDLE SWING", damage: 40, reach: 3.2, cooldown: 1.7, arc: 150, maxTargets: 4 }, // молот верхом (MOUNT)
+  katanaSaddle: { id: "katana-saddle", name: "SADDLE SLASH", damage: 52, reach: 3.4, cooldown: 1.3, arc: 150, maxTargets: 5 }, // катана верхом (MOUNT)
+  hammerSwing: { id: "hammer-swing", name: "SADDLE SWING", damage: 55, reach: 3.2, cooldown: 1.7, arc: 150, maxTargets: 4 }, // молот верхом (MOUNT)
   // Рука игрока: ближний бой
   // Ближний бой игрока бьёт по ХИТБОКСУ — сектору arc° перед собой длиной reach (движок: MeleeAttack),
   // до maxTargets врагов (ближние первыми). Хедшотов у ближнего боя нет.
   punch: { id: "punch", name: "PUNCH", damage: 10, reach: PUNCH_REACH, cooldown: 1.1, arc: 70, maxTargets: 2 }, // ~0.9 удара в секунду; с талантом 3/3 — раз в 0.6 с
   // Пистолет: дальний бой, мгновенный луч
   // Стрелковое оружие: обойма (magazine) не бесконечная — кончилась, перезарядка reloadTime секунд (R — вручную).
-  // Запас патронов бесконечный. Баланс (урон в секунду с учётом перезарядки, без хедшотов):
-  //   пистолет  15 × 12 за 11×0.35 + 1.3 с ≈ 35/с — дёшево, точно;
-  //   автомат    8 × 30 за 29×0.1  + 2.1 с ≈ 48/с — больше всех, но сильная отдача и ближе бьёт;
-  //   снайперка 90 × 5  за 4×2.0   + 2.4 с ≈ 43/с — зато одним выстрелом (хедшот 180), далеко.
+  // Запас патронов бесконечный.
+  // БАЛАНС 0.5x (урон в секунду с перезарядкой, без хедшотов и талантов; «толпа» — сумма по задетым):
+  //   базовое (с 1 уровня, улучшения +10 % ×2):   пистолет 35/с · мачете 30/с (×2 = 60) · граната 33/с (×3 ≈ 100)
+  //   второе (10 уровень, ~1.4–2× базового, улучшения +15 % ×3):
+  //     СТРЕЛОК  автомат 60/с (отдача) · дробовик 63/с вплотную · снайперка 58/с (хедшот ×2, далеко) ·
+  //              арбалет 57/с, по линии ≈ 139/с
+  //     БОЕЦ     копьё 61/с (×3 на линии) · катана 50/с (×4–6 в секторе) · молот 43/с (×3 в круге, оглушение, прыжок)
+  //     ПОДРЫВНИК гранатомёт 51/с (r2) · динамит 47/с (r4, ×5 разом)
+  //   «освоить базовое» на 10 уровне: +70 % сразу и улучшения второго → 2.35× базового (пистолет ≈ 82/с) —
+  //   наравне со вторым по одной цели (2-е с улучшениями — 1.45× своего), но без его площади
+  // Мобы: скелет 50 HP + 2 за каждого следующего (к 10 уровню ≈ 200), после 400-го — вдвое медленнее (GROWTH_SOFTCAP)
   pistol: { id: "pistol", name: "SHOT", damage: 15, range: 40, cooldown: 0.35, magazine: 12, reloadTime: 1.3 },
-  auto: { id: "auto", name: "BURST", damage: 8, range: 50, cooldown: 0.1, magazine: 30, reloadTime: 2.1 },
+  auto: { id: "auto", name: "BURST", damage: 10, range: 50, cooldown: 0.1, magazine: 30, reloadTime: 2.1 },
   // Мачете: свои статы оружия — дальше достаёт и бьёт больнее, но медленнее кулака (раз в 1.4 с);
   // хитбокс шире кулака — задевает двоих. Таланты ближнего боя ускоряют её в процентах: 1.4 → 0.76 с
-  machete: { id: "machete", name: "MACHETE SWING", damage: 30, reach: 2.9, cooldown: 1.4, arc: 80, maxTargets: 2 },
+  machete: { id: "machete", name: "MACHETE SWING", damage: 42, reach: 2.9, cooldown: 1.4, arc: 80, maxTargets: 2 },
   // Копьё (БОЕЦ): укол далеко и узко — двоих на линии; без блока. Разбег (ПКМ) — SPEAR
-  // Баланс 0.41.1: укол ~56 урона/с трём на линии (молот ~28/с по каждому в круге, катана — 75 всем + ИАЙ);
+  // Укол ~61 урона/с трём на линии (молот ~43/с по каждому в круге, катана — 50/с всем в секторе + ИАЙ);
   // разбег — 60 за врага в начале, на полной скорости с MOMENTUM ×2.6 (≈157) — по 11 врагам насквозь
-  spear: { id: "spear", name: "SPEAR THRUST", damage: 48, reach: 3.8, cooldown: 0.85, arc: 24, maxTargets: 3 },
+  spear: { id: "spear", name: "SPEAR THRUST", damage: 52, reach: 3.8, cooldown: 0.85, arc: 24, maxTargets: 3 },
   spearCharge: { id: "spear-charge", name: "SPEAR CHARGE", damage: 60, reach: 1 },
   // Катана: удар режет всё перед собой — сектор 110° (не весь экран: по бокам уже не задевает), до 6 врагов
   // Приручённый кабан: бьёт бивнями врагов рядом с хозяином (средний урон, ближний бой, короткий замах)
   boarTusk: { id: "tusk", name: "TUSK HIT", damage: [10, 16], reach: 1.9, windup: 0.25, cooldown: 1.2 },
-  // Боевой молот (БОЕЦ, покупной): медленный тяжёлый удар по одному (~28 урона/с); таланты — оглушение
+  // Боевой молот (БОЕЦ, покупной): медленный тяжёлый удар (~43 урона/с каждому в круге); таланты — оглушение
   // и «сплеш» (бьёт всех вокруг цели)
   // Боевой молот — удар ПО ЗЕМЛЕ (движок: SlamAttack): замах windup с, потом всем врагам в круге radius
   // (1 блок; талант SPLASH SLAM — больше) вокруг точки в distance м перед собой — полный урон
   // grounded — только о землю: ударил в прыжке — удар, когда приземлишься (HAMMER: падаешь быстрее)
-  warHammer: { id: "war-hammer", name: "HAMMER SLAM", damage: 69, distance: 1.7, radius: 1, windup: 0.3, cooldown: 1.8, grounded: true },
+  warHammer: { id: "war-hammer", name: "HAMMER SLAM", damage: 90, distance: 1.7, radius: 1, windup: 0.3, cooldown: 1.8, grounded: true },
   // ПОДРЫВНИК: всё — взрывы по площади (MagicAttack, снаряд летит, долетел — burst). Вид атак — "blast" (свои таланты).
   // Граната (базовая): бросок по дуге, взрыв от удара ~33 урона/с ПО ВСЕМ в радиусе; гранатомёт — быстрее и
-  // настильнее, радиус меньше (~40/с); динамит — лежит fuse с и рвёт сильно и широко (~37/с, но разом по толпе)
+  // настильнее, радиус меньше (~51/с); динамит — лежит fuse с и рвёт сильно и широко (~47/с, но разом по толпе)
   handGrenade: { id: "hand-grenade", name: "GRENADE", damage: 40, radius: 2.5, cooldown: 1.2, cost: 0, projectile: true, speed: 15 },
-  launcher: { id: "launcher", name: "LAUNCHER SHELL", damage: 28, radius: 2, cooldown: 0.7, cost: 0, projectile: true, speed: 28 },
-  dynamite: { id: "dynamite", name: "DYNAMITE", damage: 110, radius: 4, cooldown: 3, cost: 0, projectile: true, speed: 13 },
+  launcher: { id: "launcher", name: "LAUNCHER SHELL", damage: 36, radius: 2, cooldown: 0.7, cost: 0, projectile: true, speed: 28 },
+  dynamite: { id: "dynamite", name: "DYNAMITE", damage: 140, radius: 4, cooldown: 3, cost: 0, projectile: true, speed: 13 },
   clusterBomb: { id: "cluster", name: "CLUSTER BOMBLET", damage: 30, radius: 1.8, cooldown: 0, cost: 0, projectile: true },
   // Дробовик, скилл Q «ОТСКОК» (SHOTGUN_BLAST): залп в упор — всем в конусе перед собой (до 7 м)
   shotgunBlast: { id: "shotgun-blast", name: "BLAST JUMP", damage: 45, reach: 7, arc: 70, maxTargets: 6 },
-  katana: { id: "katana", name: "KATANA SLASH", damage: 75, reach: 3.2, cooldown: 1.3, arc: 110, maxTargets: 6 }, // 75 каждому; с ИАЙ — ×5
-  // Снайперская винтовка: урон фиксированный (75), бьёт далеко, но медленно перезаряжается
-  rifle: { id: "rifle", name: "SNIPER SHOT", damage: 90, range: 90, cooldown: 2.0, magazine: 5, reloadTime: 2.4 }, // 2 с: передёргиваем затвор
+  katana: { id: "katana", name: "KATANA SLASH", damage: 65, reach: 3.2, cooldown: 1.3, arc: 110, maxTargets: 6 }, // 65 каждому; ИАЙ — ×1.5 (талант — до ×3)
+  // Снайперская винтовка: урон фиксированный (120, хедшот 240), бьёт далеко, но медленно перезаряжается
+  rifle: { id: "rifle", name: "SNIPER SHOT", damage: 120, range: 90, cooldown: 2.0, magazine: 5, reloadTime: 2.4 }, // 2 с: передёргиваем затвор
   // Арбалет: болт пробивает насквозь до 3 врагов на линии (каждому следующему — 80 % урона); после выстрела —
-  // взвод (магазин 1). Один на один ~50/с, по толпе в ряд — до ~120/с
-  crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 65, range: 60, cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
-  // Дробовик (СТРЕЛОК, покупной): 8 дробин с разбросом, вблизи — 56 за выстрел (~49/с, если все попали)
-  shotgun: { id: "shotgun", name: "BUCKSHOT", damage: 7, range: 22, cooldown: 0.9, magazine: 6, reloadTime: 2.4, pellets: 8, spread: 0.06 },
+  // взвод (магазин 1). Один на один ~57/с, по толпе в ряд — до ~139/с
+  crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 85, range: 60, cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
+  // Дробовик (СТРЕЛОК, покупной): 8 дробин с разбросом, вблизи — 72 за выстрел (~63/с, если все попали)
+  shotgun: { id: "shotgun", name: "BUCKSHOT", damage: 9, range: 22, cooldown: 0.9, magazine: 6, reloadTime: 2.4, pellets: 8, spread: 0.06 },
   // Граната автомата (талант GRENADE): каждые every выстрелов — 200 % урона выстрела по площади
   grenade: { id: "grenade", name: "GRENADE", damage: 16, radius: 2.5, every: 15, speed: 22, cooldown: 0, cost: 0 },
   // Скелет: достаёт на 30 % ближе игрока (2.5 × 0.7), урон 5–10, замах 0.35 с (успел отойти — промах)
@@ -823,7 +830,7 @@ export const subclassOptions = (cls) => (CLASSES[cls] ? [CLASSES[cls].starter[0]
 export const WEAPON_UPGRADES = {
   primary: { prices: [50, 100], bonus: 0.1 },
   second: { prices: [200, 400, 600], bonus: 0.15 },
-  primaryPick: 0.6,
+  primaryPick: 0.7,
   rebuy: 100, // потерял выбранное оружие — купить снова
 };
 // outfit — модель героя этого класса (одежда; без него — юката "hero"), main.js грузит её

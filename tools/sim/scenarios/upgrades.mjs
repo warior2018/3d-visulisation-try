@@ -1,5 +1,5 @@
 // Цены и улучшения оружия: на 10 уровне выбранное второе оружие — сразу в руки; в магазине — его улучшения
-// (200 / 400 / 600, +15 %) и улучшения базового (50 / 100, +10 %); выбрал базовое — оно сразу +60 %
+// (200 / 400 / 600, +15 %) и улучшения базового (50 / 100, +10 %); выбрал базовое — оно сразу +70 %
 export default async function (t, g) {
   const { scene, C } = g;
   const U = C.WEAPON_UPGRADES;
@@ -29,12 +29,12 @@ export default async function (t, g) {
   buy("upgrade-second"); buy("upgrade-second");
   t.check("арбалет +30 % после двух улучшений", Math.abs(scene.upgradeBonus("crossbow") - 0.3) < 1e-6);
   t.check("третье — 600", scene.shop.priceOf(slot("upgrade-second")) === 600);
-  // выбрать базовое вместо нового — сразу +60 % и дальше улучшения как у второго
+  // выбрать базовое вместо нового — сразу +70 % и дальше улучшения как у второго
   scene.playerClass = null; scene.subclass = null; scene.upgrades = { primary: 0, second: 0 };
   scene.chooseClass("ranged");
   scene.experience.level = C.SUBCLASS.level;
   scene.chooseSubclass("pistol");
-  t.check("выбрал базовое — +60 %", Math.abs(scene.upgradeBonus("pistol") - U.primaryPick) < 1e-6);
+  t.check("выбрал базовое — +70 %", Math.abs(scene.upgradeBonus("pistol") - U.primaryPick) < 1e-6);
   t.check("и его улучшения второго уровня (200)", slot("upgrade-second").when() && slot("upgrade-second").name().includes("PISTOL"));
   await g.frames(5);
 }
