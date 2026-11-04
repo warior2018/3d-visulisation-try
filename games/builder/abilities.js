@@ -275,6 +275,7 @@ export class KatanaAbility extends Ability {
       skills: { skill1: { id: "iai", name: "IAI", press: (g, a) => a.iai(g), cooldown: (a) => ({ left: a.iaiLeft, total: KATANA_IAI.cooldown }) } },
     });
     this.attack = new MeleeAttack(ATTACKS.katana);
+    this.saddle = new MeleeAttack(ATTACKS.katanaSaddle); // верхом (MOUNT)
     this.drawn = 0; //      сколько ещё клинок вне ножен (идёт удар)
     this.iaiReadyAt = 0; // когда ИАЙ снова готов (секунды часов): перезарядка идёт, даже если катана не в руках
     this.dashLeft = 0; //   идёт рывок ИАЙ: сколько ещё секунд
@@ -332,6 +333,11 @@ export class KatanaAbility extends Ability {
   }
   primary(g) {
     if (this.busy) return;
+    // верхом — широкий взмах в сторону (не по скакуну), иначе обычный удар
+    if (g.player.mount) {
+      if (g.useAttack(this.saddle, { anim: "Iai", bodyAnim: "MacheteSlash", sound: "slash", hitSound: "hit", animSpeed: 1.5 })) this.drawn = 0.5;
+      return;
+    }
     this.strike(g); // ЛКМ — всегда обычный удар
   }
   // Q: рывок туда, куда смотрим (в 3D) — режет всех на пути

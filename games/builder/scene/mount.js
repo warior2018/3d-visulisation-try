@@ -38,6 +38,7 @@ export class MountPart {
     if (!this.rideController) return this.removeEntity(steed);
     this.rideController.accel = { ...MOUNT_MOVEMENT }; // скакун разгоняется дольше героя
     this.aiming = false;
+    this.mountArmed = false; // сели — руки на поводьях (Alt — оружие)
     this.engine.sound.play("equip");
     this.syncEye();
     this.engine.log("маунт: в седле");
@@ -65,12 +66,33 @@ export class MountPart {
     if (dealt > guard) this.dismountSteed("THROWN FROM THE SADDLE");
   }
 
-  // Скорость скакуна сейчас: таланты, двуручное в руках — тяжелее и без галопа
+  // Верхом: Alt — поводья (не атакуешь, полная скорость) / оружие в руках
+  toggleMountMode() {
+    if (!this.mounted) return;
+    this.mountArmed = !this.mountArmed;
+    this.aiming = false;
+    this.engine.sound.play("equip");
+    this.engine.toast(this.mountArmed ? "WEAPON IN HAND" : "BOTH HANDS ON THE REINS", 900);
+  }
+
+  // Атаковать сейчас нельзя: верхом и руки на поводьях
+  get onReins() {
+    return this.mounted && !this.mountArmed;
+  }
+
+  // Замедление скакуна от оружия в руках (0 — нет): поводья и одноручное — нет, двуручное дальнее и ближнее — своё
+  mountSlow(id = this.abilities.current?.id) {
+    if (!this.mountArmed) return 0;
+    if (MOUNT.twoHandedRanged.includes(id)) return MOUNT.slowRanged;
+    if (MOUNT.twoHandedMelee.includes(id)) return MOUNT.slowMelee;
+    return 0;
+  }
+
+  // Скорость скакуна сейчас: таланты и оружие в руках
   updateMountSpeed() {
     const c = this.rideController;
     if (!c) return;
-    const heavy = MOUNT.twoHanded.includes(this.abilities.current?.id);
-    c.speed = MOUNT.speed * (1 + (this.talentStats?.mountSpeed || 0)) * (heavy ? MOUNT.heavy : 1);
+    c.speed = MOUNT.speed * (1 + (this.talentStats?.mountSpeed || 0)) * (1 - this.mountSlow());
     c.runMultiplier = MOUNT.runMultiplier; // галопа нет (Shift — способность)
   }
 

@@ -25,6 +25,7 @@ export class InputPart {
     if (has("shop")) return this.openShop();
     if (has("ultimate")) this.useUltimate();
     if (has("mount")) this.toggleMount(); // Z — маунт (scene/mount.js)
+    if (has("mountMode")) this.toggleMountMode(); // Alt — верхом: поводья / оружие
 
     // Панель цветов открыта: цифра — это цвет, а не смена способности
     const digit = DIGIT_KEYS.indexOf(event.scancode);
@@ -45,7 +46,9 @@ export class InputPart {
     // Предметы: клавиша ячейки — взять предмет; ещё раз — обратно оружие. Q / E с предметом в руках — ничего
     if (has("item1")) this.toggleItem(1);
     if (has("item2")) this.toggleItem(2);
-    // Q / E — скиллы оружия в руках (Ability.skills: ИАЙ катаны), их вызывает панель способностей
+    // Q / E — скиллы оружия в руках (Ability.skills: ИАЙ катаны), их вызывает панель способностей.
+    // Верхом на поводьях — ни ударов, ни выстрелов, ни скиллов (выбирать ячейки можно)
+    if (this.onReins) actions = actions.filter((a) => !["primary", "secondary", "skill1", "skill2", "reload"].includes(a));
     this.abilities.handle(actions, this);
     if (this.abilities.index !== before) {
       this.onWeaponSwitch();

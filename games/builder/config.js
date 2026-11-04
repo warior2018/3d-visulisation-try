@@ -69,12 +69,14 @@ export const GAME_DEFAULTS = {
       interact: "key:F", // подобрать предмет под прицелом
       chat: "key:RETURN", // чат (и «/команда» — консоль)
       mount: "key:Z", //    маунт: позвать / слезть (MOUNT)
+      mountMode: "key:LALT", // верхом: поводья / оружие
     },
   },
 };
 
 export const GAME_ACTION_LABELS = {
   mount: "MOUNT",
+  mountMode: "MOUNT: REINS / WEAPON",
   item1: "ITEM 1",
   item2: "ITEM 2",
   skill1: "SKILL 1",
@@ -370,15 +372,21 @@ const PUNCH_REACH = 2.5;
 // Маунт (как в Heroes of the Storm): покупается один раз в магазине (раздел ПРОЧЕЕ), зовётся клавишей Z
 // мгновенно, исчезает от ЛЮБОГО урона по герою или по нему (таланты вкладки MOUNT: урон меньше 4 / 8 / 12 %
 // макс. HP героя не сбрасывает), после — перезарядка cooldown с. Верхом: speed м/с (галопа нет: Shift — способность).
-// Двуручное оружие в руках (twoHanded) — скакун тяжелеет: скорость ×heavy и без галопа. Скиллы движения оружия
+// Оружие в руках (режим ОРУЖИЕ) — двуручное замедляет скакуна (slowRanged / slowMelee). Скиллы движения оружия
 // (ИАЙ, отскок дробовика, разбег с копьём) — сначала слезаем, потом скилл. Молот верхом не бьёт под себя
 // (ATTACKS.hammerSwing: медленный взмах в сторону, слабее)
 export const MOUNT = {
-  price: 2500, cooldown: 10, speed: 8.5, runMultiplier: 1, jumpHeight: 1.1, seat: 0.75, heavy: 0.55,
-  twoHanded: ["war-hammer", "spear", "rifle", "auto", "shotgun", "launcher", "crossbow"],
+  price: 2500, cooldown: 10, speed: 8.5, runMultiplier: 1, jumpHeight: 1.1, seat: 0.75,
+  // Верхом два режима (Alt — переключить): ПОВОДЬЯ — обе руки держат поводья, атаковать нельзя, полная скорость;
+  // ОРУЖИЕ — оружие в руках: одноручное — без замедления, двуручное дальнее — slowRanged, двуручное ближнее
+  // (атака переделана, чтобы не ранить скакуна) — slowMelee
+  slowRanged: 0.2, slowMelee: 0.08,
+  twoHandedRanged: ["rifle", "auto", "shotgun", "launcher", "crossbow"],
+  twoHandedMelee: ["war-hammer", "katana", "spear"],
 };
 
 export const ATTACKS = {
+  katanaSaddle: { id: "katana-saddle", name: "SADDLE SLASH", damage: 60, reach: 3.4, cooldown: 1.3, arc: 150, maxTargets: 5 }, // катана верхом (MOUNT)
   hammerSwing: { id: "hammer-swing", name: "SADDLE SWING", damage: 40, reach: 3.2, cooldown: 1.7, arc: 150, maxTargets: 4 }, // молот верхом (MOUNT)
   // Рука игрока: ближний бой
   // Ближний бой игрока бьёт по ХИТБОКСУ — сектору arc° перед собой длиной reach (движок: MeleeAttack),

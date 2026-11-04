@@ -358,7 +358,7 @@ export class GameScene extends Scene {
     const { player } = this;
     // 1. Герой: способность в руках, движение
     profiler.begin(PROF.player);
-    this.abilities.update(dt, this, input); // с input — зажатая ЛКМ повторяет удар/выстрел
+    this.abilities.update(dt, this, this.onReins ? NO_INPUT : input); // с input — зажатая ЛКМ повторяет удар/выстрел (на поводьях — нет)
     player.speedBonuses.weapon = this.abilities.current?.moveSpeed || 0; // оружие в руках
     player.speedBonuses.aim = this.aiming ? AIM.moveSpeed : 0; //            прицеливание
     this.actionLock.update(dt);
@@ -546,7 +546,7 @@ export class GameScene extends Scene {
 
     // 2. Анимации героя: тело «для мира» и рука «для экрана»
     // От 3-го лица: оружие в руке (или катана на бедре), руки держат его (слой поверх ходьбы)
-    const heldNow = this.abilities.current?.held || null;
+    const heldNow = this.onReins ? null : this.abilities.current?.held || null; // на поводьях — в руках ничего
     this.game.models.hold(player, heldNow?.model ?? null, heldNow || {});
     player.view?.animator.setOverlay(heldNow?.pose ?? null);
     player.roll = -this.look.roll;
@@ -620,7 +620,7 @@ export class GameScene extends Scene {
     const playing = this.engine.scene === this;
     const arm = this.viewModel();
     if (arm) arm.light = this.lightHere(this.player.position, this.player); // под крышей рука темнее
-    const vm = firstPerson && playing && !this.scoped ? arm?.draw(camera) : null;
+    const vm = firstPerson && playing && !this.scoped && !this.onReins ? arm?.draw(camera) : null; // на поводьях — рук с оружием нет
     return {
       camera,
       world: this.world,

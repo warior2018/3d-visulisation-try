@@ -28,11 +28,29 @@ export default async function (t, g) {
   // быстрее, чем пешком
   scene.updateMountSpeed();
   t.check("скорость верхом больше пешей", scene.rideController.speed > C.PLAYER.speed);
+  // поводья / оружие (Alt)
+  t.check("сели — руки на поводьях", scene.onReins);
+  g.equip("crossbow");
+  scene.updateMountSpeed();
+  t.check("на поводьях — полная скорость даже с арбалетом", Math.abs(scene.rideController.speed - C.MOUNT.speed) < 1e-6);
+  const shotsBefore = scene.abilities.current.attack.ammo;
+  scene.onPress(["primary"], {});
+  t.check("на поводьях — не стреляем", scene.abilities.current.attack.ammo === shotsBefore);
+  scene.onPress(["mountMode"], {});
+  t.check("Alt — оружие в руках", !scene.onReins);
+  scene.updateMountSpeed();
+  t.check("арбалет верхом — замедление 20 %", Math.abs(scene.rideController.speed - C.MOUNT.speed * (1 - C.MOUNT.slowRanged)) < 1e-6);
+  g.equip("pistol");
+  scene.updateMountSpeed();
+  t.check("пистолет — без замедления", Math.abs(scene.rideController.speed - C.MOUNT.speed) < 1e-6);
   g.equip("war-hammer");
   scene.updateMountSpeed();
-  t.check("двуручное (молот) — медленнее", scene.rideController.speed < C.MOUNT.speed && scene.rideController.runMultiplier === 1, `${scene.rideController.speed} ${scene.abilities.current?.id}`);
+  t.check("молот — замедление всего 8 %", Math.abs(scene.rideController.speed - C.MOUNT.speed * (1 - C.MOUNT.slowMelee)) < 1e-6);
   const ab = scene.abilities.current;
   t.check("молот верхом — взмах (не удар под себя)", ab.swing && ab.swing.id === "hammer-swing");
+  g.equip("katana");
+  t.check("катана верхом — свой взмах", scene.abilities.current.saddle?.id === "katana-saddle");
+  g.equip("war-hammer");
   // урон — слетаем, перезарядка
   p.stats.hp = p.stats.maxHp;
   p.onDamage?.({ tags: new Set(), source: null }, 1);
