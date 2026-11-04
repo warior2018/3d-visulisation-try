@@ -71,6 +71,8 @@ export const GAME_DEFAULTS = {
       interact: "key:F", // подобрать предмет под прицелом
       chat: "key:RETURN", // чат (и «/команда» — консоль)
       mount: "key:Z", //    маунт: позвать / слезть (MOUNT)
+      record: "key:F7", //  запись повтора (разработка): F7 — начать / закончить, в папку saves/replays
+      tune: "key:F6", //    окно баланса (разработка): цифры config.js на ходу — tune.js
       mountMode: "key:LALT", // верхом: поводья / оружие
     },
   },
@@ -78,6 +80,8 @@ export const GAME_DEFAULTS = {
 
 export const GAME_ACTION_LABELS = {
   mount: "MOUNT",
+  tune: "BALANCE WINDOW (DEV)",
+  record: "RECORD REPLAY (DEV)",
   mountMode: "MOUNT: REINS / WEAPON",
   item1: "ITEM 1",
   item2: "ITEM 2",

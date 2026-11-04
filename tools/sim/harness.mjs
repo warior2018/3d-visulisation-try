@@ -37,6 +37,11 @@ export async function createGame({ world = "copy", immortal = true } = {}) {
       if (best) fs.cpSync(path.join(worlds, best), path.join(dir, "worlds", "1"), { recursive: true, filter: (f) => !/[\\/](backups|dead)([\\/]|$)/.test(f) && !f.endsWith(".tmp") });
     }
   }
+  // Повтор (tools/sim/replay.mjs): мир и настройки — из папки повтора
+  if (world && typeof world === "object" && world.replay) {
+    fs.cpSync(path.join(world.replay, "world"), path.join(dir, "worlds", "1"), { recursive: true });
+    if (fs.existsSync(path.join(world.replay, "settings.json"))) fs.copyFileSync(path.join(world.replay, "settings.json"), path.join(dir, "settings.json"));
+  }
   process.env.VOID_SAVES = dir + path.sep;
 
   const E = await import(path.join(ROOT, "engine", "index.js"));

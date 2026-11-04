@@ -20,6 +20,7 @@ import { DevConsole, num } from "./console.js";
 import { ConsoleScene } from "../scenes/console-scene.js";
 import { drawPerfPanel } from "../ui/perf-panel.js";
 import { CrashScene, crashReport } from "../scenes/crash-scene.js";
+import { ReplayRecorder } from "./replay.js";
 
 const BACKGROUND = { background: true }; // опции шага мира под «живым» окном (один объект — без мусора)
 
@@ -225,6 +226,7 @@ export class Engine {
     (this.crashSeen ||= new Set());
     if (this.crashSeen.has(key) || this.scene instanceof CrashScene || this.crashSeen.size > 20) return;
     this.crashSeen.add(key);
+    if (this.replay?.recording) this.stopReplay(); // писали повтор — сохраняем: в нём ведущий к ошибке ввод
     const { report, file } = this.writeCrash(error);
     try {
       this.push(new CrashScene({ error, report, file }));
@@ -255,6 +257,39 @@ export class Engine {
     } catch {
       return false;
     }
+  }
+
+  // ---------- Запись повтора (engine/core/replay.js) ----------
+  // snapshot(dir) — игра сохраняет мир в папку повтора (с него повтор и начнётся). Вернёт папку повтора
+  startReplay({ snapshot = null, meta = {} } = {}) {
+    if (this.replay?.recording) return null;
+    const dir = path.join(path.dirname(this.settings.file || "."), "replays", new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19));
+    fs.mkdirSync(dir, { recursive: true });
+    try {
+      snapshot?.(dir);
+    } catch (e) {
+      this.log("повтор: не сохранить мир: " + (e.stack || e));
+    }
+    this.replay = new ReplayRecorder({ meta: { ...meta, started: new Date().toISOString(), version: this.updater?.current || "" } });
+    this.replayDir = dir;
+    this.replay.start();
+    this.log(`запись повтора: ${dir}`);
+    return dir;
+  }
+
+  // Остановить и записать replay.json. Вернёт путь к файлу
+  stopReplay() {
+    if (!this.replay?.recording) return null;
+    const data = this.replay.stop();
+    const file = path.join(this.replayDir, "replay.json");
+    try {
+      fs.writeFileSync(file, JSON.stringify(data));
+      fs.writeFileSync(path.join(this.replayDir, "settings.json"), JSON.stringify(this.settings.data));
+    } catch (e) {
+      this.log("повтор: не записать: " + (e.stack || e));
+    }
+    this.log(`повтор записан: ${file}, кадров ${data.frames.length}`);
+    return file;
   }
 
   // Стоп-кадр (hit stop): seconds настоящего времени мир идёт со скоростью scale (0.05 — почти стоит).
@@ -544,6 +579,7 @@ export class Engine {
 
   // Нажатие клавиши или кнопки мыши -> действия по привязкам -> верхней сцене
   press(event) {
+    this.replay?.event(event); // запись повтора (engine/core/replay.js)
     const scene = this.scene;
     if (!scene || scene.onRawPress(event)) return;
     const actions = this.input.actionsFor(event);
@@ -694,6 +730,8 @@ export class Engine {
 
     const scene = this.scene;
     if (!scene) return false;
+    // Запись повтора: ввод этого кадра (до того, как сцена его прочтёт) — только когда мир живёт
+    if (this.replay?.recording && (scene.realtime || scene.live)) this.replay.frame({ dt: raw, keys: this.input.keys, buttons: this.input.buttons, dx: this.mouse.dx, dy: this.mouse.dy });
 
     // Меню, пауза, настройки: ничего не движется — рисуем, только если интерфейс поменялся.
     // После изменения рисуем ещё пару кадров подряд: у окна несколько буферов картинки

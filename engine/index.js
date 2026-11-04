@@ -41,6 +41,7 @@ export { drawPortrait } from "./ui/portrait.js";
 
 // Готовые сцены
 export { MenuScene } from "./scenes/menu-scene.js";
+export { TuneScene, autoStep } from "./scenes/tune-scene.js";
 export { DialogScene } from "./scenes/dialog-scene.js";
 export { SummaryScene } from "./scenes/summary-scene.js";
 export { CrashScene, crashReport } from "./scenes/crash-scene.js";
@@ -129,3 +130,5 @@ export { Particles, FLOATS_PER_PARTICLE } from "./graphics/particles.js";
 export { IntroScene } from "./scenes/intro-scene.js";
 export { watchModule, applyLive, applyModule } from "./core/hot-reload.js";
 export { Hints } from "./progression/hints.js";
+export { patchNumber, formatNumber } from "./core/config-patch.js";
+export { ReplayRecorder, ReplayPlayer, seedRandom, seededRandomFn } from "./core/replay.js";

@@ -8,6 +8,10 @@ import { itemName, ITEMS, isArmor, isWeapon, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_
 import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
+import { openTuneScene } from "../tune.js";
+import fs from "node:fs";
+import path from "node:path";
+import { WORLD_ROOT, currentWorld } from "../save.js";
 import { ABILITY_FOR_ITEM, HeldItemAbility } from "../abilities.js";
 import { helpFor } from "../help.js";
 
@@ -151,6 +155,30 @@ export class ShopPart {
   }
 
   // Панель способностей = хотбар: в каждой ячейке — способность предмета или кулак
+  // F6 — окно баланса (tune.js): числа config.js на ходу и запись в файл
+  openTune() {
+    openTuneScene(this);
+  }
+
+  // F7 — запись повтора (engine/core/replay.js): мир сохраняем и копируем в папку повтора — с него повтор
+  // и начнётся (tools/sim/replay.mjs <папка>). Ещё раз F7 — стоп. Ошибка в игре — запись сохраняется сама
+  toggleReplay() {
+    const e = this.engine;
+    if (e.replay?.recording) {
+      const file = e.stopReplay();
+      return e.toast(file ? "REPLAY SAVED: saves/replays" : "REPLAY NOT SAVED - SEE LOG", 3000);
+    }
+    if (this.role !== "solo") return e.toast("REPLAY: SINGLE PLAYER ONLY", 2000);
+    const dir = e.startReplay({
+      meta: { world: currentWorld },
+      snapshot: (to) => {
+        this.save(false);
+        fs.cpSync(WORLD_ROOT, path.join(to, "world"), { recursive: true, filter: (f) => !/[\\/](backups|dead)([\\/]|$)/.test(f) && !f.endsWith(".tmp") });
+      },
+    });
+    if (dir) e.toast("RECORDING REPLAY - F7 TO STOP", 2500);
+  }
+
   // config.js перезагрузили на ходу (main.js → watchModule): оружие — заново из новых ATTACKS (обоймы — полные)
   configReloaded() {
     this.abilityCache.clear();

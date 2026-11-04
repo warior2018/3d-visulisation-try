@@ -24,6 +24,8 @@ export class InputPart {
     if (has("autoLoot")) this.toggleAutoLoot(); // V — автоподбор вкл/выкл (вид камеры — только в настройках)
     if (has("interact")) this.interact();
     if (has("shop")) return this.openShop();
+    if (has("tune")) return this.openTune(); // F6 — окно баланса (tune.js)
+    if (has("record")) return this.toggleReplay(); // F7 — запись повтора (scene/shop.js → toggleReplay)
     if (has("ultimate")) this.useUltimate();
     if (has("mount")) this.toggleMount(); // Z — маунт (scene/mount.js)
     if (has("mountMode")) this.toggleMountMode(); // Alt — верхом: поводья / оружие

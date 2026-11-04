@@ -99,6 +99,15 @@ export const HUD_PARTS = [
     },
   },
   {
+    id: "rec", // идёт запись повтора (F7) — красная метка слева сверху
+    watch: (g) => (g.engine.replay?.recording ? Math.floor(g.engine.replay.time) : null),
+    draw: (ui, g, t) => {
+      if (t === null) return;
+      ui.rect(18, 18, 12, 12, [230, 40, 40], Math.floor(t) % 2 ? 140 : 255);
+      ui.text(`REC ${mmss(t)}`, 38, 20, 2, [230, 60, 60]);
+    },
+  },
+  {
     id: "hint", // подсказка новичку (hints.js): сверху посередине, под всплывающими надписями; выполнил — галочка
     watch: (g) => {
       const h = g.hints?.current;
