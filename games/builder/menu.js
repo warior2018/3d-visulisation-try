@@ -96,7 +96,7 @@ export class MainMenu extends Scene {
 
   // Где кругляш позиции k: центр крупно, слева / справа поменьше, очередь — ещё меньше и дальше по бокам
   slot(ui, k) {
-    const cx = ui.width / 2, y = ui.height * 0.27;
+    const cx = ui.width / 2, y = ringY(ui);
     const R = Math.min(110, ui.height * 0.12);
     if (k === 0) return { x: cx, y, r: R, a: 1 };
     if (k === 1) return { x: cx - R * 2.6, y: y + 10, r: R * 0.68, a: 0.9 };
@@ -160,6 +160,8 @@ export class MainMenu extends Scene {
   view() {
     const h = this.tab === "play" ? this.hero : this.tab === "skins" ? this.skinHero : null;
     if (!h) return null;
+    const ui = this.engine.ui;
+    this.frameHero(ui, this.tab === "play" ? this.heroBox(ui) : this.skinBox(ui));
     return { camera: this.camera, world: null, characters: this.game.models.drawList([h.entity]) };
   }
 
@@ -228,7 +230,7 @@ export class MainMenu extends Scene {
     SKIN_CATEGORIES.forEach((c, i) => ui.button("scat:" + c.id, c.name, ui.width / 2 + (i - (SKIN_CATEGORIES.length - 1) / 2) * (cw + 10), 92, cw, 38, 2, this.skinCat === c.id));
     const list = SKIN_TARGETS.filter((t) => t.category === this.skinCat);
     if (!list.some((t) => t.id === this.skinPick)) this.skinPick = list[0]?.id ?? null;
-    const box = this.heroBox(ui);
+    const box = this.skinBox(ui);
     // слева — предметы раздела (значок — в надетом скине)
     const left = 24, top = 140, cell = 104, cols = Math.max(1, Math.floor((box.x - left - 24) / (cell + 8)));
     list.forEach((t, i) => {
@@ -273,10 +275,26 @@ export class MainMenu extends Scene {
     ui.text("ALL SKINS ARE UNLOCKED FOR NOW", rx, box.y + t.skins.length * (ch + 10) + 8, 1, th.muted);
   }
 
+  // Камера так, чтобы герой (≈1.8 м) целиком стоял в окошке box: дальше — меньше, выше — герой ниже на экране
+  frameHero(ui, box) {
+    const t = Math.tan(this.camera.fov / 2), H = ui.height;
+    const d = 1.9 / (2 * t * (box.h / H)); //                     высота окошка ↔ 1.9 м на расстоянии d
+    const off = (box.y + box.h / 2 - H / 2) / (H / 2); //          где центр окошка: −1 верх … 1 низ
+    Object.assign(this.camera.position, { x: 0, y: 0.85 + off * d * t, z: d });
+  }
+
   // окошко героя (там UI прозрачный — видно 3D) — внизу по центру
-  heroBox(ui) {
+  // Окошко примерки на вкладке СКИНЫ — крупное, по центру
+  skinBox(ui) {
     const w = Math.round(ui.width * 0.24), h = Math.round(ui.height * 0.5);
     return { x: Math.round(ui.width / 2 - w / 2), y: Math.round(ui.height * 0.44), w, h };
+  }
+
+  // Окошко героя — между кругами миров (с подписями) и кнопкой ИГРАТЬ внизу
+  heroBox(ui) {
+    const top = Math.round(ringY(ui) + ringR(ui) + 56), bottom = Math.round(playY(ui) - 40);
+    const h = Math.max(80, bottom - top), w = Math.round(Math.max(160, h * 0.75));
+    return { x: Math.round(ui.width / 2 - w / 2), y: top, w, h };
   }
 
   drawUI(ui) {
@@ -371,22 +389,15 @@ export class MainMenu extends Scene {
       }
     }
     // стрелки по бокам
-    const cy = ui.height * 0.27;
+    const cy = ringY(ui);
     if (this.ring.length > 1) {
       ui.button("turn:1", "<", 40, cy, 56, 80, 4); // ← — в центр мир слева (как клавиша ←)
       ui.button("turn:-1", ">", ui.width - 40, cy, 56, 80, 4);
     }
+    // ИГРАТЬ — внизу, на своём месте (не прыгает, когда наводишь мышь на мир). Картинка и удаление мира —
+    // не здесь (будут в другом месте)
     const c = this.center;
-    const ca = c && this.anim.get(c.id);
-    if (c && ca) {
-      const below = ca.y + ca.r + (c.saved || c.create ? 52 : 74);
-      ui.button("play", c.create ? "CREATE" : c.saved ? "PLAY" : "START", ui.width / 2, below + 20, 260, 52, 3, true);
-      if (!c.create) {
-        // сменить картинку и удалить — подписанными кнопками (стрелки рядом с ИГРАТЬ путали: ждёшь смену мира)
-        ui.button("icon:1", "PICTURE", ui.width / 2 - 250, below + 20, 140, 36, 2);
-        ui.button("delete", "DELETE", ui.width / 2 + 250, below + 20, 140, 36, 2);
-      }
-    }
+    if (c) ui.button("play", c.create ? "CREATE" : c.saved ? "PLAY" : "START", ui.width / 2, playY(ui), 300, 56, 3, true);
     // герой (3D: окошко прозрачное) и статы показанного мира
     const w = this.shown();
     if (w && !w.create) {
@@ -620,3 +631,8 @@ function drawTabIcon(ui, icon, cx, cy, color) {
     ui.circle(x + c, y + c, 3, dark, 255);
   }
 }
+
+// Раскладка вкладки ИГРАТЬ: круги миров — около середины, ИГРАТЬ — почти внизу
+const ringY = (ui) => Math.round(ui.height * 0.36);
+const ringR = (ui) => Math.min(110, ui.height * 0.12);
+const playY = (ui) => ui.height - 52;
