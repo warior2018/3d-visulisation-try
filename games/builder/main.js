@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Engine, MenuScene, SettingsScene, ModelLibrary, Input, ChangelogScene, TextInputScene, IntroScene, NetServer, NetClient, localAddresses, DEFAULT_PORT, makeTheme, loadPNG, widgets } from "../../engine/index.js";
-import { GAME_DEFAULTS, GAME_ACTION_LABELS, CAMERA_MODES, SAVES, SOUNDS, THEME, THEMES, VIEW_DISTANCE } from "./config.js";
+import { GAME_DEFAULTS, GAME_ACTION_LABELS, GAMEPAD_ENABLED, CAMERA_MODES, SAVES, SOUNDS, THEME, THEMES, VIEW_DISTANCE } from "./config.js";
 import { GameScene } from "./game-scene.js";
 import { loadModels } from "./load-models.js";
 import { migrateOldSaves, touchWorld, setProfile } from "./save.js";
@@ -77,6 +77,8 @@ engine.applySettings("language");
 }
 
 noSprint(engine); // спринта нет: Shift — способность 3 (controls.js)
+// Геймпад пока закрыт (движок умеет — в игре выключен, пока не проверим на настоящем)
+if (engine.pad) engine.pad.enabled = GAMEPAD_ENABLED;
 
 // Стиль окон и кнопок (настройка UI STYLE): тема из THEMES поверх темы движка
 function applyStyle() {

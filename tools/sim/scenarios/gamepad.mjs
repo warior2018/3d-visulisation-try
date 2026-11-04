@@ -42,5 +42,11 @@ export default async function (t, g) {
   pad.button("south", true); pad.button("south", false);
   t.check("A в меню — клик по кнопке под курсором", clicked === "ok");
   engine.pop();
+  // игра может закрыть геймпад (в «Стройке» пока закрыт): кнопки и стики не действуют
+  pad.enabled = false;
+  pad.axis("leftStickY", -1);
+  t.check("геймпад закрыт — стик не ведёт героя", !engine.input.isDown("forward") && !pad.connected);
+  pad.enabled = true;
+  pad.axis("leftStickY", 0);
   pad.instance = null;
 }

@@ -33,6 +33,7 @@ export class Gamepad {
     this.pressed = new Set(); //   нажатые с прошлого опроса (wasPressed)
     this.instance = null;
     this.name = null;
+    this.enabled = true; //        игра может закрыть геймпад (pad.enabled = false): кнопки и стики не действуют
     this.lookSpeed = 3.2; //       радиан в секунду при полном отклонении правого стика (× чувствительность)
     if (!sdl.gamepad || typeof sdl.gamepad.on !== "function") return; // нет SDL-геймпадов (тесты, старая SDL)
     try {
@@ -45,7 +46,7 @@ export class Gamepad {
   }
 
   get connected() {
-    return !!this.instance && !this.instance.closed;
+    return this.enabled && !!this.instance && !this.instance.closed;
   }
 
   // Подключиться к первому геймпаду (или отключиться, если его вынули)
@@ -68,6 +69,7 @@ export class Gamepad {
   }
 
   button(name, isDown) {
+    if (!this.enabled) return;
     if (isDown) {
       if (!this.down.has(name)) this.pressed.add(name);
       this.down.add(name);
@@ -77,6 +79,7 @@ export class Gamepad {
 
   // Ось: курки и направления стиков — тоже «кнопки» (нажал дальше порога — нажата)
   axis(name, value) {
+    if (!this.enabled) return;
     this.axes[name] = value;
     const virtual = name.endsWith("Trigger") ? [[name, value > TRIGGER]] : [[name + "+", value > 0.5], [name + "-", value < -0.5]];
     for (const [v, on] of virtual) if (on !== this.down.has(v)) this.button(v, on);
@@ -97,11 +100,13 @@ export class Gamepad {
   }
 
   isDown(action) {
+    if (!this.enabled) return false;
     const b = this.bindings[action];
     return !!b && this.down.has(b);
   }
 
   wasPressed(action) {
+    if (!this.enabled) return false;
     const b = this.bindings[action];
     if (!b || !this.pressed.has(b)) return false;
     this.pressed.delete(b);

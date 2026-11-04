@@ -149,6 +149,9 @@ export const PALETTE_SURFACE = { 5: "slip" };
 // согнуты, герой ниже — и коробка столкновений, и глаза (game-scene.js → updateStance)
 export const HERO_SCALE = 1.6 / 1.8;
 export const STANCE = { height: 1.4, eyeHeight: 1.28 };
+// Геймпад: в движке есть (engine/input/gamepad.js), в игре пока выключен — не проверен на настоящем
+export const GAMEPAD_ENABLED = false;
+
 // Разгон героя (движок: CharacterController.accel), секунд: ground — до скорости шага на земле, stop —
 // остановиться, air / airStop — то же в воздухе (меньше — резче управление в полёте, как в Overwatch),
 // over — сбросить скорость сверх бега (после рывка / отброса). Пробный вариант — подбираем (консоль: move_*)
