@@ -257,6 +257,14 @@ export class Engine {
     }
   }
 
+  // Стоп-кадр (hit stop): seconds настоящего времени мир идёт со скоростью scale (0.05 — почти стоит).
+  // Так сильный удар «ощущается»: на миг всё замирает. Новый стоп не короче уже идущего
+  hitStop(seconds, scale = 0.05) {
+    if (!(seconds > 0)) return;
+    this.hitStopLeft = Math.max(this.hitStopLeft || 0, Math.min(0.2, seconds));
+    this.hitStopScale = Math.max(0, Math.min(1, scale));
+  }
+
   // Этап кадра — для сторожа: если зависнем, он напишет, на каком этапе
   phase(n) {
     this.watchdog?.phase(n);
@@ -755,8 +763,14 @@ export class Engine {
   // между прошлым и следующим тиком). Сцена без fixedUpdate — по-старому: update(dt) раз в кадр.
   // seconds — настоящее время кадра (для тиков: оно и копится), dt — сглаженное (для того, что на экране)
   updateScene(target, opts, seconds, dt) {
+    // стоп-кадр (hitStop): мир на время почти стоит — настоящее время идёт
+    let slow = 1;
+    if (this.hitStopLeft > 0) {
+      slow = this.hitStopScale;
+      this.hitStopLeft -= seconds;
+    }
     if (!target.fixedUpdate) {
-      target.update(dt, opts);
+      target.update(dt * slow, opts);
       return;
     }
     this.tickScene = target;
@@ -765,7 +779,7 @@ export class Engine {
     if (opts?.background) this.input.flushPressed();
     target.beforeTicks?.(dt, opts); // раз в кадр до тиков: то, что тики должны знать уже свежим (взгляд мышью)
     // первый живой кадр после меню / паузы: не больше одного тика (время в меню не в счёт)
-    const k = this.timeScale;
+    const k = this.timeScale * slow;
     this.fixed.advance((this.prevLiveEnd ? seconds : Math.min(seconds, this.fixed.dt)) * k, this.runTick);
     target.frameUpdate?.(dt * k, this.fixed.alpha, opts);
   }

@@ -9,11 +9,11 @@
 // ============================================================
 
 import { widgets, drawMinimap, drawPortrait, Input, HudParts } from "../../engine/index.js";
-import { PALETTE, PORTRAIT, PORTRAIT_PALETTE, CLASSES, TRAPS } from "./config.js";
+import { PALETTE, PORTRAIT, PORTRAIT_PALETTE, CLASSES, TRAPS, DAMAGE_DIR } from "./config.js";
 import { TROPHY, TROPHY_TALENTS, trophyPct } from "./talents.js";
 import { itemName } from "./items.js";
 
-const { TEXT, MUTED, drawCrosshair, drawBar, drawVignette, drawBadges, drawStatuses, drawCooldowns, drawSlot } = widgets;
+const { TEXT, MUTED, drawDamageArc, drawCrosshair, drawBar, drawVignette, drawBadges, drawStatuses, drawCooldowns, drawSlot } = widgets;
 const CD_SIZE = 32; //      «часики» перезарядок под хотбаром
 const MINIMAP_FPS = 10; //  сколько раз в секунду обновлять миникарту
 const RED = [255, 90, 80];
@@ -96,6 +96,17 @@ export const HUD_PARTS = [
       if (k <= 0) return;
       const { cx, cy } = center(ui);
       ui.text("BLOCKED!", cx, cy + 26, 3, [140, 200, 255], "center", Math.round(255 * Math.min(1, k / 10)));
+    },
+  },
+  {
+    id: "damage-dir", // откуда бьют: красные дуги вокруг прицела (scene/feel.js → damageArcs)
+    watch: (g) => {
+      const arcs = g.damageArcs?.() || [];
+      return arcs.length ? arcs.map((a) => `${Math.round(a.angle * 30)}:${Math.round(a.k * 20)}`).join(",") : null;
+    },
+    draw: (ui, g) => {
+      const D = DAMAGE_DIR;
+      for (const a of g.damageArcs?.() || []) drawDamageArc(ui, a.angle, a.k, { radius: Math.min(ui.width, ui.height) * D.radius, spread: (D.spread * Math.PI) / 180 });
     },
   },
   {

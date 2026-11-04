@@ -17,6 +17,7 @@ import { createCreature, modelFor } from "./creatures.js";
 import { NO_INPUT, PROF, CORPSE_TIME, mixParts } from "./scene/shared.js";
 import { SAVE_DIR, SAVE_FILE, store as saveStore } from "./save.js";
 import { SessionPart } from "./scene/session.js";
+import { FeelPart } from "./scene/feel.js";
 import { InputPart } from "./scene/input.js";
 import { BuildingPart } from "./scene/building.js";
 import { WorldgenPart } from "./scene/worldgen.js";
@@ -162,6 +163,7 @@ export class GameScene extends Scene {
       this.mountHurt(e, dealt); // ранили героя или его скакуна — маунт исчезает (scene/mount.js)
       this.hitFx(e, d, dealt); //  брызги «крови» (scene/effects.js)
       this.combatHit(e, d, dealt); // в бою: ранили героя или он кого-то (scene/out-of-combat.js)
+      this.hitFeel(e, d, dealt); //   стоп-кадр, отлёт, звук хедшота; по герою — откуда бьют (scene/feel.js)
       if (e === this.player) this.engine.pad?.rumble(Math.min(1, 0.25 + dealt / 40), 140); // по нам попали — вибрация геймпада
       if (d.source !== this.player || e === this.player || this.settings.general.damageNumbers === false) return;
       const head = d.part === "head";
@@ -368,6 +370,7 @@ export class GameScene extends Scene {
     this.updateStance(dt); //  катана в руках — стойка: ниже рост и глаза
     this.mountCd = Math.max(0, (this.mountCd || 0) - dt); // перезарядка маунта (MOUNT)
     this.updateOutOfCombat(dt); // вне боя: +скорость, ×регенерация (scene/out-of-combat.js)
+    this.updateDamageDirs(dt); //   дуги «откуда бьют» гаснут (scene/feel.js)
     this.updateAudio(dt); // музыка (мир / бой / нашествие) и эхо вокруг (scene/audio.js)
     let move;
     if (player.mount) move = this.rideTick(dt); // верхом: ведём скакуна (scene/mount.js)
@@ -505,6 +508,7 @@ export class GameScene extends Scene {
       profiler.end(PROF.ai);
       if (alerted.length > 1) engine.log(`стадо: разозлились ${alerted.length} (${e.name})`);
       if (alerted.includes(e)) engine.sound.play("growl", { at: e.position, volume: 0.8 }); // рык того, кто разозлился
+      this.applyKnock(e, dt); // отбросило ударом (scene/feel.js)
       profiler.begin(PROF.physics);
       this.physics.step(e, dt); // стены, ступеньки, падение
       profiler.end(PROF.physics);
@@ -689,4 +693,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart]);

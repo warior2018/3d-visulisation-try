@@ -377,3 +377,22 @@ export function drawTechPanel(ui, lines, { x = 6, y = 6, scale = 2 } = {}) {
   ui.rect(x, y, w, lines.length * lh + 10, [8, 10, 16], 185);
   lines.forEach((l, i) => ui.text(l, x + 8, y + 6 + i * lh, scale, i === 0 ? WARN : TEXT));
 }
+
+// Индикатор урона: красная дуга по кругу вокруг центра экрана в сторону angle (рад: 0 — вверх, по часовой).
+// k — яркость (0…1), radius — радиус круга в пикселях, spread — полуширина дуги (рад)
+export function drawDamageArc(ui, angle, k, { radius, spread = 0.38, thick = 12, color = [230, 40, 30] } = {}) {
+  if (k <= 0) return;
+  const cx = ui.width / 2, cy = ui.height / 2;
+  const r = radius ?? Math.min(ui.width, ui.height) * 0.3;
+  const steps = Math.max(8, Math.round((r * spread * 2) / 4));
+  for (let i = 0; i <= steps; i++) {
+    const t = -spread + (2 * spread * i) / steps;
+    const edge = 1 - Math.abs(t) / spread; // к краям дуги — тоньше и прозрачнее
+    const a = angle + t, sx = Math.sin(a), sy = -Math.cos(a);
+    const w = Math.max(2, Math.round(thick * (0.45 + 0.55 * edge)));
+    for (let j = 0; j < w; j += 2) {
+      const rr = r + j - w / 2;
+      ui.rect(Math.round(cx + sx * rr) - 2, Math.round(cy + sy * rr) - 2, 4, 4, color, Math.round(255 * k * (0.35 + 0.65 * edge)));
+    }
+  }
+}

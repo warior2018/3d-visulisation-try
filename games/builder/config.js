@@ -479,6 +479,7 @@ export const SOUNDS = {
   swing: tone(340, 90, 160, 4), //   «вжух» — удар мимо
   slash: mix(noise(190, 4, 0.2), tone(1400, 500, 150, 4)), // «вшш» катаны — свист клинка
   hit: tone(150, 55, 140, 5), //     попали по существу
+  headshot: mix(tone(1600, 2400, 70, 6), tone(900, 1300, 90, 5), noise(30, 12, 0.4)), // хедшот: звонкий «дзынь»
   loot: tone(880, 1320, 180, 3), //  «дзынь» — добыча
   pickup: mix(tone(520, 780, 70, 3), noise(40, 6, 0.6)), // подобрали с земли (камень стукнул)
   shot: mix(noise(150, 7, 0.35), tone(170, 50, 150, 8)), // выстрел: шум + низкий «бум»
@@ -693,6 +694,19 @@ export const FALL_DAMAGE = {
   highGround: { from: 2, mult: 0.5 }, //   + к порогу (блоков) и множитель урона
   jumpSlam: { from: 3, mult: 0.5 },
 };
+
+// Чувство удара (scene/feel.js): stop — стоп-кадр (мир на time с замедляется до scale) при ударе героя на from+
+// урона или хедшоте; knock — отлёт задетого моба (м/с, на time с, вверх — up) от атак с этим id (боссы — ×boss);
+// kick — встряска картинки при тяжёлом ударе (прицел не сдвигается); headSound — звук хедшота
+export const HIT_FEEL = {
+  stop: { from: 45, time: 0.04, head: 0.05, scale: 0.05, cooldown: 0.12 },
+  knock: { time: 0.18, up: 2.5, max: 9, boss: 0.15, attacks: { "war-hammer": 7, "hammer-swing": 5, shotgun: 1.1, "shotgun-blast": 9, "spear-charge": 6, dynamite: 6 } },
+  kick: { from: 45, amount: 0.12, head: 0.18 },
+  headSound: "headshot",
+};
+// Индикатор урона (scene/feel.js → hud.js): красная дуга по кругу вокруг прицела — в сторону того, кто попал.
+// time — сколько гаснет, max — сколько дуг сразу, radius — доля меньшей стороны экрана, spread — полуширина (°)
+export const DAMAGE_DIR = { time: 1.3, max: 6, radius: 0.3, spread: 22 };
 
 export const SHAKE = {
   hammer: 0.45, jumpSlam: 0.08,
