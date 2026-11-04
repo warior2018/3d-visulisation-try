@@ -46,6 +46,11 @@ export class VoxelWorld {
     this.quiet = false; // true — изменения не сообщать (применяем чужие: из сети)
     this.version = 0;
     this.surfaces = 0; // сколько блоков с особой поверхностью (нет ни одного — физике не нужно их искать)
+    // Светящиеся блоки (факел, лампа): цвет «r,g,b» -> { power 0…1, radius блоков } — setEmitters. Такие блоки
+    // светят вокруг (chunk-mesh.js → blockLightAt), ночью — тоже. lights — где они: chunkKey -> Set(блок)
+    this.emitters = new Map();
+    this.lights = new Map();
+    this.lightCount = 0;
     this.maxY = 0; //  самый высокий блок (миникарте — откуда искать верхний блок столбика) // растёт при каждом изменении — рендерер по нему понимает, что пора обновиться
   }
 
@@ -56,6 +61,57 @@ export class VoxelWorld {
     let c = this.chunks.get(k);
     if (!c && create) this.chunks.set(k, (c = new Chunk(cx, cz)));
     return c || null;
+  }
+
+  // Какие цвета светятся: [{ color: [r, g, b], power: 0…1, radius }]. Уже стоящие блоки этих цветов — тоже
+  setEmitters(list = []) {
+    this.emitters = new Map(list.map((e) => [e.color.join(","), { power: e.power ?? 1, radius: e.radius ?? 7 }]));
+    this.lights.clear();
+    this.lightCount = 0;
+    for (const b of this.blocks.values()) if (this.emitterOf(b)) this.addLight(b, false);
+    for (const c of this.chunks.values()) c.version++;
+    this.version++;
+  }
+
+  emitterOf(b) {
+    return this.emitters.size ? this.emitters.get(b.color.join(",")) || null : null;
+  }
+
+  addLight(b, bumpAround = true) {
+    const ck = chunkKey(chunkOf(b.x), chunkOf(b.z));
+    let set = this.lights.get(ck);
+    if (!set) this.lights.set(ck, (set = new Set()));
+    set.add(b);
+    this.lightCount++;
+    if (bumpAround) this.bumpLight(b);
+  }
+
+  removeLight(b) {
+    const ck = chunkKey(chunkOf(b.x), chunkOf(b.z));
+    const set = this.lights.get(ck);
+    if (set?.delete(b)) {
+      this.lightCount--;
+      if (!set.size) this.lights.delete(ck);
+      this.bumpLight(b);
+    }
+  }
+
+  // Свет дошёл до соседних чанков — их пересобрать
+  bumpLight(b) {
+    const r = Math.ceil((this.emitterOf(b)?.radius ?? 7) / CHUNK);
+    const cx = chunkOf(b.x), cz = chunkOf(b.z);
+    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) if (dx || dz) this.bump(cx + dx, cz + dz);
+  }
+
+  // Светящиеся блоки около чанка (cx, cz) — в пределах r чанков
+  lightsNear(cx, cz, r = 1) {
+    if (!this.lightCount) return null;
+    const out = [];
+    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+      const set = this.lights.get(chunkKey(cx + dx, cz + dz));
+      if (set) for (const b of set) out.push(b);
+    }
+    return out.length ? out : null;
   }
 
   // Чанк, в котором клетка (x, z)
@@ -133,6 +189,7 @@ export class VoxelWorld {
     if (y < c.minY) c.minY = y;
     if (y > c.maxY) c.maxY = y;
     this.touch(x, y, z);
+    if (this.emitters.size && this.emitterOf(b)) this.addLight(b);
     if (y > this.maxY) this.maxY = y;
     if (this.onChange && !this.quiet) this.onChange(x, y, z, b);
     const k = (x + 524288) * 1048576 + (z + 524288), top = this.tops.get(k);
@@ -146,6 +203,7 @@ export class VoxelWorld {
     const removed = this.blocks.delete(key(x, y, z));
     if (removed) {
       if (b.surface) this.surfaces--;
+      if (this.lightCount && this.emitterOf(b)) this.removeLight(b);
       this.chunkAt(x, z)?.blocks.delete(b);
       this.touch(x, y, z);
       if (this.onChange && !this.quiet) this.onChange(x, y, z, null);
@@ -163,6 +221,7 @@ export class VoxelWorld {
     for (const b of c.blocks) {
       this.blocks.delete(key(b.x, b.y, b.z));
       if (b.surface) this.surfaces--;
+      if (this.lightCount && this.emitterOf(b)) this.removeLight(b);
       this.tops.delete((b.x + 524288) * 1048576 + (b.z + 524288));
     }
     this.chunks.delete(c.key);
@@ -177,6 +236,8 @@ export class VoxelWorld {
   clear() {
     this.blocks.clear();
     this.chunks.clear();
+    this.lights.clear();
+    this.lightCount = 0;
     this.surfaces = 0;
     this.tops.clear();
     this.version++;

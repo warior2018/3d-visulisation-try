@@ -4,7 +4,7 @@
 // ============================================================
 
 import { lightOf } from "../../../engine/index.js";
-import { DAY } from "../config.js";
+import { DAY, LIGHTS } from "../config.js";
 
 export class DaylightPart {
   // Свет в точке p (у головы): 0..1; освещение выключено в настройках — 1
@@ -29,6 +29,18 @@ export class DaylightPart {
     if (!r) return;
     const base = (this.settings.video?.brightness ?? 100) / 100;
     r.brightness = base * (on ? this.dayLight() : 1);
+    // солнце по небу (world-fx.js): встаёт на востоке (+X), в полдень — почти над головой, садится на западе
+    const t = on ? this.dayTime ?? DAY.start : 0.5;
+    const a = (t - 0.25) * Math.PI * 2;
+    const sun = [Math.cos(a) * 0.92, Math.sin(a), 0.38];
+    const l = Math.hypot(...sun);
+    const day = Math.max(0, Math.min(1, (sun[1] / l + 0.12) / 0.3));
+    r.setSky?.({ sun: sun.map((v) => v / l), day, base });
+  }
+
+  // Светящиеся блоки мира (LIGHTS): лампы из палитры, факелы, крышка сундука
+  setupLights() {
+    this.world.setEmitters?.(Object.values(LIGHTS));
   }
 
   // Ушли из мира (меню) — яркость как в настройках

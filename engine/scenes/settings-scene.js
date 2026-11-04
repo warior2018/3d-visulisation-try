@@ -103,6 +103,13 @@ export class SettingsScene extends Scene {
             change: (dir) => { step(s.video, "brightness", dir, 10, 50, 150); e.applySettings("brightness"); } },
           { id: "vsync", label: "VSYNC", value: () => onOff(s.video.vsync),
             change: () => { s.video.vsync = !s.video.vsync; e.applySettings("vsync"); } },
+          // небо с солнцем, луной и облаками, свет ламп (world-fx.js); видеокарта не потянула шейдер — «НЕТ»
+          { id: "sky", label: "SKY AND LAMP LIGHT", value: () => (e.renderer.worldFx === false ? "N/A" : onOff(s.video.sky !== false)),
+            change: () => { s.video.sky = s.video.sky === false; e.applySettings("sky"); } },
+          { id: "clouds", label: "CLOUDS", value: () => onOff(s.video.clouds !== false),
+            change: () => { s.video.clouds = s.video.clouds === false; e.applySettings("sky"); } },
+          { id: "shadows", label: "SUN SHADOWS", value: () => onOff(s.video.shadows !== false),
+            change: () => { s.video.shadows = s.video.shadows === false; e.applySettings("shadows"); } },
         ],
         note: () => "IN FULLSCREEN, RESOLUTION APPLIES AFTER LEAVING IT",
       },

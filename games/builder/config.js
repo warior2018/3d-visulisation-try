@@ -147,7 +147,15 @@ export const PALETTE = [
   [70, 120, 220], //  вода
   [220, 70, 70], //   кирпич
   [175, 225, 245], // лёд — скользкий (PALETTE_SURFACE): на нём не устоять, съезжаешь
+  [255, 214, 130], // лампа — светится (LIGHTS): вокруг светло и ночью
 ];
+// Светящиеся блоки (движок: world.setEmitters → chunk-mesh.js blockLightAt): цвет, яркость 0…1, радиус (блоков, ≤ 16).
+// Лампа — из палитры стройки; факел — на столбиках мостов и у места появления (scene/islands.js)
+export const LIGHTS = {
+  lamp: { color: [255, 214, 130], power: 1, radius: 9 },
+  torch: { color: [255, 160, 70], power: 0.9, radius: 7 },
+  chest: { color: [196, 150, 60], power: 0.5, radius: 4 }, // крышка сундука (ISLANDS.chest.color) чуть светится
+};
 // Особые поверхности цветов палитры (номер цвета → поверхность блока): "slip" — скользкий (движок: Physics)
 export const PALETTE_SURFACE = { 5: "slip" };
 

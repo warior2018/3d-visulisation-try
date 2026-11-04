@@ -53,7 +53,7 @@ import { Gamepad, PAD_DEFAULTS } from "../input/gamepad.js";
 // Настройки, которые есть у любой игры на движке. Игра добавляет свои (deepMerge).
 export const ENGINE_DEFAULTS = {
   version: 1,
-  video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true, lighting: true, renderScale: 100 }, // renderScale — % пикселей, в которые рисуется мир
+  video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true, lighting: true, renderScale: 100, sky: true, clouds: true, shadows: true }, // renderScale — % пикселей, в которые рисуется мир
   interface: { language: "en", showFps: false }, // язык надписей (engine/ui/i18n.js), счётчик FPS слева сверху
   audio: { master: 80, effects: 100, music: 60, voices: 100, muteUnfocused: true }, // каналы громкости (engine/audio/sound.js); без фокуса — тишина
   controls: {
@@ -201,6 +201,8 @@ export class Engine {
     this.applySettings("audio");
     this.applySettings("mouse");
     this.applySettings("renderScale");
+    this.applySettings("sky");
+    this.applySettings("shadows");
     this.listen();
 
     // Любая непойманная ошибка — сначала в журнал, потом как обычно (с текстом в терминале)
@@ -448,6 +450,11 @@ export class Engine {
     if (all || what === "brightness") this.renderer.brightness = s.video.brightness / 100;
     if (all || what === "renderScale") this.renderer.renderScale = (s.video.renderScale ?? 100) / 100;
     if (all || what === "lighting") this.renderer.setLighting?.(s.video.lighting !== false);
+    if (all || what === "sky") {
+      this.renderer.fxEnabled = s.video.sky !== false; // небо с солнцем и свет ламп (world-fx.js)
+      this.renderer.setSky?.({ clouds: s.video.clouds !== false ? 1 : 0 });
+    }
+    if (all || what === "shadows") this.renderer.shadows = s.video.shadows !== false;
     if ((all || what === "vsync") && this.renderer.vsync !== s.video.vsync) this.renderer.setVsync(s.video.vsync);
     if (all || what === "audio") {
       this.sound.setVolume(s.audio.master / 100);

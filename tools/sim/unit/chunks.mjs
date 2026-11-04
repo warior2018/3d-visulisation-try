@@ -1,7 +1,7 @@
 // Чанки: блоки раскладываются по кускам 16×16; изменение — новая version только у своего куска (и у соседа,
 // если блок на краю); рисуются только кубики с открытой гранью; куски вне кадра и за дымкой отсекаются
 import { VoxelWorld, CHUNK, chunkOf } from "../../../engine/world/voxel-world.js";
-import { exposedCubes, exposedFaces, facesFacing, viewOf, chunkInView, lightOf, LIGHT } from "../../../engine/graphics/chunk-mesh.js";
+import { exposedCubes, exposedFaces, facesFacing, viewOf, chunkInView, lightOf, LIGHT, FLOATS_PER_CUBE } from "../../../engine/graphics/chunk-mesh.js";
 let ok = 0, bad = 0;
 const check = (name, cond, info = "") => { cond ? ok++ : bad++; console.log((cond ? "OK  " : "FAIL") + " " + name + (info ? "  (" + info + ")" : "")); };
 const C = [10, 20, 30];
@@ -72,7 +72,7 @@ check("смотрим вниз (pitch −80°): кусок рядом под н�
   check("ровная земля: открыт только верх (+ края куска)", f.counts[2] === 256 && f.counts[3] === 0, f.counts.join(","));
   check("граней намного меньше, чем 6 на кубик", f.total < 256 * 2, `${f.total} граней на 256 кубиков`);
   check("списки подряд: starts", f.starts[1] === f.counts[0] && f.starts[5] === f.total - f.counts[5]);
-  check("в списке верха — кубики куска", f.data[f.starts[2] * 6 + 1] === 0);
+  check("в списке верха — кубики куска", f.data[f.starts[2] * FLOATS_PER_CUBE + 1] === 0);
   const ch = F.chunk(0, 0);
   const above = facesFacing({ x: 8, y: 10, z: 8 }, ch);
   check("камера над куском: верх виден, низ — нет", (above & 4) && !(above & 8));

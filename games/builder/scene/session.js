@@ -27,6 +27,7 @@ export class SessionPart {
     // Мир из слота: размер и летающие острова (info.json; старые миры — с полом, большие)
     const info = this.role === "client" ? {} : worldInfo();
     this.world.floor = !info.floating;
+    this.setupLights(); // светящиеся блоки (LIGHTS) — до загрузки: лампы из сохранения сразу светят (scene/daylight.js)
     this.cheats = info.cheats !== false; // читы консоли (галочка при создании мира; у старых миров — включены)
     this.worldgen = worldgenFor(info.size || 3, !!info.floating);
     const saved = loadGame(this.world); // блоки — сразу в мир; null — нового мира ещё нет

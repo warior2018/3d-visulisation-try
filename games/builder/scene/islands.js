@@ -4,7 +4,7 @@
 //  открыт ли он — в сохранении мира (worldgen.treasure). Сундук — на карте; F рядом — открыть.
 // ============================================================
 
-import { ISLANDS } from "../config.js";
+import { ISLANDS, LIGHTS } from "../config.js";
 import { rarityOf, RARITIES } from "../../../engine/index.js";
 import { rarityData, tierOf } from "./loot.js";
 import { ITEMS, isWeapon, isArmor } from "../items.js";
@@ -51,8 +51,21 @@ export class IslandsPart {
         } else if (step % Math.round(B.post / 0.4) === 0) {
           this.world.place(x, y - 1, z, B.rail);
           this.world.place(x, y, z, B.rail); // перила — столбик в блок над настилом
+          // через столбик — факел сверху (LIGHTS.torch): ночью мост видно
+          if ((step / Math.round(B.post / 0.4)) % 2 === 0) this.world.place(x, y + 1, z, LIGHTS.torch.color);
         }
       }
+    }
+  }
+
+  // Новый мир: четыре столба с факелами вокруг места появления (ночью видно, где дом)
+  buildSpawnLights(r = 6) {
+    for (const [dx, dz] of [[r, r], [-r, r], [r, -r], [-r, -r]]) {
+      if (this.onStructure(dx, dz)) continue;
+      const y = this.world.surfaceY(dx, dz);
+      this.world.place(dx, y, dz, ISLANDS.bridge.rail);
+      this.world.place(dx, y + 1, dz, ISLANDS.bridge.rail);
+      this.world.place(dx, y + 2, dz, LIGHTS.torch.color);
     }
   }
 

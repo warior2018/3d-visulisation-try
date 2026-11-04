@@ -24,4 +24,10 @@ export default async function (t, g) {
   const loot = scene.pickups.list.slice(picks).find((x) => x.item !== "coin");
   t.check("вещь не ниже EPIC", ["epic", "legendary"].includes(loot?.data?.rarity), loot?.data?.rarity);
   t.check("второй раз — нет", !scene.tryChest());
+  // свет: факелы у места появления и лампа из палитры светятся
+  const before = scene.world.lightCount;
+  scene.buildSpawnLights(7);
+  t.check("столбы с факелами у места появления светятся", scene.world.lightCount >= before + 1, `${before} → ${scene.world.lightCount}`);
+  const lamp = g.C.PALETTE.findIndex((c) => c.join() === g.C.LIGHTS.lamp.color.join());
+  t.check("лампа есть в палитре стройки", lamp >= 0);
 }

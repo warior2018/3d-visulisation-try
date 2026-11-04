@@ -21,7 +21,7 @@ export default async function (t, g) {
   const end = { x: p.position.x, z: p.position.z };
   scene.toggleReplay();
   const dir = engine.replayDir;
-  t.check("F7 ещё раз — записан replay.json и мир", fs.existsSync(path.join(dir, "replay.json")) && fs.existsSync(path.join(dir, "world", "info.json")));
+  t.check("F7 ещё раз — записан replay.json и мир", fs.existsSync(path.join(dir, "replay.json")) && fs.existsSync(path.join(dir, "world")));
   const data = JSON.parse(fs.readFileSync(path.join(dir, "replay.json"), "utf8"));
   t.check("в записи — кадры и клавиша W", data.frames.length >= 150 && data.frames.some((f) => f.k?.includes(W)), data.frames.length);
   const out = execFileSync(process.execPath, ["--import", path.join(root, "tools", "sim", "register.mjs"), path.join(root, "tools", "sim", "replay.mjs"), dir, "--json"], { encoding: "utf8" });

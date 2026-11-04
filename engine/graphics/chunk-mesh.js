@@ -18,14 +18,46 @@
 
 import { CHUNK } from "../world/voxel-world.js";
 
-export const FLOATS_PER_CUBE = 6; // x, y, z, r, g, b
+export const FLOATS_PER_CUBE = 7; // x, y, z, r, g, b, glow (свет от ламп и факелов 0…1: ночью не темнеет)
 
 // Освещение «как в Minecraft», запечённое в цвет кубика (шейдер не меняется): у каждого видимого кубика —
 // яркость 0…1 от неба и соседей. lightOf(world, x, y, z):
 //   небо — открыт ли столбик над кубиком (верхний блок столбика — он сам) и столбики вокруг (3×3): под крышей,
 //          в пещере, у стены — темнее; чем глубже под крышей — тем темнее (до LIGHT.minSky);
 //   заслон — сколько соседей сверху-сбоку (4 клетки на уровень выше): угол у стены чуть темнее (как AO).
-export const LIGHT = { minSky: 0.5, ao: 0.05 };
+//   тень — луч от кубика к солнцу (world.sun: направление, задаёт рисовальщик) упёрся в блок — небесный свет
+//          × LIGHT.shadow (до shadowRange блоков). Солнце за горизонтом (нет world.sun) — без теней.
+// Свет ламп (blockLightAt) — отдельно: в шейдере он не темнеет ночью (у кубика — glow).
+export const LIGHT = { minSky: 0.5, ao: 0.05, shadow: 0.62, shadowRange: 18 };
+
+// Есть ли блок на луче от (x, y, z) к солнцу (sun — направление, y > 0): шаги по полблока
+export function inShadow(world, x, y, z, sun, range = LIGHT.shadowRange) {
+  if (!sun || sun.y <= 0.05) return false;
+  let px = x + 0.5, py = y + 1.01, pz = z + 0.5; // от верха кубика
+  for (let t = 0.5; t <= range; t += 0.5) {
+    const cx = Math.floor(px + sun.x * t), cy = Math.floor(py + sun.y * t), cz = Math.floor(pz + sun.z * t);
+    if (cy > world.maxY) return false; // выше всех блоков — свободно
+    if ((cx !== x || cz !== z || cy !== y) && world.has(cx, cy, cz)) return true;
+  }
+  return false;
+}
+
+// Свет ламп в клетке: ближе к лампе — ярче (power × (1 − расстояние / radius)²), берём самую яркую. lights —
+// список светящихся блоков рядом (world.lightsNear). Сама лампа — 1
+export function blockLightAt(world, x, y, z, lights) {
+  if (!lights) return 0;
+  let best = 0;
+  for (const b of lights) {
+    const e = world.emitterOf(b);
+    if (!e) continue;
+    if (b.x === x && b.y === y && b.z === z) return 1;
+    const d = Math.hypot(b.x - x, b.y - y, b.z - z);
+    if (d >= e.radius) continue;
+    const k = 1 - d / e.radius;
+    best = Math.max(best, e.power * k * k);
+  }
+  return Math.min(1, best);
+}
 
 export function lightOf(world, x, y, z) {
   let sky = 0;
@@ -47,7 +79,8 @@ export function lightOf(world, x, y, z) {
   if (world.has(x - 1, y + 1, z)) near++;
   if (world.has(x, y + 1, z + 1)) near++;
   if (world.has(x, y + 1, z - 1)) near++;
-  const k = LIGHT.minSky + (1 - LIGHT.minSky) * Math.min(1, sky);
+  let k = LIGHT.minSky + (1 - LIGHT.minSky) * Math.min(1, sky);
+  if (world.sun && sky > 0.5 && inShadow(world, x, y, z, world.sun)) k *= LIGHT.shadow; // тень от солнца
   return k * (1 - LIGHT.ao * near);
 }
 
@@ -67,6 +100,7 @@ export function exposedCubes(world, chunk, out = null, light = false) {
     data[i + 3] = b.color[0] * k;
     data[i + 4] = b.color[1] * k;
     data[i + 5] = b.color[2] * k;
+    data[i + 6] = 0;
     n++;
   }
   return { data, count: n };
@@ -97,15 +131,18 @@ export function exposedFaces(world, chunk, out = null, light = false) {
   const starts = [0, 0, 0, 0, 0, 0];
   for (let f = 1; f < 6; f++) starts[f] = starts[f - 1] + counts[f - 1];
   const at = [...starts];
+  const lamps = light ? world.lightsNear?.(chunk.cx, chunk.cz, 1) : null; // лампы рядом (radius ≤ CHUNK)
   for (let i = 0; i < list.length; i += 2) {
     const b = list[i], mask = list[i + 1];
     const k = light ? lightOf(world, b.x, b.y, b.z) / 255 : 1 / 255;
     const r = b.color[0] * k, g = b.color[1] * k, bl = b.color[2] * k;
+    const glow = lamps ? blockLightAt(world, b.x, b.y + 1, b.z, lamps) : 0; // свет — у верхней грани
     for (let f = 0; f < 6; f++) {
       if (!(mask & (1 << f))) continue;
       const o = at[f]++ * FLOATS_PER_CUBE;
       data[o] = b.x; data[o + 1] = b.y; data[o + 2] = b.z;
       data[o + 3] = r; data[o + 4] = g; data[o + 5] = bl;
+      data[o + 6] = glow;
     }
   }
   return { data, starts, counts, total };

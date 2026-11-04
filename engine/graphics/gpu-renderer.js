@@ -7,6 +7,7 @@
 
 import gpu from "@kmamal/gpu";
 import { SHADERS } from "./shaders.js";
+import { worldFxShader } from "./world-fx.js";
 
 const DEPTH_FORMAT = "depth24plus";
 import { PARTICLE_SHADER, FLOATS_PER_PARTICLE } from "./particles.js";
@@ -34,6 +35,7 @@ export class GPURenderer {
     renderer.adapterName = [info.vendor, info.architecture, info.device, info.description].filter(Boolean).join(" / ") || "?";
     renderer.gpuFlags = flags;
     await renderer.initParticles(); // частицы с глубиной — если шейдер не собрался, без них (эффекты — плоские)
+    await renderer.initWorldFx(); //   небо с солнцем, луной и облаками, свет ламп — не собралось: как раньше
     return renderer;
   }
 
@@ -53,7 +55,7 @@ export class GPURenderer {
     this.srgb = format.endsWith("-srgb"); // такой формат ждёт «линейные» цвета
 
     // Uniform-буфер: 16 чисел (64 байта), раскладку описывает struct Uniforms в шейдере
-    this.uniformData = new Float32Array(16);
+    this.uniformData = new Float32Array(24); // 16 основных + небо (world-fx.js): солнце, день, время, облака, яркость
     this.uniformBuffer = device.createBuffer({
       size: this.uniformData.byteLength,
       usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST,
@@ -162,6 +164,11 @@ export class GPURenderer {
     this.worldStats = { chunks: 0, drawn: 0, cubes: 0, rebuilt: 0 }; // тех. панели: кусков всего / в кадре, кубиков в кадре
     this.ghostData = new Float32Array(FLOATS_PER_CUBE);
     this.lighting = true; // освещение кубиков (chunk-mesh.js lightOf): небо, тень под крышей, углы
+    // Небо и солнце (world-fx.js; setSky): направление на солнце, день 0…1, облака, яркость из настроек
+    this.sky = { sun: [-0.42, 0.84, -0.34], day: 1, clouds: 1, base: 1 };
+    this.shadows = true; //  тени от солнца (запекаются в кубики, chunk-mesh.js inShadow)
+    this.shadowKey = null; // солнце, для которого запечены тени (шагами — см. setSky)
+    this.rebake = []; //     куски, которые ещё перезапечь под новое солнце (по несколько за кадр)
 
     this.ghostBuffer = device.createBuffer({
       size: FLOATS_PER_CUBE * 4,
@@ -250,6 +257,12 @@ export class GPURenderer {
       this.worldShown = world;
       this.worldVersion = -1;
     }
+    // тени: солнце сдвинулось — перезапекаем по несколько кусков за кадр (иначе — рывок)
+    this.updateShadows(world);
+    if (this.rebake.length) {
+      for (const m of this.rebake.splice(0, 6)) m.version = -1;
+      this.worldVersion = -1;
+    }
     if (world.version === this.worldVersion) return;
     this.worldVersion = world.version;
     let rebuilt = 0;
@@ -314,6 +327,85 @@ export class GPURenderer {
       this.particleError = e.message;
       console.warn("Частицы в 3D недоступны:", e.message);
     }
+  }
+
+  // Небо и свет мира «посложнее» (world-fx.js): свой модуль под ловушкой ошибок. Не собрался — как раньше
+  async initWorldFx() {
+    const device = this.device;
+    const code = worldFxShader();
+    if (!code) return;
+    let scoped = false;
+    try {
+      device.pushErrorScope?.("validation");
+      scoped = !!device.pushErrorScope;
+      const module = device.createShaderModule({ code });
+      const format = this.format || this.output.getPreferredFormat();
+      const depth = (write, compare) => ({ format: DEPTH_FORMAT, depthWriteEnabled: write, depthCompare: compare });
+      const sky = device.createRenderPipeline({
+        layout: "auto",
+        vertex: { module, entryPoint: "screen_vs" },
+        fragment: { module, entryPoint: "sky_fx_fs", targets: [{ format }] },
+        depthStencil: depth(false, "always"),
+      });
+      const cube = device.createRenderPipeline({
+        layout: "auto",
+        vertex: {
+          module, entryPoint: "cube_fx_vs",
+          buffers: [
+            { arrayStride: 6 * 4, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }, { shaderLocation: 1, offset: 12, format: "float32x3" }] },
+            {
+              arrayStride: FLOATS_PER_CUBE * 4, stepMode: "instance",
+              attributes: [
+                { shaderLocation: 2, offset: 0, format: "float32x3" },
+                { shaderLocation: 3, offset: 12, format: "float32x3" },
+                { shaderLocation: 4, offset: 24, format: "float32" }, // glow — свет ламп
+              ],
+            },
+          ],
+        },
+        fragment: { module, entryPoint: "cube_fx_fs", targets: [{ format }] },
+        depthStencil: depth(true, "less"),
+      });
+      const entry = [{ binding: 0, resource: { buffer: this.uniformBuffer } }];
+      const skyBind = device.createBindGroup({ layout: sky.getBindGroupLayout(0), entries: entry });
+      const cubeBind = device.createBindGroup({ layout: cube.getBindGroupLayout(0), entries: entry });
+      scoped = false;
+      const err = device.popErrorScope ? await device.popErrorScope() : null;
+      if (err) throw new Error(err.message || String(err));
+      Object.assign(this, { skyFxPipeline: sky, skyFxBind: skyBind, cubeFxPipeline: cube, cubeFxBind: cubeBind });
+      this.worldFx = true;
+    } catch (e) {
+      if (scoped) try { await device.popErrorScope(); } catch {} // ловушку ошибок — убрать (иначе поймает чужие)
+      this.worldFx = false;
+      this.worldFxError = e.message;
+      console.warn("Небо с солнцем и свет ламп недоступны (рисуем как раньше):", e.message);
+    }
+  }
+
+  // Небо и солнце (зовёт игра каждый кадр): sun — направление на солнце [x, y, z] (длина 1), day — 0 ночь … 1 день,
+  // base — яркость из настроек, clouds — 0…1. Солнце сдвинулось на шаг (≈ 4°) — тени перезапекаются понемногу
+  setSky({ sun, day, base, clouds } = {}) {
+    const s = this.sky;
+    if (sun) s.sun = sun;
+    if (day !== undefined) s.day = day;
+    if (base !== undefined) s.base = base;
+    if (clouds !== undefined) s.clouds = clouds;
+  }
+
+  // Тени под это солнце: ключ — направление шагами; поменялся — все куски в очередь на перезапекание
+  updateShadows(world) {
+    const [x, y, z] = this.sky.sun;
+    const on = this.shadows && this.lighting && y > 0.12;
+    const step = 0.07;
+    const key = on ? `${Math.round(x / step)},${Math.round(y / step)},${Math.round(z / step)}` : "off";
+    if (key === this.shadowKey && world.sunFor === key) return;
+    this.shadowKey = key;
+    world.sunFor = key;
+    if (on) {
+      const qx = Math.round(x / step) * step, qy = Math.round(y / step) * step, qz = Math.round(z / step) * step, l = Math.hypot(qx, qy, qz) || 1;
+      world.sun = { x: qx / l, y: qy / l, z: qz / l };
+    } else world.sun = null;
+    this.rebake = [...this.chunkMeshes.values()];
   }
 
   // Включить / выключить освещение кубиков — все куски пересобрать
@@ -417,6 +509,13 @@ export class GPURenderer {
     d[12] = this.brightness;
     d[13] = camera?.roll || 0; // крен (наклон головы вбок)
     d[14] = world && world.floor === false ? 1 : 0; // пола нет — внизу бездна (летающие острова)
+    // небо (world-fx.js): солнце, день, время, облака, яркость из настроек
+    const sky = this.sky;
+    d[16] = sky.sun[0]; d[17] = sky.sun[1]; d[18] = sky.sun[2];
+    d[19] = sky.day;
+    d[20] = (performance.now() / 1000) % 100000;
+    d[21] = sky.clouds;
+    d[22] = sky.base;
     device.queue.writeBuffer(this.uniformBuffer, 0, d);
 
     if (world) this.updateWorld(world);
@@ -461,16 +560,18 @@ export class GPURenderer {
 
     // небо, земля, сетка — только если есть камера (в меню мира нет вообще)
     if (camera) {
-      pass.setPipeline(this.skyPipeline);
-      pass.setBindGroup(0, this.skyBind);
+      const fx = this.worldFx && this.fxEnabled !== false;
+      pass.setPipeline(fx ? this.skyFxPipeline : this.skyPipeline);
+      pass.setBindGroup(0, fx ? this.skyFxBind : this.skyBind);
       pass.draw(3);
     }
 
     // мир — по граням: на кусок до 6 команд (6 вершин × граней списка, грани кубика в буфере вершин идут
     // подряд по 6 — firstVertex = 6 · грань). Куски вне кадра и за дымкой и грани спиной к камере — пропускаем
     if (world && camera) {
-      pass.setPipeline(this.cubePipeline);
-      pass.setBindGroup(0, this.cubeBind);
+      const fx = this.worldFx && this.fxEnabled !== false; // свет ламп и солнце/луна на гранях (world-fx.js)
+      pass.setPipeline(fx ? this.cubeFxPipeline : this.cubePipeline);
+      pass.setBindGroup(0, fx ? this.cubeFxBind : this.cubeBind);
       pass.setVertexBuffer(0, this.cubeVertexBuffer);
       const v = viewOf(camera, width / height, this.fadeDist * 1.15, this.cullView);
       let drawn = 0, faces = 0;

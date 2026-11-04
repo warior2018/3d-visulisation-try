@@ -12,7 +12,9 @@ export default async function (t, g) {
   t.check("гарантированная вещь не ниже RARE", (() => { for (let i = 0; i < 20; i++) { const r = scene.rollGear(el); if (!r || r.rarity === "common") return false; } return true; })());
   // лекарь лечит соседа
   base.stats.hp = 10;
-  await g.frames(80);
+  // держим обоих на месте (бродят — могут разойтись дальше радиуса ауры)
+  const hold = () => { base.position.x = p.position.x + 30; base.position.z = p.position.z; el.position.x = p.position.x + 30; el.position.z = p.position.z + 3; base.aggro = el.aggro = null; };
+  await g.frames(80, 1 / 60, hold);
   t.check("лекарь лечит соседа", base.stats.hp > 10, base.stats.hp);
   // шипы
   const th = scene.spawn("skeleton", at(30, -3));
