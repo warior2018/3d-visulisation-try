@@ -28,6 +28,10 @@ export default async function (t, g) {
   t.check("разрешения: до размера экрана, и сам экран в списке", sizes.every(([w, h]) => w <= 1512 && h <= 949) && sizes.some(([w, h]) => w === 1512 && h === 949), sizes.map((x) => x.join("x")).join(" "));
   const big = E.windowSizes({ usable: { width: 3840, height: 2100 } });
   t.check("большой экран — и 2560×1440", big.some(([w]) => w === 2560));
+  // снимок экрана (F2): кадр уходит в PNG; без видеокарты (тесты) — не падает
+  let shotErr = null;
+  try { g.press("F2"); await g.frames(3); } catch (e) { shotErr = e; }
+  t.check("F2 — снимок не ломает кадр", !shotErr && engine.input.actionsFor({ scancode: E.KEYS.F2 }).includes("screenshot"), shotErr?.message);
   // масштаб рендера: в настройках — проценты, у рисовальщика — доля
   engine.settings.data.video.renderScale = 75;
   engine.applySettings("renderScale");

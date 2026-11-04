@@ -33,6 +33,7 @@ const PROF = {
   present: profiler.register("PRESENT"),
 };
 PROF.tick = profiler.register("TICK", PROF.update);
+import fs from "node:fs";
 import path from "node:path";
 import { Journal, Watchdog } from "./watchdog.js";
 import { SettingsStore, deepMerge } from "./settings.js";
@@ -43,6 +44,7 @@ import { makeTheme } from "../ui/theme.js";
 import { drawToast, drawTechPanel } from "../ui/widgets.js";
 import { Input } from "../input/input.js";
 import { MouseLook } from "../input/mouse.js";
+import { encodePNG } from "../ui/png.js";
 import { Sound } from "../audio/sound.js";
 import { Gamepad, PAD_DEFAULTS } from "../input/gamepad.js";
 
@@ -74,6 +76,7 @@ export const ENGINE_DEFAULTS = {
       ability5: "key:5",
       pause: "key:ESCAPE",
       fullscreen: "key:F11",
+      screenshot: "key:F2", //    снимок экрана → папка screenshots (рядом с настройками)
       techPanel: "key:F3", //      тех. панель поверх игры (как F3 в Minecraft): кадры, память, сцена — techLines()
       skill1: "key:Q", //          навыки оружия в руках (Ability.skills): у оружия дальнего боя — наклоны,
       skill2: "key:E", //          у других — свои приёмы
@@ -105,6 +108,7 @@ export const ENGINE_ACTION_LABELS = {
   pause: "PAUSE",
   fullscreen: "FULLSCREEN",
   techPanel: "TECH PANEL",
+  screenshot: "SCREENSHOT",
   skill1: "WEAPON SKILL 1",
   skill2: "WEAPON SKILL 2",
   reload: "RELOAD",
@@ -494,6 +498,7 @@ export class Engine {
     const actions = this.input.actionsFor(event);
     if (actions.length) this.log(`действия: ${actions.join(", ")} (${scene.label})`);
     if (actions.includes("fullscreen")) this.toggleFullscreen();
+    if (actions.includes("screenshot")) this.screenshot();
     if (actions.includes("console") && !(scene instanceof ConsoleScene)) return this.push(new ConsoleScene(this.console));
     if (actions.includes("techPanel") && this.input.shift) {
       // Shift+F3 — срез профайлера в журнал (короткий текст: можно вставить в чат)
@@ -766,6 +771,28 @@ export class Engine {
     c.command("quit", { help: "quit - close the game", run: () => this.quit() });
   }
 
+  // Снимок экрана (F2): следующий кадр — ещё и в PNG, в папку screenshots рядом с настройками
+  screenshot() {
+    this.shotWanted = true;
+    this.redraw();
+  }
+
+  async saveScreenshot(frame) {
+    try {
+      if (!this.renderer.capture) throw new Error("рисовальщик не умеет снимки");
+      const { width, height, rgba } = await this.renderer.capture(frame);
+      const dir = path.join(path.dirname(this.settings.file || "."), "screenshots");
+      fs.mkdirSync(dir, { recursive: true });
+      const name = `shot-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.png`;
+      fs.writeFileSync(path.join(dir, name), encodePNG(width, height, rgba));
+      this.log(`снимок экрана: ${path.join(dir, name)} (${width}x${height})`);
+      this.toast(`SCREENSHOT SAVED: ${name}`, 1800);
+    } catch (e) {
+      this.log("снимок не удался: " + (e.stack || e));
+      this.toast("SCREENSHOT FAILED", 1500);
+    }
+  }
+
   render() {
     // Первые кадры — по шагам в журнал: если игра падает сразу (сбой драйвера), видно, на каком шаге
     const n = (this.rendered = (this.rendered || 0) + 1);
@@ -780,15 +807,21 @@ export class Engine {
     trace?.("рисование");
     this.phase(2);
     profiler.begin(PROF.render);
-    this.renderer.render({
+    const frame = {
       camera: v.camera || null,
       world: v.world || null,
       ghost: v.ghost || null,
       characters: v.characters || [],
       blur: v.blur || null, // размытие вокруг круга (оптика) — см. GPURenderer.render
       viewModels: v.viewModels || [],
+      particles: v.particles || null, // частицы с глубиной (engine/graphics/particles.js)
       ui: this.ui,
-    });
+    };
+    this.renderer.render(frame);
+    if (this.shotWanted) {
+      this.shotWanted = false;
+      this.saveScreenshot(frame);
+    }
     profiler.end(PROF.render);
     this.phase(3);
     trace?.("показ кадра");

@@ -387,7 +387,8 @@ export class GPURenderer {
   //          radius и feather — доли меньшей стороны экрана (0.4 — круг почти во всю высоту),
   //          strength — сила размытия в долях высоты (0.015 ≈ 11 пикселей на 720p), center — [0.5, 0.5].
   // particles — engine/graphics/particles.js (data, count): кубики-частицы с глубиной, после персонажей
-  render({ camera, world, ghost, ui, characters = [], viewModels = [], blur = null, particles = null }) {
+  // target — нарисовать не в окно, а в свою картинку (снимок экрана: capture)
+  render({ camera, world, ghost, ui, characters = [], viewModels = [], blur = null, particles = null }, { target = null } = {}) {
     const { device } = this;
     // Размер окна поменялся, а события об этом не было (так бывает на Маке при смене
     // полного экрана) — перенастраиваемся сами. Иначе картинка вывода, буфер глубины
@@ -430,7 +431,7 @@ export class GPURenderer {
 
     // 2. Записываем команды кадра
     const encoder = device.createCommandEncoder();
-    const screenView = this.output.getCurrentTextureView();
+    const screenView = target || this.output.getCurrentTextureView();
     // Мир рисуем не на экран, а в свою картинку, если: размытие (оптика) или масштаб рендера < 100 %
     // (картинка мира меньше экрана — быстрее; потом растягиваем на экран тем же blur_fs, без размытия).
     // Интерфейс — всегда в полном разрешении экрана
@@ -625,6 +626,36 @@ export class GPURenderer {
       t.resource.destroy();
       return false;
     });
+  }
+
+  // Снимок экрана: тот же кадр (что и render(args)) — ещё раз, в свою картинку, и прочитать её пиксели.
+  // Вернёт обещание { width, height, rgba } (RGBA по 4 байта, строки сверху вниз)
+  async capture(args) {
+    const { device, width, height } = this;
+    const tex = device.createTexture({ size: [width, height], format: this.format, usage: gpu.GPUTextureUsage.RENDER_ATTACHMENT | gpu.GPUTextureUsage.COPY_SRC });
+    this.render(args, { target: tex.createView() });
+    const bytesPerRow = Math.ceil((width * 4) / 256) * 256; // видеокарта копирует строками, кратными 256 байтам
+    const buf = device.createBuffer({ size: bytesPerRow * height, usage: gpu.GPUBufferUsage.COPY_DST | gpu.GPUBufferUsage.MAP_READ });
+    const enc = device.createCommandEncoder();
+    enc.copyTextureToBuffer({ texture: tex }, { buffer: buf, bytesPerRow }, [width, height]);
+    device.queue.submit([enc.finish()]);
+    await buf.mapAsync(gpu.GPUMapMode.READ);
+    const src = new Uint8Array(buf.getMappedRange());
+    const rgba = Buffer.alloc(width * height * 4);
+    const bgra = String(this.format).startsWith("bgra");
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * bytesPerRow + x * 4, o = (y * width + x) * 4;
+        rgba[o] = src[i + (bgra ? 2 : 0)];
+        rgba[o + 1] = src[i + 1];
+        rgba[o + 2] = src[i + (bgra ? 0 : 2)];
+        rgba[o + 3] = 255;
+      }
+    }
+    buf.unmap();
+    buf.destroy();
+    tex.destroy();
+    return { width, height, rgba };
   }
 
   // Показать нарисованное в окне
