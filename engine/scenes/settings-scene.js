@@ -23,7 +23,16 @@ import { drawBackground, drawDim } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";
 
 const LANGUAGE_NAMES = { en: "ENGLISH", ru: "РУССКИЙ" }; // названия — всегда на своём языке
-export const RESOLUTIONS = [[960, 600], [1280, 720], [1440, 900], [1600, 900], [1920, 1080]];
+export const RESOLUTIONS = [[960, 600], [1280, 720], [1280, 800], [1440, 900], [1600, 900], [1680, 1050], [1920, 1080], [1920, 1200], [2560, 1440], [3840, 2160]];
+
+// Размеры окна для этого экрана: из списка — что помещается в рабочую область, плюс сама рабочая область
+// (почти «во весь экран», но окном). Точки экрана (на Retina в каждой — 2×2 пикселя)
+export function windowSizes(display) {
+  const u = display?.usable;
+  const fit = RESOLUTIONS.filter(([w, h]) => !u || (w <= u.width && h <= u.height));
+  if (u && !fit.some(([w, h]) => w === u.width && h === u.height)) fit.push([u.width, u.height]);
+  return fit.length ? fit.sort((a, b) => a[0] * a[1] - b[0] * b[1]) : RESOLUTIONS.slice(0, 1);
+}
 
 export class SettingsScene extends Scene {
   constructor({ tabs = [] } = {}) {
@@ -57,15 +66,20 @@ export class SettingsScene extends Scene {
         label: "VIDEO",
         rows: [
           {
+            // Окно: размеры, которые помещаются на экран (и сам размер экрана). В скобках — сколько это
+            // настоящих пикселей (Retina: ×2). Во весь экран размер — всегда родной (рисуем во все пиксели
+            // экрана), стрелки ничего не меняют
             id: "res", label: "RESOLUTION", arrows: true,
-            value: () => `${s.video.width}X${s.video.height}`,
+            value: () => {
+              const w = e.window, r = e.pixelRatio || 1;
+              if (w.fullscreen) return `NATIVE ${w.pixelWidth}X${w.pixelHeight}`;
+              return r > 1.01 ? `${s.video.width}X${s.video.height} (${Math.round(s.video.width * r)}X${Math.round(s.video.height * r)} PX)` : `${s.video.width}X${s.video.height}`;
+            },
             change: (dir) => {
-              // Только разрешения, которые помещаются на экран
-              const m = e.window.display?.usable;
-              const fit = RESOLUTIONS.filter(([w, h]) => !m || (w <= m.width && h <= m.height));
-              const list = fit.length ? fit : RESOLUTIONS.slice(0, 1);
+              if (e.window.fullscreen) return;
+              const list = windowSizes(e.window.display);
               const i = list.findIndex(([w, h]) => w === s.video.width && h === s.video.height);
-              [s.video.width, s.video.height] = list[(Math.max(i, 0) + dir + list.length) % list.length];
+              [s.video.width, s.video.height] = list[(i < 0 ? 0 : i + dir + list.length) % list.length];
               e.applySettings("resolution");
             },
           },
