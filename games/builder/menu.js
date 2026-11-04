@@ -373,8 +373,8 @@ export class MainMenu extends Scene {
     // стрелки по бокам
     const cy = ui.height * 0.27;
     if (this.ring.length > 1) {
-      ui.button("turn:-1", "<", 40, cy, 56, 80, 4);
-      ui.button("turn:1", ">", ui.width - 40, cy, 56, 80, 4);
+      ui.button("turn:1", "<", 40, cy, 56, 80, 4); // ← — в центр мир слева (как клавиша ←)
+      ui.button("turn:-1", ">", ui.width - 40, cy, 56, 80, 4);
     }
     const c = this.center;
     const ca = c && this.anim.get(c.id);
@@ -382,10 +382,9 @@ export class MainMenu extends Scene {
       const below = ca.y + ca.r + (c.saved || c.create ? 52 : 74);
       ui.button("play", c.create ? "CREATE" : c.saved ? "PLAY" : "START", ui.width / 2, below + 20, 260, 52, 3, true);
       if (!c.create) {
-        // картинка мира — стрелками; удалить
-        ui.button("icon:-1", "<", ui.width / 2 - 170, below + 20, 40, 40, 2);
-        ui.button("icon:1", ">", ui.width / 2 + 170, below + 20, 40, 40, 2);
-        ui.button("delete", "DELETE", ui.width / 2 + 290, below + 20, 140, 36, 2);
+        // сменить картинку и удалить — подписанными кнопками (стрелки рядом с ИГРАТЬ путали: ждёшь смену мира)
+        ui.button("icon:1", "PICTURE", ui.width / 2 - 250, below + 20, 140, 36, 2);
+        ui.button("delete", "DELETE", ui.width / 2 + 250, below + 20, 140, 36, 2);
       }
     }
     // герой (3D: окошко прозрачное) и статы показанного мира

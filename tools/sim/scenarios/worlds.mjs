@@ -15,6 +15,15 @@ export default async function (t, g) {
   S.touchWorld(a);
   list = S.listWorlds();
   t.check("сыграли в ALPHA — она в центре (первая)", list[0].id === a);
+  // меню: стрелки крутят круг миров (а не картинку центрального)
+  const { MainMenu } = await import(path.join(root, "games", "builder", "menu.js"));
+  const menu = new MainMenu({ game: scene.game, actions: {} });
+  const first = menu.center.id, pic = menu.center.icon;
+  menu.onButton("turn:1");
+  t.check("стрелка < : в центре другой мир (тот, что был слева)", menu.center.id !== first && menu.center.id === menu.ring[1].id, `${first} → ${menu.center.id}`);
+  t.check("картинка мира от стрелок не меняется", S.listWorlds().find((w) => w.id === first)?.icon === pic);
+  menu.onButton("turn:-1");
+  t.check("стрелка > : обратно", menu.center.id === first);
   S.touchWorld(was);
   S.deleteWorld(a);
   S.deleteWorld(b);
