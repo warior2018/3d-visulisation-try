@@ -143,7 +143,8 @@ export const STANCE = { height: 1.4, eyeHeight: 1.28 };
 // Разгон героя (движок: CharacterController.accel), секунд: ground — до скорости шага на земле, stop —
 // остановиться, air / airStop — то же в воздухе (меньше — резче управление в полёте, как в Overwatch),
 // over — сбросить скорость сверх бега (после рывка / отброса). Пробный вариант — подбираем (консоль: move_*)
-export const MOVEMENT = { ground: 0.2, stop: 0.1, air: 0.3, airStop: 0.8, over: 0.35 };
+// ×1.5 быстрее первой пробы (было 0.2 / 0.1 / 0.3 / 0.8 / 0.35)
+export const MOVEMENT = { ground: 0.13, stop: 0.067, air: 0.2, airStop: 0.53, over: 0.23 };
 // Маунт разгоняется дольше (тяжёлый зверь)
 export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
 
