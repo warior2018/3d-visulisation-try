@@ -3,6 +3,7 @@ export const immortal = false; // здоровье считаем сами
 export default async function (t, g) {
   const { scene, C } = g;
   for (const e of [...scene.entities.list]) if (e !== scene.player) scene.removeEntity(e);
+  scene.spawner.update = scene.boarSpawner.update = () => {}; // новые мобы не появляются (их удар — не падение)
   const p = g.player;
   scene.regenOff = true;
   p.regen = 0;
