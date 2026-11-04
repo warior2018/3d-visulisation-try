@@ -143,6 +143,10 @@ export function deleteWorld(id) {
   renameSafe(from, path.join(dir, `world-${id}-${new Date().toISOString().replace(/[:.]/g, "-")}`));
 }
 
+// Id игрока, к которому в мире привязан персонаж (main.js → setProfile). Объявлен ДО первого listWorlds:
+// он читает PROFILE при загрузке модуля (раньше — ошибка «PROFILE до объявления», как только есть сохранённые миры)
+let PROFILE = "local";
+
 migrateToSlots();
 useWorld(listWorlds()[0]?.id || "1");
 
@@ -172,7 +176,6 @@ export function migrateOldSaves() {
 // Персонажи привязаны к миру по id игрока (PROFILE: id из настроек; позже — аккаунты): в meta.players[id] —
 // герой и прогресс каждого, кто играл в этом мире. player / progression сверху — того, кто сохранял последним
 // (старые сохранения — только они)
-let PROFILE = "local";
 export const setProfile = (id) => (PROFILE = String(id || "local"));
 export const profileId = () => PROFILE;
 

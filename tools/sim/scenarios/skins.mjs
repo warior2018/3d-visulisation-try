@@ -25,7 +25,8 @@ export default async function (t, g) {
   S.skins.pistol = "default";
   const plain = draw();
   t.check("значок предмета — в скине", gilded !== plain);
-  // примерка в меню не меняет выбор
+  // примерка в меню не меняет выбор (настройки — копия настоящих: катана могла быть уже в скине)
+  S.skins.katana = "default";
   t.check("примерка: skinOverride", models.resolve("w-katana", { skinned: true, skinOverride: { katana: "sakura" } }) === "w-katana@sakura" && S.skins.katana === "default");
   engine.console.exec("skin katana nope");
   t.check("неизвестный скин — ошибка, выбор прежний", S.skins.katana === "default");
