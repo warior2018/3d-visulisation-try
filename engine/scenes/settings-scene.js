@@ -149,9 +149,9 @@ export class SettingsScene extends Scene {
     const ROW = 50;
     const bindH = this.bindingsHeight();
     const content = tab.rows.reduce((h, r) => h + (r.type === "bindings" ? bindH : ROW), 0);
-    this.view = { top, bottom: bottomEdge, max: Math.max(0, content - (bottomEdge - top)) };
+    this.rowsView = { top, bottom: bottomEdge, max: Math.max(0, content - (bottomEdge - top)) };
     this.scrollOf ||= {};
-    const off = (this.scrollOf[this.tab] = Math.max(0, Math.min(this.view.max, this.scrollOf[this.tab] || 0)));
+    const off = (this.scrollOf[this.tab] = Math.max(0, Math.min(this.rowsView.max, this.scrollOf[this.tab] || 0)));
     const inside = (y0, h) => y0 >= top - 1 && y0 + h <= bottomEdge + 1;
     let y = top - off; // верх текущей строки
     for (const row of tab.rows) {
@@ -174,13 +174,13 @@ export class SettingsScene extends Scene {
       y += ROW;
     }
     // полоска прокрутки: сколько видно и где мы
-    if (this.view.max > 0) {
+    if (this.rowsView.max > 0) {
       const h = bottomEdge - top, bx = box.x + box.w + 4;
-      const knob = Math.max(30, (h * h) / (h + this.view.max));
-      const ky = top + ((h - knob) * off) / this.view.max;
+      const knob = Math.max(30, (h * h) / (h + this.rowsView.max));
+      const ky = top + ((h - knob) * off) / this.rowsView.max;
       ui.rect(bx, top, 6, h, th.window.border, 120);
       ui.rect(bx, Math.round(ky), 6, Math.round(knob), th.accent, 255);
-      if (off < this.view.max) ui.text("MORE BELOW - SCROLL", box.cx, bottomEdge + 2, 1, th.muted, "center");
+      if (off < this.rowsView.max) ui.text("MORE BELOW - SCROLL", box.cx, bottomEdge + 2, 1, th.muted, "center");
     }
 
     const bottom = box.y + box.h;
@@ -197,9 +197,9 @@ export class SettingsScene extends Scene {
 
   // Колесо: прокрутить строки вкладки
   onWheel({ dy }) {
-    if (!this.view?.max) return false;
+    if (!this.rowsView?.max) return false;
     this.scrollOf ||= {};
-    this.scrollOf[this.tab] = Math.max(0, Math.min(this.view.max, (this.scrollOf[this.tab] || 0) - dy * 40));
+    this.scrollOf[this.tab] = Math.max(0, Math.min(this.rowsView.max, (this.scrollOf[this.tab] || 0) - dy * 40));
     return true;
   }
 
