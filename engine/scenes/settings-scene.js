@@ -133,7 +133,7 @@ export class SettingsScene extends Scene {
   drawUI(ui) {
     const th = ui.theme;
     if (this.engine.worldVisibleUnder(this)) drawDim(ui, 190);
-    else drawBackground(ui);
+    else drawBackground(ui, "settings");
     const box = drawWindow(ui, { title: "SETTINGS", width: 1000, height: 640, closeId: "back" });
 
     // Вкладки

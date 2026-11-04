@@ -38,6 +38,9 @@ export const GAME_DEFAULTS = {
     autoLoot: true, //     автоподбор предметов рядом (V)
     intro: true, //        заставка при запуске
     dayNight: true, //     смена дня и ночи (DAY)
+    // Фоны меню (картинки assets/backgrounds; "" — градиент стиля окон): главный — на всех страницах, если
+    // bgAllPages; иначе у страниц СКИНЫ и НАСТРОЙКИ — свои ("" — как главный)
+    menuBg: "void", bgAllPages: true, bgSkins: "", bgSettings: "",
     uiStyle: 0, //         стиль окон (THEMES)
     profileId: "", //      id игрока: к нему в мире привязан персонаж (создаётся при первом запуске)
   },

@@ -11,8 +11,31 @@ export const MUTED = [140, 155, 180]; // приглушённый (подска�
 export const WARN = [240, 200, 110]; //  жёлтый (внимание)
 export const DIM = [10, 14, 22]; //      тёмная подложка
 
-// Непрозрачный фон для экранов без мира: сверху светлее, книзу темнее (цвета — из темы)
-export function drawBackground(ui) {
+// Фоны-картинки: игра даёт setBackgroundSource((page) => картинка или null) — для страницы page ("play",
+// "skins", "settings"...) своя картинка (engine/ui/png.js). Нет — градиент темы, как раньше
+let bgSource = null;
+export function setBackgroundSource(fn) {
+  bgSource = fn;
+}
+// Растянутая на экран (с обрезкой по краям, «по пикселям») и чуть затемнённая картинка — считаем один раз
+// на размер экрана, дальше просто копируем строки (меню перерисовывается каждый кадр)
+const cover = { img: null, w: 0, h: 0, px: null };
+function drawCover(ui, img, dim = 0.42) {
+  const { fb } = ui;
+  if (cover.img !== img || cover.w !== fb.width || cover.h !== fb.height) {
+    const k = Math.max(fb.width / img.width, fb.height / img.height);
+    const w = img.width * k, h = img.height * k;
+    fb.pixels.fill(0xff000000);
+    ui.image(img, (fb.width - w) / 2, (fb.height - h) / 2, w, h, { dim });
+    Object.assign(cover, { img, w: fb.width, h: fb.height, px: fb.pixels.slice() });
+  } else fb.pixels.set(cover.px);
+  ui.dirty = true;
+}
+
+// Непрозрачный фон для экранов без мира: картинка страницы page (setBackgroundSource) или градиент темы
+export function drawBackground(ui, page = "default") {
+  const img = bgSource?.(page);
+  if (img) return drawCover(ui, img);
   const h = ui.height;
   const { top, bottom } = ui.theme.backdrop;
   for (let y = 0; y < h; y += 4) {

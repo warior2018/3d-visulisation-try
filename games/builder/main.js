@@ -8,9 +8,10 @@
 //     главное меню ──ИГРАТЬ──> мир ──Esc──> пауза ──> настройки
 // ============================================================
 
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Engine, MenuScene, SettingsScene, ModelLibrary, Input, ChangelogScene, TextInputScene, IntroScene, NetServer, NetClient, localAddresses, DEFAULT_PORT, makeTheme } from "../../engine/index.js";
+import { Engine, MenuScene, SettingsScene, ModelLibrary, Input, ChangelogScene, TextInputScene, IntroScene, NetServer, NetClient, localAddresses, DEFAULT_PORT, makeTheme, loadPNG, widgets } from "../../engine/index.js";
 import { GAME_DEFAULTS, GAME_ACTION_LABELS, CAMERA_MODES, SAVES, SOUNDS, THEME, THEMES, VIEW_DISTANCE } from "./config.js";
 import { GameScene } from "./game-scene.js";
 import { loadModels } from "./load-models.js";
@@ -92,12 +93,43 @@ try {
 installSkins(models, ITEMS, engine.settings); // скины: перекраска своих моделей и значков (skins.js)
 
 // Своя вкладка настроек — ОБЩИЕ. Вкладки ВИДЕО/АУДИО/УПРАВЛЕНИЕ добавит движок.
+// Фоны меню: все PNG из assets/backgrounds (tools/make-backgrounds.js; свои — класть туда же)
+const BG_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "assets", "backgrounds");
+const BACKGROUNDS = {};
+try {
+  for (const f of fs.readdirSync(BG_DIR).filter((x) => /\.png$/i.test(x)).sort()) {
+    try { BACKGROUNDS[f.replace(/\.png$/i, "")] = loadPNG(path.join(BG_DIR, f)); } catch {}
+  }
+} catch {}
+const BG_IDS = ["", ...Object.keys(BACKGROUNDS)]; // "" — без картинки (градиент стиля окон)
+const bgName = (id, empty = "NONE") => (id ? id.toUpperCase() : empty);
+// какая картинка у страницы меню: своя (если не «одна на все») или главная
+widgets.setBackgroundSource((page) => {
+  const g = engine.settings.data.general;
+  const own = g.bgAllPages === false ? (page === "skins" ? g.bgSkins : page === "settings" ? g.bgSettings : "") : "";
+  return BACKGROUNDS[own || g.menuBg] || null;
+});
+// ◀ ▶ по списку фонов
+const stepBg = (cur, dir, list = BG_IDS) => list[(Math.max(0, list.indexOf(cur ?? "")) + dir + list.length) % list.length];
+
 function generalTab() {
   const s = engine.settings.data;
+  // строки фонов: главный, «один на все страницы», и (если не один) — свои у СКИНОВ и НАСТРОЕК
+  const bgRows = () => [
+    { id: "menuBg", label: "MENU BACKGROUND", arrows: true, value: () => bgName(s.general.menuBg), change: (dir) => (s.general.menuBg = stepBg(s.general.menuBg, dir)) },
+    { id: "bgAll", label: "ONE BACKGROUND FOR ALL PAGES", value: () => (s.general.bgAllPages !== false ? "ON" : "OFF"), change: () => (s.general.bgAllPages = s.general.bgAllPages === false) },
+    ...(s.general.bgAllPages === false ? [
+      { id: "bgSkins", label: "SKINS PAGE BACKGROUND", arrows: true, value: () => bgName(s.general.bgSkins, "AS MENU"), change: (dir) => (s.general.bgSkins = stepBg(s.general.bgSkins, dir)) },
+      { id: "bgSettings", label: "SETTINGS BACKGROUND", arrows: true, value: () => bgName(s.general.bgSettings, "AS MENU"), change: (dir) => (s.general.bgSettings = stepBg(s.general.bgSettings, dir)) },
+    ] : []),
+  ];
   return {
     id: "general",
     label: "GENERAL",
-    rows: [
+    get rows() {
+      return [...this.baseRows, ...bgRows()];
+    },
+    baseRows: [
       {
         id: "camera",
         label: "CAMERA VIEW",

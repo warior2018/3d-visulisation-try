@@ -299,7 +299,7 @@ export class MainMenu extends Scene {
 
   drawUI(ui) {
     const th = ui.theme;
-    widgets.drawBackground(ui);
+    widgets.drawBackground(ui, this.tab); // фон страницы (настройки: ФОН МЕНЮ)
     // вкладки сверху — поровну
     this.drawTopBar(ui);
     if (this.tab === "play") this.drawPlay(ui);
