@@ -117,7 +117,7 @@ export class SettingsScene extends Scene {
             change: (dir) => { s.controls.aimSensitivity ??= 100; step(s.controls, "aimSensitivity", dir, 10, 20, 200); } },
           { id: "invert", label: "INVERT MOUSE", value: () => onOff(s.controls.invertY),
             change: () => { s.controls.invertY = !s.controls.invertY; } },
-          { id: "padSens", label: "GAMEPAD SENSITIVITY", arrows: true, value: () => (e.pad?.connected ? String(s.controls.padSensitivity ?? 5) : `${s.controls.padSensitivity ?? 5} (NO GAMEPAD)`),
+          { id: "padSens", label: "GAMEPAD SENSITIVITY", arrows: true, value: () => String(s.controls.padSensitivity ?? 5),
             change: (dir) => { s.controls.padSensitivity ??= 5; step(s.controls, "padSensitivity", dir, 1, 1, 10); } },
           { type: "bindings" },
         ],
@@ -139,24 +139,46 @@ export class SettingsScene extends Scene {
     const tabW = Math.min(220, Math.floor((box.w - (n - 1) * 10) / n));
     this.tabs.forEach((t, i) => ui.button("tab:" + t.id, t.label, box.cx + (i - (n - 1) / 2) * (tabW + 10), box.y + 18, tabW, 40, 3, this.tab === t.id));
 
-    // Строки: подпись слева, переключатель справа
+    // Строки: подпись слева, переключатель справа. Не влезают в окно — прокрутка колесом (полоска справа);
+    // видно только то, что целиком внутри области между вкладками и кнопками внизу
     const tab = this.tabs.find((t) => t.id === this.tab);
     const ctrlX = box.x + box.w - 160;
-    let y = box.y + 82;
+    const top = box.y + 62, bottomEdge = box.y + box.h - 84; // область строк
+    const ROW = 50;
+    const bindH = this.bindingsHeight();
+    const content = tab.rows.reduce((h, r) => h + (r.type === "bindings" ? bindH : ROW), 0);
+    this.view = { top, bottom: bottomEdge, max: Math.max(0, content - (bottomEdge - top)) };
+    this.scrollOf ||= {};
+    const off = (this.scrollOf[this.tab] = Math.max(0, Math.min(this.view.max, this.scrollOf[this.tab] || 0)));
+    const inside = (y0, h) => y0 >= top - 1 && y0 + h <= bottomEdge + 1;
+    let y = top - off; // верх текущей строки
     for (const row of tab.rows) {
       if (row.type === "bindings") {
-        this.drawBindings(ui, box, y);
+        this.drawBindings(ui, box, y + 16, inside);
+        y += bindH;
         continue;
       }
-      ui.text(row.label, box.x + 10, y - 10, 3, th.text);
-      if (row.arrows) {
-        ui.button(`row:${row.id}:-1`, "<", ctrlX - 110, y, 44, 40);
-        ui.text(row.value(), ctrlX, y - 10, 3, th.text, "center");
-        ui.button(`row:${row.id}:1`, ">", ctrlX + 110, y, 44, 40);
-      } else {
-        ui.button(`row:${row.id}:1`, row.value(), ctrlX, y, 264, 40);
+      if (inside(y, ROW)) {
+        const cy = y + 20;
+        ui.text(row.label, box.x + 10, cy - 10, 3, th.text);
+        if (row.arrows) {
+          ui.button(`row:${row.id}:-1`, "<", ctrlX - 110, cy, 44, 40);
+          ui.text(row.value(), ctrlX, cy - 10, 3, th.text, "center");
+          ui.button(`row:${row.id}:1`, ">", ctrlX + 110, cy, 44, 40);
+        } else {
+          ui.button(`row:${row.id}:1`, row.value(), ctrlX, cy, 264, 40);
+        }
       }
-      y += 50;
+      y += ROW;
+    }
+    // полоска прокрутки: сколько видно и где мы
+    if (this.view.max > 0) {
+      const h = bottomEdge - top, bx = box.x + box.w + 4;
+      const knob = Math.max(30, (h * h) / (h + this.view.max));
+      const ky = top + ((h - knob) * off) / this.view.max;
+      ui.rect(bx, top, 6, h, th.window.border, 120);
+      ui.rect(bx, Math.round(ky), 6, Math.round(knob), th.accent, 255);
+      if (off < this.view.max) ui.text("MORE BELOW - SCROLL", box.cx, bottomEdge + 2, 1, th.muted, "center");
     }
 
     const bottom = box.y + box.h;
@@ -166,8 +188,21 @@ export class SettingsScene extends Scene {
     ui.button("back", "BACK", box.cx + 140, bottom - 22, 250, 44);
   }
 
-  // Привязки — в три колонки: подпись и кнопка с клавишей
-  drawBindings(ui, box, y) {
+  // Высота блока привязок (три колонки по 32 точки на строку) — для прокрутки
+  bindingsHeight() {
+    return Math.ceil(Object.keys(this.engine.actionLabels).length / 3) * 32 + 16;
+  }
+
+  // Колесо: прокрутить строки вкладки
+  onWheel({ dy }) {
+    if (!this.view?.max) return false;
+    this.scrollOf ||= {};
+    this.scrollOf[this.tab] = Math.max(0, Math.min(this.view.max, (this.scrollOf[this.tab] || 0) - dy * 40));
+    return true;
+  }
+
+  // Привязки — в три колонки: подпись и кнопка с клавишей. inside(y, h) — видна ли строка (прокрутка)
+  drawBindings(ui, box, y, inside = () => true) {
     const labels = this.engine.actionLabels;
     const bindings = this.settings.data.controls.bindings;
     const actions = Object.keys(labels);
@@ -179,6 +214,7 @@ export class SettingsScene extends Scene {
       const col = Math.floor(i / perCol);
       const row = i % perCol;
       const yy = y + row * 32;
+      if (!inside(yy - 14, 28)) return;
       const lx = box.x + col * colW;
       ui.text(labels[action], lx, yy - 7, 2, ui.theme.text);
       const waiting = this.waiting === action;
