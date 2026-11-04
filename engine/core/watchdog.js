@@ -40,6 +40,10 @@ export class Journal {
   write(text) {
     const time = new Date().toISOString().slice(11, 23); // часы:минуты:секунды.мс
     (this.buffer ||= []).push(`${time}  ${text}\n`);
+    // последние строки — ещё и в памяти: отчёт о падении (engine.crash) показывает конец журнала
+    const r = (this.recent ||= []);
+    r.push(`${time}  ${text}`);
+    if (r.length > 80) r.shift();
     if (/ОШИБКА|ERROR/.test(text) || this.buffer.length >= 300) return this.flush();
     if (!this.timer) {
       this.timer = setTimeout(() => this.flush(), FLUSH_MS);

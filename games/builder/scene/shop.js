@@ -150,6 +150,13 @@ export class ShopPart {
   }
 
   // Панель способностей = хотбар: в каждой ячейке — способность предмета или кулак
+  // config.js перезагрузили на ходу (main.js → watchModule): оружие — заново из новых ATTACKS (обоймы — полные)
+  configReloaded() {
+    this.abilityCache.clear();
+    this.syncAbilities();
+    this.engine.redraw();
+  }
+
   syncAbilities() {
     const bar = this.abilities;
     const before = bar.current;

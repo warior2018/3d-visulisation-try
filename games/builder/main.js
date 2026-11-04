@@ -11,7 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Engine, MenuScene, SettingsScene, ModelLibrary, Input, ChangelogScene, TextInputScene, IntroScene, NetServer, NetClient, localAddresses, DEFAULT_PORT, makeTheme, loadPNG, widgets } from "../../engine/index.js";
+import { watchModule, Engine, MenuScene, SettingsScene, ModelLibrary, Input, ChangelogScene, TextInputScene, IntroScene, NetServer, NetClient, localAddresses, DEFAULT_PORT, makeTheme, loadPNG, widgets } from "../../engine/index.js";
 import { GAME_DEFAULTS, GAME_ACTION_LABELS, GAMEPAD_ENABLED, CAMERA_MODES, SAVES, SOUNDS, THEME, THEMES, VIEW_DISTANCE } from "./config.js";
 import { GameScene } from "./game-scene.js";
 import { loadModels } from "./load-models.js";
@@ -222,6 +222,33 @@ const game = {
     engine.setScene(mainMenu());
   },
   net: null, // сетевая игра: { role: "host", server } или { role: "client", client, name } — scene/net.js
+};
+
+// Горячая перезагрузка config.js: поправил цифры, сохранил — игра подхватила (engine/core/hot-reload.js).
+// Отдельные числа (export const X = 5) так не меняются — о них подсказка «нужен перезапуск»
+const CONFIG = await import("./config.js");
+watchModule(new URL("./config.js", import.meta.url), {
+  live: CONFIG,
+  onReload: ({ updated, skipped, error }) => {
+    if (error) {
+      engine.log("config.js: ошибка, оставили старое: " + (error.stack || error));
+      return engine.toast("CONFIG.JS ERROR - SEE LOG.TXT", 4000);
+    }
+    engine.log(`config.js перезагружен: значений ${updated}${skipped.length ? ", нужен перезапуск: " + skipped.join(", ") : ""}`);
+    for (const sc of engine.scenes) sc.configReloaded?.();
+    engine.toast(skipped.length ? `CONFIG RELOADED: ${updated}. RESTART FOR: ${skipped.slice(0, 3).join(", ")}` : `CONFIG RELOADED: ${updated}`, 3000);
+  },
+});
+
+// Отчёт о падении (engine/scenes/crash-scene.js), кнопка MENU: мир — сохранить (если получится) и в главное меню
+engine.onCrashMenu = () => {
+  const world = engine.scenes.find((s) => s instanceof GameScene);
+  try {
+    world?.save(false);
+  } catch (e) {
+    engine.log("после падения не сохранилось: " + (e.stack || e));
+  }
+  game.toMenu();
 };
 
 

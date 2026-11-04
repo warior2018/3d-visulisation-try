@@ -19,6 +19,7 @@ import { FixedStep } from "./fixed-step.js";
 import { DevConsole, num } from "./console.js";
 import { ConsoleScene } from "../scenes/console-scene.js";
 import { drawPerfPanel } from "../ui/perf-panel.js";
+import { CrashScene, crashReport } from "../scenes/crash-scene.js";
 
 const BACKGROUND = { background: true }; // опции шага мира под «живым» окном (один объект — без мусора)
 
@@ -204,6 +205,7 @@ export class Engine {
     // Любая непойманная ошибка — сначала в журнал, потом как обычно (с текстом в терминале)
     process.on("uncaughtException", (e) => {
       this.log("ОШИБКА: " + (e.stack || e));
+      this.writeCrash(e);
       console.error(e);
       process.exit(1);
     });
@@ -212,6 +214,47 @@ export class Engine {
   // Записать строчку в журнал (log.txt). Игры тоже могут: engine.log("сохранено")
   log(text) {
     this.journal.write(text);
+  }
+
+  // ---------- Отчёт о падении (engine/scenes/crash-scene.js) ----------
+
+  // Ошибка в кадре: отчёт — в файл crashes/ и окно поверх игры. Одна и та же ошибка (то же место) окно
+  // открывает один раз — иначе повторяется каждый кадр. Окно уже открыто — только в журнал
+  crash(error) {
+    const key = String(error?.stack || error).split("\n").slice(0, 2).join("|");
+    (this.crashSeen ||= new Set());
+    if (this.crashSeen.has(key) || this.scene instanceof CrashScene || this.crashSeen.size > 20) return;
+    this.crashSeen.add(key);
+    const { report, file } = this.writeCrash(error);
+    try {
+      this.push(new CrashScene({ error, report, file }));
+    } catch (e) {
+      console.error("не открылось окно отчёта:", e);
+    }
+  }
+
+  // Отчёт — в файл crashes/crash-<время>.txt рядом с настройками. Вернёт { report, file }
+  writeCrash(error) {
+    const report = crashReport(error, { log: this.journal?.recent || [], version: this.updater?.current || "", scene: this.scene?.label || "" });
+    let file = null;
+    try {
+      const dir = path.join(path.dirname(this.settings.file || "."), "crashes");
+      fs.mkdirSync(dir, { recursive: true });
+      file = path.join(dir, `crash-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.txt`);
+      fs.writeFileSync(file, report);
+      this.log(`отчёт о падении: ${file}`);
+    } catch {}
+    return { report, file };
+  }
+
+  // Текст — в буфер обмена. Вернёт true, если получилось
+  copyText(text) {
+    try {
+      sdl.clipboard.setText(String(text));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // Этап кадра — для сторожа: если зависнем, он напишет, на каком этапе
@@ -601,6 +644,7 @@ export class Engine {
     } catch (e) {
       console.error("Ошибка в кадре:", e);
       this.log("ошибка в кадре: " + (e.stack || e));
+      this.crash(e);
     }
     this.phase(0);
     // Мир живёт — следующий кадр сразу; только что что-то поменялось — через 16 мс;
@@ -623,6 +667,10 @@ export class Engine {
 
   // Вернёт true — нужен следующий кадр сразу (мир живёт), "soon" — скоро, false — можно отдыхать
   tick() {
+    if (this.crashNext) {
+      this.crashNext = false;
+      throw new Error("crash test (console: crashtest)");
+    }
     const start = performance.now();
     const raw = Math.min((start - this.lastTime) / 1000, 0.1); // секунд с прошлого кадра (не больше 0.1)
     this.lastTime = start;
@@ -755,6 +803,10 @@ export class Engine {
       b[action] = (key.includes(":") ? key : `key:${key}`).toUpperCase().replace(/^KEY:/, "key:").replace(/^MOUSE:/, "mouse:");
       this.settings.save();
       return `${action} = ${b[action]}`;
+    } });
+    c.command("crashtest", { help: "crashtest - break the next frame (shows the crash report)", run: () => {
+      this.crashNext = true;
+      return "NEXT FRAME WILL CRASH";
     } });
     c.command("stats", { help: "stats - fps, frame time, ticks", run: () => `FPS ${this.fps ?? "-"}, FRAME ${(this.cpuAvg ?? 0).toFixed(2)} MS, TICK ${this.fixed.rate} HZ, TICKS ${this.fixed.count}, DROPPED ${this.fixed.dropped}, TIMESCALE ${this.timeScale}` });
     c.command("profile", { help: "profile - write a profiler report to log.txt (opens the profiler page)", run: () => {
