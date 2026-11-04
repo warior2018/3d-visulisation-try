@@ -94,6 +94,7 @@ export class Sound {
   // device — своё устройство (тесты): { play, clear, put(buffer), queued() → байт в очереди, close }
   constructor({ refDistance = 3, maxDistance = 45, rolloff = 1, device = undefined } = {}) {
     this.volume = 1; // общая громкость 0..1 (master)
+    this.focused = true; // окно в фокусе; нет (Alt+Tab) — тишина, музыка ждёт (setFocused)
     this.channels = { effects: 1, music: 1, voices: 1, ui: 1 };
     this.hearing = { refDistance, maxDistance, rolloff };
     this.listener = null; // { x, y, z, yaw } — где «уши» (обычно глаза героя)
@@ -145,6 +146,16 @@ export class Sound {
     this.volume = Math.max(0, Math.min(1, volume));
   }
 
+  // Окно в фокусе или нет: без фокуса всё замолкает сразу (очередь устройства чистим), вернулись — играет дальше
+  setFocused(on) {
+    on = !!on;
+    if (this.focused === on) return;
+    this.focused = on;
+    if (!this.device) return;
+    this.rewind(); //       не проигранное — назад голосам
+    if (on) this.refill(true);
+  }
+
   // Громкость каналов: { effects, music, voices, ui } (0..1)
   setChannels(map) {
     for (const [k, v] of Object.entries(map)) this.channels[k] = Math.max(0, Math.min(1, Number(v) || 0));
@@ -191,7 +202,7 @@ export class Sound {
   // Проиграть. at — точка мира (объёмный звук), volume — своя громкость звука, channel — канал (иначе — как
   // при define). env — окружение (иначе спросим environment(at), если игра его дала)
   play(name, { at = null, volume = 1, channel = null, env = undefined } = {}) {
-    if (!this.device || !this.sounds[name] || this.volume === 0) return;
+    if (!this.device || !this.sounds[name] || this.volume === 0 || !this.focused) return;
     const ch = channel || this.channelOf[name] || "effects";
     const { gain, pan } = this.spatial(at);
     const g = gain * volume;
@@ -220,7 +231,7 @@ export class Sound {
 
   // Каждый кадр: долить смесь в очередь (музыка и длинные звуки не кончаются на полуслове)
   update() {
-    if (this.device && this.voices.length) this.refill(false);
+    if (this.device && this.voices.length && this.focused) this.refill(false);
   }
 
   queuedFrames() {
@@ -241,6 +252,7 @@ export class Sound {
 
   // Смешать и отдать, чтобы в очереди было не меньше LEAD с (force — после rewind: с нуля)
   refill(force) {
+    if (!this.focused) return; // окно не в фокусе — устройству ничего не даём (тишина)
     const want = Math.round(LEAD * RATE);
     const have = force ? 0 : this.queuedFrames();
     if (have >= want / 2 && !force) return;

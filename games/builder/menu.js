@@ -13,7 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Scene, Camera, Vec3, loadPNG, rarityOf, translate, widgets, KEYS } from "../../engine/index.js";
+import { Scene, Camera, Vec3, loadPNG, rarityOf, translate, widgets, KEYS, confirmAction } from "../../engine/index.js";
 import { CLASSES, WORLD_SIZES } from "./config.js";
 import { itemName, ITEMS } from "./items.js";
 import { SKIN_CATEGORIES, SKIN_TARGETS, skinOf, drawSkinIcon } from "./skins.js";
@@ -321,7 +321,8 @@ export class MainMenu extends Scene {
     const barH = 48, pw = Math.min(340, ui.width * 0.26), ph = 66, cy = ph / 2;
     ui.rect(0, 0, ui.width, barH, th.window.titleBar, 250);
     ui.rect(0, barH, ui.width, 2, th.window.border, 255);
-    ui.button("tab:play", "PLAY", ui.width / 2, cy, pw, ph, 4, this.tab === "play");
+    // уже на вкладке ИГРАТЬ — надписи сверху нет (внизу своя кнопка ИГРАТЬ, два одинаковых слова не нужны)
+    ui.button("tab:play", this.tab === "play" ? "" : "PLAY", ui.width / 2, cy, pw, ph, 4, this.tab === "play");
     // блик: светлая полоса наискось слева направо
     const t = (this.clock || 0) % SHIMMER.every;
     if (t < SHIMMER.time) {
@@ -387,6 +388,13 @@ export class MainMenu extends Scene {
         ui.text(name, a.x, a.y + a.r + 14, i === 0 ? 3 : 2, lit ? th.text : th.muted, "center");
         if (!w.create && !w.saved && i === 0) ui.text("NEW RUN", a.x, a.y + a.r + 44, 2, th.warn, "center");
       }
+    }
+    // у центрального мира (не «новый») — шестерёнка снизу справа: настройки мира (имя, картинка, удаление)
+    const c0 = this.center, a0 = c0 && this.anim.get(c0.id);
+    if (c0 && !c0.create && a0) {
+      const gx = Math.round(a0.x + a0.r * 0.74), gy = Math.round(a0.y + a0.r * 0.74);
+      ui.button("wset", "", gx, gy, 36, 36, 2, false);
+      drawTabIcon(ui, "gear", gx, gy, th.text);
     }
     // стрелки по бокам
     const cy = ringY(ui);
@@ -476,18 +484,23 @@ export class MainMenu extends Scene {
       touchWorld(c.id);
       return this.actions.play(c.id);
     }
-    if (kind === "icon" && !c.create && this.iconIds.length) {
-      const i = Math.max(0, this.iconIds.indexOf(c.icon));
-      const icon = this.iconIds[(i + Number(arg) + this.iconIds.length) % this.iconIds.length];
-      updateWorld(c.id, { icon });
-      c.icon = icon;
-    }
-    if (kind === "delete" && !c.create) {
-      this.actions.confirm(`DELETE ${c.name}?`, () => {
-        deleteWorld(c.id);
+    if (kind === "wset" && !c.create) return this.openWorldSettings(c);
+  }
+
+  // Настройки созданного мира: имя, картинка, удаление (с подтверждением и отсчётом — движок: confirmAction)
+  openWorldSettings(w) {
+    this.engine.push(new WorldSettingsScene({
+      world: w, icons: this.icons, iconIds: this.iconIds,
+      onSave: ({ name, icon }) => {
+        updateWorld(w.id, { name: name || w.name, icon });
         this.reload();
-      });
-    }
+      },
+      onDelete: () => {
+        deleteWorld(w.id); // не насовсем: папка уходит в saves/deleted
+        this.reload();
+        this.actions.toast?.(`WORLD DELETED: ${w.name}`);
+      },
+    }));
   }
 
   newWorld() {
@@ -636,3 +649,83 @@ function drawTabIcon(ui, icon, cx, cy, color) {
 const ringY = (ui) => Math.round(ui.height * 0.36);
 const ringR = (ui) => Math.min(110, ui.height * 0.12);
 const playY = (ui) => ui.height - 52;
+
+// Окно настроек мира: имя (печатать), картинка (стрелки), СОХРАНИТЬ / ЗАКРЫТЬ; УДАЛИТЬ — уровень 3:
+// подтверждение и ещё WORLD_DELETE_WAIT секунд отсчёта (успеешь передумать)
+const WORLD_DELETE_WAIT = 5;
+
+export class WorldSettingsScene extends Scene {
+  constructor({ world, icons, iconIds, onSave, onDelete }) {
+    super();
+    this.transparent = true;
+    this.world = world;
+    this.icons = icons;
+    this.iconIds = iconIds;
+    this.name = world.name || "";
+    this.icon = world.icon || iconIds[0];
+    this.onSave = onSave;
+    this.onDelete = onDelete;
+  }
+
+  get label() {
+    return "настройки мира";
+  }
+
+  drawUI(ui) {
+    const th = ui.theme;
+    widgets.drawDim(ui, 210);
+    const W = 620, H = 460, x = ui.width / 2 - W / 2, y = ui.height / 2 - H / 2;
+    ui.rect(x, y, W, H, th.window.fill, 245);
+    ui.frame(x, y, W, H, th.window.border, 3);
+    ui.text("WORLD SETTINGS", ui.width / 2, y + 18, 3, th.accent, "center");
+    ui.text("NAME", x + 30, y + 70, 2, th.muted);
+    ui.rect(x + 30, y + 90, W - 60, 46, [0, 0, 0], 170);
+    ui.text(this.name + "_", x + 44, y + 104, 3, th.text);
+    ui.text("PICTURE", x + 30, y + 160, 2, th.muted);
+    const img = this.icons[this.icon];
+    const cx = ui.width / 2, cy = y + 232, r = 56;
+    ui.circle(cx, cy, r + 4, th.accent, 255);
+    if (img) ui.image(img, cx - r, cy - r, r * 2, r * 2, { circle: true });
+    ui.button("icon:-1", "<", cx - 115, cy, 50, 50, 3);
+    ui.button("icon:1", ">", cx + 115, cy, 50, 50, 3);
+    ui.button("delete", "DELETE WORLD", x + 30 + 110, y + H - 40, 220, 44, 2);
+    ui.frame(x + 30, y + H - 62, 220, 44, [200, 60, 50], 2);
+    ui.button("save", "SAVE", ui.width / 2 + 60, y + H - 40, 150, 48, 3, true);
+    ui.button("close", "CLOSE", ui.width / 2 + 220, y + H - 40, 150, 48, 3);
+  }
+
+  onKey(e) {
+    if (e.scancode === KEYS.BACKSPACE) this.name = this.name.slice(0, -1);
+    else if (e.scancode === KEYS.RETURN) return this.onButton("save");
+    else if (e.scancode === KEYS.ESCAPE) return this.engine.pop();
+    else if (typeof e.key === "string" && e.key.length === 1 && /[0-9a-zа-яё _-]/i.test(e.key) && this.name.length < 20) this.name += e.key.toUpperCase();
+    else return;
+    this.engine.redraw();
+  }
+
+  onButton(id) {
+    const [kind, arg] = id.split(":");
+    if (kind === "close") return this.engine.pop();
+    if (kind === "icon" && this.iconIds.length) {
+      const i = Math.max(0, this.iconIds.indexOf(this.icon));
+      this.icon = this.iconIds[(i + Number(arg) + this.iconIds.length) % this.iconIds.length];
+    }
+    if (kind === "save") {
+      this.engine.pop();
+      return this.onSave({ name: this.name.trim(), icon: this.icon });
+    }
+    if (kind === "delete") {
+      return confirmAction(this.engine, {
+        level: 3, wait: WORLD_DELETE_WAIT,
+        title: "DELETE WORLD",
+        text: `${this.world.name}: THE WORLD AND EVERY HERO IN IT WILL BE GONE`,
+        yes: "DELETE", no: "KEEP", waitText: "DELETING IN {s} S", cancel: "CANCEL",
+        onConfirm: () => {
+          if (this.engine.scene === this) this.engine.pop();
+          this.onDelete();
+        },
+      });
+    }
+    this.engine.redraw();
+  }
+}

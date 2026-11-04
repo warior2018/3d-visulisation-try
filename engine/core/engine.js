@@ -51,7 +51,7 @@ export const ENGINE_DEFAULTS = {
   version: 1,
   video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true, lighting: true },
   interface: { language: "en", showFps: false }, // язык надписей (engine/ui/i18n.js), счётчик FPS слева сверху
-  audio: { master: 80, effects: 100, music: 60, voices: 100 }, // каналы громкости (engine/audio/sound.js)
+  audio: { master: 80, effects: 100, music: 60, voices: 100, muteUnfocused: true }, // каналы громкости (engine/audio/sound.js); без фокуса — тишина
   controls: {
     pad: { ...PAD_DEFAULTS }, // геймпад: действие → кнопка (engine/input/gamepad.js)
     padSensitivity: 5, //  скорость взгляда стиком, 1–10
@@ -460,11 +460,16 @@ export class Engine {
       if (this.ui.setMouse(e.x, e.y) || this.scene?.trackMouse || moved) this.redraw();
     });
 
+    // Окно не в фокусе (Alt+Tab, свернули): звук глохнет (настройка audio.muteUnfocused), игра — на паузу (сцена)
     w.on("blur", () => {
       this.log("окно потеряло фокус");
+      if (this.settings.data.audio.muteUnfocused !== false) this.sound.setFocused?.(false);
       this.scene?.onBlur();
     });
-    w.on("focus", () => this.log("окно в фокусе"));
+    w.on("focus", () => {
+      this.log("окно в фокусе");
+      this.sound.setFocused?.(true);
+    });
 
     w.on("resize", (e) => {
       this.log(`размер окна ${e.width}x${e.height} (пикселей ${e.pixelWidth}x${e.pixelHeight})`);

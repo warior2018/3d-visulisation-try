@@ -96,6 +96,7 @@ export { grow, growth } from "./progression/growth.js";
 export { Shop } from "./economy/shop.js";
 export { ShopScene } from "./scenes/shop-scene.js";
 export { ChoiceScene } from "./scenes/choice-scene.js";
+export { ConfirmScene, confirmAction } from "./scenes/confirm-scene.js";
 export { Updater, compareVersions, readChangelog } from "./core/updates.js";
 export { ChangelogScene } from "./scenes/changelog-scene.js";
 export { Aim } from "./input/aim.js";

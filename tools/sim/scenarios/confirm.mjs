@@ -1,0 +1,50 @@
+// Подтверждение (движок: confirmAction): уровень 1 — сразу, 2 — окно, 3 — окно и отсчёт с отменой;
+// настройки мира: имя, картинка, удаление уровнем 3
+import path from "node:path";
+export default async function (t, g) {
+  const { engine, E, root, scene } = g;
+  let done = 0, cancel = 0;
+  const opts = { onConfirm: () => done++, onCancel: () => cancel++, wait: 0.5 };
+  E.confirmAction(engine, { ...opts, level: 1 });
+  t.check("уровень 1 — сразу", done === 1);
+  const c2 = E.confirmAction(engine, { ...opts, level: 2 });
+  t.check("уровень 2 — окно, ещё не сделано", engine.scene === c2 && done === 1);
+  c2.onButton("yes");
+  t.check("ДА — сделано сразу, окно закрыто", done === 2 && engine.scene !== c2);
+  const c3 = E.confirmAction(engine, { ...opts, level: 3 });
+  c3.onButton("yes");
+  t.check("уровень 3: после ДА — отсчёт, ещё не сделано", c3.counting && done === 2);
+  c3.update(0.2);
+  c3.onButton("cancel");
+  t.check("ОТМЕНА во время отсчёта — не сделано", done === 2 && cancel === 1 && engine.scene !== c3);
+  const c4 = E.confirmAction(engine, { ...opts, level: 3 });
+  c4.onButton("yes");
+  for (let i = 0; i < 40; i++) c4.update(1 / 60);
+  t.check("отсчёт дошёл до нуля — сделано", done === 3 && engine.scene !== c4);
+  const c5 = E.confirmAction(engine, { ...opts, level: 2 });
+  c5.onPress(["pause"]);
+  t.check("Esc — отмена", cancel === 2 && done === 3);
+  // настройки мира
+  const S = await import(path.join(root, "games", "builder", "save.js"));
+  const M = await import(path.join(root, "games", "builder", "menu.js"));
+  const id = S.createWorld({ name: "TEMP", icon: "lake" });
+  const menu = new M.MainMenu({ game: scene.game, actions: {} });
+  engine.push(menu);
+  const w = menu.worlds.find((x) => x.id === id);
+  menu.openWorldSettings(w);
+  const ws = engine.scene;
+  ws.name = "RENAMED";
+  ws.onButton("icon:1");
+  ws.onButton("save");
+  const after = S.listWorlds().find((x) => x.id === id);
+  t.check("настройки мира: имя и картинка сохранились", after.name === "RENAMED" && after.icon !== "lake", `${after.name} ${after.icon}`);
+  menu.openWorldSettings(after);
+  engine.scene.onButton("delete");
+  const conf = engine.scene;
+  t.check("удаление мира — подтверждение уровня 3", conf instanceof E.ConfirmScene && conf.level === 3);
+  conf.onButton("yes");
+  t.check("после ДА мир ещё есть (отсчёт)", S.listWorlds().some((x) => x.id === id));
+  for (let i = 0; i < 6 * 60; i++) conf.update(1 / 60);
+  t.check("отсчёт прошёл — мир удалён", !S.listWorlds().some((x) => x.id === id));
+  while (engine.scene !== scene) engine.pop();
+}

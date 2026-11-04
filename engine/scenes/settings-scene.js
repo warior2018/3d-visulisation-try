@@ -103,6 +103,8 @@ export class SettingsScene extends Scene {
             change: (dir) => { step(s.audio, "effects", dir, 10, 0, 100); e.applySettings("audio"); } },
           { id: "music", label: "MUSIC", arrows: true, value: () => `${s.audio.music ?? 60}%`,
             change: (dir) => { step(s.audio, "music", dir, 10, 0, 100); e.applySettings("audio"); } },
+          { id: "muteUnfocused", label: "MUTE WHEN NOT IN FOCUS", value: () => onOff(s.audio.muteUnfocused !== false),
+            change: () => { s.audio.muteUnfocused = s.audio.muteUnfocused === false; if (!s.audio.muteUnfocused) e.sound.setFocused?.(true); } },
           { id: "voices", label: "VOICES", arrows: true, value: () => `${s.audio.voices ?? 100}%`,
             change: (dir) => { step(s.audio, "voices", dir, 10, 0, 100); e.applySettings("audio"); } },
         ],

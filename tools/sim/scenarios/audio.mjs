@@ -40,6 +40,16 @@ export default async function (t, g) {
   dev.q = 0; s.update();
   const silent = new Float32Array(dev.puts.at(-1).buffer.slice(0));
   t.check("громкость музыки 0 — тишина", silent.every((v) => v === 0));
+  // окно не в фокусе (Alt+Tab) — тишина: очередь пуста, новые звуки не идут; вернулись — музыка дальше
+  s.setChannels({ music: 1 });
+  dev.q = 0; s.update();
+  s.setFocused(false);
+  const putsBefore = dev.puts.length;
+  t.check("без фокуса очередь очищена", dev.q === 0);
+  s.play("beep"); dev.q = 0; s.update();
+  t.check("без фокуса ничего не играет", dev.puts.length === putsBefore);
+  s.setFocused(true);
+  t.check("в фокусе — музыка снова в очереди", dev.q > 0 && s.voices.some((v) => v.name === "b"));
   // окружение: стены глушат (тише и без высоких), эхо длиннее
   const src = E.noise(200, 1, 0);
   const m = E.processSamples(src, { muffle: 1 }), e = E.processSamples(src, { echo: 1 });
