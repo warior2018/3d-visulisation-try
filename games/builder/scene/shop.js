@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { itemName, ITEMS, isArmor, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
+import { itemName, ITEMS, isArmor, isWeapon, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
 import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
@@ -210,6 +210,8 @@ export class ShopPart {
         this.syncAbilities();
         this.applyTalents(); // надели / сняли броню
       },
+      // Оружие в игре выбросить нельзя (движок умеет — здесь закрыто; продать можно стражу)
+      canDrop: (item) => (isWeapon(item) ? "WEAPONS CAN'T BE DROPPED (SELL THEM TO THE WARDEN)" : true),
       onDrop: (item, count, data) => {
         // Выброшенное летит вперёд и ложится на землю — подобрать можно снова (F)
         const dir = this.look.lookDirection();

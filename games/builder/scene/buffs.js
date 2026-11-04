@@ -6,7 +6,7 @@
 
 import { critCooldown, MeleeAttack, dash, MagicAttack, grow } from "../../../engine/index.js";
 import { signedPct } from "./shared.js";
-import { ARMOR, BLOCK, SPEAR, ATTACKS, HAMMER, PLAYER, SHAKE, BOAR_SCALE, WARDEN_GROWTH } from "../config.js";
+import { ARMOR, BLOCK, SPEAR, ATTACKS, HAMMER, PLAYER, SHAKE, BOAR_SCALE, WARDEN_GROWTH, OUT_OF_COMBAT } from "../config.js";
 import { CREATURES } from "../creatures.js";
 
 export class BuffsPart {
@@ -23,6 +23,7 @@ export class BuffsPart {
     for (const st of p.statuses) if (st.speed) (st.speed > 0 ? (up += st.speed) : (down += st.speed));
     if (up > 0.001) list.push({ icon: "SPD", name: "SPEED", positive: true, color: [110, 200, 255], label: `+${Math.round(up * 100)}%` });
     if (down < -0.001) list.push({ icon: "SLW", name: "SLOW", positive: false, color: [235, 120, 70], label: `${Math.round(down * 100)}%` });
+    if (this.outOfCombat) list.push({ icon: "OOC", name: "OUT OF COMBAT", positive: true, color: [120, 220, 140], label: `X${OUT_OF_COMBAT.regenMult}` }); // вне боя: скорость и регенерация
     if (this.spearRun.active) list.push({ icon: "CHG", name: "CHARGE", positive: true, color: [255, 200, 90], label: `X${this.spearRun.power.toFixed(1)}` });
     const crit = this.talents.rank("f-crit");
     if (crit && this.playerClass === "melee" && critCooldown(p, "fighter-crit") <= 0) list.push({ icon: "CRT", name: "CRIT", positive: true, color: [255, 210, 80], label: `X${crit > 1 ? 3 : 2}` });

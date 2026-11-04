@@ -14,6 +14,7 @@
 //      ],
 //      onChange: () => {},                           // что-то переложили или выбросили
 //      onDrop: (item, count, data) => {},            // выбросили (Q) — игра решает, что с этим делать (data — свои данные предмета)
+//      canDrop: (item, data) => true | "ПОЧЕМУ НЕТ",  // можно ли выбросить (нельзя — предмет остаётся, надпись внизу)
 //    })
 //
 //  Мышь: ЛКМ по предмету — взять всю ячейку «в руку» (едет за курсором); ЛКМ по ячейке —
@@ -30,7 +31,7 @@ import { drawDim, drawInventoryGrid, inventoryGridSize, drawItem } from "../ui/w
 import { drawWindow } from "../ui/window.js";
 
 export class InventoryScene extends Scene {
-  constructor({ entity, itemInfo, sections = null, title = "INVENTORY", closeActions = ["inventory", "pause"], dropAction = "drop", dropKey = "Q", onChange = () => {}, onDrop = () => {} }) {
+  constructor({ entity, itemInfo, sections = null, title = "INVENTORY", closeActions = ["inventory", "pause"], dropAction = "drop", dropKey = "Q", onChange = () => {}, onDrop = () => {}, canDrop = () => true }) {
     super();
     this.transparent = true;
     this.showToasts = false; // всплывающие надписи закрыли бы заголовок окна
@@ -44,6 +45,7 @@ export class InventoryScene extends Scene {
     this.dropKey = dropKey; // подпись клавиши в подсказке
     this.onChange = onChange;
     this.onDrop = onDrop;
+    this.canDrop = canDrop;
     this.held = null; //   { stack: { item, count }, from: { s, i } } — что взяли «в руку»
     this.hover = null; //  { s, i } — ячейка под мышью (с прошлой отрисовки)
   }
@@ -232,9 +234,19 @@ export class InventoryScene extends Scene {
   }
 
   // Q: в руке что-то есть — выбросить всё это; иначе — один предмет из ячейки под мышью (с Shift — всю стопку)
+  // Выбросить нельзя (canDrop) — надпись внизу на 1.5 с; вернёт true, если нельзя
+  refuseDrop(item, data) {
+    const ok = this.canDrop(item, data);
+    if (ok === true) return false;
+    this.warning = { text: typeof ok === "string" ? ok : "CAN'T DROP IT", until: performance.now() + 1500 };
+    this.engine.redraw();
+    return true;
+  }
+
   drop() {
     if (this.held) {
       const { item, count, data } = this.held.stack;
+      if (this.refuseDrop(item, data)) return;
       this.held = null;
       this.onDrop(item, count, data);
       this.onChange();
@@ -244,6 +256,7 @@ export class InventoryScene extends Scene {
     const slots = this.slotsOf(this.hover.s);
     const slot = slots[this.hover.i];
     if (!slot) return;
+    if (this.refuseDrop(slot.item, slot.data)) return;
     const n = this.engine.input.shift ? slot.count : 1; // Shift — вся стопка одним предметом
     slot.count -= n;
     if (slot.count <= 0) slots[this.hover.i] = null;

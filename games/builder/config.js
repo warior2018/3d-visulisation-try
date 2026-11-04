@@ -581,6 +581,10 @@ export const CLIPS = { enabled: false, items: { pistol: "pistol-clip", auto: "au
 // рассвет и закат — по dusk доли суток. Выключить — настройки (DAY / NIGHT) или консоль daynight 0
 export const DAY = { length: 1200, night: 0.5, dusk: 0.08, start: 0.3 };
 
+// Вне боя (scene/out-of-combat.js): рядом (radius блоков) нет моба, охотящегося на героя, и delay с героя не
+// ранили мобы и он сам никого не ранил — бонусы: скорость +speed, регенерация ×regenMult
+export const OUT_OF_COMBAT = { radius: 5, delay: 5, speed: 0.1, regenMult: 3 };
+
 // Частицы (scene/effects.js): «кровь» по виду существа, сколько брызг (3 + урон / bloodPer, не больше bloodMax),
 // огонь и дым взрыва, искры пули, пыль
 export const FX = {

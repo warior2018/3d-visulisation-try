@@ -36,6 +36,7 @@ import { AudioPart } from "./scene/audio.js";
 import { heroAnimStates } from "./hero-anim.js";
 import { EffectsPart } from "./scene/effects.js";
 import { DaylightPart } from "./scene/daylight.js";
+import { OutOfCombatPart } from "./scene/out-of-combat.js";
 import { HostNet, ClientNet } from "./scene/net.js";
 import { Chat } from "./scene/chat.js";
 import { registerCommands } from "./scene/commands.js";
@@ -160,6 +161,7 @@ export class GameScene extends Scene {
     e.onDamage = (d, dealt) => {
       this.mountHurt(e, dealt); // ранили героя или его скакуна — маунт исчезает (scene/mount.js)
       this.hitFx(e, d, dealt); //  брызги «крови» (scene/effects.js)
+      this.combatHit(e, d, dealt); // в бою: ранили героя или он кого-то (scene/out-of-combat.js)
       if (e === this.player) this.engine.pad?.rumble(Math.min(1, 0.25 + dealt / 40), 140); // по нам попали — вибрация геймпада
       if (d.source !== this.player || e === this.player || this.settings.general.damageNumbers === false) return;
       const head = d.part === "head";
@@ -365,6 +367,7 @@ export class GameScene extends Scene {
     player.speedBonuses.lock = this.actionLock.moveSpeed;
     this.updateStance(dt); //  катана в руках — стойка: ниже рост и глаза
     this.mountCd = Math.max(0, (this.mountCd || 0) - dt); // перезарядка маунта (MOUNT)
+    this.updateOutOfCombat(dt); // вне боя: +скорость, ×регенерация (scene/out-of-combat.js)
     this.updateAudio(dt); // музыка (мир / бой / нашествие) и эхо вокруг (scene/audio.js)
     let move;
     if (player.mount) move = this.rideTick(dt); // верхом: ведём скакуна (scene/mount.js)
@@ -686,4 +689,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart]);
