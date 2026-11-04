@@ -174,7 +174,8 @@ export const PLAYER = {
 // despawnDistance — спокойный моб (и дикий кабан) дальше этого от героя исчезает; huntDespawn — даже злой
 // (потерял героя из виду и отстал). Появляются не дальше 60 м (прорисовка), так что дальше 75 — значит «ушёл»
 // interval — раз в сколько секунд новый моб (5 / 3: втрое чаще, чем было), max — предел живых мобов вокруг
-export const SPAWN = { interval: 5 / 3, max: 45, minPlayerDistance: 12, despawnDistance: 75, huntDespawn: 100 };
+// interval — раз во сколько секунд новый моб (было 5 / 3 — вдвое чаще; ещё раньше 5)
+export const SPAWN = { interval: 10 / 3, max: 45, minPlayerDistance: 12, despawnDistance: 75, huntDespawn: 100 };
 
 // Сколько живут в мире (секунды): спокойный моб (не злой) и предмет на земле исчезают через 2 минуты
 export const LIFETIME = { mob: 120, pickup: 120 };
@@ -379,7 +380,7 @@ const PUNCH_REACH = 2.5;
 // (ИАЙ, отскок дробовика, разбег с копьём) — сначала слезаем, потом скилл. Молот верхом не бьёт под себя
 // (ATTACKS.hammerSwing: медленный взмах в сторону, слабее)
 export const MOUNT = {
-  price: 2500, cooldown: 10, speed: 8.5, runMultiplier: 1, jumpHeight: 1.1, seat: 0.75,
+  price: 500, cooldown: 10, speed: 8.5, runMultiplier: 1, jumpHeight: 1.1, seat: 0.75,
   // Верхом два режима (Alt — переключить): ПОВОДЬЯ — обе руки держат поводья, атаковать нельзя, полная скорость;
   // ОРУЖИЕ — оружие в руках: одноручное — без замедления, двуручное дальнее — slowRanged, двуручное ближнее
   // (атака переделана, чтобы не ранить скакуна) — slowMelee
