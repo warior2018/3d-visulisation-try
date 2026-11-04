@@ -19,6 +19,7 @@ import { migrateOldSaves, touchWorld, setProfile } from "./save.js";
 import { MainMenu } from "./menu.js";
 import { installSkins } from "./skins.js";
 import { loadMusic } from "./music.js";
+import { noSprint } from "./controls.js";
 import { ITEMS } from "./items.js";
 import { RU } from "./lang/ru.js";
 
@@ -74,6 +75,8 @@ engine.applySettings("language");
   }
   setProfile(g.profileId);
 }
+
+noSprint(engine); // спринта нет: Shift — способность 3 (controls.js)
 
 // Стиль окон и кнопок (настройка UI STYLE): тема из THEMES поверх темы движка
 function applyStyle() {

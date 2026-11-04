@@ -9,6 +9,7 @@ import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../s
 import { Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, profiler } from "../../../engine/index.js";
 import { maxStack, hotbarAccepts, armorAccepts } from "../items.js";
 import { TROPHY, TALENT_TREE, weaponTab } from "../talents.js";
+import { noSprint } from "../controls.js";
 import { DEFAULT_SPAWNS, RESIDENTS, mobGrowth } from "../creatures.js";
 import { pickWeighted, PROF } from "./shared.js";
 
@@ -16,6 +17,7 @@ export class SessionPart {
   // ---------- Вход и выход ----------
 
   enter() {
+    noSprint(this.engine); // спринта нет — Shift под способность (controls.js)
     Object.assign(this.engine.sound.hearing, HEARING); // объёмный звук: радиус слышимости и затухание (config.js)
     this.engine.sound.environment = (at) => this.soundEnvironment(at); // стены глушат, в пещере — эхо (scene/audio.js)
     // видеокарта собрала шейдер частиц — лучи и следы пуль рисуются в 3D (стены их закрывают); нет — плоско

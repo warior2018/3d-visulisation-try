@@ -24,13 +24,13 @@ export default async function (t, g) {
   g.press("Z");
   await g.frames(2);
   t.check("Z — в седле", !!p.mount && p.mount.type === "steed");
-  t.check("сидим выше земли", p.position.y > p.mount.position.y + 0.5);
+  t.check("сидим выше земли", p.position.y > p.mount.position.y + 0.5, `${p.position.y.toFixed(2)} / ${p.mount.position.y.toFixed(2)}`);
   // быстрее, чем пешком
   scene.updateMountSpeed();
   t.check("скорость верхом больше пешей", scene.rideController.speed > C.PLAYER.speed);
   g.equip("war-hammer");
   scene.updateMountSpeed();
-  t.check("двуручное (молот) — медленнее и без галопа", scene.rideController.speed < C.MOUNT.speed && scene.rideController.runMultiplier === 1);
+  t.check("двуручное (молот) — медленнее", scene.rideController.speed < C.MOUNT.speed && scene.rideController.runMultiplier === 1, `${scene.rideController.speed} ${scene.abilities.current?.id}`);
   const ab = scene.abilities.current;
   t.check("молот верхом — взмах (не удар под себя)", ab.swing && ab.swing.id === "hammer-swing");
   // урон — слетаем, перезарядка

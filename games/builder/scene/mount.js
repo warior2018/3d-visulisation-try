@@ -71,7 +71,7 @@ export class MountPart {
     if (!c) return;
     const heavy = MOUNT.twoHanded.includes(this.abilities.current?.id);
     c.speed = MOUNT.speed * (1 + (this.talentStats?.mountSpeed || 0)) * (heavy ? MOUNT.heavy : 1);
-    c.runMultiplier = heavy ? 1 : MOUNT.runMultiplier;
+    c.runMultiplier = MOUNT.runMultiplier; // галопа нет (Shift — способность)
   }
 
   // Тик верхом: клавиши ведут скакуна, герой сидит в седле. Вернёт move (как у CharacterController)

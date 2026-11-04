@@ -53,6 +53,8 @@ export const GAME_DEFAULTS = {
       item2: "key:2",
       skill1: "key:Q",
       skill2: "key:E",
+      skill3: "key:LSHIFT", // способность 3 (пока пусто; спринта нет — на Shift будет способность)
+      run: "", //            спринта в игре нет
       ability1: "", // ячейки панели движка — не нужны: выбор ячеек — item1 / item2
       ability2: "",
       ability3: "",
@@ -77,6 +79,8 @@ export const GAME_ACTION_LABELS = {
   item2: "ITEM 2",
   skill1: "SKILL 1",
   skill2: "SKILL 2",
+  skill3: "SKILL 3",
+  run: null, // спринта нет — в списке клавиш не показываем
   palette: "BLOCK COLOR",
   save: "SAVE",
   autoLoot: "AUTO LOOT",
@@ -146,8 +150,8 @@ export const STANCE = { height: 1.4, eyeHeight: 1.28 };
 // Разгон героя (движок: CharacterController.accel), секунд: ground — до скорости шага на земле, stop —
 // остановиться, air / airStop — то же в воздухе (меньше — резче управление в полёте, как в Overwatch),
 // over — сбросить скорость сверх бега (после рывка / отброса). Пробный вариант — подбираем (консоль: move_*)
-// ×1.5 быстрее первой пробы (было 0.2 / 0.1 / 0.3 / 0.8 / 0.35)
-export const MOVEMENT = { ground: 0.13, stop: 0.067, air: 0.2, airStop: 0.53, over: 0.23 };
+// ещё ×1.3 быстрее (первая проба была 0.2 / 0.1 / 0.3 / 0.8 / 0.35, потом ×1.5)
+export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18 };
 // Маунт разгоняется дольше (тяжёлый зверь)
 export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
 
@@ -365,12 +369,12 @@ export function worldgenFor(size = 3, floating = false) {
 const PUNCH_REACH = 2.5;
 // Маунт (как в Heroes of the Storm): покупается один раз в магазине (раздел ПРОЧЕЕ), зовётся клавишей Z
 // мгновенно, исчезает от ЛЮБОГО урона по герою или по нему (таланты вкладки MOUNT: урон меньше 4 / 8 / 12 %
-// макс. HP героя не сбрасывает), после — перезарядка cooldown с. Верхом: speed м/с, с Shift — ×runMultiplier.
+// макс. HP героя не сбрасывает), после — перезарядка cooldown с. Верхом: speed м/с (галопа нет: Shift — способность).
 // Двуручное оружие в руках (twoHanded) — скакун тяжелеет: скорость ×heavy и без галопа. Скиллы движения оружия
 // (ИАЙ, отскок дробовика, разбег с копьём) — сначала слезаем, потом скилл. Молот верхом не бьёт под себя
 // (ATTACKS.hammerSwing: медленный взмах в сторону, слабее)
 export const MOUNT = {
-  price: 2500, cooldown: 10, speed: 7.5, runMultiplier: 1.45, jumpHeight: 1.1, seat: 0.75, heavy: 0.55,
+  price: 2500, cooldown: 10, speed: 8.5, runMultiplier: 1, jumpHeight: 1.1, seat: 0.75, heavy: 0.55,
   twoHanded: ["war-hammer", "spear", "rifle", "auto", "shotgun", "launcher", "crossbow"],
 };
 

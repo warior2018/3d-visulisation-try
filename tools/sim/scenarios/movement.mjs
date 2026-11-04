@@ -27,6 +27,14 @@ export default async function (t, g) {
   engine.input.keys.delete(S);
   await g.frames(Math.ceil(M.stop * 60) + 4);
   t.check("отпустил — остановился", hs() < 0.05, hs().toFixed(3));
+  // спринта нет: Shift зажат — скорость та же (на Shift — способность 3)
+  engine.input.keys.add(W);
+  engine.input.keys.add(E.KEYS.LSHIFT);
+  await g.frames(Math.ceil(M.ground * 60) + 6);
+  t.check("Shift — не бег (спринта нет)", Math.abs(hs() - scene.controller.speed * (p.speedMultiplier || 1)) < 0.3, hs().toFixed(2));
+  engine.input.keys.delete(E.KEYS.LSHIFT);
+  engine.input.keys.delete(W);
+  await g.frames(10);
   // мгновенный режим (0) — как раньше
   const keep = { ...scene.controller.accel };
   scene.controller.accel = null;

@@ -75,7 +75,7 @@ export class ShopPart {
         // Маунт — один раз навсегда (этот герой): Z — позвать, исчезает от урона (scene/mount.js)
         {
           id: "mount", name: "MOUNT", price: MOUNT.price, category: "other", when: () => !this.hasMount,
-          describe: () => `${Input.label(this.settings.controls.bindings.mount)} - CALL. +${Math.round((MOUNT.speed / PLAYER.speed - 1) * 100)}% SPEED, SHIFT - GALLOP. ANY HIT THROWS YOU OFF, THEN ${MOUNT.cooldown} S COOLDOWN. OPENS THE MOUNT TALENT TAB`,
+          describe: () => `${Input.label(this.settings.controls.bindings.mount)} - CALL. +${Math.round((MOUNT.speed / PLAYER.speed - 1) * 100)}% SPEED. ANY HIT THROWS YOU OFF, THEN ${MOUNT.cooldown} S COOLDOWN. OPENS THE MOUNT TALENT TAB`,
           canGive: () => true,
           give: () => {
             this.hasMount = true;

@@ -220,7 +220,8 @@ export class SettingsScene extends Scene {
 
   // Высота блока привязок (три колонки по 32 точки на строку) — для прокрутки
   bindingsHeight() {
-    return Math.ceil(Object.keys(this.engine.actionLabels).length / 3) * 32 + 16;
+    const labels = this.engine.actionLabels;
+    return Math.ceil(Object.keys(labels).filter((a) => labels[a]).length / 3) * 32 + 16;
   }
 
   // Колесо: прокрутить строки вкладки
@@ -235,7 +236,7 @@ export class SettingsScene extends Scene {
   drawBindings(ui, box, y, inside = () => true) {
     const labels = this.engine.actionLabels;
     const bindings = this.settings.data.controls.bindings;
-    const actions = Object.keys(labels);
+    const actions = Object.keys(labels).filter((a) => labels[a]); // игра скрыла действие (label: null) — не показываем
     const cols = 3;
     const perCol = Math.ceil(actions.length / cols);
     const colW = Math.floor(box.w / cols);
