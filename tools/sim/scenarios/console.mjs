@@ -3,6 +3,7 @@ export default async function (t, g) {
   const { scene, engine } = g;
   const con = engine.console;
   const last = () => con.lines.at(-1)?.text || "";
+  scene.cheats = true; // мир игрока мог быть без читов (копия его сохранения) — команды проверяем с читами
   await g.frames(5);
   con.exec("help");
   t.check("help — список команд", con.lines.some((l) => /COMMANDS:.*give/.test(l.text)));

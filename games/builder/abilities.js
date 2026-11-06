@@ -58,15 +58,21 @@ export class PistolAbility extends Ability {
     g.aiming = false;
   }
   primary(g) {
-    g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "Shoot", sound: "shot" });
+    // тяжёлый выстрел: свой звук и встряска картинки (прицел не сдвигается; отдача ствола — RECOIL_PISTOL)
+    if (g.useAttack(this.attack, { anim: "Shoot", bodyAnim: "Shoot", sound: "shotHeavy" })) g.shake?.add(ATTACKS.pistol.shake || 0);
   }
   action(name, g) {
     return name === "reload" && g.reloadWeapon(this); // R — перезарядить
   }
+  // Значок — «пустынный орёл»: длинный массивный затвор, тёмная рукоять, квадратная скоба
   drawIcon(ui, x, y, s) {
-    ui.rect(x + s * 0.2, y + s * 0.34, s * 0.6, s * 0.16, METAL); //  ствол
-    ui.rect(x + s * 0.24, y + s * 0.48, s * 0.17, s * 0.28, METAL); // рукоять
-    ui.rect(x + s * 0.74, y + s * 0.3, s * 0.05, s * 0.06, METAL); //  мушка
+    ui.rect(x + s * 0.12, y + s * 0.28, s * 0.72, s * 0.2, METAL); //        затвор
+    ui.rect(x + s * 0.14, y + s * 0.24, s * 0.66, s * 0.05, [120, 126, 138]); // ребро сверху
+    ui.rect(x + s * 0.2, y + s * 0.47, s * 0.2, s * 0.34, [70, 52, 42]); //  рукоять
+    ui.rect(x + s * 0.4, y + s * 0.47, s * 0.16, s * 0.04, METAL); //        скоба: низ
+    ui.rect(x + s * 0.54, y + s * 0.47, s * 0.04, s * 0.12, METAL); //       и перед
+    ui.rect(x + s * 0.12, y + s * 0.2, s * 0.06, s * 0.08, METAL); //        курок
+    ui.rect(x + s * 0.78, y + s * 0.2, s * 0.04, s * 0.05, METAL); //        мушка
   }
 }
 
