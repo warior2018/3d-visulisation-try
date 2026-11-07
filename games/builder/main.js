@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { watchModule, Engine, MenuScene, SettingsScene, ModelLibrary, Input, ChangelogScene, TextInputScene, IntroScene, NetServer, NetClient, localAddresses, DEFAULT_PORT, makeTheme, loadPNG, widgets } from "../../engine/index.js";
-import { GAME_DEFAULTS, GAME_ACTION_LABELS, GAMEPAD_ENABLED, CAMERA_MODES, SAVES, SOUNDS, THEME, THEMES, VIEW_DISTANCE } from "./config.js";
+import { GAME_DEFAULTS, GAME_ACTION_LABELS, GAMEPAD_ENABLED, CAMERA_MODES, SAVES, SOUNDS, THEME, THEMES, VIEW_DISTANCE, DRAW_DISTANCES } from "./config.js";
 import { GameScene } from "./game-scene.js";
 import { loadModels } from "./load-models.js";
 import { migrateOldSaves, touchWorld, setProfile } from "./save.js";
@@ -31,7 +31,7 @@ const engine = await Engine.create({
   defaults: GAME_DEFAULTS,
   actionLabels: GAME_ACTION_LABELS,
   theme: THEME, // вид окон и кнопок — свой у каждой игры
-  render: { fadeDist: VIEW_DISTANCE }, // дальность прорисовки (м)
+  render: { fadeDist: VIEW_DISTANCE, distances: DRAW_DISTANCES }, // дальность прорисовки (м): ступени — настройка DRAW DISTANCE
   // Записи обновлений: появилась новая версия — уведомление, в главном меню — кнопка «ОБНОВИТЬ»
   changelog: fileURLToPath(new URL("../../CHANGELOG.json", import.meta.url)),
 });

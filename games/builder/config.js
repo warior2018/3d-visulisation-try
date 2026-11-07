@@ -413,6 +413,10 @@ export const ATTACKS = {
   // Пистолет: дальний бой, мгновенный луч
   // Стрелковое оружие: обойма (magazine) не бесконечная — кончилась, перезарядка reloadTime секунд (R — вручную).
   // Запас патронов бесконечный.
+  // Дальность (range) и падение урона с расстоянием (falloff: [до скольких м полный, доля на range]):
+  //   пистолет 65 м (с 35 м слабеет до 70 %) · автомат 75 м (с 30 м — до 60 %, плюс отдача) · дробовик 28 м
+  //   (с 10 м — до 40 %: оружие вплотную) · арбалет 100 м (с 50 м — до 80 %) · снайперка 200 м БЕЗ падения —
+  //   её дело — дальний бой (дальше всех прорисовок: DRAW_DISTANCES до 120 м, в оптике видно всё, что прорисовано)
   // БАЛАНС 0.5x (урон в секунду с перезарядкой, без хедшотов и талантов; «толпа» — сумма по задетым):
   //   базовое (с 1 уровня, улучшения +10 % ×2):   пистолет 37/с · мачете 30/с (×2 = 60) · граната 33/с (×3 ≈ 100)
   //   второе (10 уровень, ~1.4–2× базового, улучшения +15 % ×3):
@@ -423,8 +427,8 @@ export const ATTACKS = {
   //   «освоить базовое» на 10 уровне: +70 % сразу и улучшения второго → 2.35× базового (пистолет ≈ 87/с) —
   //   наравне со вторым по одной цели (2-е с улучшениями — 1.45× своего), но без его площади
   // Мобы: скелет 50 HP + 2 за каждого следующего (к 10 уровню ≈ 200), после 400-го — вдвое медленнее (GROWTH_SOFTCAP)
-  pistol: { id: "pistol", name: "SHOT", damage: 28, range: 45, cooldown: 0.6, magazine: 7, reloadTime: 1.7, shake: 0.14 }, // «пустынный орёл»: редко, но больно (хедшот 56)
-  auto: { id: "auto", name: "BURST", damage: 10, range: 50, cooldown: 0.1, magazine: 30, reloadTime: 2.1 },
+  pistol: { id: "pistol", name: "SHOT", damage: 28, range: 65, falloff: [35, 0.7], cooldown: 0.6, magazine: 7, reloadTime: 1.7, shake: 0.14 }, // «пустынный орёл»: редко, но больно (хедшот 56)
+  auto: { id: "auto", name: "BURST", damage: 10, range: 75, falloff: [30, 0.6], cooldown: 0.1, magazine: 30, reloadTime: 2.1 },
   // Мачете: свои статы оружия — дальше достаёт и бьёт больнее, но медленнее кулака (раз в 1.4 с);
   // хитбокс шире кулака — задевает двоих. Таланты ближнего боя ускоряют её в процентах: 1.4 → 0.76 с
   machete: { id: "machete", name: "MACHETE SWING", damage: 42, reach: 2.9, cooldown: 1.4, arc: 80, maxTargets: 2 },
@@ -453,12 +457,12 @@ export const ATTACKS = {
   shotgunBlast: { id: "shotgun-blast", name: "BLAST JUMP", damage: 45, reach: 7, arc: 70, maxTargets: 6 },
   katana: { id: "katana", name: "KATANA SLASH", damage: 65, reach: 3.2, cooldown: 1.3, arc: 110, maxTargets: 6 }, // 65 каждому; ИАЙ — ×1.5 (талант — до ×3)
   // Снайперская винтовка: урон фиксированный (120, хедшот 240), бьёт далеко, но медленно перезаряжается
-  rifle: { id: "rifle", name: "SNIPER SHOT", damage: 120, range: 90, cooldown: 2.0, magazine: 5, reloadTime: 2.4 }, // 2 с: передёргиваем затвор
+  rifle: { id: "rifle", name: "SNIPER SHOT", damage: 120, range: 200, cooldown: 2.0, magazine: 5, reloadTime: 2.4 }, // 2 с: передёргиваем затвор
   // Арбалет: болт пробивает насквозь до 3 врагов на линии (каждому следующему — 80 % урона); после выстрела —
   // взвод (магазин 1). Один на один ~57/с, по толпе в ряд — до ~139/с
-  crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 85, range: 60, cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
+  crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 85, range: 100, falloff: [50, 0.8], cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
   // Дробовик (СТРЕЛОК, покупной): 8 дробин с разбросом, вблизи — 72 за выстрел (~63/с, если все попали)
-  shotgun: { id: "shotgun", name: "BUCKSHOT", damage: 9, range: 22, cooldown: 0.9, magazine: 6, reloadTime: 2.4, pellets: 8, spread: 0.06 },
+  shotgun: { id: "shotgun", name: "BUCKSHOT", damage: 9, range: 28, falloff: [10, 0.4], cooldown: 0.9, magazine: 6, reloadTime: 2.4, pellets: 8, spread: 0.06 },
   // Граната автомата (талант GRENADE): каждые every выстрелов — 200 % урона выстрела по площади
   grenade: { id: "grenade", name: "GRENADE", damage: 16, radius: 2.5, every: 15, speed: 22, cooldown: 0, cost: 0 },
   // Скелет: достаёт на 30 % ближе игрока (2.5 × 0.7), урон 5–10, замах 0.35 с (успел отойти — промах)
@@ -539,6 +543,9 @@ export const HEARING = { refDistance: 3, maxDistance: 45, rolloff: 1 };
 export const PROGRESSION = { curve: (level) => (50 + level * 50) * (level >= 45 ? 1.5 : 1), pointsPerLevel: 1, maxLevel: 60, xpMultiplier: 1.15 };
 // Дальность прорисовки, м (движок: GPURenderer fadeDist; было 60 — стало на 10 % дальше). От неё же — где появляются мобы
 export const VIEW_DISTANCE = 66;
+// Ступени дальности прорисовки и дымки (настройки → видео → DRAW DISTANCE): близко / средне / далеко, м.
+// Мобы появляются и живут по VIEW_DISTANCE — от настройки графики не зависит (у всех одинаково)
+export const DRAW_DISTANCES = [48, 72, 120];
 
 // Портрет героя (лицо в кружке слева внизу): череп скелета, нарисованный символами.
 // Каждый символ — цвет из PORTRAIT_PALETTE, «.» — прозрачно (виден фон кружка).

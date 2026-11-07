@@ -595,7 +595,7 @@ export class GameScene extends Scene {
 
     // Анимации: дальние — реже, невидимые — не считаем (движок: models.update near / far)
     profiler.begin(PROF.animation);
-    this.game.models.update(this.entities.list, dt, { center: player.position, near: 24, far: (engine.renderer?.fadeDist || 60) + 5 });
+    this.game.models.update(this.entities.list, dt, { center: player.position, near: 24, far: (engine.renderer?.viewDistance || 70) + 5 }); // анимировать — пока видно
     profiler.end(PROF.animation);
 
     // 4. Камера и прицел

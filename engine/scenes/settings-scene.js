@@ -21,6 +21,7 @@ import { Scene } from "../core/scene.js";
 import { Input } from "../input/input.js";
 import { drawBackground, drawDim } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";
+import { translate } from "../ui/i18n.js";
 
 const LANGUAGE_NAMES = { en: "ENGLISH", ru: "РУССКИЙ" }; // названия — всегда на своём языке
 export const RENDER_SCALES = [100, 90, 80, 75, 67, 50]; // % пикселей мира (интерфейс — всегда в полном разрешении)
@@ -97,6 +98,18 @@ export class SettingsScene extends Scene {
           { id: "renderScale", label: "RENDER SCALE", arrows: true,
             value: () => `${s.video.renderScale ?? 100}%`,
             change: (dir) => stepScale(dir) },
+          // дальность прорисовки и дымки: ступени игры (Engine.create render.distances); одна ступень — строки нет
+          ...((e.viewDistances?.length || 0) > 1 ? [{ id: "drawDistance", label: "DRAW DISTANCE", arrows: true,
+            value: () => {
+              const n = e.viewDistances.length, i = Math.max(0, Math.min(n - 1, s.video.drawDistance ?? 1));
+              const names = n === 3 ? ["SHORT", "MEDIUM", "FAR"] : null;
+              return (names ? translate(names[i]) : String(i + 1)) + " (" + e.viewDistances[i] + " M)"; // перевод — по слову, число — после
+            },
+            change: (dir) => {
+              const n = e.viewDistances.length;
+              s.video.drawDistance = ((s.video.drawDistance ?? 1) + (dir < 0 ? n - 1 : 1)) % n;
+              e.applySettings("drawDistance");
+            } }] : []),
           { id: "fullscreen", label: "FULLSCREEN", value: () => onOff(s.video.fullscreen),
             change: () => { s.video.fullscreen = !s.video.fullscreen; e.applySettings("fullscreen"); } },
           { id: "bright", label: "BRIGHTNESS", arrows: true, value: () => `${s.video.brightness}%`,

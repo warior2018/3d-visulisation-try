@@ -368,10 +368,13 @@ export class RangedAttack extends Attack {
   // ctx.aimSpread(range, spread) → { entity, part }); все дробины — один выстрел (ctx.use общий)
   // pierce — пробивает насквозь: до pierce целей на линии выстрела (арбалет), каждой следующей — pierceFalloff
   //   от урона предыдущей (луч даёт игра: ctx.aimLine(range, pierce) → [{ entity, part }] по порядку)
-  constructor({ range = 40, magazine = 0, reloadTime = 1.5, pellets = 1, spread = 0, pierce = 1, pierceFalloff = 0.8, ...rest }) {
+  // falloff — урон падает с расстоянием: [от скольких м, доля на дальности range] (например [30, 0.6]: до 30 м —
+  //   полный, к range — 60 %, между — плавно). null — без падения (снайперка)
+  constructor({ range = 40, magazine = 0, reloadTime = 1.5, pellets = 1, spread = 0, pierce = 1, pierceFalloff = 0.8, falloff = null, ...rest }) {
     super(rest);
     this.kind = "ranged";
     this.range = range;
+    this.falloff = falloff;
     this.pellets = pellets;
     this.pierce = pierce;
     this.pierceFalloff = pierceFalloff;
@@ -438,13 +441,23 @@ export class RangedAttack extends Attack {
     }
   }
 
+  // Доля урона по цели на её расстоянии (falloff); без него — 1
+  falloffAt(owner, target) {
+    const f = this.falloff;
+    if (!f || !owner?.position || !target?.position) return 1;
+    const d = Math.hypot(target.position.x - owner.position.x, target.position.y - owner.position.y, target.position.z - owner.position.z);
+    if (d <= f[0]) return 1;
+    const k = Math.min(1, (d - f[0]) / Math.max(1e-6, this.range - f[0]));
+    return 1 + (f[1] - 1) * k;
+  }
+
   perform(owner, ctx) {
     if (this.pellets > 1 && !ctx.target && ctx.aimSpread) {
       const hits = [];
       for (let i = 0; i < this.pellets; i++) {
         const aimed = ctx.aimSpread(this.range, this.spread);
         ctx.onShot?.(aimed, this); // каждая дробина — свой след пули (игра рисует трассер)
-        if (aimed?.entity) hits.push(...this.hitAll(owner, [aimed.entity], { ...ctx, part: aimed.part || null, use: ctx }));
+        if (aimed?.entity) hits.push(...this.hitAll(owner, [aimed.entity], { ...ctx, part: aimed.part || null, use: ctx, damageScale: (ctx.damageScale ?? 1) * this.falloffAt(owner, aimed.entity) }));
       }
       return { hits };
     }
@@ -455,7 +468,7 @@ export class RangedAttack extends Attack {
       const hits = [];
       let k = 1;
       for (const a of line) {
-        hits.push(...this.hitAll(owner, [a.entity], { ...ctx, part: a.part || null, damageScale: k }));
+        hits.push(...this.hitAll(owner, [a.entity], { ...ctx, part: a.part || null, damageScale: k * this.falloffAt(owner, a.entity) }));
         k *= this.pierceFalloff;
       }
       return { hits };
@@ -463,7 +476,9 @@ export class RangedAttack extends Attack {
     const aimed = ctx.target ? null : ctx.aim?.(this.range);
     if (!ctx.target) ctx.onShot?.(aimed, this); // выстрел по прицелу: игра рисует трассер и след на блоке
     const target = ctx.target || aimed?.entity || null;
-    return { hits: this.hitAll(owner, [target], aimed?.part ? { ...ctx, part: aimed.part } : ctx) };
+    const far = this.falloffAt(owner, target);
+    const c = far < 1 ? { ...ctx, damageScale: (ctx.damageScale ?? 1) * far } : ctx;
+    return { hits: this.hitAll(owner, [target], aimed?.part ? { ...c, part: aimed.part } : c) };
   }
 }
 
