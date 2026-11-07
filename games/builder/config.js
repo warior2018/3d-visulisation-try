@@ -613,7 +613,11 @@ export const CLIPS = { enabled: false, items: { pistol: "pistol-clip", auto: "au
 // в блок — чёрная точка на holeLife секунд
 // День и ночь (scene/daylight.js): сутки — length с; ночью картинка темнее до night (доля яркости),
 // рассвет и закат — по dusk доли суток. Выключить — настройки (DAY / NIGHT) или консоль daynight 0
-export const DAY = { length: 1200, night: 0.5, dusk: 0.08, start: 0.3 };
+export const DAY = { length: 900, night: 0.4, dusk: 0.08, start: 0.3 };
+// Солнце и луна (scene/daylight.js): кубики на небе (как в Minecraft) — distance м от камеры (ближе дальней
+// границы видимости 300 м), size — сторона. Ходят по кругу вокруг наклонённой оси (tilt — наклон к югу),
+// луна — ровно напротив солнца. День — полцикла (7.5 мин при length 900), ночь — другая половина, с переходами
+export const SKY_BODIES = { distance: 260, tilt: 0.38, sun: { size: 30, color: [255, 236, 150] }, moon: { size: 20, color: [214, 222, 240] } };
 
 // Вне боя (scene/out-of-combat.js): рядом (radius блоков) нет моба, охотящегося на героя, и delay с героя не
 // ранили мобы и он сам никого не ранил — бонусы: скорость +speed, регенерация ×regenMult

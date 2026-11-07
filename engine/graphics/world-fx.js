@@ -106,12 +106,8 @@ fn sky_fx_fs(in: ScreenOut) -> @location(0) vec4f {
   let star = step(0.9978, hash3(cell)) * (1.0 - day) * smoothstep(0.02, 0.2, dir.y);
   sky = sky + vec3f(star * 0.9);
 
-  // солнце и ореол
-  let sd = dot(dir, sun);
-  sky = sky + vec3f(1.0, 0.92, 0.75) * (smoothstep(0.9989, 0.9995, sd) * 1.2 + pow(toSun, 260.0) * 0.35) * smoothstep(-0.05, 0.05, sun.y);
-  // луна — напротив солнца
-  let md = dot(dir, -sun);
-  sky = mix(sky, vec3f(0.86, 0.89, 0.97), smoothstep(0.99925, 0.99965, md) * smoothstep(-0.05, 0.05, -sun.y));
+  // ореол вокруг солнца (сами солнце и луна — кубики на небе: игра рисует их частицами)
+  sky = sky + vec3f(1.0, 0.92, 0.75) * pow(toSun, 60.0) * 0.4 * smoothstep(-0.05, 0.05, sun.y);
 
   // облака: плоскость на высоте CLOUD_H, шум плывёт по ветру
   if (dir.y > 0.01 && u.clouds > 0.0) {

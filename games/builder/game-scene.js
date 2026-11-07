@@ -638,6 +638,7 @@ export class GameScene extends Scene {
     const arm = this.viewModel();
     if (arm) arm.light = this.lightHere(this.player.position, this.player); // под крышей рука темнее
     const vm = firstPerson && playing && !this.scoped && !this.onReins ? arm?.draw(camera) : null; // на поводьях — рук с оружием нет
+    this.updateSkyBodies(camera); // солнце и луна на небе (scene/daylight.js)
     return {
       camera,
       world: this.world,

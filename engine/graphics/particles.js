@@ -17,6 +17,9 @@ const MAX = 6000; // больше одновременно не держим (с
 export class Particles {
   constructor() {
     this.list = [];
+    // «Постоянные» кубики поверх частиц (солнце, луна): { x, y, z, size, color: [r, g, b] 0…255+, alpha } —
+    // игра ставит каждый кадр (sprites = [...]; pack()), не стареют
+    this.sprites = [];
     this.data = new Float32Array(256 * FLOATS_PER_PARTICLE);
     this.count = 0;
   }
@@ -71,7 +74,7 @@ export class Particles {
 
   // Данные для видеокарты: 8 чисел на частицу
   pack() {
-    const need = this.list.length * FLOATS_PER_PARTICLE;
+    const need = (this.list.length + this.sprites.length) * FLOATS_PER_PARTICLE;
     if (this.data.length < need) this.data = new Float32Array(Math.ceil(need * 1.5));
     const d = this.data;
     let o = 0;
@@ -83,7 +86,12 @@ export class Particles {
       d[o + 4] = p.color[0] / 255; d[o + 5] = p.color[1] / 255; d[o + 6] = p.color[2] / 255; d[o + 7] = a;
       o += FLOATS_PER_PARTICLE;
     }
-    this.count = this.list.length;
+    for (const sp of this.sprites) {
+      d[o] = sp.x; d[o + 1] = sp.y; d[o + 2] = sp.z; d[o + 3] = sp.size;
+      d[o + 4] = sp.color[0] / 255; d[o + 5] = sp.color[1] / 255; d[o + 6] = sp.color[2] / 255; d[o + 7] = sp.alpha ?? 1;
+      o += FLOATS_PER_PARTICLE;
+    }
+    this.count = this.list.length + this.sprites.length;
   }
 
   clear() {

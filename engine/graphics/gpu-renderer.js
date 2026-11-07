@@ -454,9 +454,15 @@ export class GPURenderer {
         },
         depthStencil: depthOnly,
       });
-      const skinLayout = this.skinPipeline.getBindGroupLayout(0);
+      // Своя (явная) раскладка: раскладку «auto» чужого конвейера (skinPipeline) другим конвейерам брать нельзя —
+      // WebGPU её не принимает (так весь модуль неба и теней и не собирался)
+      const U = (gpu.GPUShaderStage?.VERTEX ?? 1) | (gpu.GPUShaderStage?.FRAGMENT ?? 2); // видно вершинам и пикселям
+      const skinLayout = device.createBindGroupLayout({ entries: [
+        { binding: 0, visibility: U, buffer: { type: "uniform" } },
+        { binding: 3, visibility: U, buffer: { type: "uniform" } },
+      ] });
       const shadowSkin = device.createRenderPipeline({
-        layout: device.createPipelineLayout({ bindGroupLayouts: [skinLayout] }), // те же группы, что у персонажей
+        layout: device.createPipelineLayout({ bindGroupLayouts: [skinLayout] }),
         vertex: {
           module: baseModule, entryPoint: "skin_vs",
           buffers: [

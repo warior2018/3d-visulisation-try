@@ -4,7 +4,7 @@
 // ============================================================
 
 import { lightOf } from "../../../engine/index.js";
-import { DAY, LIGHTS } from "../config.js";
+import { DAY, LIGHTS, SKY_BODIES } from "../config.js";
 
 export class DaylightPart {
   // Свет в точке p (у головы): 0..1; освещение выключено в настройках — 1
@@ -29,13 +29,41 @@ export class DaylightPart {
     if (!r) return;
     const base = (this.settings.video?.brightness ?? 100) / 100;
     r.brightness = base * (on ? this.dayLight() : 1);
-    // солнце по небу (world-fx.js): встаёт на востоке (+X), в полдень — почти над головой, садится на западе
-    const t = on ? this.dayTime ?? DAY.start : 0.5;
+    // солнце по небу: встаёт на востоке (+X), в полдень — почти над головой, садится на западе
+    const sun = this.sunDir(on ? this.dayTime ?? DAY.start : 0.5);
+    const day = Math.max(0, Math.min(1, (sun[1] + 0.12) / 0.3));
+    r.setSky?.({ sun, day, base });
+  }
+
+  // Направление на солнце в момент суток t (0 — полночь, 0.25 — рассвет, 0.5 — полдень): круг вокруг оси,
+  // наклонённой на SKY_BODIES.tilt. Луна — ровно напротив (−sun)
+  sunDir(t) {
     const a = (t - 0.25) * Math.PI * 2;
-    const sun = [Math.cos(a) * 0.92, Math.sin(a), 0.38];
-    const l = Math.hypot(...sun);
-    const day = Math.max(0, Math.min(1, (sun[1] / l + 0.12) / 0.3));
-    r.setSky?.({ sun: sun.map((v) => v / l), day, base });
+    const v = [Math.cos(a), Math.sin(a), SKY_BODIES.tilt];
+    const l = Math.hypot(...v);
+    return v.map((x) => x / l);
+  }
+
+  // Каждый кадр перед рисованием: солнце и луна — кубики на небе вокруг камеры (частицы: глубина есть —
+  // горы их закрывают). Под горизонтом не видно; яркость — не гаснет вместе с ночью (подняли на 1 / яркость)
+  updateSkyBodies(camera) {
+    const fx = this.fx;
+    if (!fx?.pack || !camera) return; // сетевой гость: эффекты идут через FxRelay — без неба
+    if (this.settings.general.dayNight === false) {
+      fx.sprites = [];
+      return;
+    }
+    const B = SKY_BODIES, sun = this.sunDir(this.dayTime ?? DAY.start);
+    const k = 1 / Math.max(0.3, this.engine.renderer?.brightness ?? 1);
+    const at = (d, b, glow) => ({
+      x: camera.position.x + d[0] * B.distance, y: camera.position.y + d[1] * B.distance, z: camera.position.z + d[2] * B.distance,
+      size: b.size, color: b.color.map((c) => c * glow), alpha: Math.max(0, Math.min(1, (d[1] + 0.08) / 0.12)), // у горизонта — тает
+    });
+    const list = [];
+    if (sun[1] > -0.08) list.push(at(sun, B.sun, k));
+    if (-sun[1] > -0.08) list.push(at(sun.map((v) => -v), B.moon, k));
+    fx.sprites = list;
+    fx.pack();
   }
 
   // Светящиеся блоки мира (LIGHTS): лампы из палитры, факелы, крышка сундука
