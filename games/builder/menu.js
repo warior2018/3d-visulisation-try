@@ -520,10 +520,18 @@ export class MainMenu extends Scene {
     }));
   }
 
-  // клик по кругляшу: боковой — повернуть к нему
+  // клик по кругляшу: боковой — повернуть к нему; центральный «+» (уже доехал до центра) — создать мир
   onMouseDown({ x, y }) {
     if (this.tab !== "play") return false;
     const order = this.order();
+    const c = order[0], ac = c && this.anim.get(c.id);
+    if (c?.create && ac && (x - ac.x) ** 2 + (y - ac.y) ** 2 <= ac.r * ac.r) {
+      const t = this.slot(this.engine.ui, 0);
+      if (Math.abs(ac.x - t.x) < 4 && Math.abs(ac.r - t.r) < 4) { // ещё едет к центру — не считается
+        this.newWorld();
+        return true;
+      }
+    }
     for (let i = 1; i < Math.min(3, order.length); i++) {
       const a = this.anim.get(order[i].id);
       if (a && (x - a.x) ** 2 + (y - a.y) ** 2 <= a.r * a.r) {
