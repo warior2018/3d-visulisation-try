@@ -9,6 +9,8 @@ export default async function (t, g) {
   const el = scene.spawn("skeleton", at(30, 3));
   scene.makeElite(el, "healer");
   t.check("элита крепче и больше", el.stats.maxHp === Math.round(base.stats.maxHp * C.ELITE.hp) && el.scale > (base.scale ?? 1));
+  const hb = (e) => e.hitboxes.find((h) => h.id === "head");
+  t.check("голова элиты — выше и больше (по модели)", Math.abs(hb(el).max[1] - hb(base).max[1] * C.ELITE.scale) < 1e-9 && Math.abs(el.height - base.height * C.ELITE.scale) < 1e-9);
   t.check("гарантированная вещь не ниже RARE", (() => { for (let i = 0; i < 20; i++) { const r = scene.rollGear(el); if (!r || r.rarity === "common") return false; } return true; })());
   // лекарь лечит соседа
   base.stats.hp = 10;

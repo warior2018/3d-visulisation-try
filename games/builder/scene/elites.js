@@ -27,6 +27,10 @@ export class ElitesPart {
     e.stats.maxHp = Math.round(e.stats.maxHp * E.hp);
     e.stats.hp = e.stats.maxHp;
     e.scale = (e.scale ?? 1) * E.scale;
+    // модель больше — и тело, и голова больше: хедшот — по настоящей голове, а не по шее
+    e.height = (e.height ?? 1.8) * E.scale;
+    e.radius = (e.radius ?? 0.3) * E.scale;
+    e.hitboxes = (e.hitboxes || []).map((h) => ({ ...h, min: h.min.map((v) => v * E.scale), max: h.max.map((v) => v * E.scale) }));
     e.xp = Math.round((e.xp || 0) * E.xp);
     const scale = (d) => Math.round(d * E.damage);
     if (e.attack) e.attack.damage = Array.isArray(e.attack.damage) ? e.attack.damage.map(scale) : scale(e.attack.damage);

@@ -8,6 +8,7 @@
 import gpu from "@kmamal/gpu";
 import { SHADERS } from "./shaders.js";
 import { worldFxShader } from "./world-fx.js";
+import { MOTION_SHADER, motionVelocity } from "./motion-blur.js";
 
 const DEPTH_FORMAT = "depth24plus";
 import { PARTICLE_SHADER, FLOATS_PER_PARTICLE } from "./particles.js";
@@ -36,6 +37,7 @@ export class GPURenderer {
     renderer.gpuFlags = flags;
     await renderer.initParticles(); // частицы с глубиной — если шейдер не собрался, без них (эффекты — плоские)
     await renderer.initWorldFx(); //   небо с солнцем, луной и облаками, свет ламп — не собралось: как раньше
+    await renderer.initMotionBlur(); // размытие в движении — не собралось: без него
     return renderer;
   }
 
@@ -396,6 +398,33 @@ export class GPURenderer {
     return this.fadeDist * 1.15;
   }
 
+  // Размытие в движении (motion-blur.js): свой модуль под ловушкой ошибок
+  async initMotionBlur() {
+    const device = this.device;
+    let scoped = false;
+    try {
+      device.pushErrorScope?.("validation");
+      scoped = !!device.pushErrorScope;
+      const module = device.createShaderModule({ code: MOTION_SHADER });
+      const pipeline = device.createRenderPipeline({
+        layout: "auto",
+        vertex: { module, entryPoint: "motion_vs" },
+        fragment: { module, entryPoint: "motion_fs", targets: [{ format: this.format || this.output.getPreferredFormat() }] },
+        depthStencil: { format: DEPTH_FORMAT, depthWriteEnabled: false, depthCompare: "always" },
+      });
+      const buffer = device.createBuffer({ size: 16, usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST });
+      scoped = false;
+      const err = device.popErrorScope ? await device.popErrorScope() : null;
+      if (err) throw new Error(err.message || String(err));
+      Object.assign(this, { motionPipeline: pipeline, motionBuffer: buffer, motionData: new Float32Array(4) });
+    } catch (e) {
+      if (scoped) try { await device.popErrorScope(); } catch {}
+      this.motionPipeline = null;
+      this.motionError = e.message;
+      console.warn("Размытие в движении недоступно:", e.message);
+    }
+  }
+
   // Небо и свет мира «посложнее» (world-fx.js): свой модуль под ловушкой ошибок. Не собрался — как раньше
   async initWorldFx() {
     const device = this.device;
@@ -661,7 +690,16 @@ export class GPURenderer {
     // (картинка мира меньше экрана — быстрее; потом растягиваем на экран тем же blur_fs, без размытия).
     // Интерфейс — всегда в полном разрешении экрана
     const scale = camera ? Math.max(0.3, Math.min(1, this.renderScale ?? 1)) : 1;
-    const blurOn = !!(camera && (blur || scale < 0.999));
+    // Размытие в движении: скорость картинки от поворота камеры (прицел с размытием оптики — без него)
+    let motion = null;
+    if (camera && this.motionPipeline && (this.motionBlur || 0) > 0 && !blur) {
+      const now = performance.now();
+      const dt = this.prevCam ? (now - this.prevCam.time) / 1000 : 0;
+      const v = motionVelocity(this.prevCam, camera, dt, this.motionBlur, width / height);
+      if (Math.hypot(v[0], v[1]) > 0.0015) motion = v;
+      this.prevCam = { yaw: camera.yaw, pitch: camera.pitch, time: now };
+    } else this.prevCam = null;
+    const blurOn = !!(camera && (blur || scale < 0.999 || motion));
     const rw = blurOn ? Math.max(1, Math.round(width * scale)) : width;
     const rh = blurOn ? Math.max(1, Math.round(height * scale)) : height;
     if (blurOn) this.prepareBlur(blur, rw, rh);
@@ -773,8 +811,16 @@ export class GPURenderer {
         depthStencilAttachment: { view: this.depthTexture.createView(), depthClearValue: 1, depthLoadOp: "clear", depthStoreOp: "store" },
       });
       pass.setViewport(0, 0, width, height, 0, 1);
-      pass.setPipeline(this.blurPipeline);
-      pass.setBindGroup(0, this.blurBind);
+      if (motion && this.motionBind) {
+        this.motionData[0] = motion[0];
+        this.motionData[1] = motion[1];
+        device.queue.writeBuffer(this.motionBuffer, 0, this.motionData);
+        pass.setPipeline(this.motionPipeline);
+        pass.setBindGroup(0, this.motionBind);
+      } else {
+        pass.setPipeline(this.blurPipeline);
+        pass.setBindGroup(0, this.blurBind);
+      }
       pass.draw(3);
     }
 
@@ -816,6 +862,15 @@ export class GPURenderer {
           { binding: 5, resource: this.sceneView },
         ],
       });
+      // размытие в движении — та же картинка мира
+      this.motionBind = this.motionPipeline ? this.device.createBindGroup({
+        layout: this.motionPipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: this.motionBuffer } },
+          { binding: 1, resource: this.sceneSampler },
+          { binding: 2, resource: this.sceneView },
+        ],
+      }) : null;
     }
     const m = Math.min(width, height);
     if (!b) this.blurData.set([0.5, 0.5, 1e6, 1, width, height, 0, 0]); // без размытия: везде «резко»

@@ -45,7 +45,7 @@ export { TuneScene, autoStep } from "./scenes/tune-scene.js";
 export { DialogScene } from "./scenes/dialog-scene.js";
 export { SummaryScene } from "./scenes/summary-scene.js";
 export { CrashScene, crashReport } from "./scenes/crash-scene.js";
-export { SettingsScene, RESOLUTIONS, RENDER_SCALES, windowSizes } from "./scenes/settings-scene.js";
+export { SettingsScene, RESOLUTIONS, RENDER_SCALES, GRAPHICS_PRESETS, windowSizes } from "./scenes/settings-scene.js";
 export { InventoryScene } from "./scenes/inventory-scene.js";
 export { TalentScene } from "./scenes/talent-scene.js";
 export { MapScene } from "./scenes/map-scene.js";

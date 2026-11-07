@@ -23,7 +23,13 @@ import { drawBackground, drawDim } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";
 
 const LANGUAGE_NAMES = { en: "ENGLISH", ru: "РУССКИЙ" }; // названия — всегда на своём языке
-export const RENDER_SCALES = [100, 90, 80, 75, 67, 50]; // % пикселей мира (интерфейс — всегда в полном разрешении)
+export const RENDER_SCALES = [100, 90, 80, 75, 67, 50];
+// Наборы графики (вкладка ГРАФИКА → КАЧЕСТВО): низкие / средние / высокие. Поменял что-то вручную — «СВОИ»
+export const GRAPHICS_PRESETS = {
+  low: { drawDistance: 0, lighting: true, sky: false, clouds: false, shadows: "off", motionBlur: "off", renderScale: 75 },
+  medium: { drawDistance: 1, lighting: true, sky: true, clouds: true, shadows: "simple", motionBlur: "off", renderScale: 100 },
+  high: { drawDistance: 2, lighting: true, sky: true, clouds: true, shadows: "real", motionBlur: "low", renderScale: 100 },
+}; // % пикселей мира (интерфейс — всегда в полном разрешении)
 export const RESOLUTIONS = [[960, 600], [1280, 720], [1280, 800], [1440, 900], [1600, 900], [1680, 1050], [1920, 1080], [1920, 1200], [2560, 1440], [3840, 2160]];
 
 // Размеры окна для этого экрана: из списка — что помещается в рабочую область, плюс сама рабочая область
@@ -112,6 +118,18 @@ export class SettingsScene extends Scene {
         id: "graphics",
         label: "GRAPHICS",
         rows: [
+          // набор: всё сразу (дальность, свет, небо, облака, тени, размытие, масштаб рендера)
+          { id: "quality", label: "QUALITY", arrows: true,
+            value: () => ({ low: "LOW", medium: "MEDIUM", high: "HIGH" })[g.quality] || "CUSTOM",
+            change: (dir) => {
+              const list = ["low", "medium", "high"], i = list.indexOf(g.quality);
+              const next = list[i < 0 ? (dir < 0 ? 2 : 0) : (i + (dir < 0 ? 2 : 1)) % 3];
+              const p = GRAPHICS_PRESETS[next];
+              Object.assign(g, { ...p, quality: next });
+              delete g.renderScale;
+              s.video.renderScale = p.renderScale;
+              e.applySettings("all");
+            } },
           // дальность прорисовки и дымки: ступени игры (Engine.create render.distances); одна ступень — строки нет
           ...((e.viewDistances?.length || 0) > 1 ? [{ id: "drawDistance", label: "DRAW DISTANCE", arrows: true,
             value: () => {
@@ -131,6 +149,14 @@ export class SettingsScene extends Scene {
             change: () => { g.sky = g.sky === false; e.applySettings("sky"); } },
           { id: "clouds", label: "CLOUDS", value: () => onOff(g.clouds !== false),
             change: () => { g.clouds = g.clouds === false; e.applySettings("sky"); } },
+          // размытие в движении: при резком повороте камеры картинка смазывается
+          { id: "motionBlur", label: "MOTION BLUR", arrows: true,
+            value: () => (e.renderer.motionPipeline === null ? "N/A" : ({ off: "OFF", low: "LOW", high: "HIGH" })[g.motionBlur] || "OFF"),
+            change: (dir) => {
+              const list = ["off", "low", "high"], i = Math.max(0, list.indexOf(g.motionBlur));
+              g.motionBlur = list[(i + (dir < 0 ? 2 : 1)) % 3];
+              e.applySettings("motionBlur");
+            } },
           // тени: настоящие (карта теней, нужна SKY AND LAMP LIGHT) / простые (в блоках) / выкл
           { id: "shadows", label: "SHADOWS", arrows: true,
             value: () => ({ real: "REAL", simple: "SIMPLE", off: "OFF" })[g.shadows] || "REAL",
@@ -302,6 +328,8 @@ export class SettingsScene extends Scene {
     if (kind === "row") {
       const tab = this.tabs.find((t) => t.id === this.tab);
       tab.rows.find((r) => r.id === arg).change(Number(dir));
+      // поменяли графику вручную — набор уже «свой»
+      if ((this.tab === "graphics" && arg !== "quality") || arg === "renderScale") (this.settings.data.graphics ||= {}).quality = "custom";
       this.settings.save();
     }
     if (kind === "reset") {

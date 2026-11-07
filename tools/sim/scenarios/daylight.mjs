@@ -3,6 +3,7 @@ export default async function (t, g) {
   const { scene, engine } = g;
   const p = g.player;
   const m = scene.game.models;
+  engine.settings.data.graphics.lighting = true; // настройки — копия настроек игрока (мог выключить свет)
   t.check("модели знают свет мира", typeof m.lightAt === "function");
   const open = scene.lightHere(p.position, p);
   // крыша над головой
