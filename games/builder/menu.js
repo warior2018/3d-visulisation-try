@@ -23,8 +23,8 @@ import { listWorlds, createWorld, deleteWorld, updateWorld, touchWorld, MAX_WORL
 const ICONS_DIR = fileURLToPath(new URL("./assets/world-icons/", import.meta.url));
 // Верхняя полоса (как в Overwatch): ИГРАТЬ — крупно по центру; вкладки слева прилипают к левому краю,
 // маленькие кнопки-значки — к правому (новости, друзья, настройки). ESC — меню: настройки / новости / выход.
-// Сетевая игра пока закрыта (персонажи по id, позже — аккаунты): вкладки MULTIPLAYER нет
-const LEFT_TABS = [{ id: "skins", label: "SKINS" }];
+// MULTIPLAYER — сетевая игра (тестовая): хост — последний мир, гость — по адресу (Tailscale / одна Wi-Fi)
+const LEFT_TABS = [{ id: "skins", label: "SKINS" }, { id: "multiplayer", label: "MULTIPLAYER" }];
 const ICON_TABS = [
   { id: "news", label: "WHAT'S NEW", icon: "news" },
   { id: "friends", label: "FRIENDS", icon: "friends", soon: true },
