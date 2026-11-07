@@ -84,7 +84,7 @@ export default async function (t, g) {
     ready(a);
     scene.updateRig();
     a.primary(scene);
-    await g.frames(2);
+    await g.frames(12); // болт — снаряд: до 8 м летит ~0.1 с
     const lost = row.map((e) => 5000 - e.stats.hp);
     t.check("арбалет: болт пробил всех троих", lost.every((n) => n > 0), lost.join(" / "));
     t.check("арбалет: каждому следующему — меньше", lost[0] > lost[1] && lost[1] > lost[2], lost.join(" / "));

@@ -46,6 +46,7 @@ export function loadModels(models) {
   // Оружие «для мира» — в руке героя от 3-го лица (tools/make-weapons.js)
   for (const w of ["pistol", "rifle", "crossbow", "auto", "shotgun", "machete", "war-hammer", "spear", "katana", "katana-sheathed", "katana-saya", "grenade", "dynamite", "launcher", "medkit", "builder", "hammer", "fire-staff", "frost-wand", "bear-trap", "spikes", "bone", "stone", "knife"]) models.load(`w-${w}`, path.join(ASSETS, `w-${w}.glb`));
   models.load("item-knife", path.join(ASSETS, "knife.glb"));
+  models.load("item-bolt", path.join(ASSETS, "bolt.glb")); // болт арбалета в полёте
   models.load("item-dynamite-lit", path.join(ASSETS, "w-dynamite.glb")); // брошенный динамит лежит с горящим фитилём // нож, брошенный мобом-стрелком (снаряд)
   // Блок в руке — по модели на каждый цвет палитры: розовую «метку» перекрашиваем в цвет
   PALETTE.forEach((color, i) => {

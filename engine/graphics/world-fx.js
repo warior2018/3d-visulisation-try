@@ -170,7 +170,13 @@ fn shadowVis(world: vec3f, n: vec3f) -> f32 {
   if (u.shadowOn < 0.5) {
     return 1.0;
   }
-  let d = world + n * 0.06 - u.sCamPos;
+  // сдвиг от грани по нормали (чем косее солнце к грани — тем больше): иначе грань сама себя «затеняет»
+  // полосками (shadow acne — те самые линии на траве)
+  // Пробы вокруг (PCF) берут глубину дальше от точки — сдвиг растёт с их числом (иначе чем выше качество
+  // света, тем больше полос)
+  let sunN = max(dot(n, normalize(u.sunDir)), 0.0);
+  let kr = clamp(u.sPcf, 0.0, 2.0);
+  let d = world + n * (0.1 + 0.11 * kr + 0.3 * (1.0 - sunN)) - u.sCamPos;
   let cy = cos(u.sYaw);
   let sy = sin(u.sYaw);
   let x1 = d.x * cy - d.z * sy;
@@ -187,7 +193,7 @@ fn shadowVis(world: vec3f, n: vec3f) -> f32 {
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || ndc.z > 1.0) {
     return 1.0;
   }
-  let depthRef = ndc.z - 0.0002;
+  let depthRef = ndc.z - (0.0003 + 0.00025 * kr);
   let r = clamp(i32(u.sPcf + 0.5), 0, 2);
   let stepK = u.sTexel * select(1.5, 1.0, r == 2); // 5×5 — плотнее, тот же размер пятна мягкости
   var sum = 0.0;

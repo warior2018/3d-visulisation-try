@@ -37,6 +37,28 @@ export class CombatPart {
 
   // То же, но подробно: { entity, part } — part — часть тела (голова — хедшот) или null
   // spread — разброс (радианы): луч чуть в сторону от прицела (дробь дробовика)
+  // Снаряд героя (ATTACKS.*.projectile: арбалет): из глаз по прицелу, слабая тяжесть, насквозь — attack.pierce
+  // целей (каждой следующей — pierceFalloff), урон падает с расстоянием (falloff), хедшот — по хитбоксам
+  launchBolt(attack, owner) {
+    const P = attack.projectile, cam = this.rig.camera;
+    const dir = cam.lookDirection();
+    const from = cam.position.add(dir.scale(0.6));
+    let n = 0;
+    this.projectiles.launch({
+      owner, position: from, velocity: dir.scale(P.speed), gravity: P.gravity, spin: 0, maxLife: 4,
+      item: "bolt", attack, pierce: Math.max(0, (attack.pierce || 1) - 1),
+      onHit: (p, hit) => {
+        const k = Math.pow(attack.pierceFalloff ?? 0.8, n++) * attack.falloffAt(owner, hit.entity);
+        attack.hit(owner, hit.entity, this.combatContext({ part: hit.part, damageScale: k, onHit: (r) => this.onPlayerHit(r) }));
+        this.engine.sound.play("hit", { at: hit.entity.position });
+      },
+      onLand: (p) => {
+        this.engine.sound.play("pickup", { at: p.position, volume: 0.5 });
+        this.sparkFx?.(p.position);
+      },
+    });
+  }
+
   aimedHit(reach, spread = 0) {
     const cam = this.rig.camera;
     const origin = cam.position;
@@ -86,7 +108,8 @@ export class CombatPart {
     return {
       aim: (range) => this.aimedHit(range), // { entity, part } — part: голова → хедшот
       aimSpread: (range, spread) => this.aimedHit(range, spread), // дробь: луч с разбросом
-      aimLine: (range, max) => this.aimedLine(range, max), //          насквозь (арбалет): все на линии до стены
+      aimLine: (range, max) => this.aimedLine(range, max), //          насквозь: все на линии до стены
+      launch: (attack, owner) => this.launchBolt(attack, owner), //   снаряд (арбалет): летит по дуге
       onShot: (_, attack) => this.bulletTrace(attack?.id), // выстрел: трассер (по оружию) и след на блоке
       entities: this.entities.list,
       // Удар по хитбоксу не бьёт сквозь стены

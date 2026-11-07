@@ -458,9 +458,10 @@ export const ATTACKS = {
   katana: { id: "katana", name: "KATANA SLASH", damage: 65, reach: 3.2, cooldown: 1.3, arc: 110, maxTargets: 6 }, // 65 каждому; ИАЙ — ×1.5 (талант — до ×3)
   // Снайперская винтовка: урон фиксированный (120, хедшот 240), бьёт далеко, но медленно перезаряжается
   rifle: { id: "rifle", name: "SNIPER SHOT", damage: 120, range: 200, cooldown: 2.0, magazine: 5, reloadTime: 2.4 }, // 2 с: передёргиваем затвор
-  // Арбалет: болт пробивает насквозь до 3 врагов на линии (каждому следующему — 80 % урона); после выстрела —
+  // Арбалет: болт — снаряд (летит 80 м/с и слегка падает: на 100 м — ~3 м ниже; целься выше вдаль),
+  // пробивает насквозь до 3 врагов на линии (каждому следующему — 80 % урона); после выстрела —
   // взвод (магазин 1). Один на один ~57/с, по толпе в ряд — до ~139/с
-  crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 85, range: 100, falloff: [50, 0.8], cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
+  crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 85, range: 100, falloff: [50, 0.8], projectile: { speed: 80, gravity: 4 }, cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
   // Дробовик (СТРЕЛОК, покупной): 8 дробин с разбросом, вблизи — 72 за выстрел (~63/с, если все попали)
   shotgun: { id: "shotgun", name: "BUCKSHOT", damage: 9, range: 28, falloff: [10, 0.4], cooldown: 0.9, magazine: 6, reloadTime: 2.4, pellets: 8, spread: 0.06 },
   // Граната автомата (талант GRENADE): каждые every выстрелов — 200 % урона выстрела по площади

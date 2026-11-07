@@ -44,7 +44,7 @@ fn motion_fs(in: MoOut) -> @location(0) vec4f {
 `;
 
 const SHUTTER = 1 / 60; // «выдержка», с: смаз — сколько картинка сдвинется за это время (не зависит от FPS)
-const MAX = 0.06; //      не больше 6 % экрана
+const MAX = 0.025; //     не больше 2.5 % экрана
 
 // Скорость картинки от поворота камеры (рад/с → доли экрана за выдержку). prev — { yaw, pitch } прошлого кадра
 export function motionVelocity(prev, camera, dt, strength = 1, aspect = 16 / 9) {

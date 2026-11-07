@@ -474,7 +474,7 @@ export class Engine {
     }
     if (all || what === "lightQuality") this.renderer.setLightQuality?.(gr.lightQuality);
     if (all || what === "glare") this.renderer.glare = gr.glare !== false ? 1 : 0;
-    if (all || what === "motionBlur") this.renderer.motionBlur = { off: 0, low: 0.5, high: 1 }[gr.motionBlur] ?? 0;
+    if (all || what === "motionBlur") this.renderer.motionBlur = { off: 0, low: 0.18, high: 0.4 }[gr.motionBlur] ?? 0; // доля «выдержки» 1/60 с: лёгкий смаз
     if (all || what === "shadows") this.renderer.shadowMode = ["real", "simple", "off"].includes(gr.shadows) ? gr.shadows : "real";
     if ((all || what === "drawDistance") && this.viewDistances) {
       const i = Math.max(0, Math.min(this.viewDistances.length - 1, Math.round(gr.drawDistance ?? 1)));
@@ -1009,6 +1009,6 @@ export class Engine {
       try { this.window.destroy?.(); } catch {}
       process.exit(code);
     }
-    process.kill(process.pid, "SIGKILL");
+    process.kill(process.pid, 9); // SIGKILL
   }
 }

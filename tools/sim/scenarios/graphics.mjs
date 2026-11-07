@@ -27,7 +27,7 @@ export default async function (t, g) {
   // наборы: низкие / средние / высокие — всё сразу; поменял вручную — «свои»
   gr.quality = "medium";
   st.onButton("row:quality:1");
-  t.check("набор ВЫСОКИЕ: дальняя, настоящие тени, размытие", gr.quality === "high" && gr.drawDistance === 2 && gr.shadows === "real" && gr.motionBlur === "low" && engine.renderer.motionBlur === 0.5);
+  t.check("набор ВЫСОКИЕ: дальняя, настоящие тени, размытие", gr.quality === "high" && gr.drawDistance === 2 && gr.shadows === "real" && gr.motionBlur === "low" && engine.renderer.motionBlur > 0);
   st.onButton("row:quality:1");
   t.check("НИЗКИЕ: близкая, без теней, без неба, масштаб 75 %", gr.quality === "low" && gr.drawDistance === 0 && gr.shadows === "off" && gr.sky === false && engine.settings.data.video.renderScale === 75 && engine.renderer.fadeDist === C.DRAW_DISTANCES[0]);
   st.onButton("row:clouds:1");
@@ -35,14 +35,14 @@ export default async function (t, g) {
   st.onButton("row:quality:1");
   t.check("из «своих» — снова набор", gr.quality === "low");
   st.onButton("row:motionBlur:1");
-  t.check("размытие в движении: выкл → слабое", gr.motionBlur === "low" && engine.renderer.motionBlur === 0.5);
+  t.check("размытие в движении: выкл → слабое", gr.motionBlur === "low" && engine.renderer.motionBlur > 0);
   // скорость смаза: повернул камеру за кадр — смаз вдоль поворота, стоишь — нет
   const { motionVelocity } = await import(path.join(g.root, "engine", "graphics", "motion-blur.js"));
   const cam = { yaw: 0.05, pitch: 0, fov: Math.PI / 2 };
   const v = motionVelocity({ yaw: 0, pitch: 0 }, cam, 1 / 60, 1, 16 / 9);
   t.check("поворот — смаз по горизонтали", v[0] > 0.005 && Math.abs(v[1]) < 1e-9, v.map((x) => x.toFixed(4)).join(","));
   t.check("стоишь — смаза нет", motionVelocity({ yaw: 0.05, pitch: 0 }, cam, 1 / 60, 1)[0] === 0);
-  t.check("резкий разворот — не больше 6 % экрана", Math.hypot(...motionVelocity({ yaw: 0, pitch: 0 }, { ...cam, yaw: 2 }, 1 / 60, 1)) <= 0.0600001);
+  t.check("резкий разворот — не больше 2.5 % экрана", Math.hypot(...motionVelocity({ yaw: 0, pitch: 0 }, { ...cam, yaw: 2 }, 1 / 60, 1)) <= 0.0250001);
   // качество света: лучи тени; блик солнца
   gr.quality = "medium"; st.onButton("row:quality:-1");
   t.check("НИЗКИЕ: 1 луч тени, без блика", gr.quality === "low" && gr.lightQuality === "low" && gr.glare === false && engine.renderer.glare === 0);

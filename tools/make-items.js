@@ -47,6 +47,13 @@ const knife = [
   box([0, 0.02, -0.06], [0.04, 0.035, 0.11], [0.2, 0.16, 0.14]),
   box([0, 0.015, 0.07], [0.05, 0.012, 0.16], [0.78, 0.8, 0.85]),
 ];
+// Болт арбалета в полёте: древко вдоль +Z, наконечник впереди, оперение сзади
+const bolt = [
+  box([0, 0, 0], [0.014, 0.014, 0.44], [0.55, 0.42, 0.26]),
+  box([0, 0, 0.24], [0.022, 0.022, 0.05], [0.72, 0.74, 0.78]),
+  box([0, 0, -0.19], [0.05, 0.004, 0.07], [0.85, 0.85, 0.82]),
+  box([0, 0, -0.19], [0.004, 0.05, 0.07], [0.85, 0.85, 0.82]),
+];
 // Капкан: железное основание, тарелка-нажимка посередине, две зубчатые челюсти (раскрыты)
 const IRON = [0.32, 0.3, 0.28];
 const JAW = [0.62, 0.62, 0.64];
@@ -115,6 +122,7 @@ writeGLB(out("turret.glb"), buildGLB({ name: "Turret", generator: "VOID tools/ma
 writeGLB(out("spore.glb"), buildGLB({ name: "Spore", generator: "VOID tools/make-items.js", bones: BONES, parts: spore, animations: ANIMATIONS }));
 writeGLB(out("magma.glb"), buildGLB({ name: "Magma", generator: "VOID tools/make-items.js", bones: BONES, parts: magma, animations: ANIMATIONS }));
 writeGLB(out("grenade.glb"), buildGLB({ name: "Grenade", generator: "VOID tools/make-items.js", bones: BONES, parts: grenade, animations: ANIMATIONS }));
+writeGLB(out("bolt.glb"), buildGLB({ name: "Bolt", generator: "VOID tools/make-items.js", bones: BONES, parts: bolt, animations: ANIMATIONS }));
 writeGLB(out("knife.glb"), buildGLB({ name: "Knife", generator: "VOID tools/make-items.js", bones: BONES, parts: knife, animations: ANIMATIONS }));
 writeGLB(out("bear-trap.glb"), buildGLB({ name: "BearTrap", generator: "VOID tools/make-items.js", bones: BONES, parts: bearTrap, animations: ANIMATIONS }));
 writeGLB(out("spikes.glb"), buildGLB({ name: "Spikes", generator: "VOID tools/make-items.js", bones: BONES, parts: spikes, animations: ANIMATIONS }));

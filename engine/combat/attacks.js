@@ -370,11 +370,14 @@ export class RangedAttack extends Attack {
   //   от урона предыдущей (луч даёт игра: ctx.aimLine(range, pierce) → [{ entity, part }] по порядку)
   // falloff — урон падает с расстоянием: [от скольких м, доля на дальности range] (например [30, 0.6]: до 30 м —
   //   полный, к range — 60 %, между — плавно). null — без падения (снайперка)
-  constructor({ range = 40, magazine = 0, reloadTime = 1.5, pellets = 1, spread = 0, pierce = 1, pierceFalloff = 0.8, falloff = null, ...rest }) {
+  // projectile — не мгновенный луч, а снаряд: { speed, gravity } (м/с, падение м/с²) — летит по дуге,
+  //   выпускает его игра (ctx.launch(attack, owner)); попадания считает тот, кто ведёт снаряды
+  constructor({ range = 40, magazine = 0, reloadTime = 1.5, pellets = 1, spread = 0, pierce = 1, pierceFalloff = 0.8, falloff = null, projectile = null, ...rest }) {
     super(rest);
     this.kind = "ranged";
     this.range = range;
     this.falloff = falloff;
+    this.projectile = projectile;
     this.pellets = pellets;
     this.pierce = pierce;
     this.pierceFalloff = pierceFalloff;
@@ -452,6 +455,10 @@ export class RangedAttack extends Attack {
   }
 
   perform(owner, ctx) {
+    if (this.projectile && !ctx.target && ctx.launch) {
+      ctx.launch(this, owner); // снаряд: летит сам, попадёт позже
+      return { hits: [] };
+    }
     if (this.pellets > 1 && !ctx.target && ctx.aimSpread) {
       const hits = [];
       for (let i = 0; i < this.pellets; i++) {
