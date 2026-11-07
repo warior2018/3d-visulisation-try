@@ -102,8 +102,11 @@ if (last.code === 0 && tries.length === 1) process.exit(0); // быстро вы
 // библиотек окна и видеокарты (@kmamal/sdl 0.11 + @kmamal/gpu 0.2). run-windows.cmd по коду 42 их ставит
 // и запускает снова. Уже на старых — не повторяем
 const crashed = tries.filter((t) => (t.code >>> 0) === 0xc0000005).length;
-if (process.env.VOID_ROOT && !process.env.VOID_LEGACY && crashed >= 2) {
-  fs.writeFileSync(path.join(process.env.VOID_ROOT, "legacy-libs.txt"), "новые библиотеки падали: " + new Date().toISOString());
+// папка VOID (там node, game, legacy-libs.txt): от run-windows.cmd, иначе — на уровень выше папки игры
+const VOID_DIR = process.env.VOID_ROOT || path.resolve(ROOT, "..");
+console.log(`\n[запуск] попыток: ${tries.length}, падений в библиотеках: ${crashed}, старые библиотеки: ${process.env.VOID_LEGACY ? "да" : "нет"}, папка: ${VOID_DIR}`);
+if (!process.env.VOID_LEGACY && crashed >= 2) {
+  fs.writeFileSync(path.join(VOID_DIR, "legacy-libs.txt"), "новые библиотеки падали: " + new Date().toISOString());
   try { fs.unlinkSync(GPU_FILE); } catch {}
   console.log("\nНовые библиотеки окна и видеокарты падают на этом компьютере — ставлю старые стабильные и пробую снова...\n");
   process.exit(42);
