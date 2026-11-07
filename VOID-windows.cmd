@@ -1,13 +1,13 @@
 @echo off
-chcp 65001 >nul
 title VOID
 setlocal
 rem ============================================================
-rem  VOID для Windows — ОДИН файл: положи куда угодно (например, на рабочий стол), запускай двойным кликом.
-rem  Скачивает свежую игру с GitHub (zip) в %LOCALAPPDATA%\VOID\game (сохранения и библиотеки не трогает)
-rem  и запускает её через tools\run-windows.cmd из самой игры — так исправления запуска
-rem  приходят вместе с обновлением, а этот файл менять больше не нужно.
-rem  Нет интернета — запускает уже скачанную версию.
+rem  VOID for Windows - ONE file: put it anywhere (e.g. Desktop), double-click to run.
+rem  Downloads the latest game from GitHub (zip) into %LOCALAPPDATA%\VOID\game
+rem  (saves and libraries are kept) and runs it via tools\run-windows.cmd from the game,
+rem  so launcher fixes arrive with game updates and this file never needs changing.
+rem  No internet - runs the already downloaded version.
+rem  ASCII only on purpose: cmd misreads UTF-8 text in .cmd files (esp. with LF line ends).
 rem ============================================================
 
 set "REPO=warior2018/3d-visulisation-try"
@@ -16,7 +16,7 @@ set "ROOT=%LOCALAPPDATA%\VOID"
 set "GAME=%ROOT%\game"
 if not exist "%ROOT%" mkdir "%ROOT%"
 
-echo Проверяю обновления игры...
+echo Checking for game updates...
 set "ZIP=%TEMP%\void-game.zip"
 set "UNZIP=%TEMP%\void-game"
 curl -fsSL -o "%ZIP%" "https://github.com/%REPO%/archive/refs/heads/%BRANCH%.zip"
@@ -27,11 +27,11 @@ tar -xf "%ZIP%" -C "%UNZIP%"
 if errorlevel 1 goto :offline
 set "SRC="
 for /d %%D in ("%UNZIP%\*") do set "SRC=%%D"
-rem проект может лежать в корне репозитория или в папке VOIDitself (раньше — nodejs_visual)
+rem the project may sit in the repo root or in a VOIDitself folder (earlier: nodejs_visual)
 if exist "%SRC%\nodejs_visual\package.json" set "SRC=%SRC%\nodejs_visual"
 if exist "%SRC%\VOIDitself\package.json" set "SRC=%SRC%\VOIDitself"
 if not exist "%SRC%\package.json" goto :offline
-rem копируем всё, кроме сохранений и библиотек; лишние старые файлы убираем (/MIR)
+rem copy everything except saves and libraries; old extra files are removed (/MIR)
 robocopy "%SRC%" "%GAME%" /MIR /XD node_modules saves /NFL /NDL /NJH /NJS /NP >nul
 if errorlevel 8 goto :fail
 rmdir /s /q "%UNZIP%"
@@ -40,7 +40,7 @@ goto :run
 
 :offline
 if not exist "%GAME%\package.json" goto :no_game
-echo Не удалось скачать обновление — запускаю уже скачанную версию.
+echo Could not download the update - starting the version already downloaded.
 
 :run
 if not exist "%GAME%\tools\run-windows.cmd" goto :old_game
@@ -48,17 +48,17 @@ call "%GAME%\tools\run-windows.cmd" "%ROOT%"
 exit /b %errorlevel%
 
 :old_game
-echo В скачанной версии игры нет tools\run-windows.cmd — попроси автора обновить игру на GitHub.
+echo The downloaded game has no tools\run-windows.cmd - ask the author to update the game on GitHub.
 pause
 exit /b 1
 
 :no_game
-echo Не получилось скачать игру — проверь интернет и запусти снова.
+echo Could not download the game - check the internet and run again.
 pause
 exit /b 1
 
 :fail
 echo.
-echo Что-то пошло не так. Сфотографируй это окно и пришли.
+echo Something went wrong. Take a photo of this window and send it.
 pause
 exit /b 1

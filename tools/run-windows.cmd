@@ -1,13 +1,13 @@
 @echo off
-chcp 65001 >nul
 setlocal
 rem ============================================================
-rem  Запуск игры на Windows (его вызывает VOID-windows.cmd или start-windows.cmd).
-rem  Лежит в репозитории — значит, исправления запуска приходят вместе с обновлением игры.
-rem  1) Node.js 22+ (нет — скачивает свой в %LOCALAPPDATA%\VOID\node);
-rem  2) библиотеки под эту систему (npm install, если надо);
-rem  3) игра под присмотром tools\windows-launch.js: упала — окно не закрывается, видно почему.
-rem  Аргумент 1 (необязательный) — папка для своего Node.js (по умолчанию %LOCALAPPDATA%\VOID).
+rem  Starts the game on Windows (called by VOID-windows.cmd or start-windows.cmd).
+rem  Lives in the repo, so launcher fixes arrive together with game updates.
+rem  1) Node.js 22+ (missing - downloads its own into %LOCALAPPDATA%\VOID\node);
+rem  2) libraries for this system (npm install when needed);
+rem  3) the game under tools\windows-launch.js: if it crashes the window stays open and shows why.
+rem  Argument 1 (optional) - folder for the own Node.js (default %LOCALAPPDATA%\VOID).
+rem  ASCII only on purpose: cmd misreads UTF-8 text in .cmd files (esp. with LF line ends).
 rem ============================================================
 set "ROOT=%~1"
 if "%ROOT%"=="" set "ROOT=%LOCALAPPDATA%\VOID"
@@ -16,14 +16,14 @@ for %%G in ("%~dp0..") do set "GAME=%%~fG"
 if not exist "%ROOT%" mkdir "%ROOT%"
 
 rem ---------- 1. Node.js ----------
-rem нужен Node.js 22 или новее; старый в системе — берём свой
+rem needs Node.js 22 or newer; an older system one - use our own
 where node >nul 2>nul
 if errorlevel 1 goto :need_node
 node -e "process.exit(+process.versions.node.split('.')[0]>=22?0:1)"
 if not errorlevel 1 goto :have_node
 :need_node
 if exist "%NODE_DIR%\node.exe" goto :use_local_node
-echo Скачиваю Node.js (один раз, ~30 МБ)...
+echo Downloading Node.js (once, ~30 MB)...
 curl -fsSL -o "%TEMP%\void-node-sums.txt" "https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt"
 if errorlevel 1 goto :no_internet_node
 set "NODE_ZIP="
@@ -42,30 +42,30 @@ del "%TEMP%\void-node.zip" "%TEMP%\void-node-sums.txt" >nul 2>nul
 set "PATH=%NODE_DIR%;%PATH%"
 :have_node
 
-rem ---------- 2. Библиотеки ----------
+rem ---------- 2. Libraries ----------
 cd /d "%GAME%"
-rem метка: система + содержимое package.json; не совпала — ставим библиотеки заново
+rem stamp: system + package.json contents; mismatch - reinstall libraries
 node -e "const fs=require('fs'),c=require('crypto');const k=process.platform+'-'+process.arch+'-'+c.createHash('md5').update(fs.readFileSync('package.json')).digest('hex');const f='node_modules/.void-platform';process.exit(fs.existsSync(f)&&fs.readFileSync(f,'utf8')===k?0:1)"
 if not errorlevel 1 goto :run
-echo Ставлю библиотеки игры (1-2 минуты, нужен интернет)...
+echo Installing game libraries (1-2 minutes, needs internet)...
 if exist node_modules rmdir /s /q node_modules
 call npm install --no-audit --no-fund
 if errorlevel 1 goto :fail
 node -e "const fs=require('fs'),c=require('crypto');fs.writeFileSync('node_modules/.void-platform',process.platform+'-'+process.arch+'-'+c.createHash('md5').update(fs.readFileSync('package.json')).digest('hex'))"
 
-rem ---------- 3. Игра ----------
+rem ---------- 3. Game ----------
 :run
-echo Запускаю VOID... (это окно не закрывай, пока играешь)
+echo Starting VOID... (keep this window open while playing)
 node tools\windows-launch.js
 exit /b %errorlevel%
 
 :no_internet_node
-echo Не получилось скачать Node.js — проверь интернет и запусти снова.
+echo Could not download Node.js - check the internet and run again.
 pause
 exit /b 1
 
 :fail
 echo.
-echo Что-то пошло не так. Сфотографируй это окно и пришли.
+echo Something went wrong. Take a photo of this window and send it.
 pause
 exit /b 1

@@ -1,3 +1,4 @@
-# Скрипты Windows — всегда с переводом строк Windows (CRLF), иначе cmd может их не понять
-*.cmd text eol=crlf
-*.bat text eol=crlf
+# Windows scripts: stored with CRLF in the repo itself (-text = git never converts them),
+# so even GitHub's "Download raw file" gives Windows line endings. Keep them ASCII-only.
+*.cmd -text
+*.bat -text

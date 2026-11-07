@@ -1,3 +1,3 @@
 @echo off
-rem Запуск игры из этой папки на Windows (без скачивания с GitHub). Всё делает tools\run-windows.cmd
+rem Run the game from this folder on Windows (no GitHub download). tools\run-windows.cmd does everything.
 call "%~dp0tools\run-windows.cmd"
