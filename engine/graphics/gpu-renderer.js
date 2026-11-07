@@ -30,13 +30,15 @@ export class GPURenderer {
     // Его ставит tools/windows-launch.js, если игра падает при старте (драйвер не тянет эти шейдеры)
     const all = options.gpuFlags ?? (process.env.VOID_GPU_FLAGS ? process.env.VOID_GPU_FLAGS.split(",").filter(Boolean) : []);
     const safe = all.includes("safe");
-    const flags = all.filter((f) => f !== "safe");
+    // power=high | power=low (тоже не для Dawn): какую видеокарту просить у ноутбука с двумя (встроенная + NVIDIA)
+    const power = all.find((f) => f.startsWith("power="))?.slice(6);
+    const flags = all.filter((f) => f !== "safe" && !f.startsWith("power="));
     // Шаги — сразу в журнал (пишется синхронно): если драйвер уронит процесс, видно, на каком шаге
     const step = options.log || (() => {});
     step(`видеокарта: создаю WebGPU${all.length ? ` [${all.join(", ")}]` : ""}`);
     const instance = gpu.create(flags);
     step("видеокарта: ищу адаптер");
-    const adapter = await instance.requestAdapter(); // какая видеокарта есть
+    const adapter = await instance.requestAdapter(power ? { powerPreference: power === "low" ? "low-power" : "high-performance" } : undefined); // какая видеокарта есть
     if (!adapter) throw new Error(`Видеокарта с поддержкой WebGPU не найдена${flags.length ? ` (флаги: ${flags.join(", ")})` : ""}`);
     // Что за видеокарта — для журнала (по нему разбираем падения на чужих компьютерах)
     const info = adapter.info || {};

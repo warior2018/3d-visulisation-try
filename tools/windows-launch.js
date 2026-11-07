@@ -26,7 +26,8 @@ const LOG_FILE = path.join(SAVES, "log.txt");
 const GPU_FILE = path.join(SAVES, "gpu.txt");
 const QUICK = 15; // упала быстрее, чем за столько секунд, — «не взлетело»
 // "" — как решит сама библиотека; ",safe" — то же, но без доп. эффектов
-const BACKENDS = ["", "safe", "backend=vulkan", "backend=vulkan,safe", "backend=d3d11", "backend=d3d11,safe", "backend=opengl"];
+// power=high / power=low — ноутбук с двумя видеокартами (встроенная + NVIDIA/AMD): попросить конкретную
+const BACKENDS = ["", "safe", "power=high", "power=low", "backend=vulkan", "backend=vulkan,safe", "backend=d3d11", "backend=d3d11,power=low", "backend=d3d11,safe", "backend=opengl"];
 
 // Частые коды аварийного выхода Windows (NTSTATUS) — что они обычно значат
 const HINTS = {
@@ -42,7 +43,7 @@ const hex = (code) => (code == null ? "-" : "0x" + (code >>> 0).toString(16).toU
 const label = (flags) => {
   const parts = flags.split(",").filter(Boolean);
   const safe = parts.includes("safe");
-  const rest = parts.filter((p) => p !== "safe").join(", ") || "по умолчанию";
+  const rest = parts.filter((p) => p !== "safe").map((p) => (p === "power=high" ? "мощная видеокарта" : p === "power=low" ? "встроенная видеокарта" : p)).join(", ") || "по умолчанию";
   return safe ? `${rest}, безопасный режим` : rest;
 };
 const tail = (file, n = 25) => {
