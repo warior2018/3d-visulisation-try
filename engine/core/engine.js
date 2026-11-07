@@ -53,7 +53,11 @@ import { Gamepad, PAD_DEFAULTS } from "../input/gamepad.js";
 // Настройки, которые есть у любой игры на движке. Игра добавляет свои (deepMerge).
 export const ENGINE_DEFAULTS = {
   version: 1,
-  video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true, lighting: true, renderScale: 100, sky: true, clouds: true, shadows: true, drawDistance: 1 }, // drawDistance — номер в render.distances (0 — близко) // renderScale — % пикселей, в которые рисуется мир
+  video: { width: 1280, height: 720, fullscreen: false, brightness: 100, vsync: true, renderScale: 100 },
+  // Графика (вкладка ГРАФИКА): drawDistance — номер ступени render.distances (0 — близко); lighting — свет кубиков
+  // (небо, тень под крышей, углы); sky — небо с солнцем и свет ламп; shadows: "real" — настоящие тени (карта
+  // теней на видеокарте: форма блоков, мобов, героя), "simple" — запечённые в блоки, "off" — без теней
+  graphics: { drawDistance: 1, lighting: true, sky: true, clouds: true, shadows: "real" }, // renderScale — % пикселей, в которые рисуется мир
   interface: { language: "en", showFps: false }, // язык надписей (engine/ui/i18n.js), счётчик FPS слева сверху
   audio: { master: 80, effects: 100, music: 60, voices: 100, muteUnfocused: true }, // каналы громкости (engine/audio/sound.js); без фокуса — тишина
   controls: {
@@ -142,7 +146,7 @@ export class Engine {
     journal.write(`окно ${window.width}x${window.height} (пикселей ${window.pixelWidth}x${window.pixelHeight}), видеокарта готова: ${renderer.adapterName}${renderer.gpuFlags.length ? ` [${renderer.gpuFlags.join(", ")}]` : ""}`);
     const engine = new Engine({ window, renderer, settings, actionLabels, journal, theme });
     // Дальность прорисовки (и дымки) — ступенями: render.distances = [близко, средне, далеко] (м); настройка
-    // video.drawDistance — номер ступени. Нет списка — одна, render.fadeDist
+    // graphics.drawDistance — номер ступени. Нет списка — одна, render.fadeDist
     engine.viewDistances = Array.isArray(render.distances) && render.distances.length ? render.distances : [renderer.fadeDist];
     engine.applySettings("drawDistance");
     if (changelog) {
@@ -453,14 +457,15 @@ export class Engine {
     if ((all || what === "resolution") && !this.window.fullscreen) this.applyWindowSize();
     if (all || what === "brightness") this.renderer.brightness = s.video.brightness / 100;
     if (all || what === "renderScale") this.renderer.renderScale = (s.video.renderScale ?? 100) / 100;
-    if (all || what === "lighting") this.renderer.setLighting?.(s.video.lighting !== false);
+    const gr = s.graphics || {};
+    if (all || what === "lighting") this.renderer.setLighting?.(gr.lighting !== false);
     if (all || what === "sky") {
-      this.renderer.fxEnabled = s.video.sky !== false; // небо с солнцем и свет ламп (world-fx.js)
-      this.renderer.setSky?.({ clouds: s.video.clouds !== false ? 1 : 0 });
+      this.renderer.fxEnabled = gr.sky !== false; // небо с солнцем и свет ламп (world-fx.js)
+      this.renderer.setSky?.({ clouds: gr.clouds !== false ? 1 : 0 });
     }
-    if (all || what === "shadows") this.renderer.shadows = s.video.shadows !== false;
+    if (all || what === "shadows") this.renderer.shadowMode = ["real", "simple", "off"].includes(gr.shadows) ? gr.shadows : "real";
     if ((all || what === "drawDistance") && this.viewDistances) {
-      const i = Math.max(0, Math.min(this.viewDistances.length - 1, Math.round(s.video.drawDistance ?? 1)));
+      const i = Math.max(0, Math.min(this.viewDistances.length - 1, Math.round(gr.drawDistance ?? 1)));
       this.renderer.fadeDist = this.viewDistances[i];
     }
     if ((all || what === "vsync") && this.renderer.vsync !== s.video.vsync) this.renderer.setVsync(s.video.vsync);
@@ -844,7 +849,7 @@ export class Engine {
     c.cvar("tickrate", { help: "tickrate <20..240> - world ticks per second (default 60)", cheat: true, get: () => this.fixed.rate, set: (v) => this.fixed.setRate(Math.round(Math.max(20, Math.min(240, num(v))))) });
     c.cvar("fps_show", { help: "fps_show 0/1 - FPS counter", get: () => (this.settings.data.interface.showFps ? 1 : 0), set: (v) => { this.settings.data.interface.showFps = v !== "0"; this.settings.save(); this.redraw(); } });
     c.cvar("brightness", { help: "brightness <30..200> - picture brightness, %", get: () => this.settings.data.video.brightness, set: (v) => { this.settings.data.video.brightness = Math.round(Math.max(30, Math.min(200, num(v)))); this.settings.save(); this.applySettings("brightness"); } });
-    c.cvar("lighting", { help: "lighting 0/1 - block lighting (sky, shade under roofs, corners)", get: () => (this.settings.data.video.lighting !== false ? 1 : 0), set: (v) => { this.settings.data.video.lighting = v !== "0"; this.settings.save(); this.applySettings("lighting"); } });
+    c.cvar("lighting", { help: "lighting 0/1 - block lighting (sky, shade under roofs, corners)", get: () => (this.settings.data.graphics.lighting !== false ? 1 : 0), set: (v) => { this.settings.data.graphics.lighting = v !== "0"; this.settings.save(); this.applySettings("lighting"); } });
     // Не читы: настройки и клавиши — то же, что в окне настроек
     const S = () => this.settings.data;
     const saved = (what, fn) => (v) => { fn(v); this.settings.save(); this.applySettings(what); };

@@ -19,7 +19,19 @@ const UNIFORMS_NEW = `  voidSky: f32,
   clouds: f32,        // 0 — без облаков, 1 — как обычно
   base: f32,          // яркость из настроек (без смены дня и ночи) — для неба
   _pad3: f32,
-};`;
+  sCamPos: vec3f,     // камера карты теней (далеко в сторону солнца, смотрит на героя) — как основная, но своя
+  sYaw: f32,
+  sPitch: f32,
+  sTan: f32,          // tan половины угла (узкий: «почти параллельные» лучи солнца)
+  sNear: f32,
+  sFar: f32,
+  shadowOn: f32,      // 1 — настоящие тени (карта теней готова на этот кадр)
+  sTexel: f32,        // размер точки карты теней (1 / её ширина)
+  _pad4: f32,
+  _pad5: f32,
+};
+@group(0) @binding(1) var shadowMap: texture_depth_2d;
+@group(0) @binding(2) var shadowSampler: sampler_comparison;`;
 
 const FX = /* wgsl */ `
 
@@ -139,6 +151,7 @@ struct CubeFxOut {
   @location(2) color: vec3f,
   @location(3) worldXZ: vec2f,
   @location(4) glow: f32,
+  @location(5) worldPos: vec3f,
 };
 
 @vertex
@@ -151,7 +164,42 @@ fn cube_fx_vs(in: CubeFxIn) -> CubeFxOut {
   out.color = in.color;
   out.worldXZ = world.xz;
   out.glow = in.glow;
+  out.worldPos = world;
   return out;
+}
+
+// Настоящие тени: точка мира глазами камеры карты теней (как toView + project основной камеры). Ближе к солнцу
+// что-то есть (в карте глубина меньше) — тень. 9 проб вокруг (PCF) — мягкий край. 1 — свет, 0 — тень
+fn shadowVis(world: vec3f, n: vec3f) -> f32 {
+  if (u.shadowOn < 0.5) {
+    return 1.0;
+  }
+  let d = world + n * 0.06 - u.sCamPos;
+  let cy = cos(u.sYaw);
+  let sy = sin(u.sYaw);
+  let x1 = d.x * cy - d.z * sy;
+  let z1 = d.x * sy + d.z * cy;
+  let cp = cos(u.sPitch);
+  let sp = sin(u.sPitch);
+  let vy = d.y * cp - z1 * sp;
+  let vz = d.y * sp + z1 * cp;
+  let f = 1.0 / u.sTan;
+  let a = u.sFar / (u.sFar - u.sNear);
+  let b = -u.sFar * u.sNear / (u.sFar - u.sNear);
+  let ndc = vec3f(x1 * f / vz, vy * f / vz, (a * vz + b) / vz);
+  let uv = vec2f(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || ndc.z > 1.0) {
+    return 1.0;
+  }
+  let depthRef = ndc.z - 0.0002;
+  var sum = 0.0;
+  for (var i = -1; i <= 1; i = i + 1) {
+    for (var j = -1; j <= 1; j = j + 1) {
+      let o = vec2f(f32(i), f32(j)) * u.sTexel * 1.5;
+      sum = sum + textureSampleCompareLevel(shadowMap, shadowSampler, uv + o, depthRef);
+    }
+  }
+  return sum / 9.0;
 }
 
 @fragment
@@ -160,6 +208,10 @@ fn cube_fx_fs(in: CubeFxOut) -> @location(0) vec4f {
   let lightDir = select(-sun, sun, sun.y > 0.0); // днём — солнце, ночью — луна
   let light = 0.45 + 0.55 * max(dot(in.normal, lightDir), 0.0);
   var color = in.color * light;
+  // тень: только на гранях к солнцу (обратные и так темнее), мягко к краю; ночью — нет
+  let vis = shadowVis(in.worldPos, in.normal);
+  let facing = smoothstep(0.0, 0.25, dot(in.normal, sun));
+  color = color * mix(1.0, mix(0.6, 1.0, vis), facing * clamp(u.day, 0.0, 1.0));
   color = color * (1.0 - 0.35 * edgeness(in.local));
   // ночь темнит всё (u.brightness), кроме света ламп: он тёплый и не темнеет
   let night = clamp(1.0 - u.brightness, 0.0, 1.0);

@@ -55,7 +55,7 @@ export class GPURenderer {
     this.srgb = format.endsWith("-srgb"); // такой формат ждёт «линейные» цвета
 
     // Uniform-буфер: 16 чисел (64 байта), раскладку описывает struct Uniforms в шейдере
-    this.uniformData = new Float32Array(24); // 16 основных + небо (world-fx.js): солнце, день, время, облака, яркость
+    this.uniformData = new Float32Array(36); // 16 основных + небо (world-fx.js): солнце, день, время, облака, яркость + камера карты теней
     this.uniformBuffer = device.createBuffer({
       size: this.uniformData.byteLength,
       usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST,
@@ -166,7 +166,11 @@ export class GPURenderer {
     this.lighting = true; // освещение кубиков (chunk-mesh.js lightOf): небо, тень под крышей, углы
     // Небо и солнце (world-fx.js; setSky): направление на солнце, день 0…1, облака, яркость из настроек
     this.sky = { sun: [-0.42, 0.84, -0.34], day: 1, clouds: 1, base: 1 };
-    this.shadows = true; //  тени от солнца (запекаются в кубики, chunk-mesh.js inShadow)
+    // Тени (настройка графики SHADOWS): "real" — карта теней на видеокарте (world-fx.js; не собралась — как
+    // "simple"), "simple" — запечённые в кубики (chunk-mesh.js inShadow), "off" — без теней
+    this.shadowMode = "real";
+    this.shadowSize = 2048; // карта теней: точек по стороне
+    this.shadowRadius = 72; // м вокруг камеры, где тени настоящие (дальше — без теней)
     this.shadowKey = null; // солнце, для которого запечены тени (шагами — см. setSky)
     this.rebake = []; //     куски, которые ещё перезапечь под новое солнце (по несколько за кадр)
 
@@ -329,6 +333,63 @@ export class GPURenderer {
     }
   }
 
+  // Карта теней этого кадра. Камера — далеко в сторону солнца (sun × D), смотрит на героя, узкий угол: лучи
+  // почти параллельны, квадрат 2R × 2R вокруг героя. Центр сдвигается шагами в точку карты — тени не «дрожат»
+  renderShadowMap(encoder, camera, world, characters) {
+    const [sx, sy, sz] = this.sky.sun;
+    if (sy < 0.08) return; // солнце у горизонта или ночь — без настоящих теней
+    const R = Math.min(this.shadowRadius, this.viewDistance), D = 1500;
+    const pitch = Math.asin(-sy), yaw = Math.atan2(-sx, -sz);
+    const cy = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const right = [cy, 0, -syw], up = [-syw * sp, cp, -cy * sp];
+    const c = camera.position, texel = (2 * R) / this.shadowSize;
+    const pr = c.x * right[0] + c.z * right[2], pu = c.x * up[0] + c.y * up[1] + c.z * up[2];
+    const dr = Math.round(pr / texel) * texel - pr, du = Math.round(pu / texel) * texel - pu;
+    const cx = c.x + right[0] * dr + up[0] * du, cyy = c.y + up[1] * du, cz = c.z + right[2] * dr + up[2] * du;
+    const pos = [cx + sx * D, cyy + sy * D, cz + sz * D];
+    const tan = R / D, near = D - 250, far = D + 250;
+    // своя «камера» в раскладке основных Uniforms (cube_vs / skin_vs читают только её)
+    const s = this.shadowData;
+    s[0] = pos[0]; s[1] = pos[1]; s[2] = pos[2]; s[3] = yaw; s[4] = pitch; s[5] = tan; s[6] = 1;
+    s[7] = this.fadeDist; s[8] = 1; s[9] = 0; s[10] = near; s[11] = far; s[12] = 1; s[13] = 0; s[14] = 0; s[15] = 0;
+    this.device.queue.writeBuffer(this.shadowUniform, 0, s);
+    const d = this.uniformData;
+    d[24] = pos[0]; d[25] = pos[1]; d[26] = pos[2]; d[27] = yaw; d[28] = pitch; d[29] = tan; d[30] = near; d[31] = far;
+    d[32] = 1; d[33] = 1 / this.shadowSize;
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [],
+      depthStencilAttachment: { view: this.shadowView, depthClearValue: 1, depthLoadOp: "clear", depthStoreOp: "store" },
+    });
+    // куски мира вокруг (все грани: тень отбрасывает и то, что к солнцу спиной)
+    pass.setPipeline(this.shadowCube);
+    pass.setBindGroup(0, this.shadowCubeBind);
+    pass.setVertexBuffer(0, this.cubeVertexBuffer);
+    const reach = R + 24; // + кусок: высокое (дерево, гора) за краем тоже бросает тень внутрь
+    for (const m of this.chunkMeshes.values()) {
+      if (!m.count || m.chunk.maxY < m.chunk.minY) continue;
+      const mx = m.chunk.cx * 16 + 8 - cx, mz = m.chunk.cz * 16 + 8 - cz;
+      if (Math.abs(mx) > reach || Math.abs(mz) > reach) continue;
+      pass.setVertexBuffer(1, m.buffer);
+      for (let f = 0; f < 6; f++) if (m.counts[f]) pass.draw(6, m.counts[f], f * 6, m.starts[f]);
+    }
+    // существа (мобы, герой) — только те, что рисуются в этом кадре (их матрицы уже свежие)
+    pass.setPipeline(this.shadowSkin);
+    const max2 = Math.min(R, this.viewDistance) ** 2;
+    for (const ch of characters || []) {
+      const mm = ch.modelMatrix, ex = mm[12] - c.x, ez = mm[14] - c.z;
+      if (ex * ex + ez * ez > max2) continue;
+      const skin = ch.skin;
+      skin.shadowBind ||= this.device.createBindGroup({ layout: this.skinLayout, entries: [
+        { binding: 0, resource: { buffer: this.shadowUniform } }, { binding: 3, resource: { buffer: skin.uniformBuffer } },
+      ] });
+      pass.setBindGroup(0, skin.shadowBind);
+      skin.mesh.buffers.forEach((b, i) => pass.setVertexBuffer(i, b));
+      pass.setIndexBuffer(skin.mesh.indexBuffer, skin.mesh.indexFormat);
+      pass.drawIndexed(skin.mesh.indexCount);
+    }
+    pass.end();
+  }
+
   // Дальность прорисовки (м по горизонтали): куски мира дальше — не рисуем, существа — тоже. Одна на всё:
   // fadeDist × 1.15 — там дымка уже полная (haze), за этим ничего не видно
   get viewDistance() {
@@ -374,15 +435,56 @@ export class GPURenderer {
       });
       const entry = [{ binding: 0, resource: { buffer: this.uniformBuffer } }];
       const skyBind = device.createBindGroup({ layout: sky.getBindGroupLayout(0), entries: entry });
-      const cubeBind = device.createBindGroup({ layout: cube.getBindGroupLayout(0), entries: entry });
+      // Карта теней: глубина мира глазами «солнечной» камеры. Рисуют её основные cube_vs / skin_vs (без
+      // пиксельного шейдера — только глубина) со своим uniform-буфером: та же раскладка, другая камера
+      const shadowTex = device.createTexture({ size: [this.shadowSize, this.shadowSize], format: "depth32float", usage: gpu.GPUTextureUsage.RENDER_ATTACHMENT | gpu.GPUTextureUsage.TEXTURE_BINDING });
+      const shadowView = shadowTex.createView();
+      const shadowSampler = device.createSampler({ compare: "less-equal", magFilter: "linear", minFilter: "linear", addressModeU: "clamp-to-edge", addressModeV: "clamp-to-edge" });
+      const shadowUniform = device.createBuffer({ size: 64, usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST });
+      const baseModule = device.createShaderModule({ code: SHADERS });
+      const depthOnly = { format: "depth32float", depthWriteEnabled: true, depthCompare: "less" };
+      const shadowCube = device.createRenderPipeline({
+        layout: "auto",
+        vertex: {
+          module: baseModule, entryPoint: "cube_vs",
+          buffers: [
+            { arrayStride: 6 * 4, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }, { shaderLocation: 1, offset: 12, format: "float32x3" }] },
+            { arrayStride: FLOATS_PER_CUBE * 4, stepMode: "instance", attributes: [{ shaderLocation: 2, offset: 0, format: "float32x3" }, { shaderLocation: 3, offset: 12, format: "float32x3" }] },
+          ],
+        },
+        depthStencil: depthOnly,
+      });
+      const skinLayout = this.skinPipeline.getBindGroupLayout(0);
+      const shadowSkin = device.createRenderPipeline({
+        layout: device.createPipelineLayout({ bindGroupLayouts: [skinLayout] }), // те же группы, что у персонажей
+        vertex: {
+          module: baseModule, entryPoint: "skin_vs",
+          buffers: [
+            { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }] },
+            { arrayStride: 12, attributes: [{ shaderLocation: 1, offset: 0, format: "float32x3" }] },
+            { arrayStride: 12, attributes: [{ shaderLocation: 2, offset: 0, format: "float32x3" }] },
+            { arrayStride: 8, attributes: [{ shaderLocation: 3, offset: 0, format: "uint16x4" }] },
+            { arrayStride: 16, attributes: [{ shaderLocation: 4, offset: 0, format: "float32x4" }] },
+          ],
+        },
+        depthStencil: depthOnly,
+      });
+      const shadowCubeBind = device.createBindGroup({ layout: shadowCube.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: shadowUniform } }] });
+      const cubeBind = device.createBindGroup({ layout: cube.getBindGroupLayout(0), entries: [
+        ...entry, { binding: 1, resource: shadowView }, { binding: 2, resource: shadowSampler },
+      ] });
+      Object.assign(this, { shadowTex, shadowView, shadowUniform, shadowCube, shadowSkin, shadowCubeBind, skinLayout });
+      this.shadowData = new Float32Array(16);
       scoped = false;
       const err = device.popErrorScope ? await device.popErrorScope() : null;
       if (err) throw new Error(err.message || String(err));
       Object.assign(this, { skyFxPipeline: sky, skyFxBind: skyBind, cubeFxPipeline: cube, cubeFxBind: cubeBind });
       this.worldFx = true;
+      this.realShadows = true; // карта теней собралась
     } catch (e) {
       if (scoped) try { await device.popErrorScope(); } catch {} // ловушку ошибок — убрать (иначе поймает чужие)
       this.worldFx = false;
+      this.realShadows = false;
       this.worldFxError = e.message;
       console.warn("Небо с солнцем и свет ламп недоступны (рисуем как раньше):", e.message);
     }
@@ -401,7 +503,8 @@ export class GPURenderer {
   // Тени под это солнце: ключ — направление шагами; поменялся — все куски в очередь на перезапекание
   updateShadows(world) {
     const [x, y, z] = this.sky.sun;
-    const on = this.shadows && this.lighting && y > 0.12;
+    const realOk = this.realShadows && this.worldFx && this.fxEnabled !== false; // настоящие тени рисуются
+    const on = (this.shadowMode === "simple" || (this.shadowMode === "real" && !realOk)) && this.lighting && y > 0.12;
     const step = 0.07;
     const key = on ? `${Math.round(x / step)},${Math.round(y / step)},${Math.round(z / step)}` : "off";
     if (key === this.shadowKey && world.sunFor === key) return;
@@ -536,6 +639,10 @@ export class GPURenderer {
 
     // 2. Записываем команды кадра
     const encoder = device.createCommandEncoder();
+    // Настоящие тени: сначала — карта теней (глубина глазами солнца), основной проход её читает (world-fx.js)
+    d[32] = 0;
+    if (camera && world && this.realShadows && this.worldFx && this.fxEnabled !== false && this.shadowMode === "real" && this.lighting) this.renderShadowMap(encoder, camera, world, characters);
+    device.queue.writeBuffer(this.uniformBuffer, 96, d, 24, 12); // камера теней и «тени есть» — к основному шейдеру
     const screenView = target || this.output.getCurrentTextureView();
     // Мир рисуем не на экран, а в свою картинку, если: размытие (оптика) или масштаб рендера < 100 %
     // (картинка мира меньше экрана — быстрее; потом растягиваем на экран тем же blur_fs, без размытия).

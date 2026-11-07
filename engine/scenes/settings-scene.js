@@ -21,7 +21,6 @@ import { Scene } from "../core/scene.js";
 import { Input } from "../input/input.js";
 import { drawBackground, drawDim } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";
-import { translate } from "../ui/i18n.js";
 
 const LANGUAGE_NAMES = { en: "ENGLISH", ru: "РУССКИЙ" }; // названия — всегда на своём языке
 export const RENDER_SCALES = [100, 90, 80, 75, 67, 50]; // % пикселей мира (интерфейс — всегда в полном разрешении)
@@ -62,6 +61,7 @@ export class SettingsScene extends Scene {
     const s = this.settings.data;
     const step = (obj, key, dir, by, min, max) => (obj[key] = Math.max(min, Math.min(max, obj[key] + dir * by)));
     const onOff = (v) => (v ? "ON" : "OFF");
+    const g = (s.graphics ||= {});
     // Масштаб рендера: мир рисуется в эту долю пикселей и растягивается на экран (меньше — быстрее, мягче)
     const stepScale = (dir) => {
       const i = Math.max(0, RENDER_SCALES.indexOf(s.video.renderScale ?? 100));
@@ -98,33 +98,49 @@ export class SettingsScene extends Scene {
           { id: "renderScale", label: "RENDER SCALE", arrows: true,
             value: () => `${s.video.renderScale ?? 100}%`,
             change: (dir) => stepScale(dir) },
-          // дальность прорисовки и дымки: ступени игры (Engine.create render.distances); одна ступень — строки нет
-          ...((e.viewDistances?.length || 0) > 1 ? [{ id: "drawDistance", label: "DRAW DISTANCE", arrows: true,
-            value: () => {
-              const n = e.viewDistances.length, i = Math.max(0, Math.min(n - 1, s.video.drawDistance ?? 1));
-              const names = n === 3 ? ["SHORT", "MEDIUM", "FAR"] : null;
-              return (names ? translate(names[i]) : String(i + 1)) + " (" + e.viewDistances[i] + " M)"; // перевод — по слову, число — после
-            },
-            change: (dir) => {
-              const n = e.viewDistances.length;
-              s.video.drawDistance = ((s.video.drawDistance ?? 1) + (dir < 0 ? n - 1 : 1)) % n;
-              e.applySettings("drawDistance");
-            } }] : []),
           { id: "fullscreen", label: "FULLSCREEN", value: () => onOff(s.video.fullscreen),
             change: () => { s.video.fullscreen = !s.video.fullscreen; e.applySettings("fullscreen"); } },
           { id: "bright", label: "BRIGHTNESS", arrows: true, value: () => `${s.video.brightness}%`,
             change: (dir) => { step(s.video, "brightness", dir, 10, 50, 150); e.applySettings("brightness"); } },
           { id: "vsync", label: "VSYNC", value: () => onOff(s.video.vsync),
             change: () => { s.video.vsync = !s.video.vsync; e.applySettings("vsync"); } },
-          // небо с солнцем, луной и облаками, свет ламп (world-fx.js); видеокарта не потянула шейдер — «НЕТ»
-          { id: "sky", label: "SKY AND LAMP LIGHT", value: () => (e.renderer.worldFx === false ? "N/A" : onOff(s.video.sky !== false)),
-            change: () => { s.video.sky = s.video.sky === false; e.applySettings("sky"); } },
-          { id: "clouds", label: "CLOUDS", value: () => onOff(s.video.clouds !== false),
-            change: () => { s.video.clouds = s.video.clouds === false; e.applySettings("sky"); } },
-          { id: "shadows", label: "SUN SHADOWS", value: () => onOff(s.video.shadows !== false),
-            change: () => { s.video.shadows = s.video.shadows === false; e.applySettings("shadows"); } },
         ],
         note: () => "IN FULLSCREEN, RESOLUTION APPLIES AFTER LEAVING IT",
+      },
+      {
+        // Графика: дальность прорисовки и дымки, свет, небо, тени — что тянет видеокарта (дальше добавим ещё)
+        id: "graphics",
+        label: "GRAPHICS",
+        rows: [
+          // дальность прорисовки и дымки: ступени игры (Engine.create render.distances); одна ступень — строки нет
+          ...((e.viewDistances?.length || 0) > 1 ? [{ id: "drawDistance", label: "DRAW DISTANCE", arrows: true,
+            value: () => {
+              const n = e.viewDistances.length, i = Math.max(0, Math.min(n - 1, g.drawDistance ?? 1));
+              const names = n === 3 ? ["SHORT", "MEDIUM", "FAR"] : null;
+              return names ? names[i] : `${e.viewDistances[i]} M`; // ближе / средне / дальше (метры — в заметке ниже)
+            },
+            change: (dir) => {
+              const n = e.viewDistances.length;
+              g.drawDistance = ((g.drawDistance ?? 1) + (dir < 0 ? n - 1 : 1)) % n;
+              e.applySettings("drawDistance");
+            } }] : []),
+          { id: "lighting", label: "BLOCK LIGHTING", value: () => onOff(g.lighting !== false),
+            change: () => { g.lighting = g.lighting === false; e.applySettings("lighting"); } },
+          // небо с солнцем, луной и облаками, свет ламп (world-fx.js); видеокарта не потянула шейдер — «НЕТ»
+          { id: "sky", label: "SKY AND LAMP LIGHT", value: () => (e.renderer.worldFx === false ? "N/A" : onOff(g.sky !== false)),
+            change: () => { g.sky = g.sky === false; e.applySettings("sky"); } },
+          { id: "clouds", label: "CLOUDS", value: () => onOff(g.clouds !== false),
+            change: () => { g.clouds = g.clouds === false; e.applySettings("sky"); } },
+          // тени: настоящие (карта теней, нужна SKY AND LAMP LIGHT) / простые (в блоках) / выкл
+          { id: "shadows", label: "SHADOWS", arrows: true,
+            value: () => ({ real: "REAL", simple: "SIMPLE", off: "OFF" })[g.shadows] || "REAL",
+            change: (dir) => {
+              const list = ["off", "simple", "real"], i = Math.max(0, list.indexOf(g.shadows));
+              g.shadows = list[(i + (dir < 0 ? list.length - 1 : 1)) % list.length];
+              e.applySettings("shadows");
+            } },
+        ],
+        note: () => "HEAVIEST: FAR DRAW DISTANCE AND REAL SHADOWS (THEY NEED SKY AND LAMP LIGHT)",
       },
       {
         id: "interface",

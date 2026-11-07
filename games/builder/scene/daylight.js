@@ -9,7 +9,7 @@ import { DAY, LIGHTS } from "../config.js";
 export class DaylightPart {
   // Свет в точке p (у головы): 0..1; освещение выключено в настройках — 1
   lightHere(p, e = null) {
-    if (this.settings.video?.lighting === false) return 1;
+    if (this.settings.graphics?.lighting === false) return 1;
     const h = e?.height ?? 1.6;
     return lightOf(this.world, Math.floor(p.x), Math.floor(p.y + h * 0.75), Math.floor(p.z));
   }
