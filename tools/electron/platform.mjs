@@ -80,7 +80,19 @@ export function createPlatform(ipc) {
     // Захват мыши: курсор скрыт и стоит, mouseMove даёт сдвиг (dx, dy) — как относительный режим SDL
     setRelativeMouseMode(on) {
       this._relative = !!on;
+      canvas.style.cursor = on ? "none" : ""; // курсор прячем сразу, даже если захват ещё не дали
       ipc.send("void:pointer-lock", !!on);
+    }
+
+    // Захват не дали (или сняли): следующий клик по окну — настоящее действие пользователя, просим снова
+    relock() {
+      if (!this._relative || document.pointerLockElement === canvas) return;
+      try {
+        const p = canvas.requestPointerLock({ unadjustedMovement: true });
+        p?.catch?.(() => canvas.requestPointerLock()?.catch?.(() => {}));
+      } catch {
+        try { canvas.requestPointerLock(); } catch {}
+      }
     }
 
     listen() {
@@ -101,6 +113,7 @@ export function createPlatform(ipc) {
         resumeAudio();
         e.preventDefault();
         canvas.focus();
+        this.relock();
         this.emit("mouseButtonDown", { ...pos(e), button: e.button + 1 }); // браузер: 0 1 2 → SDL: 1 2 3
       });
       window.addEventListener("mouseup", (e) => {
@@ -119,6 +132,8 @@ export function createPlatform(ipc) {
         this.fitCanvas();
         this.emit("resize", { width: this.width, height: this.height, pixelWidth: this.pixelWidth, pixelHeight: this.pixelHeight });
       });
+      document.addEventListener("pointerlockchange", () => console.log("захват мыши: " + (document.pointerLockElement === canvas ? "да" : "нет")));
+      document.addEventListener("pointerlockerror", () => console.log("захват мыши: ошибка (pointerlockerror)"));
       ipc.on("void:fullscreen", (e, on) => { this._fullscreen = !!on; });
       ipc.on("void:close", () => this.emit("close"));
     }

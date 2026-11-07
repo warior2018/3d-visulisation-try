@@ -113,10 +113,15 @@ ipcMain.on("void:pointer-lock", (e, on) => {
   if (!win) return;
   const code = on
     ? `(async () => { const c = document.getElementById("screen");
+         if (document.pointerLockElement === c) return;
          try { await c.requestPointerLock({ unadjustedMovement: true }); }
-         catch { try { await c.requestPointerLock(); } catch {} } })()`
+         catch (e1) {
+           try { await c.requestPointerLock(); }
+           catch (e2) { console.log("захват мыши не удался: " + e1 + " / " + e2); }
+         } })()`
     : "document.exitPointerLock()";
-  win.webContents.executeJavaScript(code, true).catch(() => {});
+  if (on) win.focus(); // захват мыши — только у окна в фокусе
+  win.webContents.executeJavaScript(code, true).catch((e) => say("захват мыши: " + e.message));
 });
 
 app.on("window-all-closed", () => quit(0));
