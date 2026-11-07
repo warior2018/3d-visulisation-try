@@ -2,7 +2,7 @@
 //  VOID в Electron — главный процесс (окно приложения).
 //  Зачем: на некоторых Windows-ноутбуках WebGPU из @kmamal/gpu падает, когда рисует прямо в окно SDL,
 //  а WebGPU самого Chromium там работает. Тогда игра идёт так: окно Electron, в нём canvas на всё окно,
-//  а сама игра (весь движок, Node) работает в preload.mjs — со своими заменами окна, ввода, звука
+//  а сама игра (весь движок, Node) работает в preload.cjs — со своими заменами окна, ввода, звука
 //  и показа кадра (platform.mjs). Код игры и рендер — те же, что с SDL.
 //
 //  Здесь — только то, что умеет лишь главный процесс: полный экран, размер окна, захват мыши
@@ -54,9 +54,9 @@ app.whenReady().then(() => {
     backgroundColor: "#000000",
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs"),
+      preload: path.join(__dirname, "preload.cjs"),
       sandbox: false, //            игре нужен Node (файлы, сохранения, сеть)
-      contextIsolation: true, //    так ESM-preload может грузить модули игры через import()
+      contextIsolation: true, //    preload (и игра) — в своём «мире», страница его не видит
       nodeIntegration: false,
       backgroundThrottling: false,
       autoplayPolicy: "no-user-gesture-required", // звук сразу, без клика
@@ -104,6 +104,7 @@ ipcMain.on("void:title", (e, title) => win?.setTitle(String(title)));
 ipcMain.on("void:hide", () => win?.hide());
 ipcMain.on("void:clipboard", (e, text) => clipboard.writeText(String(text)));
 ipcMain.on("void:relaunch", (e, env) => { relaunchEnv = env || {}; });
+ipcMain.on("void:log", (e, text) => say(String(text)));
 ipcMain.on("void:quit", (e, code) => quit(code || 0));
 
 // Захват мыши (pointer lock). Браузер разрешает его только «по действию пользователя» —

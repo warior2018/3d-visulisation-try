@@ -32,7 +32,7 @@ npm start       # запускает games/builder (игру «Стройка»)
 Нужен там, где WebGPU из `@kmamal/gpu` падает при выводе в окно SDL (некоторые ноутбуки Windows с двумя
 видеокартами), а WebGPU Chromium работает. Игра и рендер — те же: движок берёт окно, ввод, звук и
 видеокарту из `engine/platform/*.js`, а в Electron их подменяет `tools/electron/platform.mjs`
-(canvas на всё окно, pointer lock, AudioWorklet, `navigator.gpu`). Вся игра работает в `preload.mjs`
+(canvas на всё окно, pointer lock, AudioWorklet, `navigator.gpu`). Вся игра работает в `preload.cjs`
 (Node + окно браузера), главный процесс `main.cjs` — только окно, полный экран, захват мыши и выход.
 Лаунчер Windows (`tools/windows-launch.js`) сам пробует Electron, если обычный запуск падает.
 
