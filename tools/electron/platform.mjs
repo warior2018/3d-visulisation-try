@@ -82,7 +82,20 @@ export function createPlatform(ipc) {
       this._relative = !!on;
       canvas.style.cursor = on ? "none" : ""; // курсор прячем сразу, даже если захват ещё не дали
       clearTimeout(this._retry);
+      this._tries = 0;
+      if (on) this.relock(); // обычно это внутри клика (кнопка «продолжить»): так захват дают сразу
       ipc.send("void:pointer-lock", !!on, true);
+    }
+
+    // Захват слетел, а игра его ждёт: «нажимаем» Esc за игрока — она откроет паузу и отпустит мышь
+    // (курсор виден). Клик «продолжить» — настоящее действие пользователя, по нему захват дают всегда.
+    // Если Esc игрок нажал сам — второй раз не нажимаем (иначе пауза откроется и тут же закроется)
+    escapeToPause() {
+      if (!this._relative || performance.now() - (this._lastEsc || 0) < 500) return;
+      console.log("захват мыши потерян — открываю паузу (клик по «продолжить» вернёт захват)");
+      const sc = SCANCODE.ESCAPE;
+      this.emit("keyDown", { scancode: sc, key: "Escape", repeat: false });
+      this.emit("keyUp", { scancode: sc, key: "Escape", repeat: false });
     }
 
     // Захват слетел или его не дали (например, Chromium после выхода по Esc какое-то время не даёт
@@ -92,9 +105,11 @@ export function createPlatform(ipc) {
       clearTimeout(this._retry);
       this._retry = setTimeout(() => {
         if (!this._relative || document.pointerLockElement === canvas) return;
-        if (document.hasFocus()) ipc.send("void:pointer-lock", true, false);
+        if (!document.hasFocus()) return this.retryLock(); // окно не в фокусе — ждём, фокус не отнимаем
+        if (++this._tries > 2) return this.escapeToPause(); // ~1.5 с не дают — пауза (см. выше)
+        ipc.send("void:pointer-lock", true, false);
         this.retryLock();
-      }, 600);
+      }, 500);
     }
 
     // Захват не дали (или сняли): следующий клик по окну — настоящее действие пользователя, просим снова
@@ -112,6 +127,7 @@ export function createPlatform(ipc) {
       const pos = (e) => ({ x: e.clientX, y: e.clientY });
       window.addEventListener("keydown", (e) => {
         resumeAudio();
+        if (e.code === "Escape") this._lastEsc = performance.now();
         if (!KEEP_DEFAULT.has(e.code)) e.preventDefault();
         this.emit("keyDown", { scancode: scancodeOf(e), key: e.key, repeat: e.repeat });
       });
@@ -148,7 +164,11 @@ export function createPlatform(ipc) {
       document.addEventListener("pointerlockchange", () => {
         const locked = document.pointerLockElement === canvas;
         console.log("захват мыши: " + (locked ? "да" : "нет"));
-        if (!locked && this._relative) this.retryLock();
+        if (locked) { this._tries = 0; return; }
+        if (!this._relative) return;
+        // Сняли не мы: чаще всего — Esc (Chromium сам отпускает мышь по Esc). Дадим настоящему Esc дойти,
+        // потом: игра всё ещё ждёт захват — просим снова, не дают — пауза
+        setTimeout(() => this.retryLock(), 150);
       });
       document.addEventListener("pointerlockerror", () => {
         console.log("захват мыши: не дали (pointerlockerror), пробую снова");
