@@ -43,20 +43,33 @@ set "PATH=%NODE_DIR%;%PATH%"
 :have_node
 
 rem ---------- 2. Libraries ----------
+:libs
 cd /d "%GAME%"
+rem legacy-libs.txt (written by windows-launch.js when the new window/GPU libraries crash on this PC):
+rem use the older stable pair @kmamal/sdl 0.11 (SDL2) + @kmamal/gpu 0.2 - the engine supports both
+set "VOID_LEGACY="
+if exist "%ROOT%\legacy-libs.txt" set "VOID_LEGACY=1"
+set "VOID_ROOT=%ROOT%"
 rem stamp: system + package.json contents; mismatch - reinstall libraries
-node -e "const fs=require('fs'),c=require('crypto');const k=process.platform+'-'+process.arch+'-'+c.createHash('md5').update(fs.readFileSync('package.json')).digest('hex');const f='node_modules/.void-platform';process.exit(fs.existsSync(f)&&fs.readFileSync(f,'utf8')===k?0:1)"
+node -e "const fs=require('fs'),c=require('crypto');const k=process.platform+'-'+process.arch+(process.env.VOID_LEGACY?'-legacy':'')+'-'+c.createHash('md5').update(fs.readFileSync('package.json')).digest('hex');const f='node_modules/.void-platform';process.exit(fs.existsSync(f)&&fs.readFileSync(f,'utf8')===k?0:1)"
 if not errorlevel 1 goto :run
 echo Installing game libraries (1-2 minutes, needs internet)...
 if exist node_modules rmdir /s /q node_modules
 call npm install --no-audit --no-fund
 if errorlevel 1 goto :fail
-node -e "const fs=require('fs'),c=require('crypto');fs.writeFileSync('node_modules/.void-platform',process.platform+'-'+process.arch+'-'+c.createHash('md5').update(fs.readFileSync('package.json')).digest('hex'))"
+if not defined VOID_LEGACY goto :stamp
+echo Installing older window/GPU libraries...
+call npm install --no-save --no-audit --no-fund @kmamal/sdl@0.11.13 @kmamal/gpu@0.2.0
+if errorlevel 1 goto :fail
+:stamp
+node -e "const fs=require('fs'),c=require('crypto');fs.writeFileSync('node_modules/.void-platform',process.platform+'-'+process.arch+(process.env.VOID_LEGACY?'-legacy':'')+'-'+c.createHash('md5').update(fs.readFileSync('package.json')).digest('hex'))"
 
 rem ---------- 3. Game ----------
 :run
 echo Starting VOID... (keep this window open while playing)
 node tools\windows-launch.js
+rem 42 = "try the older libraries" (windows-launch.js wrote legacy-libs.txt) - reinstall and run again
+if errorlevel 42 if not errorlevel 43 goto :libs
 exit /b %errorlevel%
 
 :no_internet_node
