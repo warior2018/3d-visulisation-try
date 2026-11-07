@@ -329,6 +329,12 @@ export class GPURenderer {
     }
   }
 
+  // Дальность прорисовки (м по горизонтали): куски мира дальше — не рисуем, существа — тоже. Одна на всё:
+  // fadeDist × 1.15 — там дымка уже полная (haze), за этим ничего не видно
+  get viewDistance() {
+    return this.fadeDist * 1.15;
+  }
+
   // Небо и свет мира «посложнее» (world-fx.js): свой модуль под ловушкой ошибок. Не собрался — как раньше
   async initWorldFx() {
     const device = this.device;
@@ -573,7 +579,7 @@ export class GPURenderer {
       pass.setPipeline(fx ? this.cubeFxPipeline : this.cubePipeline);
       pass.setBindGroup(0, fx ? this.cubeFxBind : this.cubeBind);
       pass.setVertexBuffer(0, this.cubeVertexBuffer);
-      const v = viewOf(camera, width / height, this.fadeDist * 1.15, this.cullView);
+      const v = viewOf(camera, width / height, this.viewDistance, this.cullView);
       let drawn = 0, faces = 0;
       for (const m of this.chunkMeshes.values()) {
         if (!m.count || !chunkInView(v, m.chunk)) continue;
@@ -592,7 +598,9 @@ export class GPURenderer {
     }
 
     // персонажи: сначала отдаём их матрицы, потом рисуем треугольники модели
-    if (camera) this.drawCharacters(pass, characters);
+    // существа — до той же дальности, что и блоки (дальше — уже растворились в дымке; иначе силуэты мобов и
+    // боссов «висят» в пустоте за краем мира)
+    if (camera) this.drawCharacters(pass, characters, { x: camera.position.x, z: camera.position.z, max: this.viewDistance });
 
     // частицы: прозрачные кубики с проверкой глубины (за стеной не видно), глубину сами не пишут
     if (camera && particles?.count && this.particlePipeline) {
@@ -699,8 +707,14 @@ export class GPURenderer {
   }
 
   // Персонажи: сначала отдаём их матрицы, потом рисуем треугольники модели
-  drawCharacters(pass, list) {
+  // cull — { x, z, max }: дальше max по горизонтали от камеры не рисуем (как куски мира — см. viewDistance)
+  drawCharacters(pass, list, cull = null) {
+    const max2 = cull ? cull.max * cull.max : 0;
     for (const c of list) {
+      if (cull) {
+        const m = c.modelMatrix, dx = m[12] - cull.x, dz = m[14] - cull.z; // где стоит (перенос матрицы модели)
+        if (dx * dx + dz * dz > max2) continue;
+      }
       const { mesh, uniformBuffer, bindGroup } = c.skin;
       this.device.queue.writeBuffer(uniformBuffer, 0, c.modelMatrix);
       this.device.queue.writeBuffer(uniformBuffer, 64, c.tint || NO_TINT);

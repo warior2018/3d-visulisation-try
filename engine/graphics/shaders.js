@@ -74,7 +74,9 @@ fn project(v: vec3f) -> vec4f {
 // Дымка: дальние вещи сливаются с цветом у горизонта
 fn haze(color: vec3f, worldXZ: vec2f) -> vec3f {
   let dist = length(worldXZ - u.camPos.xz);
-  return mix(color, GROUND_FAR, smoothstep(u.fadeDist * 0.5, u.fadeDist * 1.1, dist));
+  // летающие острова: дымка — цвета неба у горизонта (вдаль всё тает в небе, а не в серых силуэтах)
+  let fog = select(GROUND_FAR, SKY_HORIZON, u.voidSky > 0.5);
+  return mix(color, fog, smoothstep(u.fadeDist * 0.5, u.fadeDist * 1.1, dist));
 }
 
 // ---------- 1. Небо, земля, сетка, горизонт ----------
