@@ -136,6 +136,7 @@ export class Engine {
     const journal = new Journal(logFile || path.join(path.dirname(settingsFile), "log.txt"));
     const settings = new SettingsStore(settingsFile, deepMerge(ENGINE_DEFAULTS, defaults));
     const v = settings.data.video;
+    journal.write("окно: создаю");
     const window = sdl.video.createWindow({
       title,
       width: v.width,
@@ -144,7 +145,7 @@ export class Engine {
       resizable: true,
       webgpu: true,
     });
-    const renderer = await GPURenderer.create(window, { ...render, vsync: v.vsync, brightness: v.brightness / 100 }); // render — свои настройки игры (fadeDist — дальность прорисовки)
+    const renderer = await GPURenderer.create(window, { ...render, vsync: v.vsync, brightness: v.brightness / 100, log: (t) => journal.write(t) }); // render — свои настройки игры (fadeDist — дальность прорисовки)
     if (renderer.worldFxError) journal.write("ОШИБКА графики: небо, свет ламп и тени не собрались (рисуем по-старому): " + renderer.worldFxError);
     if (renderer.glareError) journal.write("блик солнца не собрался: " + renderer.glareError);
     if (renderer.motionError) journal.write("размытие в движении не собралось: " + renderer.motionError);

@@ -26,19 +26,39 @@ export class GPURenderer {
   // Например VOID_GPU_FLAGS=backend=vulkan — рисовать через Vulkan, а не D3D12 (если на Windows D3D12 падает);
   // backend: d3d12 | d3d11 | vulkan | metal | opengl | opengles.
   static async create(window, options = {}) {
-    const flags = options.gpuFlags ?? (process.env.VOID_GPU_FLAGS ? process.env.VOID_GPU_FLAGS.split(",").filter(Boolean) : []);
+    // Флаг «safe» (не для Dawn): без доп. эффектов — частиц в 3D, неба/теней, размытия, блика.
+    // Его ставит tools/windows-launch.js, если игра падает при старте (драйвер не тянет эти шейдеры)
+    const all = options.gpuFlags ?? (process.env.VOID_GPU_FLAGS ? process.env.VOID_GPU_FLAGS.split(",").filter(Boolean) : []);
+    const safe = all.includes("safe");
+    const flags = all.filter((f) => f !== "safe");
+    // Шаги — сразу в журнал (пишется синхронно): если драйвер уронит процесс, видно, на каком шаге
+    const step = options.log || (() => {});
+    step(`видеокарта: создаю WebGPU${all.length ? ` [${all.join(", ")}]` : ""}`);
     const instance = gpu.create(flags);
+    step("видеокарта: ищу адаптер");
     const adapter = await instance.requestAdapter(); // какая видеокарта есть
     if (!adapter) throw new Error(`Видеокарта с поддержкой WebGPU не найдена${flags.length ? ` (флаги: ${flags.join(", ")})` : ""}`);
-    const device = await adapter.requestDevice(); // открыть её для работы
-    const renderer = new GPURenderer(window, instance, device, options);
     // Что за видеокарта — для журнала (по нему разбираем падения на чужих компьютерах)
     const info = adapter.info || {};
-    renderer.adapterName = [info.vendor, info.architecture, info.device, info.description].filter(Boolean).join(" / ") || "?";
-    renderer.gpuFlags = flags;
+    const adapterName = [info.vendor, info.architecture, info.device, info.description].filter(Boolean).join(" / ") || "?";
+    step(`видеокарта: найдена ${adapterName}; открываю устройство`);
+    const device = await adapter.requestDevice(); // открыть её для работы
+    step("видеокарта: основные шейдеры и окно");
+    const renderer = new GPURenderer(window, instance, device, options);
+    renderer.adapterName = adapterName;
+    renderer.gpuFlags = all;
+    renderer.safeMode = safe;
+    if (safe) {
+      step("видеокарта: безопасный режим — без доп. эффектов");
+      return renderer;
+    }
+    step("видеокарта: частицы");
     await renderer.initParticles(); // частицы с глубиной — если шейдер не собрался, без них (эффекты — плоские)
+    step("видеокарта: небо, свет, тени");
     await renderer.initWorldFx(); //   небо с солнцем, луной и облаками, свет ламп — не собралось: как раньше
+    step("видеокарта: размытие");
     await renderer.initMotionBlur(); // размытие в движении — не собралось: без него
+    step("видеокарта: блик солнца");
     await renderer.initGlare(); //      солнце слепит — не собралось: без него
     return renderer;
   }
