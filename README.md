@@ -27,6 +27,15 @@ npm start       # запускает games/builder (игру «Стройка»)
 `VOID_GPU_FLAGS=backend=vulkan` (её читает `GPURenderer.create`). В журнал пишется, какая видеокарта найдена,
 и первые 3 кадра по шагам — видно, где именно упало.
 
+**Electron (второй способ запуска):** `npm run electron` (или `node tools/electron/run.mjs`). Electron скачивается
+один раз в свою папку (`%LOCALAPPDATA%\VOID\electron` или `~/.void-electron`), не в `node_modules` игры.
+Нужен там, где WebGPU из `@kmamal/gpu` падает при выводе в окно SDL (некоторые ноутбуки Windows с двумя
+видеокартами), а WebGPU Chromium работает. Игра и рендер — те же: движок берёт окно, ввод, звук и
+видеокарту из `engine/platform/*.js`, а в Electron их подменяет `tools/electron/platform.mjs`
+(canvas на всё окно, pointer lock, AudioWorklet, `navigator.gpu`). Вся игра работает в `preload.mjs`
+(Node + окно браузера), главный процесс `main.cjs` — только окно, полный экран, захват мыши и выход.
+Лаунчер Windows (`tools/windows-launch.js`) сам пробует Electron, если обычный запуск падает.
+
 **Windows:** двойной клик по `start-windows.cmd` (в папке `VOIDitself`). Нужен Node.js LTS с nodejs.org.
 При первом запуске файл сам ставит библиотеки под Windows (`npm install`, нужен интернет): `node_modules`, скопированная
 с Мака, на Windows не работает — окно и видеокарта (`@kmamal/sdl`, `@kmamal/gpu`) у каждой системы свои.

@@ -88,6 +88,10 @@ export class Updater {
   restart(engine, { before = () => {} } = {}) {
     before();
     engine.log(`обновление: ${this.current} -> ${this.available?.version || "?"}, перезапуск`);
+    if (globalThis.VOID_PLATFORM?.relaunch) { // Electron: перезапускает само приложение
+      globalThis.VOID_PLATFORM.relaunch({ VOID_UPDATED_FROM: this.current });
+      return engine.quit();
+    }
     const child = spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1)], {
       cwd: process.cwd(),
       stdio: "inherit",

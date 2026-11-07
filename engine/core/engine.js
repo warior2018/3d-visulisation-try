@@ -13,7 +13,7 @@
 
 import { Updater } from "./updates.js";
 import "./env.js"; // первым: подсказки для SDL до её загрузки
-import sdl from "@kmamal/sdl";
+import sdl from "../platform/sdl.js";
 import { profiler } from "./profiler.js";
 import { FixedStep } from "./fixed-step.js";
 import { DevConsole, num } from "./console.js";
@@ -685,8 +685,13 @@ export class Engine {
   // ---------- Цикл ----------
 
   run() {
-    this.watchdog = new Watchdog({ logFile: this.journal.file });
-    this.log("цикл запущен, сторож следит");
+    try {
+      this.watchdog = new Watchdog({ logFile: this.journal.file });
+    } catch (e) {
+      this.watchdog = null; // Electron: нет SharedArrayBuffer / потоков Node — играем без сторожа
+      this.log("сторож не запустился: " + e.message);
+    }
+    this.log(this.watchdog ? "цикл запущен, сторож следит" : "цикл запущен (без сторожа)");
     this.running = true;
     this.lastTime = performance.now();
     this.frames = 0;
@@ -703,7 +708,9 @@ export class Engine {
   // Запланировать следующий кадр: 0 — сразу, иначе через delay мс
   schedule(delay) {
     this.timerDelay = delay;
-    this.timer = delay === 0 ? setImmediate(() => this.frame()) : setTimeout(() => this.frame(), delay);
+    // Electron: «сразу» — по кадру экрана (requestAnimationFrame), иначе браузер не успевает показывать кадры
+    const raf = globalThis.VOID_PLATFORM?.raf;
+    this.timer = delay === 0 ? (raf ? raf(() => this.frame()) : setImmediate(() => this.frame())) : setTimeout(() => this.frame(), delay);
   }
 
   // Что-то поменялось, а цикл «спит» (меню, 50 мс) — разбудить, чтобы показать сразу
@@ -719,7 +726,7 @@ export class Engine {
     this.timer = null;
     if (!this.running || this.window.destroyed) return;
     let busy = false;
-    this.watchdog.beat(); // «я жив»
+    this.watchdog?.beat(); // «я жив»
     try {
       busy = this.tick();
     } catch (e) {
@@ -1016,6 +1023,7 @@ export class Engine {
   // иногда зависают, и процесс висел «не отвечает»). VOID_SOFT_EXIT=1 — по-старому (process.exit)
   hardExit(code = 0) {
     try { this.journal?.flush(); } catch {}
+    if (globalThis.VOID_PLATFORM?.quit) return globalThis.VOID_PLATFORM.quit(code); // Electron: закрыть приложение целиком
     if (process.env.VOID_SOFT_EXIT) {
       try { this.renderer.destroy(); } catch {}
       try { this.window.destroy?.(); } catch {}

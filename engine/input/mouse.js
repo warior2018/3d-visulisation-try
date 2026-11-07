@@ -15,7 +15,7 @@
 //      всё время прыгает — на Маке он может раздуваться.
 // ============================================================
 
-import sdl from "@kmamal/sdl";
+import sdl from "../platform/sdl.js";
 
 export class MouseLook {
   constructor(window, sensitivity = 0.0025) {

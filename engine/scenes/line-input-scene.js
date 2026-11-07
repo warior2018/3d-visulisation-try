@@ -5,7 +5,7 @@
 //    engine.push(new LineInputScene({ prompt: "SAY:", history, onDone: (text) => chat.send(text) }));
 // ============================================================
 
-import sdl from "@kmamal/sdl";
+import sdl from "../platform/sdl.js";
 import { Scene } from "../core/scene.js";
 
 const SC = sdl.keyboard.SCANCODE;

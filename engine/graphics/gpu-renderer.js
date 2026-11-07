@@ -5,7 +5,7 @@
 //  а пиксели считают шейдеры (см. shaders.js) — параллельно.
 // ============================================================
 
-import gpu from "@kmamal/gpu";
+import gpu from "../platform/gpu.js";
 import { SHADERS } from "./shaders.js";
 import { worldFxShader } from "./world-fx.js";
 import { MOTION_SHADER, motionVelocity } from "./motion-blur.js";

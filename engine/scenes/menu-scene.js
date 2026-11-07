@@ -14,7 +14,7 @@
 //  })
 // ============================================================
 
-import sdl from "@kmamal/sdl";
+import sdl from "../platform/sdl.js";
 import { Scene } from "../core/scene.js";
 import { drawBackground, drawDim } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";

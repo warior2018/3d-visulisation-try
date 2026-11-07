@@ -7,7 +7,7 @@
 //  Буквы — из события клавиши (e.key); Backspace стирает, Enter — готово, Esc — отмена.
 // ============================================================
 
-import sdl from "@kmamal/sdl";
+import sdl from "../platform/sdl.js";
 import { Scene } from "../core/scene.js";
 import { drawDim } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";

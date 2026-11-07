@@ -18,6 +18,7 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ensureElectron, spawnElectron } from "./electron/run.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SAVES = path.join(ROOT, "games", "builder", "saves");
@@ -28,7 +29,8 @@ const QUICK = 15; // упала быстрее, чем за столько се�
 // "" — как решит сама библиотека; ",safe" — то же, но без доп. эффектов
 // power=high / power=low — ноутбук с двумя видеокартами (встроенная + NVIDIA/AMD): попросить конкретную
 // present=cpu — кадр показываем сами через процессор (если драйвер падает, отдавая «картинку окна»)
-const BACKENDS = ["", "present=cpu", "safe", "present=cpu,safe", "power=high", "backend=d3d11,present=cpu", "backend=vulkan,present=cpu", "backend=vulkan", "backend=d3d11", "backend=opengl"];
+// electron — игра в Electron (WebGPU самого Chromium, tools/electron): там, где Dawn падает на окне SDL
+const BACKENDS = ["", "electron", "present=cpu", "safe", "present=cpu,safe", "power=high", "backend=d3d11,present=cpu", "backend=vulkan,present=cpu", "backend=vulkan", "backend=d3d11", "backend=opengl"];
 
 // Частые коды аварийного выхода Windows (NTSTATUS) — что они обычно значат
 const HINTS = {
@@ -44,6 +46,7 @@ const hex = (code) => (code == null ? "-" : "0x" + (code >>> 0).toString(16).toU
 const label = (flags) => {
   const parts = flags.split(",").filter(Boolean);
   const safe = parts.includes("safe");
+  if (flags === "electron") return "Electron";
   const rest = parts.filter((p) => p !== "safe").map((p) => (p === "power=high" ? "мощная видеокарта" : p === "power=low" ? "встроенная видеокарта" : p === "present=cpu" ? "вывод через процессор" : p)).join(", ") || "по умолчанию";
   return safe ? `${rest}, безопасный режим` : rest;
 };
@@ -94,12 +97,19 @@ makeShortcut();
 // Один запуск игры с флагами видеокарты flags. Вернёт { code, signal, secs }
 function runGame(flags, out) {
   return new Promise((resolve) => {
+    let child;
+    if (flags === "electron") {
+      const exe = ensureElectron((t) => { console.log(t); out.write(t + "\n"); });
+      if (!exe) return resolve({ code: -1, signal: null, secs: 0 });
+      child = spawnElectron(exe, { stdio: ["inherit", "pipe", "pipe"], env: { ...process.env, VOID_GPU_FLAGS: "" } });
+    } else {
+      child = spawn(process.execPath, [path.join(ROOT, "games", "builder", "main.js")], {
+        cwd: ROOT,
+        stdio: ["inherit", "pipe", "pipe"],
+        env: { ...process.env, VOID_GPU_FLAGS: flags },
+      });
+    }
     const started = Date.now();
-    const child = spawn(process.execPath, [path.join(ROOT, "games", "builder", "main.js")], {
-      cwd: ROOT,
-      stdio: ["inherit", "pipe", "pipe"],
-      env: { ...process.env, VOID_GPU_FLAGS: flags },
-    });
     child.stdout.on("data", (d) => { process.stdout.write(d); out.write(d); });
     child.stderr.on("data", (d) => { process.stderr.write(d); out.write(d); });
     // Продержалась QUICK секунд — этот способ рисования рабочий, запоминаем
@@ -114,6 +124,8 @@ function runGame(flags, out) {
 // Порядок попыток: сначала то, что уже заработало раньше
 let saved = null;
 try { saved = fs.readFileSync(GPU_FILE, "utf8").trim(); } catch {}
+// вывод через процессор — запасной (медленный): запомнили его — всё равно сначала пробуем лучшие способы
+if (saved?.includes("present=cpu")) saved = null;
 const order = saved !== null ? [saved, ...BACKENDS.filter((b) => b !== saved)] : BACKENDS;
 
 const out = fs.createWriteStream(CONSOLE_FILE);

@@ -7,7 +7,7 @@
 //  или "mouse:LEFT" (кнопка мыши: LEFT, MIDDLE, RIGHT). Строки легко читать в settings.json.
 // ============================================================
 
-import sdl from "@kmamal/sdl";
+import sdl from "../platform/sdl.js";
 
 const SC = sdl.keyboard.SCANCODE;
 

@@ -10,7 +10,7 @@
 //  rumble(сила, мс) — вибрация (если есть). В автотестах SDL нет — геймпада просто нет.
 // ============================================================
 
-import sdl from "@kmamal/sdl";
+import sdl from "../platform/sdl.js";
 
 // Действие → кнопка геймпада. Курки и стики — особые: "rightTrigger", "leftTrigger", "leftStick+" (направление)
 export const PAD_DEFAULTS = {
