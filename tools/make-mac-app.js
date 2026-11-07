@@ -171,6 +171,29 @@ function icns() {
   return Buffer.concat([head, body]);
 }
 
+// .ico (значок для Windows: ярлык VOID на рабочем столе): заголовок + оглавление + те же PNG (16…256)
+function ico() {
+  const sizes = [16, 32, 48, 256];
+  const images = sizes.map((s) => png(s));
+  const head = Buffer.alloc(6); head.writeUInt16LE(0, 0); head.writeUInt16LE(1, 2); head.writeUInt16LE(sizes.length, 4);
+  let offset = 6 + 16 * sizes.length;
+  const dir = sizes.map((s, i) => {
+    const e = Buffer.alloc(16);
+    e[0] = s >= 256 ? 0 : s; e[1] = s >= 256 ? 0 : s; // 0 = 256
+    e.writeUInt16LE(1, 4); e.writeUInt16LE(32, 6); // плоскостей 1, 32 бита
+    e.writeUInt32LE(images[i].length, 8); e.writeUInt32LE(offset, 12);
+    offset += images[i].length;
+    return e;
+  });
+  return Buffer.concat([head, ...dir, ...images]);
+}
+// node tools/make-mac-app.js --ico  ->  tools/VOID.ico (его кладёт в ярлык windows-launch.js)
+if (process.argv.includes("--ico")) {
+  writeFileSync(fileURLToPath(new URL("./VOID.ico", import.meta.url)), ico());
+  console.log("Готово: tools/VOID.ico");
+  process.exit(0);
+}
+
 // ---------- Собираем ----------
 mkdirSync(path.join(APP, "Contents/MacOS"), { recursive: true });
 mkdirSync(path.join(APP, "Contents/Resources"), { recursive: true });

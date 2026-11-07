@@ -14,7 +14,7 @@
 //    node tools/windows-launch.js
 // ============================================================
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,6 +56,40 @@ const tail = (file, n = 25) => {
 };
 
 fs.mkdirSync(SAVES, { recursive: true });
+
+// Ярлык «VOID» на рабочем столе (Windows, один раз): ведёт на %LOCALAPPDATA%\VOID\VOID.cmd — копию
+// VOID-windows.cmd (игра с автообновлением), значок — tools/VOID.ico. Ярлык можно переносить куда угодно;
+// удалил — заново не появится (метка shortcut.txt). Копию VOID.cmd обновляем при каждом запуске
+function makeShortcut() {
+  if (process.platform !== "win32") return;
+  const dir = process.env.VOID_ROOT || path.resolve(ROOT, "..");
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const cmd = path.join(dir, "VOID.cmd"), icon = path.join(dir, "VOID.ico");
+    fs.copyFileSync(path.join(ROOT, "VOID-windows.cmd"), cmd);
+    fs.copyFileSync(path.join(ROOT, "tools", "VOID.ico"), icon);
+    const mark = path.join(dir, "shortcut.txt");
+    if (fs.existsSync(mark)) return;
+    const q = (p) => `'${p.replace(/'/g, "''")}'`; // строка для PowerShell
+    const ps = [
+      "$d = [Environment]::GetFolderPath('Desktop')",
+      "$s = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $d 'VOID.lnk'))",
+      `$s.TargetPath = ${q(cmd)}`,
+      `$s.WorkingDirectory = ${q(dir)}`,
+      `$s.IconLocation = ${q(icon + ",0")}`,
+      "$s.Description = 'VOID'",
+      "$s.Save()",
+    ].join("; ");
+    const r = spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], { stdio: "ignore", timeout: 15000 });
+    if (r.status === 0) {
+      fs.writeFileSync(mark, "ярлык создан: " + new Date().toISOString());
+      console.log("На рабочем столе появился ярлык VOID — дальше запускай игру через него (его можно перенести куда удобно).\n");
+    }
+  } catch (e) {
+    console.log("Ярлык на рабочий стол не создался: " + e.message);
+  }
+}
+makeShortcut();
 
 // Один запуск игры с флагами видеокарты flags. Вернёт { code, signal, secs }
 function runGame(flags, out) {
