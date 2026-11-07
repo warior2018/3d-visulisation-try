@@ -274,9 +274,17 @@ export class GPURenderer {
 
   // Окно поменяло размер: новая картинка вывода и новый буфер глубины того же размера.
   // Запоминаем, под какой размер всё настроено, — render() сам заметит, если окно стало другим.
+  // Размер, в котором рисуем кадр: как у окна; при выводе через процессор — уменьшенный
+  // (не больше CPU_PIXELS точек), окно растягивает его само
+  targetSize() {
+    const w = this.window.pixelWidth, h = this.window.pixelHeight;
+    if (!this.cpuPresent) return [w, h];
+    const k = Math.min(1, Math.sqrt(CPU_PIXELS / Math.max(1, w * h)));
+    return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))];
+  }
+
   resize() {
-    this.width = this.window.pixelWidth;
-    this.height = this.window.pixelHeight;
+    [this.width, this.height] = this.targetSize();
     this.output.resize();
     if (this.depthTexture) this.retire(this.depthTexture);
     this.depthTexture = this.device.createTexture({
@@ -709,7 +717,8 @@ export class GPURenderer {
     // Размер окна поменялся, а события об этом не было (так бывает на Маке при смене
     // полного экрана) — перенастраиваемся сами. Иначе картинка вывода, буфер глубины
     // и окно будут разного размера, и на экране начнётся мусор.
-    if (this.window.pixelWidth !== this.width || this.window.pixelHeight !== this.height) this.resize();
+    const [tw, th] = this.targetSize();
+    if (tw !== this.width || th !== this.height) this.resize();
     const { width, height } = this; // рисуем в настоящих пикселях (на Retina — во всех)
     this.frameNumber = (this.frameNumber || 0) + 1;
     this.emptyTrash();
@@ -1067,12 +1076,20 @@ export class GPURenderer {
 
 // Вывод кадра через процессор (флаг present=cpu): то же, что даёт renderGPUDeviceToWindow
 // (getPreferredFormat / getCurrentTextureView / resize / swap), но картинка — своя текстура.
-// swap() копирует её в буфер, читает в память и отдаёт окну SDL (window.render, формат bgra32).
-// Пока прошлый кадр ещё читается — новый не ждём, а пропускаем (игра не тормозит на чтении).
+// swap() копирует её в один из буферов-«полок», читает в память и отдаёт окну SDL (window.render, bgra32),
+// растягивая на всё окно. Чтобы было быстро:
+//   - кадр рисуется меньше окна (не больше CPU_PIXELS точек; см. GPURenderer.targetSize) — читать и
+//     отдавать окну приходится в разы меньше байт;
+//   - полок три: пока одна читается, видеокарта пишет в другую — кадры не пропускаются;
+//   - окну отдаём прямо прочитанную память, без лишней копии.
+const CPU_PIXELS = 1280 * 720;
+const CPU_SLOTS = 3;
 class CpuOutput {
   constructor(renderer) {
     this.r = renderer;
-    this.busy = false;
+    this.slots = [];
+    this.shown = 0; // номер последнего показанного кадра: старый кадр поверх нового не рисуем
+    this.frame = 0;
   }
 
   getPreferredFormat() {
@@ -1098,27 +1115,34 @@ class CpuOutput {
   }
 
   swap() {
-    if (!this.texture || this.busy) return;
+    if (!this.texture) return;
     const { device } = this.r;
     const { w, h, stride } = this;
     const size = stride * h;
-    if (!this.buffer || this.bufferSize !== size) {
-      if (this.buffer) this.r.retire(this.buffer);
-      this.buffer = device.createBuffer({ size, usage: gpu.GPUBufferUsage.COPY_DST | gpu.GPUBufferUsage.MAP_READ });
-      this.bufferSize = size;
+    // свободная полка нужного размера (полки старого размера — выбрасываем, когда освободятся)
+    let slot = this.slots.find((sl) => !sl.busy && sl.size === size);
+    if (!slot) {
+      this.slots = this.slots.filter((sl) => sl.busy || sl.size === size || (this.r.retire(sl.buffer), false));
+      if (this.slots.length >= CPU_SLOTS) return; // все заняты — этот кадр пропускаем
+      slot = { size, busy: false, buffer: device.createBuffer({ size, usage: gpu.GPUBufferUsage.COPY_DST | gpu.GPUBufferUsage.MAP_READ }) };
+      this.slots.push(slot);
     }
-    const buffer = this.buffer;
     const enc = device.createCommandEncoder();
-    enc.copyTextureToBuffer({ texture: this.texture }, { buffer, bytesPerRow: stride }, [w, h]);
+    enc.copyTextureToBuffer({ texture: this.texture }, { buffer: slot.buffer, bytesPerRow: stride }, [w, h]);
     device.queue.submit([enc.finish()]);
-    this.busy = true;
-    buffer.mapAsync(gpu.GPUMapMode.READ).then(() => {
-      const pixels = Buffer.from(new Uint8Array(buffer.getMappedRange()));
-      buffer.unmap();
-      this.busy = false;
+    slot.busy = true;
+    const n = ++this.frame;
+    slot.buffer.mapAsync(gpu.GPUMapMode.READ).then(() => {
       const win = this.r.window;
-      if (!win.destroyed) win.render(w, h, stride, "bgra32", pixels);
-    }, () => { this.busy = false; });
+      if (n > this.shown && !win.destroyed) {
+        this.shown = n;
+        const range = slot.buffer.getMappedRange();
+        const ww = win.pixelWidth || w, wh = win.pixelHeight || h;
+        win.render(w, h, stride, "bgra32", Buffer.from(range), w === ww && h === wh ? {} : { scaling: "linear" });
+      }
+      slot.buffer.unmap();
+      slot.busy = false;
+    }, () => { slot.busy = false; });
   }
 }
 
