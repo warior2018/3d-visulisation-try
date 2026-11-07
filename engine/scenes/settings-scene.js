@@ -26,9 +26,9 @@ const LANGUAGE_NAMES = { en: "ENGLISH", ru: "РУССКИЙ" }; // назван�
 export const RENDER_SCALES = [100, 90, 80, 75, 67, 50];
 // Наборы графики (вкладка ГРАФИКА → КАЧЕСТВО): низкие / средние / высокие. Поменял что-то вручную — «СВОИ»
 export const GRAPHICS_PRESETS = {
-  low: { drawDistance: 0, lighting: true, sky: false, clouds: false, shadows: "off", motionBlur: "off", renderScale: 75 },
-  medium: { drawDistance: 1, lighting: true, sky: true, clouds: true, shadows: "simple", motionBlur: "off", renderScale: 100 },
-  high: { drawDistance: 2, lighting: true, sky: true, clouds: true, shadows: "real", motionBlur: "low", renderScale: 100 },
+  low: { drawDistance: 0, lighting: true, sky: false, clouds: false, shadows: "off", motionBlur: "off", lightQuality: "low", glare: false, renderScale: 75 },
+  medium: { drawDistance: 1, lighting: true, sky: true, clouds: true, shadows: "simple", motionBlur: "off", lightQuality: "medium", glare: false, renderScale: 100 },
+  high: { drawDistance: 2, lighting: true, sky: true, clouds: true, shadows: "real", motionBlur: "low", lightQuality: "high", glare: true, renderScale: 100 },
 }; // % пикселей мира (интерфейс — всегда в полном разрешении)
 export const RESOLUTIONS = [[960, 600], [1280, 720], [1280, 800], [1440, 900], [1600, 900], [1680, 1050], [1920, 1080], [1920, 1200], [2560, 1440], [3840, 2160]];
 
@@ -149,6 +149,17 @@ export class SettingsScene extends Scene {
             change: () => { g.sky = g.sky === false; e.applySettings("sky"); } },
           { id: "clouds", label: "CLOUDS", value: () => onOff(g.clouds !== false),
             change: () => { g.clouds = g.clouds === false; e.applySettings("sky"); } },
+          // сколько лучей в тенях: больше — мягче край тени (тяжелее)
+          { id: "lightQuality", label: "LIGHT QUALITY", arrows: true,
+            value: () => ({ low: "LOW", medium: "MEDIUM", high: "HIGH" })[g.lightQuality] || "MEDIUM",
+            change: (dir) => {
+              const list = ["low", "medium", "high"], i = Math.max(0, list.indexOf(g.lightQuality));
+              g.lightQuality = list[(i + (dir < 0 ? 2 : 1)) % 3];
+              e.applySettings("lightQuality");
+            } },
+          // солнце слепит: смотришь на солнце — блик и засветка
+          { id: "glare", label: "SUN GLARE", value: () => (e.renderer.glarePipeline === null ? "N/A" : onOff(g.glare !== false)),
+            change: () => { g.glare = g.glare === false; e.applySettings("glare"); } },
           // размытие в движении: при резком повороте камеры картинка смазывается
           { id: "motionBlur", label: "MOTION BLUR", arrows: true,
             value: () => (e.renderer.motionPipeline === null ? "N/A" : ({ off: "OFF", low: "LOW", high: "HIGH" })[g.motionBlur] || "OFF"),

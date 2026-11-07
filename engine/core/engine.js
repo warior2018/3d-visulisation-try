@@ -58,7 +58,8 @@ export const ENGINE_DEFAULTS = {
   // (небо, тень под крышей, углы); sky — небо с солнцем и свет ламп; shadows: "real" — настоящие тени (карта
   // теней на видеокарте: форма блоков, мобов, героя), "simple" — запечённые в блоки, "off" — без теней
   // quality — набор (low / medium / high), «custom» — поменяли что-то вручную; motionBlur: off / low / high
-  graphics: { quality: "high", drawDistance: 1, lighting: true, sky: true, clouds: true, shadows: "real", motionBlur: "off" }, // renderScale — % пикселей, в которые рисуется мир
+  // lightQuality — сколько лучей в тенях (low / medium / high); glare — солнце слепит
+  graphics: { quality: "high", drawDistance: 1, lighting: true, sky: true, clouds: true, shadows: "real", motionBlur: "off", lightQuality: "high", glare: true }, // renderScale — % пикселей, в которые рисуется мир
   interface: { language: "en", showFps: false }, // язык надписей (engine/ui/i18n.js), счётчик FPS слева сверху
   audio: { master: 80, effects: 100, music: 60, voices: 100, muteUnfocused: true }, // каналы громкости (engine/audio/sound.js); без фокуса — тишина
   controls: {
@@ -145,6 +146,7 @@ export class Engine {
     });
     const renderer = await GPURenderer.create(window, { ...render, vsync: v.vsync, brightness: v.brightness / 100 }); // render — свои настройки игры (fadeDist — дальность прорисовки)
     if (renderer.worldFxError) journal.write("ОШИБКА графики: небо, свет ламп и тени не собрались (рисуем по-старому): " + renderer.worldFxError);
+    if (renderer.glareError) journal.write("блик солнца не собрался: " + renderer.glareError);
     if (renderer.motionError) journal.write("размытие в движении не собралось: " + renderer.motionError);
     if (renderer.particleError) journal.write("частицы в 3D не собрались: " + renderer.particleError);
     journal.write(`окно ${window.width}x${window.height} (пикселей ${window.pixelWidth}x${window.pixelHeight}), видеокарта готова: ${renderer.adapterName}${renderer.gpuFlags.length ? ` [${renderer.gpuFlags.join(", ")}]` : ""}`);
@@ -216,6 +218,8 @@ export class Engine {
     this.applySettings("sky");
     this.applySettings("shadows");
     this.applySettings("motionBlur");
+    this.applySettings("lightQuality");
+    this.applySettings("glare");
     this.listen();
 
     // Любая непойманная ошибка — сначала в журнал, потом как обычно (с текстом в терминале)
@@ -468,6 +472,8 @@ export class Engine {
       this.renderer.fxEnabled = gr.sky !== false; // небо с солнцем и свет ламп (world-fx.js)
       this.renderer.setSky?.({ clouds: gr.clouds !== false ? 1 : 0 });
     }
+    if (all || what === "lightQuality") this.renderer.setLightQuality?.(gr.lightQuality);
+    if (all || what === "glare") this.renderer.glare = gr.glare !== false ? 1 : 0;
     if (all || what === "motionBlur") this.renderer.motionBlur = { off: 0, low: 0.5, high: 1 }[gr.motionBlur] ?? 0;
     if (all || what === "shadows") this.renderer.shadowMode = ["real", "simple", "off"].includes(gr.shadows) ? gr.shadows : "real";
     if ((all || what === "drawDistance") && this.viewDistances) {

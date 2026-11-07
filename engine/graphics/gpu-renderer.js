@@ -9,10 +9,11 @@ import gpu from "@kmamal/gpu";
 import { SHADERS } from "./shaders.js";
 import { worldFxShader } from "./world-fx.js";
 import { MOTION_SHADER, motionVelocity } from "./motion-blur.js";
+import { GLARE_SHADER, glareOf } from "./glare.js";
 
 const DEPTH_FORMAT = "depth24plus";
 import { PARTICLE_SHADER, FLOATS_PER_PARTICLE } from "./particles.js";
-import { FLOATS_PER_CUBE, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js"; // x, y, z, r, g, b на кубик
+import { FLOATS_PER_CUBE, LIGHT, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js"; // x, y, z, r, g, b на кубик
 const MAX_JOINTS = 64; //     столько костей помещается в шейдер (array<mat4x4f, 64>)
 // Буфер одного существа: матрица модели (64 байта) + оттенок vec4 (16) + матрицы костей
 const SKIN_BYTES = 64 + 16 + MAX_JOINTS * 64;
@@ -38,6 +39,7 @@ export class GPURenderer {
     await renderer.initParticles(); // частицы с глубиной — если шейдер не собрался, без них (эффекты — плоские)
     await renderer.initWorldFx(); //   небо с солнцем, луной и облаками, свет ламп — не собралось: как раньше
     await renderer.initMotionBlur(); // размытие в движении — не собралось: без него
+    await renderer.initGlare(); //      солнце слепит — не собралось: без него
     return renderer;
   }
 
@@ -357,7 +359,7 @@ export class GPURenderer {
     this.device.queue.writeBuffer(this.shadowUniform, 0, s);
     const d = this.uniformData;
     d[24] = pos[0]; d[25] = pos[1]; d[26] = pos[2]; d[27] = yaw; d[28] = pitch; d[29] = tan; d[30] = near; d[31] = far;
-    d[32] = 1; d[33] = 1 / this.shadowSize;
+    d[32] = 1; d[33] = 1 / this.shadowSize; d[34] = this.shadowPcf ?? 1; // проб тени (качество: 1 — 3×3, 2 — 5×5)
     const pass = encoder.beginRenderPass({
       colorAttachments: [],
       depthStencilAttachment: { view: this.shadowView, depthClearValue: 1, depthLoadOp: "clear", depthStoreOp: "store" },
@@ -396,6 +398,37 @@ export class GPURenderer {
   // fadeDist × 1.15 — там дымка уже полная (haze), за этим ничего не видно
   get viewDistance() {
     return this.fadeDist * 1.15;
+  }
+
+  // Солнце слепит (glare.js): свой модуль под ловушкой ошибок, складывается со светом (additive)
+  async initGlare() {
+    const device = this.device;
+    let scoped = false;
+    try {
+      device.pushErrorScope?.("validation");
+      scoped = !!device.pushErrorScope;
+      const module = device.createShaderModule({ code: GLARE_SHADER });
+      const pipeline = device.createRenderPipeline({
+        layout: "auto",
+        vertex: { module, entryPoint: "glare_vs" },
+        fragment: { module, entryPoint: "glare_fs", targets: [{ format: this.format || this.output.getPreferredFormat(), blend: {
+          color: { srcFactor: "one", dstFactor: "one", operation: "add" },
+          alpha: { srcFactor: "zero", dstFactor: "one", operation: "add" },
+        } }] },
+        depthStencil: { format: DEPTH_FORMAT, depthWriteEnabled: false, depthCompare: "always" },
+      });
+      const buffer = device.createBuffer({ size: 32, usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST });
+      const bind = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer } }] });
+      scoped = false;
+      const err = device.popErrorScope ? await device.popErrorScope() : null;
+      if (err) throw new Error(err.message || String(err));
+      Object.assign(this, { glarePipeline: pipeline, glareBuffer: buffer, glareBind: bind, glareData: new Float32Array(8), glareLevel: 0 });
+    } catch (e) {
+      if (scoped) try { await device.popErrorScope(); } catch {}
+      this.glarePipeline = null;
+      this.glareError = e.message;
+      console.warn("Блик солнца недоступен:", e.message);
+    }
   }
 
   // Размытие в движении (motion-blur.js): свой модуль под ловушкой ошибок
@@ -540,6 +573,17 @@ export class GPURenderer {
     if (day !== undefined) s.day = day;
     if (base !== undefined) s.base = base;
     if (clouds !== undefined) s.clouds = clouds;
+  }
+
+  // Качество света (настройка графики): "low" / "medium" / "high" — проб настоящей тени (1 / 9 / 25) и лучей
+  // простой тени на кубик (1 / 4 / 9). Поменялось — простые тени перезапекаются
+  setLightQuality(q) {
+    const i = { low: 0, medium: 1, high: 2 }[q] ?? 1;
+    this.shadowPcf = i;
+    if (LIGHT.rays !== i + 1) {
+      LIGHT.rays = i + 1;
+      this.shadowKey = null; // перезапечь
+    }
   }
 
   // Тени под это солнце: ключ — направление шагами; поменялся — все куски в очередь на перезапекание
@@ -801,6 +845,24 @@ export class GPURenderer {
       });
       pass.setViewport(0, 0, rw, rh, 0, 1);
       this.drawCharacters(pass, viewModels);
+    }
+
+    // Солнце слепит: смотришь на солнце (и его ничего не закрывает) — свет заливает кадр поверх всего
+    if (camera && world && this.glarePipeline && this.glare) {
+      const g = glareOf(camera, this.sky.sun, rw / rh, world);
+      // плавно: зашло за стену / вышло — блик гаснет и разгорается за ~0.2 с
+      this.glareLevel += (g.strength - this.glareLevel) * 0.25;
+      if (this.glareLevel > 0.01) {
+        const gd = this.glareData;
+        gd[0] = g.x; gd[1] = g.y; gd[2] = this.glareLevel * this.glare; gd[3] = rw / rh;
+        gd[4] = this.sky.day; gd[5] = 0; gd[6] = 0; gd[7] = 0;
+        if (g.strength > 0) this.glarePos = [g.x, g.y];
+        else if (this.glarePos) { gd[0] = this.glarePos[0]; gd[1] = this.glarePos[1]; }
+        device.queue.writeBuffer(this.glareBuffer, 0, gd);
+        pass.setPipeline(this.glarePipeline);
+        pass.setBindGroup(0, this.glareBind);
+        pass.draw(3);
+      }
     }
 
     // Размытие: переносим картинку мира на экран (снаружи круга — размыто)

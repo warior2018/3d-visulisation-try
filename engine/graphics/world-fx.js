@@ -27,7 +27,7 @@ const UNIFORMS_NEW = `  voidSky: f32,
   sFar: f32,
   shadowOn: f32,      // 1 — настоящие тени (карта теней готова на этот кадр)
   sTexel: f32,        // размер точки карты теней (1 / её ширина)
-  _pad4: f32,
+  sPcf: f32,          // проб вокруг: 1 — 3×3, 2 — 5×5 (мягче край; качество графики)
   _pad5: f32,
 };
 @group(0) @binding(1) var shadowMap: texture_depth_2d;
@@ -188,14 +188,18 @@ fn shadowVis(world: vec3f, n: vec3f) -> f32 {
     return 1.0;
   }
   let depthRef = ndc.z - 0.0002;
+  let r = clamp(i32(u.sPcf + 0.5), 0, 2);
+  let stepK = u.sTexel * select(1.5, 1.0, r == 2); // 5×5 — плотнее, тот же размер пятна мягкости
   var sum = 0.0;
-  for (var i = -1; i <= 1; i = i + 1) {
-    for (var j = -1; j <= 1; j = j + 1) {
-      let o = vec2f(f32(i), f32(j)) * u.sTexel * 1.5;
+  var cnt = 0.0;
+  for (var i = -r; i <= r; i = i + 1) {
+    for (var j = -r; j <= r; j = j + 1) {
+      let o = vec2f(f32(i), f32(j)) * stepK;
       sum = sum + textureSampleCompareLevel(shadowMap, shadowSampler, uv + o, depthRef);
+      cnt = cnt + 1.0;
     }
   }
-  return sum / 9.0;
+  return sum / cnt;
 }
 
 @fragment
@@ -208,6 +212,11 @@ fn cube_fx_fs(in: CubeFxOut) -> @location(0) vec4f {
   let vis = shadowVis(in.worldPos, in.normal);
   let facing = smoothstep(0.0, 0.25, dot(in.normal, sun));
   color = color * mix(1.0, mix(0.6, 1.0, vis), facing * clamp(u.day, 0.0, 1.0));
+  // освещённое солнцем — чуть теплее (на закате — заметно), в тени — чуть голубее от неба
+  let duskK = clamp(1.0 - abs(sun.y) * 3.0, 0.0, 1.0);
+  let sunTint = mix(vec3f(1.04, 1.0, 0.94), vec3f(1.18, 0.92, 0.72), duskK);
+  let lit = facing * vis * clamp(u.day, 0.0, 1.0);
+  color = color * mix(vec3f(0.96, 0.98, 1.04), sunTint, lit);
   color = color * (1.0 - 0.35 * edgeness(in.local));
   // ночь темнит всё (u.brightness), кроме света ламп: он тёплый и не темнеет
   let night = clamp(1.0 - u.brightness, 0.0, 1.0);

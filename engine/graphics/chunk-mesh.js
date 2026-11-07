@@ -28,14 +28,18 @@ export const FLOATS_PER_CUBE = 7; // x, y, z, r, g, b, glow (свет от ла�
 //   тень — луч от кубика к солнцу (world.sun: направление, задаёт рисовальщик) упёрся в блок — небесный свет
 //          × LIGHT.shadow (до shadowRange блоков). Солнце за горизонтом (нет world.sun) — без теней.
 // Свет ламп (blockLightAt) — отдельно: в шейдере он не темнеет ночью (у кубика — glow).
-export const LIGHT = { minSky: 0.5, ao: 0.05, shadow: 0.72, shadowRange: 18 };
+export const LIGHT = { minSky: 0.5, ao: 0.05, shadow: 0.72, shadowRange: 18, rays: 2 };
 
 // Доля тени у верха кубика 0…1: 4 луча к солнцу из четырёх точек грани (мягкий край: у края тени — частично)
+// Лучей — LIGHT.rays по стороне (1 — один луч, 2 — 4, 3 — 9: мягче край; качество графики)
 export function shadowAmount(world, x, y, z, sun, range = LIGHT.shadowRange) {
   if (!sun || sun.y <= 0.05) return 0;
+  const n = Math.max(1, Math.min(3, LIGHT.rays | 0));
   let hit = 0;
-  for (const [ox, oz] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) if (rayBlocked(world, x, y, z, x + ox, y + 1.01, z + oz, sun, range)) hit++;
-  return hit / 4;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    if (rayBlocked(world, x, y, z, x + (i + 0.5) / n, y + 1.01, z + (j + 0.5) / n, sun, range)) hit++;
+  }
+  return hit / (n * n);
 }
 
 // Есть ли блок на луче от (x, y, z) к солнцу (sun — направление, y > 0): шаги по полблока
