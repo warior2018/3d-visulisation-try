@@ -23,6 +23,15 @@ app.commandLine.appendSwitch("force_high_performance_gpu"); //  ноутбук �
 app.commandLine.appendSwitch("disable-renderer-backgrounding");
 app.commandLine.appendSwitch("disable-background-timer-throttling");
 
+// Журнал Electron: games/builder/saves/electron.txt (каждый запуск — заново)
+const fs = require("node:fs");
+const LOG = path.join(__dirname, "..", "..", "games", "builder", "saves", "electron.txt");
+try { fs.mkdirSync(path.dirname(LOG), { recursive: true }); fs.writeFileSync(LOG, `запуск Electron ${process.versions.electron}, Chromium ${process.versions.chrome}\n`); } catch {}
+function say(text) {
+  console.log(text);
+  try { fs.appendFileSync(LOG, new Date().toISOString().slice(11, 23) + "  " + text + "\n"); } catch {}
+}
+
 let win = null;
 let quitting = false;
 let relaunchEnv = null;
@@ -56,15 +65,22 @@ app.whenReady().then(() => {
   });
   win.removeMenu();
   win.loadFile(path.join(__dirname, "index.html"));
+  win.webContents.on("did-finish-load", () => say("Electron: страница загружена"));
 
   // Вывод страницы — в наш stdout (его пишет в console.txt tools/windows-launch.js)
-  win.webContents.on("console-message", (e, level, message) => {
-    const text = message ?? e?.message;
-    if (text) console.log(text);
+  // и в saves/electron.txt (на Windows вывод программы с окном до консоли доходит не всегда)
+  win.webContents.on("console-message", (e) => {
+    if (e?.message) say(e.message);
   });
+  win.webContents.on("preload-error", (e, file, error) => say(`Electron: preload не загрузился (${file}): ${error?.stack || error}`));
+  win.webContents.on("did-fail-load", (e, code, desc) => say(`Electron: страница не загрузилась: ${code} ${desc}`));
   win.webContents.on("render-process-gone", (e, details) => {
-    console.log(`Electron: процесс игры упал (${details?.reason}, код ${details?.exitCode})`);
+    say(`Electron: процесс игры упал (${details?.reason}, код ${details?.exitCode})`);
     quit(1);
+  });
+  // F12 — инструменты разработчика (консоль Chromium): смотреть ошибки, если что-то не так
+  win.webContents.on("before-input-event", (e, input) => {
+    if (input.type === "keyDown" && input.key === "F12") win.webContents.toggleDevTools();
   });
 
   // Крестик окна: сначала игра сохраняется (engine.quit), потом сама просит выйти. Не ответила за 6 с — выходим
@@ -74,6 +90,8 @@ app.whenReady().then(() => {
     win.webContents.send("void:close");
     setTimeout(() => quit(0), 6000).unref?.();
   });
+  // Сторож движка (поток Node) в Electron не работает — зависание видит сам Electron
+  win.on("unresponsive", () => say("ЗАВИСАНИЕ: игра не отвечает (Electron)"));
   win.on("enter-full-screen", () => win.webContents.send("void:fullscreen", true));
   win.on("leave-full-screen", () => win.webContents.send("void:fullscreen", false));
 });

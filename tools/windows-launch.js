@@ -167,6 +167,8 @@ for (const t of tries) {
   if (lastStep) console.log(`   последний шаг: ${lastStep}`);
 }
 console.log(`\n--- последние строки журнала (${LOG_FILE}) ---\n${tail(LOG_FILE)}`);
+const ELECTRON_LOG = path.join(SAVES, "electron.txt");
+if (fs.existsSync(ELECTRON_LOG)) console.log(`\n--- журнал Electron (${ELECTRON_LOG}) ---\n${tail(ELECTRON_LOG, 15)}`);
 console.log(`\n--- последние строки вывода (${CONSOLE_FILE}) ---\n${tail(CONSOLE_FILE, 15)}`);
 console.log("\nСфотографируй это окно или пришли файлы log.txt и console.txt из папки выше.");
 console.log("Нажми Enter, чтобы закрыть.");
