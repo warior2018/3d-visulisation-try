@@ -4,7 +4,7 @@
 //  лучший уровень, больше всего убийств, дольше всего прожил, сколько было забегов).
 // ============================================================
 
-import { SummaryScene } from "../../../engine/index.js";
+import { SummaryScene, translate } from "../../../engine/index.js";
 import { itemName } from "../items.js";
 import { worldInfo, updateWorld, currentWorld } from "../save.js";
 
@@ -95,7 +95,7 @@ export class RunStatsPart {
     this.engine.log(`итоги: ${rows.map((r) => `${r.label} ${r.value}`).join(", ")}`);
     this.engine.push(new SummaryScene({
       title: "YOU DIED",
-      subtitle: killedBy ? "KILLED BY " + killedBy : "",
+      subtitle: killedBy ? translate("KILLED BY ") + translate(killedBy) : "", // по частям: так переводится
       rows, records, recordsTitle: "WORLD RECORDS",
       footer: "WORLD, LEVEL AND TALENTS ARE LOST - A NEW RUN STARTS",
       buttons: [{ id: "menu", label: "MAIN MENU" }],

@@ -51,11 +51,11 @@ export function drawDim(ui, alpha = ui.theme.overlay.alpha) {
 
 // Всплывающая надпись сверху по центру
 export function drawToast(ui, text) {
-  const w = text.length * 18 + 40;
+  const w = Math.min(ui.width - 20, measureText(text, 3) + 40); // ширина — по переводу, не по исходному тексту
   const t = ui.theme.window;
   ui.rect(ui.width / 2 - w / 2, 18, w, 42, t.fill, 225);
   ui.frame(ui.width / 2 - w / 2, 18, w, 42, t.border, 2);
-  ui.text(text, ui.width / 2, 29, 3, ui.theme.text, "center");
+  ui.text(text, ui.width / 2, 29, 3, ui.theme.text, "center", 255, w - 20);
 }
 
 // Прицел — маленький крестик в центре
@@ -101,7 +101,7 @@ export function drawInventoryGrid(ui, inventory, itemInfo, { cols = 5, size = 10
     ui.frame(x, y, size, size, hot ? [200, 210, 230] : [70, 85, 115], hot ? 3 : 2);
     if (buttonId) ui.buttons.push({ id: buttonId(i), x, y, w: size, h: size });
     const tag = label?.(i);
-    if (tag) ui.text(tag, x + 6, y + 6, 2, MUTED);
+    if (tag) ui.text(tag, x + 6, y + 6, 2, MUTED, "left", 255, size - 10); // подпись пустой ячейки — внутри неё
     if (!slot || i === picked) return;
     drawItem(ui, itemInfo, slot, x, y, size);
   });
@@ -121,7 +121,7 @@ export function drawItem(ui, itemInfo, slot, x, y, size, { name = true } = {}) {
   // Название: не влезает крупно — пишем мелко
   if (name) {
     const big = measureText(info.name, 2) <= size - 8;
-    ui.text(info.name, x + size / 2, y + size * (big ? 0.68 : 0.72), big ? 2 : 1, TEXT, "center");
+    ui.text(info.name, x + size / 2, y + size * (big ? 0.68 : 0.72), big ? 2 : 1, TEXT, "center", 255, size - 6);
   }
   if (slot.count > 1) ui.text(String(slot.count), x + size - 8, y + 6, 2, [255, 255, 255], "right");
   else if (slot.data?.label) ui.text(String(slot.data.label), x + size - 8, y + 6, 2, [255, 200, 90], "right"); // свои данные (неполная обойма: патроны)

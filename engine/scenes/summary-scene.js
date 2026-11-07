@@ -15,6 +15,7 @@
 import { Scene } from "../core/scene.js";
 import { drawDim } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";
+import { translate } from "../ui/i18n.js";
 
 const GOLD = [240, 196, 80];
 
@@ -44,12 +45,12 @@ export class SummaryScene extends Scene {
     const two = this.records.length > 0;
     const box = drawWindow(ui, { width: two ? 960 : 620, height: 150 + Math.max(this.rows.length, this.records.length + 1) * 34 + (this.footer ? 30 : 0) + 70 });
     ui.text(this.title, box.cx, box.y + 6, 5, this.titleColor, "center");
-    if (this.subtitle) ui.text(this.subtitle, box.cx, box.y + 54, 2, th.muted, "center");
+    if (this.subtitle) ui.text(this.subtitle, box.cx, box.y + 54, 2, th.muted, "center", 255, box.w);
     const top = box.y + 92;
     const colW = two ? (box.w - 40) / 2 : box.w;
     const row = (x, y, w, r, color = th.text) => {
-      ui.text(r.label, x, y, 2, th.muted);
-      ui.text(String(r.value), x + w, y, 3, r.best ? GOLD : color, "right");
+      ui.text(r.label, x, y, 2, th.muted, "left", 255, w * 0.55);
+      ui.text(String(r.value), x + w, y, 3, r.best ? GOLD : color, "right", 255, w * 0.42);
       if (r.best) ui.text("NEW BEST", x + w, y + 22, 1, GOLD, "right");
     };
     this.rows.forEach((r, i) => row(box.x, top + i * 34, colW, r));
@@ -60,10 +61,10 @@ export class SummaryScene extends Scene {
       this.records.forEach((r, i) => row(x, top + (i + 1) * 34, colW, r, th.muted));
     }
     const by = box.y + box.h - 28;
-    if (this.footer) ui.text(this.footer, box.cx, by - 52, 2, th.muted, "center");
+    if (this.footer) ui.text(this.footer, box.cx, by - 52, 2, th.muted, "center", 255, box.w);
     const n = this.buttons.length, bw = Math.min(300, (box.w - (n - 1) * 16) / n);
     this.buttons.forEach((b, i) => {
-      const label = this.lock > 0 ? `${b.label} (${Math.ceil(this.lock)})` : b.label;
+      const label = this.lock > 0 ? translate(b.label) + " (" + Math.ceil(this.lock) + ")" : b.label; // перевод — до числа
       ui.button(b.id, label, box.cx + (i - (n - 1) / 2) * (bw + 16), by, bw, 46, 3, i === 0);
     });
   }

@@ -246,8 +246,8 @@ export class MainMenu extends Scene {
       ui.frame(x, y, cell, cell, on ? th.accent : th.window.border, on ? 3 : 2);
       const s = skinOf(S, t);
       if (!drawSkinIcon(ui, ITEMS, t, s, x + cell * 0.22, y + cell * 0.18, cell * 0.56)) this.drawSwatch(ui, t, s, x + 14, y + 18, cell - 28, cell - 44);
-      if (s.id !== "default") ui.text(s.name, x + cell / 2, y + cell - 16, 1, th.accent, "center");
-      ui.text(t.name, x + cell / 2, y + cell + 6, 1, on ? th.text : th.muted, "center");
+      if (s.id !== "default") ui.text(s.name, x + cell / 2, y + cell - 16, 1, th.accent, "center", 255, cell - 6);
+      ui.text(t.name, x + cell / 2, y + cell + 6, 1, on ? th.text : th.muted, "center", 255, cell + 4);
       ui.buttons.push({ id: "spick:" + t.id, x, y, w: cell, h: cell + 22 });
     });
     // в центре — примерка (3D: окошко прозрачное); у брони пока только значок

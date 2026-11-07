@@ -82,9 +82,9 @@ export class SettingsScene extends Scene {
               const w = e.window, r = e.pixelRatio || 1;
               if (w.fullscreen) {
                 const k = (s.video.renderScale ?? 100) / 100;
-                return k >= 0.999 ? `NATIVE ${w.pixelWidth}X${w.pixelHeight}` : `${Math.round(w.pixelWidth * k)}X${Math.round(w.pixelHeight * k)}`;
+                return `${Math.round(w.pixelWidth * k)}X${Math.round(w.pixelHeight * k)}`; // во весь экран: во сколько пикселей рисуем
               }
-              return r > 1.01 ? `${s.video.width}X${s.video.height} (${Math.round(s.video.width * r)}X${Math.round(s.video.height * r)} PX)` : `${s.video.width}X${s.video.height}`;
+              return r > 1.01 ? `${Math.round(s.video.width * r)}X${Math.round(s.video.height * r)}` : `${s.video.width}X${s.video.height}`; // настоящие пиксели (Retina — ×2)
             },
             change: (dir) => {
               // во весь экран окно всегда во весь экран — стрелки выбирают, во сколько пикселей рисуется мир
@@ -229,10 +229,10 @@ export class SettingsScene extends Scene {
       }
       if (inside(y, ROW)) {
         const cy = y + 20;
-        ui.text(row.label, box.x + 10, cy - 10, 3, th.text);
+        ui.text(row.label, box.x + 10, cy - 10, 3, th.text, "left", 255, ctrlX - 132 - 16 - (box.x + 10)); // не наезжает на кнопки справа
         if (row.arrows) {
           ui.button(`row:${row.id}:-1`, "<", ctrlX - 110, cy, 44, 40);
-          ui.text(row.value(), ctrlX, cy - 10, 3, th.text, "center");
+          ui.text(row.value(), ctrlX, cy - 10, 3, th.text, "center", 255, 220 - 44 - 12); // между стрелками
           ui.button(`row:${row.id}:1`, ">", ctrlX + 110, cy, 44, 40);
         } else {
           ui.button(`row:${row.id}:1`, row.value(), ctrlX, cy, 264, 40);
@@ -252,7 +252,7 @@ export class SettingsScene extends Scene {
 
     const bottom = box.y + box.h;
     const note = this.waiting ? "PRESS A KEY OR MOUSE BUTTON" : tab.note?.();
-    if (note) ui.text(note, box.cx, bottom - 66, 2, this.waiting ? th.warn : th.muted, "center");
+    if (note) ui.text(note, box.cx, bottom - 66, 2, this.waiting ? th.warn : th.muted, "center", 255, box.w - 20);
     ui.button("reset", "RESET", box.cx - 140, bottom - 22, 250, 44);
     ui.button("back", "BACK", box.cx + 140, bottom - 22, 250, 44);
   }
@@ -286,7 +286,7 @@ export class SettingsScene extends Scene {
       const yy = y + row * 32;
       if (!inside(yy - 14, 28)) return;
       const lx = box.x + col * colW;
-      ui.text(labels[action], lx, yy - 7, 2, ui.theme.text);
+      ui.text(labels[action], lx, yy - 7, 2, ui.theme.text, "left", 255, colW - btnW - 24); // не наезжает на клавишу
       const waiting = this.waiting === action;
       const key = waiting ? "..." : Input.label(bindings[action]);
       ui.button("bind:" + action, key, lx + colW - btnW / 2 - 14, yy, btnW, 28, 2, waiting);

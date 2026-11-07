@@ -80,9 +80,9 @@ export const GAME_DEFAULTS = {
 
 export const GAME_ACTION_LABELS = {
   mount: "MOUNT",
-  tune: "BALANCE WINDOW (DEV)",
-  record: "RECORD REPLAY (DEV)",
-  mountMode: "MOUNT: REINS / WEAPON",
+  tune: "BALANCE (DEV)",
+  record: "REPLAY (DEV)",
+  mountMode: "MOUNT MODE",
   item1: "ITEM 1",
   item2: "ITEM 2",
   skill1: "SKILL 1",

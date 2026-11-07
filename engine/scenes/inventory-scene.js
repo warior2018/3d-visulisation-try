@@ -59,7 +59,9 @@ export class InventoryScene extends Scene {
     const { hp, maxHp } = this.entity.stats;
     drawDim(ui);
     const t = ui.theme.window;
-    const sizes = this.sections.map((sec) => inventoryGridSize(sec.inventory, { cols: sec.cols ?? 5, indices: sec.indices }));
+    const cell = this.cellSize(ui, (k) => this.sections.reduce((sum, sec) => sum + inventoryGridSize(sec.inventory, { cols: sec.cols ?? 5, indices: sec.indices, size: k, gap: Math.round(k / 10) }).h + (sec.title ? 26 : 0) + 20, -20));
+    const grid = { size: cell, gap: Math.round(cell / 10) };
+    const sizes = this.sections.map((sec) => inventoryGridSize(sec.inventory, { cols: sec.cols ?? 5, indices: sec.indices, ...grid }));
     const w = Math.max(...sizes.map((s) => s.w));
     const titled = this.sections.filter((s) => s.title).length;
     const h = sizes.reduce((sum, s) => sum + s.h, 0) + (this.sections.length - 1) * 20 + titled * 26;
@@ -75,7 +77,7 @@ export class InventoryScene extends Scene {
         y += 26;
       }
       const rects = drawInventoryGrid(ui, sec.inventory, this.itemInfo, {
-        x: box.cx - sizes[s].w / 2, y, cols: sec.cols ?? 5, hover: this.hoverIndex(ui, s), label: sec.label, buttonId: (i) => `slot:${s}:${i}`, indices: sec.indices,
+        x: box.cx - sizes[s].w / 2, y, cols: sec.cols ?? 5, ...grid, hover: this.hoverIndex(ui, s), label: sec.label, buttonId: (i) => `slot:${s}:${i}`, indices: sec.indices,
       });
       sec.rects = rects;
       const r = rects.find((r) => ui.isInside(ui.mouseX, ui.mouseY, r.x, r.y, r.w, r.h));
@@ -84,10 +86,19 @@ export class InventoryScene extends Scene {
     });
 
     const warn = this.warning && performance.now() < this.warning.until ? this.warning.text : null;
-    ui.text(warn || `LMB - WHOLE SLOT, RMB - ONE BY ONE. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK`, box.cx, box.y + box.h - 30, 2, warn ? ui.theme.warn : ui.theme.muted, "center");
+    ui.text(warn || `LMB - WHOLE SLOT, RMB - ONE BY ONE. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK`, box.cx, box.y + box.h - 30, 2, warn ? ui.theme.warn : ui.theme.muted, "center", 255, box.w);
 
     // Предмет «в руке» — у курсора
     if (this.held) drawItem(ui, this.itemInfo, this.held.stack, ui.mouseX - 40, ui.mouseY - 40, 80, { name: false });
+  }
+
+  // Размер ячейки: 100, а если окно с такими ячейками выше экрана — меньше (не меньше 60). heightOf(k) —
+  // высота содержимого при ячейке k
+  cellSize(ui, heightOf) {
+    const t = ui.theme.window;
+    const room = ui.height - 24 - (t.titleHeight + t.padding * 2 + 64);
+    for (let k = 100; k > 60; k -= 4) if (heightOf(k) <= room) return k;
+    return 60;
   }
 
   // Раскладка «персонаж»: слева — секции area "left" одна под другой; справа — секции area "right" колонками
@@ -96,7 +107,16 @@ export class InventoryScene extends Scene {
     drawDim(ui);
     const t = ui.theme.window;
     const GAP = 20, SIDE_GAP = 50, TITLE = 26;
-    const size = (sec) => inventoryGridSize(sec.inventory, { cols: sec.cols ?? 5, indices: sec.indices });
+    // Ячейки 100 точек; окно не влезает по высоте (маленький экран) — ячейки мельче, чтобы подсказка снизу
+    // не наезжала на них (окно сжимается до экрана, а сетка — нет)
+    const cell = this.cellSize(ui, (k) => {
+      const sz = (sec) => inventoryGridSize(sec.inventory, { cols: sec.cols ?? 5, indices: sec.indices, size: k, gap: Math.round(k / 10) });
+      const l = this.sections.filter((x) => x.area !== "right");
+      const r = this.sections.filter((x) => x.area === "right");
+      return Math.max(l.reduce((sum, x) => sum + sz(x).h + (x.title ? TITLE : 0), 0) + Math.max(0, l.length - 1) * GAP, ...r.map((x) => sz(x).h + (x.title ? TITLE : 0)));
+    });
+    const grid = { size: cell, gap: Math.round(cell / 10) };
+    const size = (sec) => inventoryGridSize(sec.inventory, { cols: sec.cols ?? 5, indices: sec.indices, ...grid });
     const left = this.sections.map((sec, s) => ({ sec, s, ...size(sec) })).filter((o) => o.sec.area !== "right");
     const right = this.sections.map((sec, s) => ({ sec, s, ...size(sec) })).filter((o) => o.sec.area === "right");
     const leftW = Math.max(0, ...left.map((o) => o.w));
@@ -116,7 +136,7 @@ export class InventoryScene extends Scene {
         y += TITLE;
       }
       const rects = drawInventoryGrid(ui, o.sec.inventory, this.itemInfo, {
-        x, y, cols: o.sec.cols ?? 5, hover: this.hoverIndex(ui, o.s), label: o.sec.label, buttonId: (i) => `slot:${o.s}:${i}`, indices: o.sec.indices,
+        x, y, cols: o.sec.cols ?? 5, ...grid, hover: this.hoverIndex(ui, o.s), label: o.sec.label, buttonId: (i) => `slot:${o.s}:${i}`, indices: o.sec.indices,
       });
       o.sec.rects = rects;
       const r = rects.find((r) => ui.isInside(ui.mouseX, ui.mouseY, r.x, r.y, r.w, r.h));
@@ -134,7 +154,7 @@ export class InventoryScene extends Scene {
       x += o.w + GAP;
     }
     const warn = this.warning && performance.now() < this.warning.until ? this.warning.text : null;
-    ui.text(warn || `LMB - WHOLE SLOT, RMB - ONE BY ONE. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK`, box.cx, box.y + box.h - 30, 2, warn ? ui.theme.warn : ui.theme.muted, "center");
+    ui.text(warn || `LMB - WHOLE SLOT, RMB - ONE BY ONE. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK`, box.cx, box.y + box.h - 30, 2, warn ? ui.theme.warn : ui.theme.muted, "center", 255, box.w);
     if (this.held) drawItem(ui, this.itemInfo, this.held.stack, ui.mouseX - 40, ui.mouseY - 40, 80, { name: false });
   }
 

@@ -31,7 +31,7 @@ export { loadGLB } from "./graphics/gltf.js";
 export { Animator } from "./graphics/animator.js";
 
 // Интерфейс
-export { UI } from "./ui/ui.js";
+export { UI, fitText } from "./ui/ui.js";
 export * as widgets from "./ui/widgets.js";
 export { HudParts } from "./ui/hud-parts.js"; // HUD из частей: каждая знает, от чего зависит, и сама зовёт перерисовку
 export { drawMinimap } from "./ui/minimap.js";

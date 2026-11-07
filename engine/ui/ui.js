@@ -184,8 +184,15 @@ export class UI {
 
   // Текст пиксельным шрифтом. align: "left" — x это левый край, "center" — середина, "right" — правый край
   // alpha — непрозрачность 0–255 (для гаснущих надписей)
-  text(str, x, y, scale, color, align = "left", alpha = 255) {
+  // maxWidth — не шире (пикселей): длинный текст (перевод, большие числа) сначала мельче (fitText), потом обрезается с «..» — за свою рамку не вылезает. Мельче — по высоте остаётся по центру строки
+  text(str, x, y, scale, color, align = "left", alpha = 255, maxWidth = Infinity) {
     str = translate(String(str)); // язык интерфейса (engine/ui/i18n.js); measureText ниже переводит ещё раз — из кэша
+    if (maxWidth < Infinity) {
+      const fit = fitText(str, scale, maxWidth);
+      y += ((scale - fit.scale) * GLYPH_H) / 2;
+      str = fit.str;
+      scale = fit.scale;
+    }
     if (align === "center") x -= measureText(str, scale) / 2;
     if (align === "right") x -= measureText(str, scale);
     x = Math.round(x);
@@ -212,7 +219,7 @@ export class UI {
     const border = active ? b.activeBorder : hover ? b.hoverBorder : b.border;
     this.rect(x, y, w, h, fill, b.alpha);
     this.frame(x, y, w, h, border);
-    this.text(label, cx, cy - (GLYPH_H * scale) / 2, scale, b.text, "center");
+    this.text(label, cx, cy - (GLYPH_H * scale) / 2, scale, b.text, "center", 255, w - 10); // надпись — не шире кнопки
     this.buttons.push({ id, x, y, w, h });
   }
 
@@ -233,4 +240,16 @@ export class UI {
     this.mouseY = py;
     return this.hitTest(px, py) !== before;
   }
+}
+
+// Уместить текст в ширину maxWidth: мельче (целый масштаб: крупный — до 2/3, размер 2 — до 1), потом — обрезать
+// с «..». Вернёт { str, scale }. Текст — уже переведённый
+export function fitText(str, scale, maxWidth) {
+  str = String(str);
+  const w = (s, k) => (s.length === 0 ? 0 : (s.length * (GLYPH_W + 1) - 1) * k);
+  if (w(str, scale) <= maxWidth) return { str, scale };
+  const min = scale <= 2 ? 1 : Math.ceil((scale * 2) / 3); // крупное — до 2/3, мелкое (2) — до 1
+  for (let k = scale - 1; k >= min; k--) if (w(str, k) <= maxWidth) return { str, scale: k };
+  const fits = Math.max(1, Math.floor((maxWidth + 1) / ((GLYPH_W + 1) * min)) - 2);
+  return { str: str.slice(0, fits).trimEnd() + "..", scale: min };
 }
