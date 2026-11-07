@@ -143,6 +143,8 @@ export class Engine {
       webgpu: true,
     });
     const renderer = await GPURenderer.create(window, { ...render, vsync: v.vsync, brightness: v.brightness / 100 }); // render — свои настройки игры (fadeDist — дальность прорисовки)
+    if (renderer.worldFxError) journal.write("ОШИБКА графики: небо, свет ламп и тени не собрались (рисуем по-старому): " + renderer.worldFxError);
+    if (renderer.particleError) journal.write("частицы в 3D не собрались: " + renderer.particleError);
     journal.write(`окно ${window.width}x${window.height} (пикселей ${window.pixelWidth}x${window.pixelHeight}), видеокарта готова: ${renderer.adapterName}${renderer.gpuFlags.length ? ` [${renderer.gpuFlags.join(", ")}]` : ""}`);
     const engine = new Engine({ window, renderer, settings, actionLabels, journal, theme });
     // Дальность прорисовки (и дымки) — ступенями: render.distances = [близко, средне, далеко] (м); настройка

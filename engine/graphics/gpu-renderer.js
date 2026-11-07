@@ -264,7 +264,7 @@ export class GPURenderer {
     // тени: солнце сдвинулось — перезапекаем по несколько кусков за кадр (иначе — рывок)
     this.updateShadows(world);
     if (this.rebake.length) {
-      for (const m of this.rebake.splice(0, 6)) m.version = -1;
+      for (const m of this.rebake.splice(0, 3)) m.version = -1;
       this.worldVersion = -1;
     }
     if (world.version === this.worldVersion) return;
@@ -401,11 +401,11 @@ export class GPURenderer {
     const device = this.device;
     const code = worldFxShader();
     if (!code) return;
-    let scoped = false;
+    let scoped = false, module = null;
     try {
       device.pushErrorScope?.("validation");
       scoped = !!device.pushErrorScope;
-      const module = device.createShaderModule({ code });
+      module = device.createShaderModule({ code });
       const format = this.format || this.output.getPreferredFormat();
       const depth = (write, compare) => ({ format: DEPTH_FORMAT, depthWriteEnabled: write, depthCompare: compare });
       const sky = device.createRenderPipeline({
@@ -486,6 +486,13 @@ export class GPURenderer {
       this.worldFx = false;
       this.realShadows = false;
       this.worldFxError = e.message;
+      // Что именно не так в шейдере: строка, столбец, текст (для журнала — по нему чиним)
+      try {
+        const info = await module?.getCompilationInfo?.();
+        const lines = code.split("\n");
+        const msgs = (info?.messages || []).map((m) => `${m.type} ${m.lineNum}:${m.linePos} ${m.message} | ${(lines[m.lineNum - 1] || "").trim()}`);
+        if (msgs.length) this.worldFxError += " || " + msgs.join(" || ");
+      } catch {}
       console.warn("Небо с солнцем и свет ламп недоступны (рисуем как раньше):", e.message);
     }
   }

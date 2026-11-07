@@ -28,13 +28,24 @@ export const FLOATS_PER_CUBE = 7; // x, y, z, r, g, b, glow (свет от ла�
 //   тень — луч от кубика к солнцу (world.sun: направление, задаёт рисовальщик) упёрся в блок — небесный свет
 //          × LIGHT.shadow (до shadowRange блоков). Солнце за горизонтом (нет world.sun) — без теней.
 // Свет ламп (blockLightAt) — отдельно: в шейдере он не темнеет ночью (у кубика — glow).
-export const LIGHT = { minSky: 0.5, ao: 0.05, shadow: 0.62, shadowRange: 18 };
+export const LIGHT = { minSky: 0.5, ao: 0.05, shadow: 0.72, shadowRange: 18 };
+
+// Доля тени у верха кубика 0…1: 4 луча к солнцу из четырёх точек грани (мягкий край: у края тени — частично)
+export function shadowAmount(world, x, y, z, sun, range = LIGHT.shadowRange) {
+  if (!sun || sun.y <= 0.05) return 0;
+  let hit = 0;
+  for (const [ox, oz] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) if (rayBlocked(world, x, y, z, x + ox, y + 1.01, z + oz, sun, range)) hit++;
+  return hit / 4;
+}
 
 // Есть ли блок на луче от (x, y, z) к солнцу (sun — направление, y > 0): шаги по полблока
 export function inShadow(world, x, y, z, sun, range = LIGHT.shadowRange) {
   if (!sun || sun.y <= 0.05) return false;
-  let px = x + 0.5, py = y + 1.01, pz = z + 0.5; // от верха кубика
-  for (let t = 0.5; t <= range; t += 0.5) {
+  return rayBlocked(world, x, y, z, x + 0.5, y + 1.01, z + 0.5, sun, range);
+}
+
+function rayBlocked(world, x, y, z, px, py, pz, sun, range) {
+  for (let t = 0.75; t <= range; t += 0.75) {
     const cx = Math.floor(px + sun.x * t), cy = Math.floor(py + sun.y * t), cz = Math.floor(pz + sun.z * t);
     if (cy > world.maxY) return false; // выше всех блоков — свободно
     if ((cx !== x || cz !== z || cy !== y) && world.has(cx, cy, cz)) return true;
@@ -80,7 +91,7 @@ export function lightOf(world, x, y, z) {
   if (world.has(x, y + 1, z + 1)) near++;
   if (world.has(x, y + 1, z - 1)) near++;
   let k = LIGHT.minSky + (1 - LIGHT.minSky) * Math.min(1, sky);
-  if (world.sun && sky > 0.5 && inShadow(world, x, y, z, world.sun)) k *= LIGHT.shadow; // тень от солнца
+  if (world.sun && sky > 0.5) k *= 1 - (1 - LIGHT.shadow) * shadowAmount(world, x, y, z, world.sun); // тень от солнца, мягкий край
   return k * (1 - LIGHT.ao * near);
 }
 

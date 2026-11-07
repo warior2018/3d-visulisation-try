@@ -32,8 +32,8 @@ struct Uniforms {
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
-const SKY_TOP      = vec3f( 27.0,  42.0,  74.0) / 255.0;
-const SKY_HORIZON  = vec3f(109.0, 139.0, 184.0) / 255.0;
+const SKY_TOP      = vec3f( 62.0, 112.0, 186.0) / 255.0;   // днём — голубое (было тёмно-синее: «ночь» и днём)
+const SKY_HORIZON  = vec3f(150.0, 186.0, 226.0) / 255.0;
 const GROUND_FAR   = vec3f( 52.0,  58.0,  70.0) / 255.0;
 const GROUND_NEAR  = vec3f( 34.0,  38.0,  46.0) / 255.0;
 const HORIZON_LINE = vec3f(190.0, 205.0, 230.0) / 255.0;

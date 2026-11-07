@@ -73,13 +73,18 @@ export function skinOf(settings, target, overrides = null) {
 }
 
 // Подключить скины: модели (ModelLibrary.resolve) и значки предметов (ITEMS[id].drawIcon).
+// Рука от 1-го лица — кость (tools/make-viewmodels.js: BONE_COLOR, JOINT): эти цвета кисть пропускает
+const ARM_COLORS = [[0.86, 0.84, 0.76], [0.74, 0.71, 0.63]];
+const keepArm = (brush) => (r, g, b) => (ARM_COLORS.some((c) => Math.abs(c[0] - r) < 0.02 && Math.abs(c[1] - g) < 0.02 && Math.abs(c[2] - b) < 0.02) ? null : brush(r, g, b));
+
 // Перекрашиваем модели от 1-го лица (они всегда свои) и модели сущностей с флагом skinned (свой герой, меню)
 export function installSkins(models, items, settings) {
   models.resolve = (name, owner) => {
     const t = BY_MODEL.get(name);
     if (!t || (!owner?.skinned && !name.startsWith("fp-"))) return name;
     const s = skinOf(settings.data, t, owner?.skinOverride);
-    return s.paint ? models.variant(name, s.id, s.paint) : name;
+    // от 1-го лица в модели и рука героя (кости скелета) — её скин оружия не трогает
+    return s.paint ? models.variant(name, s.id, name.startsWith("fp-") ? keepArm(s.paint) : s.paint) : name;
   };
   for (const [id, info] of Object.entries(items)) {
     const t = targetOfItem(id, info);
