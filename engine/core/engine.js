@@ -227,7 +227,7 @@ export class Engine {
       this.log("ОШИБКА: " + (e.stack || e));
       this.writeCrash(e);
       console.error(e);
-      process.exit(1);
+      this.hardExit(1); // не process.exit: выход мог бы зависнуть в деструкторах видеокарты
     });
   }
 
@@ -968,16 +968,47 @@ export class Engine {
   }
 
   // Закрыть всё. Сцены получают onQuit — шанс сохраниться.
+  // Выход всегда — до конца процесса (и когда закрыли окно крестиком): иначе процесс оставался «призраком»
+  // (окно «не отвечает», на Маке — только принудительно завершить). Порядок: сохраниться (onQuit), спрятать
+  // окно, дождаться фоновых записей (beforeExit — обещания игры, не дольше 3 с), дописать журнал — и завершить
+  // процесс жёстко: видеокарта (Dawn) и SDL при обычном выходе на Маке иногда зависают в своих деструкторах.
+  // Всё нужное к этому моменту уже на диске. exit — оставлен для совместимости (выход — всегда)
   quit(exit = true) {
     if (this.closed) return;
     this.closed = true;
     this.log("выход");
     this.watchdog?.stop(); // закрываемся сами — сторож больше не нужен
     this.updater?.stop();
-    for (let i = this.scenes.length - 1; i >= 0; i--) this.scenes[i].onQuit();
+    for (let i = this.scenes.length - 1; i >= 0; i--) {
+      try {
+        this.scenes[i].onQuit();
+      } catch (e) {
+        this.log("при выходе: ошибка сохранения: " + (e.stack || e));
+      }
+    }
     this.running = false;
-    this.sound.close();
-    this.renderer.destroy();
-    if (exit) process.exit(0);
+    try { this.window.hide?.(); } catch {}
+    try { this.sound.close(); } catch {}
+    const waits = (this.beforeExit || []).map((f) => {
+      try {
+        return Promise.resolve(f());
+      } catch {
+        return null;
+      }
+    });
+    const timeout = new Promise((r) => setTimeout(r, 3000));
+    Promise.race([Promise.allSettled(waits), timeout]).finally(() => this.hardExit(0));
+  }
+
+  // Завершить процесс сразу: журнал — дописать, дальше — без деструкторов видеокарты и SDL (они на Маке
+  // иногда зависают, и процесс висел «не отвечает»). VOID_SOFT_EXIT=1 — по-старому (process.exit)
+  hardExit(code = 0) {
+    try { this.journal?.flush(); } catch {}
+    if (process.env.VOID_SOFT_EXIT) {
+      try { this.renderer.destroy(); } catch {}
+      try { this.window.destroy?.(); } catch {}
+      process.exit(code);
+    }
+    process.kill(process.pid, "SIGKILL");
   }
 }

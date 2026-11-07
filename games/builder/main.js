@@ -15,7 +15,7 @@ import { watchModule, Engine, MenuScene, SettingsScene, ModelLibrary, Input, Cha
 import { GAME_DEFAULTS, GAME_ACTION_LABELS, GAMEPAD_ENABLED, CAMERA_MODES, SAVES, SOUNDS, THEME, THEMES, VIEW_DISTANCE, DRAW_DISTANCES } from "./config.js";
 import { GameScene } from "./game-scene.js";
 import { loadModels } from "./load-models.js";
-import { migrateOldSaves, touchWorld, setProfile } from "./save.js";
+import { migrateOldSaves, touchWorld, setProfile, store as saveStore } from "./save.js";
 import { MainMenu } from "./menu.js";
 import { installSkins } from "./skins.js";
 import { loadMusic } from "./music.js";
@@ -232,6 +232,9 @@ const game = {
   },
   net: null, // сетевая игра: { role: "host", server } или { role: "client", client, name } — scene/net.js
 };
+
+// Выход: дождаться фоновой записи мира (автосохранение могло писать куски на диск), потом движок закроется
+engine.beforeExit = [() => saveStore?.idle?.()];
 
 // Горячая перезагрузка config.js: поправил цифры, сохранил — игра подхватила (engine/core/hot-reload.js).
 // Отдельные числа (export const X = 5) так не меняются — о них подсказка «нужен перезапуск»
