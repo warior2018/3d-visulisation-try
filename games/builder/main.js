@@ -91,6 +91,7 @@ applyStyle();
 // Модели: грузим один раз на всю игру
 const models = new ModelLibrary(engine.renderer);
 try {
+  engine.log("запуск: модели");
   loadModels(models); // список моделей — load-models.js (его же грузят автотесты)
 } catch (e) {
   console.warn("Модель не загружена:", e.message, "(npm run make:skeleton создаст её)");

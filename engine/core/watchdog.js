@@ -44,7 +44,8 @@ export class Journal {
     const r = (this.recent ||= []);
     r.push(`${time}  ${text}`);
     if (r.length > 80) r.shift();
-    if (/ОШИБКА|ERROR/.test(text) || this.buffer.length >= 300) return this.flush();
+    // sync — запуск: каждая строка сразу на диск (если драйвер уронит процесс, видно, на каком шаге)
+    if (this.sync || /ОШИБКА|ERROR/.test(text) || this.buffer.length >= 300) return this.flush();
     if (!this.timer) {
       this.timer = setTimeout(() => this.flush(), FLUSH_MS);
       this.timer.unref?.(); // таймер не держит программу открытой

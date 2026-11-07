@@ -37,7 +37,7 @@ const PROF = {
 PROF.tick = profiler.register("TICK", PROF.update);
 import fs from "node:fs";
 import path from "node:path";
-import { Journal, Watchdog } from "./watchdog.js";
+import { Journal, Watchdog, PHASES } from "./watchdog.js";
 import { SettingsStore, deepMerge } from "./settings.js";
 import { GPURenderer } from "../graphics/gpu-renderer.js";
 import { locale } from "../ui/i18n.js";
@@ -134,6 +134,7 @@ export class Engine {
   // changelog — файл записей обновлений (CHANGELOG.json): движок следит за ним и сообщает о новой версии
   static async create({ title = "VOID", settingsFile, defaults = {}, actionLabels = {}, logFile, theme = {}, changelog = null, render = {} }) {
     const journal = new Journal(logFile || path.join(path.dirname(settingsFile), "log.txt"));
+    journal.sync = true; // до первых кадров — каждая строка сразу на диск (см. frame)
     const settings = new SettingsStore(settingsFile, deepMerge(ENGINE_DEFAULTS, defaults));
     const v = settings.data.video;
     journal.write("окно: создаю");
@@ -323,6 +324,7 @@ export class Engine {
   // Этап кадра — для сторожа: если зависнем, он напишет, на каком этапе
   phase(n) {
     this.watchdog?.phase(n);
+    if (n && this.journal.sync) this.journal.write(`запуск, кадр ${(this.bootFrames || 0) + 1}: ${PHASES[n]}`);
   }
 
   // ---------- Сцены ----------
@@ -687,6 +689,7 @@ export class Engine {
     this.running = true;
     this.lastTime = performance.now();
     this.frames = 0;
+    this.bootFrames = 0;
     this.workTime = 0;
     this.statsTimer = this.lastTime;
     this.settle = 0; //   сколько ещё кадров нарисовать после изменения (см. tick)
@@ -724,6 +727,11 @@ export class Engine {
       this.crash(e);
     }
     this.phase(0);
+    // первые кадры прошли — журнал снова пишется пачками
+    if (this.journal.sync && ++this.bootFrames >= 3) {
+      this.journal.sync = false;
+      this.log("первые кадры нарисованы");
+    }
     // Мир живёт — следующий кадр сразу; только что что-то поменялось — через 16 мс;
     // меню и пауза без изменений — проверяем раз в 50 мс (компьютер почти отдыхает)
     this.schedule(busy === true ? 0 : busy === "soon" ? 16 : 50);
