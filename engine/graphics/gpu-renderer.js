@@ -32,7 +32,7 @@ export class GPURenderer {
     const safe = all.includes("safe");
     // power=high | power=low (тоже не для Dawn): какую видеокарту просить у ноутбука с двумя (встроенная + NVIDIA)
     const power = all.find((f) => f.startsWith("power="))?.slice(6);
-    const flags = all.filter((f) => f !== "safe" && !f.startsWith("power="));
+    const flags = all.filter((f) => f !== "safe" && !f.startsWith("power=") && !f.startsWith("present="));
     // Шаги — сразу в журнал (пишется синхронно): если драйвер уронит процесс, видно, на каком шаге
     const step = options.log || (() => {});
     step(`видеокарта: создаю WebGPU${all.length ? ` [${all.join(", ")}]` : ""}`);
@@ -46,7 +46,9 @@ export class GPURenderer {
     step(`видеокарта: найдена ${adapterName}; открываю устройство`);
     const device = await adapter.requestDevice(); // открыть её для работы
     step("видеокарта: основные шейдеры и окно");
-    const renderer = new GPURenderer(window, instance, device, options);
+    // present=cpu: окно без WebGPU — кадр рисуется в свою картинку, читается в память и показывается
+    // через SDL (window.render). Медленнее, но обходит падение драйвера на «картинке окна» (ноутбуки Windows)
+    const renderer = new GPURenderer(window, instance, device, { ...options, cpuPresent: all.includes("present=cpu") });
     renderer.adapterName = adapterName;
     renderer.gpuFlags = all;
     renderer.safeMode = safe;
@@ -65,8 +67,9 @@ export class GPURenderer {
     return renderer;
   }
 
-  constructor(window, instance, device, { gridStep = 1, fadeDist = 60, near = 0.05, far = 300, vsync = true, brightness = 1 } = {}) {
+  constructor(window, instance, device, { gridStep = 1, fadeDist = 60, near = 0.05, far = 300, vsync = true, brightness = 1, cpuPresent = false } = {}) {
     this.window = window;
+    this.cpuPresent = cpuPresent;
     this.instance = instance;
     this.device = device;
     this.gridStep = gridStep;
@@ -214,6 +217,10 @@ export class GPURenderer {
   // Чтобы сменить режим, заново связываем видеокарту с окном.
   setVsync(on) {
     this.vsync = on;
+    if (this.cpuPresent) {
+      this.output ||= new CpuOutput(this); // вывод через процессор: vsync — забота SDL-окна
+      return;
+    }
     this.output = gpu.renderGPUDeviceToWindow({ device: this.device, window: this.window, presentMode: on ? "fifo" : "immediate" });
   }
 
@@ -1055,6 +1062,63 @@ export class GPURenderer {
   destroy() {
     this.device.destroy();
     gpu.destroy(this.instance);
+  }
+}
+
+// Вывод кадра через процессор (флаг present=cpu): то же, что даёт renderGPUDeviceToWindow
+// (getPreferredFormat / getCurrentTextureView / resize / swap), но картинка — своя текстура.
+// swap() копирует её в буфер, читает в память и отдаёт окну SDL (window.render, формат bgra32).
+// Пока прошлый кадр ещё читается — новый не ждём, а пропускаем (игра не тормозит на чтении).
+class CpuOutput {
+  constructor(renderer) {
+    this.r = renderer;
+    this.busy = false;
+  }
+
+  getPreferredFormat() {
+    return "bgra8unorm";
+  }
+
+  resize() {} // размер сверяем при каждом кадре (ensure)
+
+  ensure() {
+    const { device, width, height } = this.r;
+    if (this.texture && this.w === width && this.h === height) return;
+    if (this.texture) this.r.retire(this.texture);
+    this.w = width;
+    this.h = height;
+    this.stride = Math.ceil((width * 4) / 256) * 256; // видеокарта копирует строками, кратными 256 байтам
+    this.texture = device.createTexture({ size: [width, height], format: "bgra8unorm", usage: gpu.GPUTextureUsage.RENDER_ATTACHMENT | gpu.GPUTextureUsage.COPY_SRC });
+    this.view = this.texture.createView();
+  }
+
+  getCurrentTextureView() {
+    this.ensure();
+    return this.view;
+  }
+
+  swap() {
+    if (!this.texture || this.busy) return;
+    const { device } = this.r;
+    const { w, h, stride } = this;
+    const size = stride * h;
+    if (!this.buffer || this.bufferSize !== size) {
+      if (this.buffer) this.r.retire(this.buffer);
+      this.buffer = device.createBuffer({ size, usage: gpu.GPUBufferUsage.COPY_DST | gpu.GPUBufferUsage.MAP_READ });
+      this.bufferSize = size;
+    }
+    const buffer = this.buffer;
+    const enc = device.createCommandEncoder();
+    enc.copyTextureToBuffer({ texture: this.texture }, { buffer, bytesPerRow: stride }, [w, h]);
+    device.queue.submit([enc.finish()]);
+    this.busy = true;
+    buffer.mapAsync(gpu.GPUMapMode.READ).then(() => {
+      const pixels = Buffer.from(new Uint8Array(buffer.getMappedRange()));
+      buffer.unmap();
+      this.busy = false;
+      const win = this.r.window;
+      if (!win.destroyed) win.render(w, h, stride, "bgra32", pixels);
+    }, () => { this.busy = false; });
   }
 }
 

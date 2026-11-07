@@ -137,14 +137,15 @@ export class Engine {
     journal.sync = true; // до первых кадров — каждая строка сразу на диск (см. frame)
     const settings = new SettingsStore(settingsFile, deepMerge(ENGINE_DEFAULTS, defaults));
     const v = settings.data.video;
-    journal.write("окно: создаю");
+    const cpuPresent = (render.gpuFlags ?? (process.env.VOID_GPU_FLAGS || "").split(",")).includes("present=cpu");
+    journal.write(`окно: создаю${cpuPresent ? " (вывод через процессор)" : ""}`);
     const window = sdl.video.createWindow({
       title,
       width: v.width,
       height: v.height,
       fullscreen: v.fullscreen,
       resizable: true,
-      webgpu: true,
+      webgpu: !cpuPresent, // вывод через процессор (present=cpu) — обычное окно SDL, картинку даём сами
     });
     const renderer = await GPURenderer.create(window, { ...render, vsync: v.vsync, brightness: v.brightness / 100, log: (t) => journal.write(t) }); // render — свои настройки игры (fadeDist — дальность прорисовки)
     if (renderer.worldFxError) journal.write("ОШИБКА графики: небо, свет ламп и тени не собрались (рисуем по-старому): " + renderer.worldFxError);
