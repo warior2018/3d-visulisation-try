@@ -81,7 +81,20 @@ export function createPlatform(ipc) {
     setRelativeMouseMode(on) {
       this._relative = !!on;
       canvas.style.cursor = on ? "none" : ""; // курсор прячем сразу, даже если захват ещё не дали
-      ipc.send("void:pointer-lock", !!on);
+      clearTimeout(this._retry);
+      ipc.send("void:pointer-lock", !!on, true);
+    }
+
+    // Захват слетел или его не дали (например, Chromium после выхода по Esc какое-то время не даёт
+    // захватить снова), а игре он нужен: без захвата курсор упирается в край экрана и камера дальше
+    // не крутится. Просим снова, пока не дадут (только пока окно в фокусе, не отнимая фокус у других окон)
+    retryLock() {
+      clearTimeout(this._retry);
+      this._retry = setTimeout(() => {
+        if (!this._relative || document.pointerLockElement === canvas) return;
+        if (document.hasFocus()) ipc.send("void:pointer-lock", true, false);
+        this.retryLock();
+      }, 600);
     }
 
     // Захват не дали (или сняли): следующий клик по окну — настоящее действие пользователя, просим снова
@@ -132,8 +145,15 @@ export function createPlatform(ipc) {
         this.fitCanvas();
         this.emit("resize", { width: this.width, height: this.height, pixelWidth: this.pixelWidth, pixelHeight: this.pixelHeight });
       });
-      document.addEventListener("pointerlockchange", () => console.log("захват мыши: " + (document.pointerLockElement === canvas ? "да" : "нет")));
-      document.addEventListener("pointerlockerror", () => console.log("захват мыши: ошибка (pointerlockerror)"));
+      document.addEventListener("pointerlockchange", () => {
+        const locked = document.pointerLockElement === canvas;
+        console.log("захват мыши: " + (locked ? "да" : "нет"));
+        if (!locked && this._relative) this.retryLock();
+      });
+      document.addEventListener("pointerlockerror", () => {
+        console.log("захват мыши: не дали (pointerlockerror), пробую снова");
+        if (this._relative) this.retryLock();
+      });
       ipc.on("void:fullscreen", (e, on) => { this._fullscreen = !!on; });
       ipc.on("void:close", () => this.emit("close"));
     }

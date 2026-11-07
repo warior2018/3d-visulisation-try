@@ -109,7 +109,7 @@ ipcMain.on("void:quit", (e, code) => quit(code || 0));
 
 // Захват мыши (pointer lock). Браузер разрешает его только «по действию пользователя» —
 // executeJavaScript(..., true) из главного процесса считается таким действием
-ipcMain.on("void:pointer-lock", (e, on) => {
+ipcMain.on("void:pointer-lock", (e, on, focus = true) => {
   if (!win) return;
   const code = on
     ? `(async () => { const c = document.getElementById("screen");
@@ -120,7 +120,7 @@ ipcMain.on("void:pointer-lock", (e, on) => {
            catch (e2) { console.log("захват мыши не удался: " + e1 + " / " + e2); }
          } })()`
     : "document.exitPointerLock()";
-  if (on) win.focus(); // захват мыши — только у окна в фокусе
+  if (on && focus) win.focus(); // захват мыши — только у окна в фокусе (повторы фокус не отнимают)
   win.webContents.executeJavaScript(code, true).catch((e) => say("захват мыши: " + e.message));
 });
 
