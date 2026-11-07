@@ -962,7 +962,9 @@ export class Engine {
       particles: v.particles || null, // частицы с глубиной (engine/graphics/particles.js)
       ui: this.ui,
     };
+    this.renderer.trace = trace ? (step) => trace("рисование: " + step) : null;
     this.renderer.render(frame);
+    this.renderer.trace = null;
     if (this.shotWanted) {
       this.shotWanted = false;
       this.saveScreenshot(frame);

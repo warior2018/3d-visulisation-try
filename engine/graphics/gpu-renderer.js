@@ -705,6 +705,8 @@ export class GPURenderer {
     this.frameNumber = (this.frameNumber || 0) + 1;
     this.emptyTrash();
 
+    const t = this.trace; // первые кадры: шаги в журнал (engine.render) — где упал драйвер
+    t?.("данные кадра");
     // 1. Данные кадра — в том же порядке, что в struct Uniforms
     const d = this.uniformData;
     if (camera) {
@@ -733,7 +735,9 @@ export class GPURenderer {
     d[22] = sky.base;
     device.queue.writeBuffer(this.uniformBuffer, 0, d);
 
+    t?.("мир: чанки");
     if (world) this.updateWorld(world);
+    t?.("интерфейс: картинка " + (ui ? `${ui.fb?.width}x${ui.fb?.height}, окно ${width}x${height}` : "-"));
     if (ui) this.updateUI(ui);
     if (ghost) {
       const c = ghost.color;
@@ -743,12 +747,14 @@ export class GPURenderer {
       device.queue.writeBuffer(this.ghostBuffer, 0, g);
     }
 
+    t?.("команды");
     // 2. Записываем команды кадра
     const encoder = device.createCommandEncoder();
     // Настоящие тени: сначала — карта теней (глубина глазами солнца), основной проход её читает (world-fx.js)
     d[32] = 0;
     if (camera && world && this.realShadows && this.worldFx && this.fxEnabled !== false && this.shadowMode === "real" && this.lighting) this.renderShadowMap(encoder, camera, world, characters);
     device.queue.writeBuffer(this.uniformBuffer, 96, d, 24, 12); // камера теней и «тени есть» — к основному шейдеру
+    t?.("картинка окна");
     const screenView = target || this.output.getCurrentTextureView();
     // Мир рисуем не на экран, а в свою картинку, если: размытие (оптика) или масштаб рендера < 100 %
     // (картинка мира меньше экрана — быстрее; потом растягиваем на экран тем же blur_fs, без размытия).
@@ -770,6 +776,7 @@ export class GPURenderer {
     const colorView = blurOn ? this.sceneView : screenView;
     const depthView = blurOn ? this.sceneDepthView : this.depthTexture.createView();
     this.renderSize = [rw, rh]; // тех. панели: во сколько пикселей рисуется мир
+    t?.("проход: начало");
     let pass = encoder.beginRenderPass({
       colorAttachments: [{
         view: colorView,
@@ -786,6 +793,7 @@ export class GPURenderer {
     });
     pass.setViewport(0, 0, rw, rh, 0, 1);
 
+    t?.("небо");
     // небо, земля, сетка — только если есть камера (в меню мира нет вообще)
     if (camera) {
       const fx = this.worldFx && this.fxEnabled !== false;
@@ -822,8 +830,10 @@ export class GPURenderer {
     // персонажи: сначала отдаём их матрицы, потом рисуем треугольники модели
     // существа — до той же дальности, что и блоки (дальше — уже растворились в дымке; иначе силуэты мобов и
     // боссов «висят» в пустоте за краем мира)
+    t?.(`персонажи: ${characters.length}`);
     if (camera) this.drawCharacters(pass, characters, { x: camera.position.x, z: camera.position.z, max: this.viewDistance });
 
+    t?.("частицы");
     // частицы: прозрачные кубики с проверкой глубины (за стеной не видно), глубину сами не пишут
     if (camera && particles?.count && this.particlePipeline) {
       const n = particles.count, bytes = n * FLOATS_PER_PARTICLE * 4;
@@ -852,6 +862,7 @@ export class GPURenderer {
 
     // Слой «для экрана» (рука от 1-го лица): новый проход по той же картинке,
     // но буфер глубины очищен — мир этот слой не загораживает
+    t?.(`рука: ${viewModels.length}`);
     if (camera && viewModels.length) {
       pass.end();
       pass = encoder.beginRenderPass({
@@ -906,6 +917,7 @@ export class GPURenderer {
       pass.draw(3);
     }
 
+    t?.("интерфейс: рисую");
     // интерфейс
     if (ui && this.uiBind) {
       pass.setPipeline(this.uiPipeline);
@@ -916,7 +928,9 @@ export class GPURenderer {
     pass.end();
 
     // 3. Отдаём команды видеокарте — дальше она работает сама, параллельно с JS
+    t?.("отправка видеокарте");
     device.queue.submit([encoder.finish()]);
+    t?.("отправлено");
   }
 
   // Картинка для мира под размытием (размер — как у окна) и параметры круга
