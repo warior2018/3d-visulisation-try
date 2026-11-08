@@ -644,6 +644,7 @@ export const RU = {
   "MEDIUM": "СРЕДНЕЕ",
   "MEDKIT": "АПТЕЧКА",
   "MELEE": "БЛИЖНИЙ",
+  "MELEE: MACHETE, BLOCK ON RMB. LEVEL 10: WAR HAMMER OR KATANA": "БЛИЖНИЙ БОЙ: МАЧЕТЕ, БЛОК НА ПКМ. 10 УРОВЕНЬ: БОЕВОЙ МОЛОТ ИЛИ КАТАНА",
   "MELEE: MACHETE, BLOCK ON RMB. LEVEL 10: WAR HAMMER, KATANA OR SPEAR": "БЛИЖНИЙ БОЙ: МАЧЕТЕ, БЛОК НА ПКМ. 10 УРОВЕНЬ: БОЕВОЙ МОЛОТ, КАТАНА ИЛИ КОПЬЁ",
   "MELEE: MACHETE. SHOP: WAR HAMMER, KATANA, SPEAR. BLOCK ON RMB": "БЛИЖНИЙ БОЙ: МАЧЕТЕ. В МАГАЗИНЕ: БОЕВОЙ МОЛОТ, КАТАНА, КОПЬЁ. БЛОК НА ПКМ",
   "MELEE: MACHETE. SHOP: WAR HAMMER, KATANA. BLOCK ON RMB": "БЛИЖНИЙ БОЙ: МАЧЕТЕ. МАГАЗИН: БОЕВОЙ МОЛОТ, КАТАНА. БЛОК НА ПКМ",

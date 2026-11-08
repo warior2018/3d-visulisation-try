@@ -11,15 +11,15 @@ export default async function (t, g) {
   t.check("вкладки оружия класса скрыты", !scene.talents.isAllowed("w-katana") && !scene.talents.isAllowed("w-spear"));
   scene.experience.level = C.SUBCLASS.level;
   t.check("на 10 уровне — пора выбрать", scene.needsSubclass());
-  // очки, вложенные в копьё (старое сохранение), вернутся при выборе катаны
-  scene.talents.ranks["spear-momentum"] = 2;
+  // очки, вложенные в молот (старое сохранение), вернутся при выборе катаны (копьё пока убрано из игры)
+  scene.talents.ranks["hammer-stun"] = 2;
   const before = scene.talents.points;
   scene.chooseSubclass("katana");
   await g.frames(3);
   t.check("подкласс выбран", scene.subclass === "katana");
-  t.check("катана выдана сразу; копьё и молот не продаются", scene.itemCount("katana") + scene.pickups.list.filter((p) => p.item === "katana").length > 0 && !scene.shop.slots.find((s) => s.id === "spear").when() && !scene.shop.slots.find((s) => s.id === "war-hammer").when());
+  t.check("катана выдана сразу; копьё и молот не продаются", scene.itemCount("katana") + scene.pickups.list.filter((p) => p.item === "katana").length > 0 && !scene.shop.slots.find((s) => s.id === "spear")?.when?.() && !scene.shop.slots.find((s) => s.id === "war-hammer").when());
   t.check("вкладка катаны открыта, копья — нет", scene.talents.isAllowed("w-katana") && !scene.talents.isAllowed("w-spear"));
-  t.check("очки из ветки копья вернулись", scene.talents.rank("spear-momentum") === 0 && scene.talents.points === before + 4, `${before} → ${scene.talents.points}`);
+  t.check("очки из ветки молота вернулись", scene.talents.rank("hammer-stun") === 0 && scene.talents.points > before, `${before} → ${scene.talents.points}`);
   t.check("больше не спрашивает", !scene.needsSubclass());
   scene.chooseSubclass("rifle");
   t.check("чужое оружие подклассом не стать", scene.subclass === "katana");

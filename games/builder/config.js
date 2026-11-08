@@ -482,9 +482,9 @@ export const ATTACKS = {
   // ПОДРЫВНИК: всё — взрывы по площади (MagicAttack, снаряд летит, долетел — burst). Вид атак — "blast" (свои таланты).
   // Граната (базовая): бросок по дуге, взрыв от удара ~33 урона/с ПО ВСЕМ в радиусе; гранатомёт — быстрее и
   // настильнее, радиус меньше (~51/с); динамит — лежит fuse с и рвёт сильно и широко (~47/с, но разом по толпе)
-  handGrenade: { id: "hand-grenade", name: "GRENADE", damage: 40, radius: 2.5, cooldown: 1.2, cost: 0, projectile: true, speed: 15 },
+  handGrenade: { id: "hand-grenade", name: "GRENADE", damage: 40, radius: 2.5, cooldown: 1.2, cost: 0, projectile: true, speed: 21 }, // бросок рукой: +40 % (было 15)
   launcher: { id: "launcher", name: "LAUNCHER SHELL", damage: 36, radius: 2, cooldown: 0.7, cost: 0, projectile: true, speed: 28 },
-  dynamite: { id: "dynamite", name: "DYNAMITE", damage: 140, radius: 4, cooldown: 3, cost: 0, projectile: true, speed: 13 },
+  dynamite: { id: "dynamite", name: "DYNAMITE", damage: 140, radius: 4, cooldown: 3, cost: 0, projectile: true, speed: 18.2 }, // бросок рукой: +40 % (было 13)
   clusterBomb: { id: "cluster", name: "CLUSTER BOMBLET", damage: 30, radius: 1.8, cooldown: 0, cost: 0, projectile: true },
   // Дробовик, скилл Q «ОТСКОК» (SHOTGUN_BLAST): залп в упор — всем в конусе перед собой (до 7 м)
   shotgunBlast: { id: "shotgun-blast", name: "BLAST JUMP", damage: 45, reach: 7, arc: 70, maxTargets: 6 },
@@ -877,7 +877,7 @@ export const BLOCK = { window: 0.4, cooldown: 1.5, share: 0.5 };
 // настильнее), fuse — сколько секунд горит фитиль лежащего динамита (талант SHORT FUSE — shortFuse).
 // Скилл Q гранатомёта — КАССЕТА: снаряд рвётся и разбрасывает count бомбочек (ATTACKS.clusterBomb) вокруг,
 // каждая взрывается, где упадёт. Перезарядка cooldown с
-export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1.6, shortFuse: 0.8, cluster: { cooldown: 10, count: 6, up: 7, spread: 4.5 } };
+export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1, shortFuse: 0.5, cluster: { cooldown: 10, count: 6, up: 7, spread: 4.5 } };
 
 // Дробовик — скилл Q «ОТСКОК»: залп в упор (ATTACKS.shotgunBlast, патроны не тратит) оглушает задетых на stun с,
 // а отдача отбрасывает героя назад — против взгляда: смотришь вниз — подлетаешь вверх (выпрыгнуть из толпы, на крышу).
@@ -921,7 +921,7 @@ export const RECOIL_AUTO = {
 // уровне выбираешь класс — открываются его вкладка талантов и его раздел магазина (остальные не видны),
 // и даётся стартовое оружие. tab — вкладка талантов, shop — раздел магазина (= класс предметов, items.js)
 export const CLASSES = {
-  melee: { name: "FIGHTER", tab: "melee", shop: "melee", starter: ["machete", 1], text: "MELEE: MACHETE, BLOCK ON RMB. LEVEL 10: WAR HAMMER, KATANA OR SPEAR" },
+  melee: { name: "FIGHTER", tab: "melee", shop: "melee", starter: ["machete", 1], text: "MELEE: MACHETE, BLOCK ON RMB. LEVEL 10: WAR HAMMER OR KATANA" },
   ranged: { name: "RANGER", tab: "ranged", shop: "ranged", outfit: "hero-ranged", starter: ["pistol", 1], text: "RANGED: PISTOL. LEVEL 10: ASSAULT RIFLE, SHOTGUN, SNIPER OR CROSSBOW" },
   demo: { name: "DEMOLITIONIST", tab: "demo", shop: "demo", outfit: "hero-demo", starter: ["grenades", 1], text: "EXPLOSIVES: GRENADES, EVERYTHING BLOWS UP IN AN AREA. LEVEL 10: GRENADE LAUNCHER OR DYNAMITE" },
 };
@@ -929,7 +929,7 @@ export const CLASSES = {
 // и открывается его вкладка талантов (talents.js → weaponTab). Остальное покупное оружие класса закрыто
 export const SUBCLASS = {
   level: 10,
-  weapons: { melee: ["war-hammer", "katana", "spear"], ranged: ["auto", "shotgun", "rifle", "crossbow"], demo: ["launcher", "dynamite"] },
+  weapons: { melee: ["war-hammer", "katana"], ranged: ["auto", "shotgun", "rifle", "crossbow"], demo: ["launcher", "dynamite"] },
 };
 export const SUBCLASS_WEAPONS = new Set(Object.values(SUBCLASS.weapons).flat());
 // Что можно выбрать на SUBCLASS.level: базовое оружие класса (усиливается — primaryPick) или одно из покупных

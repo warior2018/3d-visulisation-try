@@ -5,7 +5,7 @@
 // ============================================================
 
 import { itemName, ITEMS, isArmor, isWeapon, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
-import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, SPEAR, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
+import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
 import { openTuneScene } from "../tune.js";
@@ -60,7 +60,7 @@ export class ShopPart {
         // В каждом разделе сначала базовое (дёшево — если потерял), потом покупное
         weapon("machete", SHOP.machete, `${ATTACKS.machete.damage} DMG, HITS TWO. SWING EVERY 1.4 S`),
         weapon("war-hammer", SHOP["war-hammer"], `TWO-HANDED. SLAMS THE GROUND: ${H.damage} DMG TO ALL WITHIN ${H.radius} BLOCK. TALENTS: STUN, BIGGER SLAM`),
-        weapon("spear", SHOP.spear, `${ATTACKS.spear.damage} DMG, LONG REACH, NO BLOCK. RMB (HOLD) - CHARGE THROUGH UP TO ${SPEAR.maxHits} ENEMIES`),
+        // копьё пока убрано из игры (SUBCLASS.weapons, магазин) — код остаётся
         weapon("katana", SHOP.katana, `${ATTACKS.katana.damage} DMG TO ALL AHEAD. SKILL IAI: DASH ${KATANA_IAI.distance}M, X${KATANA_IAI.damage} TO ALL ON THE PATH, COOLDOWN ${KATANA_IAI.cooldown}S`),
         weapon("grenades", SHOP.grenades, `${ATTACKS.handGrenade.damage} DMG TO ALL WITHIN ${ATTACKS.handGrenade.radius} BLOCKS WHERE IT LANDS. ENDLESS, ONE EVERY ${ATTACKS.handGrenade.cooldown} S`),
         weapon("launcher", SHOP.launcher, `FAST FLAT SHELLS: ${ATTACKS.launcher.damage} DMG IN ${ATTACKS.launcher.radius} BLOCKS. SKILL CLUSTER: THE SHELL SCATTERS ${DEMO.cluster.count} BOMBLETS`),
