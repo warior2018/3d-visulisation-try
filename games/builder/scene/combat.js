@@ -5,7 +5,7 @@
 // ============================================================
 
 import { Vec3, Input, abilityHelp, Damage } from "../../../engine/index.js";
-import { MELEE_STAMINA, BLOCK } from "../config.js";
+import { MELEE_STAMINA, BLOCK, CROUCH } from "../config.js";
 import { CLASS_HELP } from "../help.js";
 import { TALENT_TREE } from "../talents.js";
 
@@ -142,7 +142,7 @@ export class CombatPart {
   combatContext(extra = {}) {
     return {
       aim: (range) => this.aimedHit(range), // { entity, part } — part: голова → хедшот
-      aimSpread: (range, spread) => this.aimedHit(range, spread), // дробь: луч с разбросом
+      aimSpread: (range, spread) => this.aimedHit(range, spread * (this.crouched ? CROUCH.spread : 1)), // дробь: луч с разбросом (в приседе — кучнее)
       aimLine: (range, max) => this.aimedLine(range, max), //          насквозь: все на линии до стены
       launch: (attack, owner) => this.launchBolt(attack, owner), //   снаряд (арбалет): летит по дуге
       onShot: (_, attack) => this.bulletTrace(attack?.id), // выстрел: трассер (по оружию) и след на блоке
@@ -189,7 +189,9 @@ export class CombatPart {
       return false; // кулдаун ещё идёт / нечем стрелять
     }
     if (cost) this.stamina.spend(cost);
-    this.recoil.kick(this.abilities.current?.recoil, this.aimT); // отдача — у оружия своя (движок: Recoil)
+    const rc = this.abilities.current?.recoil;
+    // отдача — у оружия своя (движок: Recoil); в приседе — меньше (CROUCH.recoil)
+    this.recoil.kick(rc && this.crouched ? { ...rc, scale: (rc.scale ?? 1) * CROUCH.recoil } : rc, this.aimT);
     this.viewModel()?.play(anim, animSpeed); //                        для экрана (от 1-го лица)
     if (bodyAnim) this.player.view?.animator.playOnce(bodyAnim, animSpeed); // для мира (от 3-го)
     this.engine.sound.play(hits ? hitSound : sound);

@@ -80,6 +80,7 @@ export function createPlatform(ipc) {
     // Захват мыши: курсор скрыт и стоит, mouseMove даёт сдвиг (dx, dy) — как относительный режим SDL
     setRelativeMouseMode(on) {
       this._relative = !!on;
+      this._relSince = performance.now();
       canvas.style.cursor = on ? "none" : ""; // курсор прячем сразу, даже если захват ещё не дали
       clearTimeout(this._retry);
       this._tries = 0;
@@ -99,17 +100,34 @@ export function createPlatform(ipc) {
     }
 
     // Захват слетел или его не дали (например, Chromium после выхода по Esc какое-то время не даёт
-    // захватить снова), а игре он нужен: без захвата курсор упирается в край экрана и камера дальше
-    // не крутится. Просим снова, пока не дадут (только пока окно в фокусе, не отнимая фокус у других окон)
-    retryLock() {
+    // захватить снова; или игра попросила его по нажатию Esc — закрыли окно инвентаря, — а Esc для Chromium
+    // не «действие пользователя»), а игре он нужен. Просим снова, пока не дадут (только пока окно в фокусе,
+    // не отнимая фокус у других окон). pause — захват был и слетел сам (Esc в игре, Chromium не отдал нажатие
+    // игре): ~1.5 с не дают — открываем паузу. Захвата ещё не было (просила игра) — паузу НЕ открываем:
+    // ждём дальше, а камера без захвата стоит (mousemove — без сдвига), на экране — «кликни», клик даст захват
+    retryLock(pause = false) {
+      this._retryPause = pause; // ошибка захвата во время повторов — повторяем в том же режиме
       clearTimeout(this._retry);
       this._retry = setTimeout(() => {
         if (!this._relative || document.pointerLockElement === canvas) return;
-        if (!document.hasFocus()) return this.retryLock(); // окно не в фокусе — ждём, фокус не отнимаем
-        if (++this._tries > 2) return this.escapeToPause(); // ~1.5 с не дают — пауза (см. выше)
+        if (!document.hasFocus()) return this.retryLock(pause); // окно не в фокусе — ждём, фокус не отнимаем
+        if (++this._tries > (pause ? 2 : 10)) return pause ? this.escapeToPause() : undefined;
         ipc.send("void:pointer-lock", true, false);
-        this.retryLock();
+        this.retryLock(pause);
       }, 500);
+    }
+
+    // Подсказка поверх игры: захват мыши нужен, а его нет (дольше 0.6 с) — «кликни, чтобы вернуть мышь»
+    lockHint() {
+      const el = (this._hint ||= Object.assign(document.body.appendChild(document.createElement("div")), {
+        textContent: "CLICK TO CAPTURE THE MOUSE / КЛИКНИ, ЧТОБЫ ВЕРНУТЬ МЫШЬ", // словарь игры сюда не доходит — сразу на двух языках
+      }));
+      Object.assign(el.style, {
+        position: "fixed", left: "50%", top: "40%", transform: "translate(-50%, -50%)", padding: "10px 18px",
+        background: "rgba(0,0,0,0.7)", color: "#fff", font: "bold 16px monospace", pointerEvents: "none", zIndex: 10,
+      });
+      const want = this._relative && document.pointerLockElement !== canvas && document.hasFocus() && performance.now() - (this._relSince || 0) > 600;
+      el.style.display = want ? "block" : "none";
     }
 
     // Захват не дали (или сняли): следующий клик по окну — настоящее действие пользователя, просим снова
@@ -136,8 +154,11 @@ export function createPlatform(ipc) {
         this.emit("keyUp", { scancode: scancodeOf(e), key: e.key, repeat: false });
       });
       window.addEventListener("mousemove", (e) => {
-        this.emit("mouseMove", { ...pos(e), dx: e.movementX || 0, dy: e.movementY || 0 });
+        // нужен захват, а его нет: камеру не крутим (иначе курсор упрётся в край экрана — камера «залипнет»)
+        const free = this._relative && document.pointerLockElement !== canvas;
+        this.emit("mouseMove", { ...pos(e), dx: free ? 0 : e.movementX || 0, dy: free ? 0 : e.movementY || 0 });
       });
+      setInterval(() => this.lockHint(), 200);
       window.addEventListener("mousedown", (e) => {
         resumeAudio();
         e.preventDefault();
@@ -168,11 +189,11 @@ export function createPlatform(ipc) {
         if (!this._relative) return;
         // Сняли не мы: чаще всего — Esc (Chromium сам отпускает мышь по Esc). Дадим настоящему Esc дойти,
         // потом: игра всё ещё ждёт захват — просим снова, не дают — пауза
-        setTimeout(() => this.retryLock(), 150);
+        setTimeout(() => this.retryLock(true), 150);
       });
       document.addEventListener("pointerlockerror", () => {
         console.log("захват мыши: не дали (pointerlockerror), пробую снова");
-        if (this._relative) this.retryLock();
+        if (this._relative) this.retryLock(this._retryPause);
       });
       ipc.on("void:fullscreen", (e, on) => { this._fullscreen = !!on; });
       ipc.on("void:close", () => this.emit("close"));

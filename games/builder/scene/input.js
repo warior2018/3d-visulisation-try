@@ -39,6 +39,9 @@ export class InputPart {
       return;
     }
 
+    // Присед в режиме «переключать»: Ctrl — сел / встал (режим «держать» — pets.js → updateStance)
+    if (has("crouch") && this.settings.general.crouchMode === "toggle") this.crouchToggle = !this.crouchToggle;
+
     // Прицел в режиме «переключать»: ПКМ включает и выключает (у оружия с прицелом)
     if (has("secondary") && this.settings.general.aimMode === "toggle" && this.abilities.current?.aim && !this.abilities.equipping) {
       this.aimToggle = !this.aimToggle;

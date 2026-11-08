@@ -25,6 +25,7 @@
 import { encodeChunk, decodeChunk, Damage } from "../../../engine/index.js";
 import { isWeapon, isArmor } from "../items.js";
 import { PICKUP_AUTO_RADIUS, SUBCLASS } from "../config.js";
+import { lowerBody } from "./pets.js";
 
 const SNAP_EVERY = 3; //   снимок раз в 3 тика (20 в секунду при 60 тиках)
 const TIMEOUT = 10000; // мс без единого сообщения — связь потеряна
@@ -114,6 +115,12 @@ const duelSnap = (g) => {
 let nextNetId = 1;
 const netId = (e) => (e.netId ||= nextNetId++);
 
+// Ниже ростом (pets.js → lowerBody): 0 стоя, 1 стойка катаны, 2 присед — свой герой; во флагах снимка 16 / 32
+const myLow = (g) => (g.crouched ? 2 : g.lowStance ? 1 : 0);
+const lowFlags = (low) => (low === 2 ? 32 : low === 1 ? 16 : 0);
+// Клип тела чужого героя: в приседе / стойке — клипы стойки (колени согнуты)
+export const baseClip = (walk, low) => (low ? (walk ? "StanceWalk" : "StanceIdle") : walk ? "Walk" : "Idle");
+
 // Урон своему герою, пришедший с другого компьютера: n — урон ДО брони (там он посчитан с талантами бьющего).
 // Здесь — как обычный удар (receive): своя броня, шлем (голова — part), блок (срежет долю и отразит выстрел:
 // combat.js → reflectShot)
@@ -170,7 +177,7 @@ export class HostNet {
     for (const x of g.entities.list) {
       if (!x.view && !x.remote) continue;
       const walking = x === g.player ? !!g.move?.moving : !!x.netWalk;
-      e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.round(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0)]);
+      e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.round(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow)]);
       x.netAttack = false;
     }
     let p, h, inv;
@@ -291,6 +298,8 @@ export class HostNet {
         // 20 раз в секунду и неровно, а кадров — 60+; без этого гость у хоста двигался рывками
         guest.target = { x: +msg.x || 0, y: +msg.y || 0, z: +msg.z || 0, yaw: +msg.yaw || 0 };
         h.netWalk = !!msg.w;
+        // присед / стойка гостя: рост и голова (хитбокс) ниже, клип стойки (game-scene.js)
+        if ((+msg.cr || 0) !== (h.netLow || 0)) lowerBody(h, +msg.cr || 0);
         if (typeof msg.c === "string") guest.cls = msg.c || null;
         if (typeof msg.s === "string") guest.sub = msg.s || null; // второе оружие (матч: пауза, пока не выбрали)
         // здоровье гостя (настоящее — у него): показать у его героя — полоска над целью, таблица, другим гостям
@@ -473,7 +482,7 @@ export class ClientNet {
       if (d > Math.PI) d -= Math.PI * 2;
       else if (d < -Math.PI) d += Math.PI * 2;
       e.yaw = a.yaw + d * t;
-      e.view?.animator.setBase(e.net.walk ? "Walk" : "Idle", 1);
+      e.view?.animator.setBase(baseClip(e.net.walk, e.netLow), 1);
     }
     g.entities.update(dt); // часы: вспышка от удара, падение павших
     // автоподбор: попросить хоста (предмет — тому, кто первый)
@@ -481,7 +490,7 @@ export class ClientNet {
     g.fog.reveal(g.player.position);
     if (++this.ticks % SNAP_EVERY === 0) {
       const p = g.player.position;
-      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0, d: g.downed ? 1 : 0, c: g.playerClass || "", s: g.subclass || "", hp: Math.ceil(g.player.stats.hp), mh: g.player.stats.maxHp };
+      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0, d: g.downed ? 1 : 0, cr: myLow(g), c: g.playerClass || "", s: g.subclass || "", hp: Math.ceil(g.player.stats.hp), mh: g.player.stats.maxHp };
       if (this.ticks % (SNAP_EVERY * 4) === 0) st.h = heldOf(g);
       this.client.send(st);
       const list = this.fx.take();
@@ -639,6 +648,8 @@ export class ClientNet {
       if (n.samples.length > 6) n.samples.shift();
       n.walk = !!(flags & 2);
       e.downed = !!(flags & 8); // погиб в матче: урна и призрак (scene/coop.js)
+      const low = flags & 32 ? 2 : flags & 16 ? 1 : 0; // присед / стойка: ниже рост и голова
+      if (low !== (e.netLow || 0)) lowerBody(e, low);
       if (flags & 4) e.view?.animator.playOnce("Attack"); // замахнулся на хосте
       e.stats.maxHp = maxHp;
       e.stats.hp = flags & 1 ? Math.max(1, hp) : 0;

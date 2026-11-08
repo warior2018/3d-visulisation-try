@@ -162,6 +162,12 @@ function generalTab() {
         change: () => (s.general.aimMode = s.general.aimMode === "toggle" ? "hold" : "toggle"),
       },
       {
+        id: "crouchMode",
+        label: "CROUCH (CTRL)",
+        value: () => (s.general.crouchMode === "toggle" ? "TOGGLE" : "HOLD"),
+        change: () => (s.general.crouchMode = s.general.crouchMode === "toggle" ? "hold" : "toggle"),
+      },
+      {
         id: "hints",
         label: "TIPS FOR NEWCOMERS",
         value: () => (s.general.hints !== false ? "ON" : "OFF"),

@@ -4,7 +4,19 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { SHOP, STANCE, PLAYER, HAMMER } from "../config.js";
+import { SHOP, STANCE, CROUCH, PLAYER, HAMMER } from "../config.js";
+
+// Ниже ростом: low — 0 стоя, 1 стойка катаны, 2 присед. Рост (коробка) и хитбоксы — голова опускается вместе
+// с ростом. Для своего героя и для героев других игроков (сеть: state.cr, снимок — флаги 16 / 32)
+export const lowHeight = (low) => (low === 2 ? CROUCH.height : low === 1 ? STANCE.height : PLAYER.height);
+export function lowerBody(e, low, { height = true } = {}) {
+  e.baseHitboxes ||= e.hitboxes;
+  const h = lowHeight(low);
+  if (height) e.height = h;
+  e.netLow = low;
+  const dy = h - PLAYER.height;
+  e.hitboxes = low ? e.baseHitboxes.map((p) => ({ ...p, min: [p.min[0], p.min[1] + dy, p.min[2]], max: [p.max[0], p.max[1] + dy, p.max[2]] })) : e.baseHitboxes;
+}
 
 export class PetsPart {
   // ---------- Приручённые звери ----------
@@ -21,22 +33,34 @@ export class PetsPart {
     this.backToWeapon(); // использовал — снова оружие
   }
 
-  // Стойка самурая: катана в руках — колени согнуты, рост STANCE.height, глаза ниже (плавно). Убрал катану —
-  // встаём в полный рост, как только над головой есть место. Во время рывка ИАЙ (коробка сжата) не трогаем
+  // Присед (Ctrl, CROUCH) и стойка самурая (катана в руках, STANCE): колени согнуты, рост и глаза ниже (плавно),
+  // голова (хитбокс) — тоже. В приседе медленнее, у стволов меньше отдача и разброс (combat.js). Встаём в полный
+  // рост (или из приседа — в стойку), как только над головой есть место. Во время рывка (коробка сжата) не трогаем
+  crouchWanted() {
+    if (this.background || this.player.mount || this.downed) return false;
+    if (this.settings.general.crouchMode === "toggle") return !!this.crouchToggle;
+    return this.engine.input.isDown("crouch");
+  }
+
   updateStance(dt) {
     const p = this.player;
-    const want = this.abilities.current?.id === "katana";
-    if (!p.streamlined && want !== !!this.lowStance) {
-      if (want) {
-        p.height = STANCE.height; // ниже — всегда можно (ноги на месте)
-        this.lowStance = true;
-      } else {
-        p.height = PLAYER.height;
-        if (this.physics.collides(p)) p.height = STANCE.height; // над головой блок — пока в стойке
-        else this.lowStance = false;
+    const want = this.crouchWanted() ? 2 : this.abilities.current?.id === "katana" ? 1 : 0;
+    const now = this.lowStance ? (this.crouched ? 2 : 1) : 0;
+    if (!p.streamlined && want !== now) {
+      if (lowHeight(want) <= p.height) p.height = lowHeight(want); // ниже — всегда можно (ноги на месте)
+      else {
+        const was = p.height;
+        p.height = lowHeight(want);
+        if (this.physics.collides(p)) p.height = was; // над головой блок — пока ниже
       }
+      const low = p.height === lowHeight(2) ? 2 : p.height === lowHeight(1) ? 1 : 0;
+      this.lowStance = low > 0;
+      this.crouched = low === 2;
+      lowerBody(p, low, { height: false });
     }
-    const goal = this.lowStance ? STANCE.eyeHeight : PLAYER.eyeHeight;
+    if (this.crouched) p.speedBonuses.crouch = CROUCH.speed;
+    else delete p.speedBonuses.crouch;
+    const goal = this.crouched ? CROUCH.eyeHeight : this.lowStance ? STANCE.eyeHeight : PLAYER.eyeHeight;
     this.eyeY ??= goal;
     this.eyeY += Math.sign(goal - this.eyeY) * Math.min(Math.abs(goal - this.eyeY), dt * 1.5); // ~0.13 с на смену
   }

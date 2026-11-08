@@ -44,7 +44,7 @@ import { heroAnimStates } from "./hero-anim.js";
 import { EffectsPart } from "./scene/effects.js";
 import { DaylightPart } from "./scene/daylight.js";
 import { OutOfCombatPart } from "./scene/out-of-combat.js";
-import { HostNet, ClientNet } from "./scene/net.js";
+import { HostNet, ClientNet, baseClip } from "./scene/net.js";
 import { Chat } from "./scene/chat.js";
 import { registerCommands } from "./scene/commands.js";
 
@@ -509,7 +509,7 @@ export class GameScene extends Scene {
       if (e === player) continue;
       // гость сетевой игры: его двигает сеть (scene/net.js), не мозги и не физика
       if (e.remote) {
-        e.view?.animator.setBase(e.netWalk ? "Walk" : "Idle", 1);
+        e.view?.animator.setBase(baseClip(e.netWalk, e.netLow), 1); // присед / стойка — клипы стойки
         continue;
       }
       if (!e.alive) {
@@ -606,7 +606,7 @@ export class GameScene extends Scene {
     this.airTime = player.onGround || player.mount ? 0 : (this.airTime || 0) + dt;
     (this.heroAnim ||= heroAnimStates()).update(player.view?.animator, {
       mounted: !!player.mount, spear: this.spearRun.active, spearSpeed: this.spearRun.speed,
-      air: !player.onGround && !player.mount, airTime: this.airTime, stance: this.lowStance,
+      air: !player.onGround && !player.mount, airTime: this.airTime, stance: this.lowStance, // присед — тоже стойка
       moving: move.moving, running: move.running, speed: move.speed,
     }, dt);
     const walking = move.moving && player.onGround && this.aimT < 0.5; // в прыжке и в прицеле рука не качается

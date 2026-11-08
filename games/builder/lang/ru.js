@@ -363,6 +363,8 @@ export const RU = {
   "CROSSBOW": "АРБАЛЕТ",
   "CROSSBOW BOLT": "БОЛТ АРБАЛЕТА",
   "CROSSBOW HEADSHOTS X${at([1.5, 2], r)} MORE": "ХЕДШОТЫ ИЗ АРБАЛЕТА X${at([1.5, 2], r)} СИЛЬНЕЕ",
+  "CROUCH": "ПРИСЕД",
+  "CROUCH (CTRL)": "ПРИСЕД (CTRL)",
   "CRT": "КРТ",
   "CURSED": "ПРОКЛЯТЫЙ",
   "CUSTOM": "СВОЁ",

@@ -65,6 +65,14 @@ export default async function (t, g) {
   t.check("PvP: хост ранил гостя", guest.player.stats.hp < gh0, `${gh0} → ${guest.player.stats.hp}`);
   await both(10);
   t.check("хост видит здоровье гостя (полоска цели)", hero.stats.maxHp === guest.player.stats.maxHp && hero.stats.hp === Math.ceil(guest.player.stats.hp), `${hero.stats.hp}/${hero.stats.maxHp} vs ${guest.player.stats.hp}/${guest.player.stats.maxHp}`);
+  // гость присел — у хоста его герой ниже (рост и голова), у гостя копия хоста — как стоит
+  const ctrl = E.KEYS[G.engine.input.bindings.crouch.split(":")[1]];
+  G.engine.input.keys.add(ctrl);
+  await both(10);
+  t.check("присед гостя виден у хоста (ниже рост)", guest.crouched && hero.height === C.CROUCH.height && hero.netLow === 2, `${hero.height} ${hero.netLow}`);
+  G.engine.input.keys.delete(ctrl);
+  await both(10);
+  t.check("гость встал — у хоста тоже", hero.height === C.PLAYER.height && !hero.netLow);
   const hostCopy = [...guest.net.copies.values()].find((e) => e.type === "player");
   const hh0 = host.player.stats.hp;
   hostCopy.receive(new E.Damage({ amount: 20, source: guest.player }));

@@ -32,6 +32,7 @@ export const GAME_DEFAULTS = {
     minimap: true, //       показывать миникарту
     minimapSide: "right", // где: "left" или "right" (сверху)
     aimMode: "hold", //     прицел (ПКМ): "hold" — пока держишь, "toggle" — нажал / нажал ещё раз
+    crouchMode: "hold", //  присед (Ctrl): "hold" — пока держишь, "toggle" — нажал / нажал ещё раз
     damageNumbers: true, // цифры урона над целями
     headBob: true, //      покачивание предмета в руке при ходьбе и беге (как в Minecraft; камера не качается)
     screenShake: true, //  тряска камеры от ударов, взрывов, приземлений и при быстром падении (прицел не сдвигает)
@@ -75,6 +76,7 @@ export const GAME_DEFAULTS = {
       record: "key:F7", //  запись повтора (разработка): F7 — начать / закончить, в папку saves/replays
       tune: "key:F6", //    окно баланса (разработка): цифры config.js на ходу — tune.js
       mountMode: "key:LALT", // верхом: поводья / оружие
+      crouch: "key:LCTRL", //  присед (CROUCH)
     },
   },
 };
@@ -85,6 +87,7 @@ export const GAME_ACTION_LABELS = {
   tune: "BALANCE (DEV)",
   record: "REPLAY (DEV)",
   mountMode: "MOUNT MODE",
+  crouch: "CROUCH",
   item1: "ITEM 1",
   item2: "ITEM 2",
   skill1: "SKILL 1",
@@ -165,6 +168,9 @@ export const PALETTE_SURFACE = { 5: "slip" };
 // согнуты, герой ниже — и коробка столкновений, и глаза (game-scene.js → updateStance)
 export const HERO_SCALE = 1.6 / 1.8;
 export const STANCE = { height: 1.4, eyeHeight: 1.28 };
+// Присед (Ctrl; настройки: держать / переключать): ниже рост (коробка и хитбоксы — голова ниже) и глаза, медленнее
+// ходьба (speed), у стволов меньше отдача (recoil — множитель) и разброс дроби (spread — множитель)
+export const CROUCH = { height: 1.15, eyeHeight: 1.0, speed: -0.5, recoil: 0.5, spread: 0.6 };
 // Геймпад: в движке есть (engine/input/gamepad.js), в игре пока выключен — не проверен на настоящем
 export const GAMEPAD_ENABLED = false;
 
@@ -220,7 +226,7 @@ export const DUEL = {
   hp: 220, //        здоровье героя (вместо обычного)
   speed: 0.25, //    +25 % скорости
   build: 40, //      блоков для стройки на раунд (если меньше — до стольких)
-  arena: { half: 12, height: 8, props: 24 }, // полуширина (м), высота стен, сколько случайных построек внутри
+  arena: { half: 18, height: 9, props: 54 }, // полуширина (м), высота стен, сколько случайных построек внутри
   room: { half: 3, height: 4, gap: 10 }, //     комната подготовки: полуширина, высота, отступ от арены
   wall: [112, 114, 122], //                     серые неразрушимые стены (поверхность "arena")
   lamp: [255, 214, 130], //                     светильники в потолке (цвет лампы — светится, LIGHTS.lamp)
