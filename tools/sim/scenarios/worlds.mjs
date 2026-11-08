@@ -45,6 +45,31 @@ export default async function (t, g) {
     for (let i = 0; i < 10; i++) menu.turn(-1);
     t.check("лента: до края вправо — первый мир", menu.center.id === menu.ring[0].id);
   }
+  // друзья и профиль: добавить (адрес + имя), переименовать (ручка), подключиться, ник в профиле
+  {
+    const asks = [];
+    let joined = null;
+    const m2 = new MainMenu({ game: scene.game, actions: { askText: (title, v, h, done) => asks.push(done), joinAddress: (a) => { joined = a; }, confirm: (t, yes) => yes() } });
+    m2.engine = { ...menu.engine, settings: scene.engine.settings };
+    const net0 = JSON.stringify(scene.engine.settings.data.net);
+    scene.engine.settings.data.net = { name: "", port: 0, lastHost: "", friends: [] };
+    m2.onButton("fadd");
+    asks.shift()("100.1.2.3:27015");
+    asks.shift()("vasya");
+    t.check("друзья: добавлен (имя и адрес)", m2.friends().length === 1 && m2.friends()[0].name === "VASYA" && m2.friends()[0].address === "100.1.2.3:27015");
+    m2.onButton("fren:0");
+    asks.shift()("petya");
+    t.check("друзья: переименован (ручка)", m2.friends()[0].name === "PETYA");
+    m2.onButton("fjoin:0");
+    t.check("друзья: JOIN — подключение по адресу друга", joined === "100.1.2.3:27015");
+    m2.onButton("pname");
+    asks.shift()("hero");
+    t.check("профиль: ник меняется", scene.engine.settings.data.net.name === "HERO");
+    m2.tab = "friends"; m2.drawFriends(ui); m2.tab = "profile"; m2.drawProfile(ui);
+    m2.onButton("fdel:0");
+    t.check("друзья: убран", m2.friends().length === 0);
+    scene.engine.settings.data.net = JSON.parse(net0 || "null") || { name: "", port: 0, lastHost: "", friends: [] };
+  }
   S.touchWorld(was);
   S.deleteWorld(a);
   S.deleteWorld(b);

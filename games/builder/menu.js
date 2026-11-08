@@ -25,10 +25,12 @@ const ICONS_DIR = fileURLToPath(new URL("./assets/world-icons/", import.meta.url
 // маленькие кнопки-значки — к правому (новости, друзья, настройки). ESC — меню: настройки / новости / выход.
 // MULTIPLAYER — сетевая игра (тестовая): хост — последний мир, гость — по адресу (Tailscale / одна Wi-Fi)
 const LEFT_TABS = [{ id: "skins", label: "SKINS" }, { id: "multiplayer", label: "MULTIPLAYER" }];
+// ДРУЗЬЯ — сохранённые адреса (подключался — добавился сам; переименовать, подключиться, убрать);
+// ПРОФИЛЬ — ник (ручка — изменить) и счёт. Настройки — через ESC
 const ICON_TABS = [
   { id: "news", label: "WHAT'S NEW", icon: "news" },
-  { id: "friends", label: "FRIENDS", icon: "friends", soon: true },
-  { id: "settings", label: "SETTINGS", icon: "gear" },
+  { id: "friends", label: "FRIENDS", icon: "friends" },
+  { id: "profile", label: "PROFILE", icon: "profile" },
 ];
 const SHIMMER = { every: 10, time: 0.9 }; // кнопка ИГРАТЬ переливается раз в every с
 
@@ -317,6 +319,8 @@ export class MainMenu extends Scene {
     this.drawTopBar(ui);
     if (this.tab === "play") this.drawPlay(ui);
     if (this.tab === "multiplayer") this.drawMultiplayer(ui);
+    if (this.tab === "friends") this.drawFriends(ui);
+    if (this.tab === "profile") this.drawProfile(ui);
     if (this.tab === "skins") this.drawSkins(ui);
     const up = this.updater;
     if (up?.available) {
@@ -364,7 +368,7 @@ export class MainMenu extends Scene {
       const x = ui.width - iw / 2 - (ICON_TABS.length - 1 - i) * iw;
       ui.button("tab:" + tb.id, "", x, by, iw + 1, sh, 2, false);
       drawTabIcon(ui, tb.icon, x, by, tb.soon ? th.muted : th.text);
-      if (tb.icon === "friends") ui.text("0", x + 12, by + 5, 1, th.muted);
+      if (tb.icon === "friends") ui.text(String(this.friends().length), x + 12, by + 5, 1, th.muted);
       if (ui.isInside(ui.mouseX, ui.mouseY, x - iw / 2, 0, iw, sh)) {
         ui.text(tb.label, Math.min(ui.width - 10, x + iw / 2), barH + 10, 1, th.muted, "right");
         if (tb.soon) ui.text("SOON", Math.min(ui.width - 10, x + iw / 2), barH + 22, 1, th.warn, "right");
@@ -472,13 +476,107 @@ export class MainMenu extends Scene {
     ui.text("FRIEND'S ADDRESS: IP OR IP:PORT", ui.width / 2, ui.height * 0.55 + 44, 2, th.muted, "center");
   }
 
+  // ---------- Друзья и профиль ----------
+
+  netSettings() {
+    const S = this.engine.settings.data;
+    S.net ||= { name: "", port: 0, lastHost: "", friends: [] };
+    if (!Array.isArray(S.net.friends)) S.net.friends = [];
+    return S.net;
+  }
+
+  friends() {
+    return this.engine ? this.netSettings().friends : [];
+  }
+
+  drawFriends(ui) {
+    const th = ui.theme;
+    const list = this.friends();
+    const w = Math.min(760, ui.width - 80), x = ui.width / 2 - w / 2;
+    let y = Math.round(ui.height * 0.16);
+    ui.text("FRIENDS", ui.width / 2, y, 5, th.text, "center");
+    y += 70;
+    if (!list.length) ui.text("NO FRIENDS YET: JOIN A GAME - THE ADDRESS IS ADDED HERE", ui.width / 2, y + 10, 2, th.muted, "center");
+    list.slice(0, 8).forEach((f, i) => {
+      const ry = y + i * 62;
+      ui.rect(x, ry, w, 54, th.window.fill, 235);
+      ui.frame(x, ry, w, 54, th.window.border, 2);
+      ui.text(f.name || f.address, x + 16, ry + 10, 3, th.text);
+      ui.text(f.address, x + 16, ry + 36, 1, th.muted);
+      ui.button("fren:" + i, "", x + w - 250, ry + 27, 40, 40, 2, false);
+      drawTabIcon(ui, "pen", x + w - 250, ry + 27, th.text);
+      ui.button("fjoin:" + i, "JOIN", x + w - 150, ry + 27, 130, 40, 2, true);
+      ui.button("fdel:" + i, "X", x + w - 40, ry + 27, 40, 40, 2, false);
+    });
+    ui.button("fadd", "ADD FRIEND", ui.width / 2, y + Math.max(1, Math.min(8, list.length)) * 62 + 40, 300, 50, 2);
+  }
+
+  drawProfile(ui) {
+    const th = ui.theme;
+    const n = this.netSettings();
+    const P = this.engine.profile;
+    let y = Math.round(ui.height * 0.18);
+    ui.text("PROFILE", ui.width / 2, y, 5, th.text, "center");
+    y += 90;
+    const nick = n.name || "PLAYER";
+    ui.text(nick, ui.width / 2, y, 4, th.accent, "center");
+    const nx = ui.width / 2 + (nick.length * 24) / 2 + 36; // справа от ника (буква ~6 px × масштаб 4)
+    ui.button("pname", "", nx, y + 14, 40, 40, 2, false);
+    drawTabIcon(ui, "pen", nx, y + 14, th.text);
+    ui.text("YOUR NICKNAME IN MULTIPLAYER", ui.width / 2, y + 48, 1, th.muted, "center");
+    y += 100;
+    for (const [label, key] of [["MATCHES", "matches"], ["DUEL WINS", "duelWins"], ["DUEL LOSSES", "duelLosses"]]) {
+      ui.text(label, ui.width / 2 - 10, y, 2, th.muted, "right");
+      ui.text(String(P?.get?.(key) || 0), ui.width / 2 + 10, y, 2, th.text);
+      y += 30;
+    }
+  }
+
+  // Ник / имя друга / адрес — окно ввода (main.js → askText); сохраняется в настройках
+  editFriend(i) {
+    const f = this.friends()[i];
+    if (!f) return;
+    this.actions.askText?.("FRIEND NAME", f.name || "", "NAME", (text) => {
+      f.name = text.toUpperCase().slice(0, 20) || f.address;
+      this.engine.settings.save();
+    });
+  }
+
+  addFriend() {
+    this.actions.askText?.("FRIEND ADDRESS", "", "IP OR IP:PORT", (address) => {
+      if (!address) return;
+      this.actions.askText?.("FRIEND NAME", "", "NAME", (name) => {
+        const list = this.friends();
+        if (!list.some((f) => f.address === address)) list.push({ name: (name || address).toUpperCase().slice(0, 20), address });
+        this.engine.settings.save();
+      });
+    });
+  }
+
   onButton(id) {
     const [kind, arg] = id.split(":");
     if (kind === "tab") {
-      if (arg === "friends") return this.actions.toast?.("FRIENDS - SOON");
-      if (arg === "play" || arg === "multiplayer" || arg === "skins") this.tab = arg;
+      if (["play", "multiplayer", "skins", "friends", "profile"].includes(arg)) this.tab = arg;
       else this.actions[arg]?.();
       return;
+    }
+    if (kind === "fjoin") return this.friends()[+arg] && this.actions.joinAddress?.(this.friends()[+arg].address);
+    if (kind === "fren") return this.editFriend(+arg);
+    if (kind === "fdel") {
+      const f = this.friends()[+arg];
+      if (f) this.actions.confirm?.(`REMOVE ${f.name || f.address}?`, () => {
+        this.friends().splice(+arg, 1);
+        this.engine.settings.save();
+      });
+      return;
+    }
+    if (kind === "fadd") return this.addFriend();
+    if (kind === "pname") {
+      const n = this.netSettings();
+      return this.actions.askText?.("NICKNAME", n.name || "", "NICKNAME", (text) => {
+        n.name = text.toUpperCase().slice(0, 16);
+        this.engine.settings.save();
+      });
     }
     if (kind === "turn") return this.turn(Number(arg));
     if (kind === "update") return this.actions.update?.();
@@ -653,10 +751,18 @@ function drawTabIcon(ui, icon, cx, cy, color) {
     ui.rect(x + 3, y + 4, 14, 3, dark, 255);
     ui.rect(x + 3, y + 9, 6, 6, dark, 255);
     for (const ly of [9, 12, 15]) ui.rect(x + 11, y + ly, 6, 1, dark, 255);
-  } else if (icon === "friends") { // голова и плечи
-    ui.circle(x + 8, y + 6, 4, color, 255);
-    ui.rect(x + 2, y + 13, 12, 6, color, 255);
-    ui.rect(x + 3, y + 12, 10, 1, color, 255);
+  } else if (icon === "friends") { // двое: голова и плечи, второй — позади
+    ui.circle(x + 13, y + 5, 3, color, 255);
+    ui.rect(x + 9, y + 10, 9, 5, color, 255);
+    ui.circle(x + 7, y + 7, 4, color, 255);
+    ui.rect(x + 1, y + 13, 12, 6, color, 255);
+  } else if (icon === "profile") { // голова и плечи
+    ui.circle(x + 10, y + 6, 4, color, 255);
+    ui.rect(x + 4, y + 13, 12, 6, color, 255);
+    ui.rect(x + 5, y + 12, 10, 1, color, 255);
+  } else if (icon === "pen") { // ручка: наискось, кончик внизу слева
+    for (let i = 0; i < 7; i++) ui.rect(x + 4 + i * 2, y + 14 - i * 2, 3, 3, color, 255);
+    ui.rect(x + 2, y + 16, 2, 2, color, 255);
   } else if (icon === "gear") { // шестерёнка: зубцы, кольцо, дырка
     const c = 10;
     for (let i = 0; i < 8; i++) {

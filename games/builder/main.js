@@ -317,23 +317,28 @@ function joinWindow() {
     value: engine.settings.data.net?.lastHost || "",
     allowed: /[0-9a-z.:-]/i,
     onCancel: () => engine.pop(),
-    onDone: async (addr) => {
-      if (!addr) return;
-      const [host, port] = addr.split(":");
-      const client = new NetClient();
-      engine.toast("CONNECTING...", 5000);
-      try {
-        await client.connect(host, +port || DEFAULT_PORT);
-      } catch (e) {
-        engine.log(`сеть: не подключиться к ${addr}: ${e.message}`);
-        return engine.toast("CANNOT CONNECT", 4000);
-      }
-      engine.settings.data.net = { ...(engine.settings.data.net || {}), lastHost: addr };
-      engine.settings.save();
-      engine.log(`сеть: подключились к ${addr}`);
-      engine.setScene(lobby({ role: "client", client }));
-    },
+    onDone: (addr) => connectTo(addr),
   });
+}
+
+// Подключиться к хосту / серверу по адресу; удалось — адрес запомнился (JOIN GAME) и добавился в друзья
+async function connectTo(addr) {
+  if (!addr) return;
+  const [host, port] = addr.split(":");
+  const client = new NetClient();
+  engine.toast("CONNECTING...", 5000);
+  try {
+    await client.connect(host, +port || DEFAULT_PORT);
+  } catch (e) {
+    engine.log(`сеть: не подключиться к ${addr}: ${e.message}`);
+    return engine.toast("CANNOT CONNECT", 4000);
+  }
+  const net = (engine.settings.data.net = { ...(engine.settings.data.net || {}), lastHost: addr });
+  net.friends = Array.isArray(net.friends) ? net.friends : [];
+  if (!net.friends.some((f) => f.address === addr)) net.friends.push({ name: addr.toUpperCase(), address: addr }); // друг (переименовать — FRIENDS)
+  engine.settings.save();
+  engine.log(`сеть: подключились к ${addr}`);
+  engine.setScene(lobby({ role: "client", client }));
 }
 
 // Главное меню: вкладки и миры (menu.js)
@@ -362,6 +367,15 @@ function mainMenu() {
       update: () => up?.restart(engine),
       host: () => hostGame(), // матч — всегда в новом мире (свои миры не трогаем)
       join: () => engine.push(joinWindow()),
+      joinAddress: (addr) => connectTo(addr), // ДРУЗЬЯ: подключиться
+      askText: (title, value, hint, onDone) => engine.push(new TextInputScene({
+        title, value, hint, allowed: /[0-9a-z а-яё_.:-]/i, maxLength: 24,
+        onCancel: () => engine.pop(),
+        onDone: (text) => {
+          engine.pop();
+          onDone(String(text || "").trim());
+        },
+      })),
       toast: (text) => engine.toast(text, 2000),
       confirm: (title, onYes) => engine.push(new MenuScene({
         title, overlay: true,
