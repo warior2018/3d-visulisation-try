@@ -30,7 +30,8 @@ export class ThrowersPart {
       gravity: dir ? 0 : MOB_RANGED.gravity, spin: dir ? 0 : 2,
       onHit: (p, hit) => {
         if (!e.isHostileTo(hit.entity)) return; // своих не бьёт (пролетело сквозь)
-        const res = attack.hit(e, hit.entity, { part: hit.part, baseDamage: p.damage });
+        // shot — что летит: блок может отразить снаряд обратно (combat.js → reflectShot)
+        const res = attack.hit(e, hit.entity, { part: hit.part, baseDamage: p.damage, shot: { projectile: { item: e.ranged.item, speed: r.speed, gravity: dir ? 0 : MOB_RANGED.gravity, spin: dir ? 0 : 2, scale: e.ranged.scale || 1 } } });
         this.engine.sound.play(hit.entity === this.player ? "hurt" : "hit", { at: hit.entity.position });
         this.engine.log(`${e.name} → ${hit.entity.name}: ${r.name} -${res?.dealt ?? 0} HP`);
       },
@@ -84,7 +85,7 @@ export class ThrowersPart {
     const t = hit && (!wall || hit.t <= wall.t) ? hit.t : wall ? wall.t : max;
     if (hit && t === hit.t && e.isHostileTo(hit.entity)) {
       const [lo, hi] = e.rangedDamage;
-      const res = attack.hit(e, hit.entity, { part: hit.part, baseDamage: lo + Math.floor(Math.random() * (hi - lo + 1)) });
+      const res = attack.hit(e, hit.entity, { part: hit.part, baseDamage: lo + Math.floor(Math.random() * (hi - lo + 1)), shot: { hitscan: true } });
       this.engine.sound.play(hit.entity === this.player ? "hurt" : "hit", { at: hit.entity.position });
       this.engine.log(`${e.name} → ${hit.entity.name}: ${ATTACKS[w.attack].name} -${res?.dealt ?? 0} HP`);
     }

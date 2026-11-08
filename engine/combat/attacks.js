@@ -96,6 +96,9 @@ export class Attack {
     // power — сила экземпляра оружия (редкость: +10 % / +20 %...), damageScale — насквозь слабее с каждой целью
     const base = (ctx.baseDamage ?? this.roll(random)) * (ctx.cleave ? this.arcMultiplier ?? 1 : 1) * (ctx.damageScale ?? 1) * (this.power ?? 1); // взмах по сектору — свой множитель; насквозь — слабее с каждой целью
     const d = new Damage({ amount: base, element: this.element, source: owner, attack: this, tags: [this.kind, ...this.extraTags] });
+    // Выстрел: { hitscan: true } — пуля (луч), { projectile: {...} } — снаряд (что летит: item, speed, gravity...).
+    // Блок с shots (status.js → parry) отбивает выстрелы; игра может отразить их обратно (entity.onBlock)
+    d.shot = ctx.shot ?? (this.kind === "ranged" ? { hitscan: true } : null);
     // use — контекст этого удара: один и тот же для всех целей одного взмаха (сплеш катаны)
     const mctx = this.modifierContext(owner, target, ctx);
     for (const m of this.allModifiers(owner)) {

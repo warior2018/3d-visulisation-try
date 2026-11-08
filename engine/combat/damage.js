@@ -41,6 +41,7 @@ export class Damage {
     this.tags = new Set(tags); // ярлыки: "melee", "ranged", "magic", "dot" (урон от статуса), "crit"...
     this.crit = false; //      критическое попадание
     this.statuses = []; //     статусы, которые цель получит вместе с уроном (StatusEffect)
+    this.shot = null; //       выстрел: { hitscan: true } или { projectile: {...} } — пуля / снаряд (блок может отразить)
     this.applied = []; //      какие модификаторы сработали и на сколько поменяли урон: { id, delta }
   }
 

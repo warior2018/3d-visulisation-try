@@ -4,8 +4,8 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { Vec3, Input, abilityHelp } from "../../../engine/index.js";
-import { MELEE_STAMINA } from "../config.js";
+import { Vec3, Input, abilityHelp, Damage } from "../../../engine/index.js";
+import { MELEE_STAMINA, BLOCK } from "../config.js";
 import { CLASS_HELP } from "../help.js";
 import { TALENT_TREE } from "../talents.js";
 
@@ -49,7 +49,7 @@ export class CombatPart {
       item: "bolt", attack, pierce: Math.max(0, (attack.pierce || 1) - 1),
       onHit: (p, hit) => {
         const k = Math.pow(attack.pierceFalloff ?? 0.8, n++) * attack.falloffAt(owner, hit.entity);
-        attack.hit(owner, hit.entity, this.combatContext({ part: hit.part, damageScale: k, onHit: (r) => this.onPlayerHit(r) }));
+        attack.hit(owner, hit.entity, this.combatContext({ part: hit.part, damageScale: k, onHit: (r) => this.onPlayerHit(r), shot: { projectile: { item: "bolt", speed: P.speed, gravity: P.gravity } } }));
         this.engine.sound.play("hit", { at: hit.entity.position });
       },
       onLand: (p) => {
@@ -57,6 +57,41 @@ export class CombatPart {
         this.sparkFx?.(p.position);
       },
     });
+  }
+
+  // Блок отбил выстрел (d.shot): отбитая доля урона летит туда, куда смотрим. Пуля — лучом (BLOCK.reflect.range),
+  // снаряд — таким же снарядом из глаз. Попал во врага — урон этой доли (его тоже можно отбить блоком)
+  reflectShot(d, guard) {
+    const p = this.player;
+    if (!d?.shot || !p.alive) return;
+    const share = guard?.blockShare ?? 1;
+    const n = (share < 1 ? d.amount / (1 - share) : d.amount) * share; // d.amount — уже то, что прошло сквозь блок
+    if (n < 0.5) return;
+    const strike = (target, part = null) => {
+      if (!target?.alive || target === p || !p.isHostileTo(target)) return false;
+      const dmg = new Damage({ amount: n, source: p, kind: "ranged", tags: ["ranged", "reflected"] });
+      dmg.shot = d.shot;
+      const r = target.receive(dmg);
+      this.onPlayerHit({ target, damage: dmg, dealt: r.dealt, killed: r.killed, part });
+      this.engine.sound.play("hit", { at: target.position });
+      this.engine.log(`блок: отражённый выстрел → ${target.name}: -${r.dealt}`);
+      return true;
+    };
+    const cam = this.rig.camera;
+    const dir = cam.lookDirection();
+    if (d.shot.projectile) {
+      const P = d.shot.projectile;
+      this.projectiles.launch({
+        owner: p, position: cam.position.add(dir.scale(0.6)), velocity: dir.scale(P.speed || 20), gravity: P.gravity ?? 0,
+        spin: P.spin ?? 0, scale: P.scale || 1, maxLife: 4, item: P.item || "bolt",
+        onHit: (_, hit) => strike(hit.entity), onLand: () => {},
+      });
+    } else {
+      const hit = this.aimedHit(BLOCK.reflect.range);
+      this.bulletTrace("pistol"); // след пули — как у выстрела
+      strike(hit?.entity, hit?.part);
+    }
+    this.engine.sound.play("shot", { volume: 0.5 });
   }
 
   aimedHit(reach, spread = 0) {

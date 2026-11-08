@@ -6,7 +6,7 @@
 
 import { ATTACKS as A, BLOCK, SPEAR, KATANA_IAI as IAI, MACHETE_LEAP as ML, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT } from "./config.js";
 
-const block = { name: "BLOCK", text: `FOR ${BLOCK.window} S HITS FROM THE FRONT DEAL ${Math.round((1 - BLOCK.share) * 100)}% DMG. COOLDOWN ${BLOCK.cooldown} S` };
+const block = { name: "BLOCK", text: `FOR ${BLOCK.window} S HITS AND SHOTS FROM THE FRONT DEAL ${Math.round((1 - BLOCK.share) * 100)}% DMG. THE BLOCKED PART OF A SHOT FLIES BACK WHERE YOU LOOK. COOLDOWN ${BLOCK.cooldown} S` };
 const aim = { name: "AIM", text: "HOLD TO AIM: ZOOM IN, LESS SPREAD" };
 const reload = { name: "RELOAD", text: "PUT IN A NEW CLIP FROM THE BAG. THE REST OF THE OLD ONE GOES BACK AS A PARTIAL CLIP" };
 const punch = { name: "PUNCH", text: `${A.punch.damage} DMG, UP TO ${A.punch.maxTargets} ENEMIES IN FRONT` };

@@ -158,12 +158,13 @@ export const debuff = (options) => new StatusEffect({ positive: false, ...option
 
 // Блок (парирование): duration секунд отбивает удары видов kinds (по умолчанию — ближний бой),
 // пришедшие спереди — в секторе arc° от того, куда смотрит владелец (yaw). share — какую долю урона
-// срезает (1 — удар не ранит вовсе; 0.5 — проходит половина, как блок щитом в Valheim)
-export const parry = ({ duration = 0.4, kinds = ["melee"], arc = 160, share = 1 } = {}) =>
+// срезает (1 — удар не ранит вовсе; 0.5 — проходит половина, как блок щитом в Valheim).
+// shots — отбивает и выстрелы (пули и снаряды: damage.shot), какого бы вида ни была атака
+export const parry = ({ duration = 0.4, kinds = ["melee"], arc = 160, share = 1, shots = false } = {}) =>
   Object.assign(new StatusEffect({
     id: "parry", name: "BLOCK", icon: "BL", positive: true, color: [140, 200, 255], duration,
     guard: (d, owner) => {
-      if (!kinds.includes(d.kind)) return false;
+      if (!kinds.includes(d.kind) && !(shots && d.shot)) return false;
       const src = d.source;
       if (!src?.position) return true; // урон «ниоткуда» — отбиваем
       let diff = Math.atan2(src.position.x - owner.position.x, src.position.z - owner.position.z) - owner.yaw;

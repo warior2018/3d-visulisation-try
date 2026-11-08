@@ -451,6 +451,7 @@ export const RU = {
   "FISTS": "КУЛАКИ",
   "FLEET-ISSUE FIRST AID": "АПТЕЧКА ФЛОТСКОГО ОБРАЗЦА",
   "FLOATING ISLANDS: DON'T FALL OFF THE EDGE": "ЛЕТАЮЩИЕ ОСТРОВА: НЕ УПАДИ С КРАЯ",
+  "FOR ${BLOCK.window} S HITS AND SHOTS FROM THE FRONT DEAL ${Math.round((1 - BLOCK.share) * 100)}% DMG. THE BLOCKED PART OF A SHOT FLIES BACK WHERE YOU LOOK. COOLDOWN ${BLOCK.cooldown} S": "${BLOCK.window} С УДАРЫ И ВЫСТРЕЛЫ СПЕРЕДИ НАНОСЯТ ${Math.round((1 - BLOCK.share) * 100)}% УРОНА. ОТБИТАЯ ЧАСТЬ ВЫСТРЕЛА ЛЕТИТ ОБРАТНО ТУДА, КУДА СМОТРИШЬ. ПЕРЕЗАРЯДКА ${BLOCK.cooldown} С",
   "FOR ${BLOCK.window} S HITS FROM THE FRONT DEAL ${Math.round((1 - BLOCK.share) * 100)}% DMG. COOLDOWN ${BLOCK.cooldown} S": "${BLOCK.window} С УДАРЫ СПЕРЕДИ НАНОСЯТ ${Math.round((1 - BLOCK.share) * 100)}% УРОНА. ПЕРЕЗАРЯДКА ${BLOCK.cooldown} С",
   "FOR ALL GUNS. R - RELOAD FROM THE BAG": "ДЛЯ ВСЕХ СТВОЛОВ. R - ЗАРЯДИТЬ ИЗ СУМКИ",
   "FORAGERS": "СБОРЩИКИ",

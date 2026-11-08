@@ -82,8 +82,9 @@ export class SessionPart {
     this.stamina = STAMINA.enabled ? new Stamina(STAMINA) : null;
     this.controller.canRun = () => this.stamina?.canRun ?? true;
     // Блок отбил удар (движок: статус parry → entity.onBlock) — «дзынь» и надпись
-    this.player.onBlock = (d) => {
+    this.player.onBlock = (d, guard) => {
       this.engine.sound.play("parry");
+      this.reflectShot(d, guard); // отбили выстрел — отбитая доля летит туда, куда смотрим
       this.blockFlash = 0.6;
       this.engine.log(`блок: отбит удар ${d.source?.name || "?"} (${Math.round(d.amount)})`);
     };

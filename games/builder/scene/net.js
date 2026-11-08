@@ -22,7 +22,7 @@
 //   fx — эффекты и звуки [[откуда (0 — хост, иначе номер гостя), вид, аргументы]] (гость шлёт свои: fx { list })
 // ============================================================
 
-import { encodeChunk, decodeChunk } from "../../../engine/index.js";
+import { encodeChunk, decodeChunk, Damage } from "../../../engine/index.js";
 import { isWeapon, isArmor } from "../items.js";
 import { PICKUP_AUTO_RADIUS, SUBCLASS } from "../config.js";
 
@@ -113,6 +113,15 @@ const duelSnap = (g) => {
 // Номер сущности в сети (один на всю игру хоста)
 let nextNetId = 1;
 const netId = (e) => (e.netId ||= nextNetId++);
+
+// Урон своему герою, посчитанный на другом компьютере (n — уже со всем). Если наш блок его ловит (выстрел или удар
+// спереди) — через receive: блок срежет долю и отразит выстрел (combat.js → reflectShot). Иначе — как раньше, числом
+function hurtLocal(g, n, source, kind, shot) {
+  const d = new Damage({ amount: n, source, kind: kind || null });
+  d.shot = shot || null;
+  if (source?.position && g.player.statuses.some((st) => st.guard?.(d, g.player))) g.player.receive(d);
+  else g.player.damage(n);
+}
 
 export class HostNet {
   constructor(scene, server) {
@@ -246,7 +255,8 @@ export class HostNet {
         hero.name = String(msg.name || "GUEST").slice(0, 16).toUpperCase();
         // по гостю попали (мобы на хосте) — урон уходит гостю; здесь он не умирает (здоровье — у гостя)
         hero.onDamage = (d, dealt) => {
-          this.server.send(peer, { t: "hurt", n: dealt, from: d.source?.name || "" });
+          // k, s — вид атаки и выстрел (пуля / снаряд), si — кто бил: у гостя блок отобьёт и отразит (shotDamage)
+          this.server.send(peer, { t: "hurt", n: dealt, from: d.source?.name || "", k: d.kind || null, s: d.shot || null, si: d.source ? netId(d.source) : 0 });
           hero.stats.hp = hero.stats.maxHp;
         };
         this.guests.set(peer.id, { peer, hero, name: hero.name });
@@ -353,7 +363,7 @@ export class HostNet {
           // дуэль: гость попал по герою — по хосту: урон хосту; по другому гостю: «ранен» ему (здоровье — у него)
           if (target === g.player) {
             g.player.attackedBy = h;
-            g.player.damage(n);
+            hurtLocal(g, n, h, msg.k, msg.s);
             g.player.lastDamageFrom = h.position;
           } else for (const q of this.guests.values()) if (q.hero === target) this.server.send(q.peer, { t: "hurt", n, from: guest.name });
         } else if (target?.alive && !target.remote && target !== g.player) {
@@ -569,7 +579,7 @@ export class ClientNet {
         return;
       case "hurt":
         if (g.player.alive) {
-          g.player.damage(Math.max(0, +msg.n || 0));
+          hurtLocal(g, Math.max(0, +msg.n || 0), this.copies.get(msg.si) || null, msg.k, msg.s);
           g.engine.sound.play("hurt");
         }
         return;
@@ -612,7 +622,7 @@ export class ClientNet {
         const shown = e.onDamage;
         e.onDamage = (d, dealt) => {
           shown?.(d, dealt);
-          if (d.source === g.player || !d.source) this.client.send({ t: "hit", id, n: dealt });
+          if (d.source === g.player || !d.source) this.client.send({ t: "hit", id, n: dealt, k: d.kind || null, s: d.shot || null });
         };
         this.copies.set(id, e);
       }
