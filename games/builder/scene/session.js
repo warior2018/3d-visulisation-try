@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, MULTIPLAYER, subclassOptions, worldgenFor } from "../config.js";
+import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, MULTIPLAYER, subclassOptions, worldgenFor, WOUND } from "../config.js";
 import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../save.js";
 import { Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, Hints, profiler } from "../../../engine/index.js";
 import { HINTS } from "../hints.js";
@@ -85,6 +85,8 @@ export class SessionPart {
     // Попали в голову — шлем срезает часть урона (до брони; ARMOR: headshot)
     this.player.onIncoming = (d) => {
       if (d.part === "head") d.amount *= 1 - this.helmetHeadshot();
+      // рана: попали оружием (не горение / кровотечение, не своё) — регенерация ×0.5 на WOUND.time с (out-of-combat.js)
+      if (d.source && d.source !== this.player && !d.tags?.has("dot") && d.amount > 0) this.woundUntil = (this.combatClock || 0) + WOUND.time;
     };
     this.player.onBlock = (d, guard) => {
       this.engine.sound.play("parry");

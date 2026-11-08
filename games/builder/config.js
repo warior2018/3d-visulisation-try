@@ -672,6 +672,9 @@ export const SKY_BODIES = { distance: 260, tilt: 0.38, sun: { size: 30, color: [
 // Вне боя (scene/out-of-combat.js): рядом (radius блоков) нет моба, охотящегося на героя, и delay с героя не
 // ранили мобы и он сам никого не ранил — бонусы: скорость +speed, регенерация ×regenMult
 export const OUT_OF_COMBAT = { radius: 5, delay: 5, speed: 0.1, regenMult: 3 };
+// Рана: попадание оружием (удар, выстрел, взрыв — не горение / кровотечение) режет регенерацию до regen (×0.5)
+// на time секунд; новое попадание — отсчёт заново (не складывается)
+export const WOUND = { regen: 0.5, time: 3 };
 
 // Частицы (scene/effects.js): «кровь» по виду существа, сколько брызг (3 + урон / bloodPer, не больше bloodMax),
 // огонь и дым взрыва, искры пули, пыль
