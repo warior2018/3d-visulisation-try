@@ -513,7 +513,7 @@ export const ATTACKS = {
   // пробивает насквозь до 3 врагов на линии (каждому следующему — 80 % урона); после выстрела —
   // взвод (магазин 1). Один на один ~57/с, по толпе в ряд — до ~139/с
   // Лук: урон — от натяжения (BOW: min → damage), стрела — снаряд; бесконечные стрелы, после выстрела — cooldown
-  bow: { id: "bow", name: "ARROW", damage: 110, range: 120, cooldown: 0.75 },
+  bow: { id: "bow", name: "ARROW", damage: 126, range: 120, cooldown: 0.75 },
   bowBlast: { id: "bow-blast", name: "EXPLOSIVE ARROW", damage: 30, radius: 1.5, cooldown: 0, cost: 0 },
   crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 85, range: 100, falloff: [50, 0.8], projectile: { speed: 80, gravity: 4 }, cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
   // Дробовик (СТРЕЛОК, покупной): 8 дробин с разбросом, вблизи — 72 за выстрел (~63/с, если все попали)
@@ -943,7 +943,7 @@ export const MACHETE_LEAP = { cooldown: 5.5, damage: 1.5, distance: 4.5, speed: 
 // minDamage → ATTACKS.bow.damage и скорость стрелы minSpeed → maxSpeed растут с натяжением; gravity — дуга.
 // Q — залп: volley.count стрел веером (spread° между ними), сразу полное натяжение, перезарядка volley.cooldown.
 // Таланты (вкладка ЛУК): пробивание, урон за натяжение, взрывная стрела (ATTACKS.bowBlast), быстрее натяжение (до 2 с)
-export const BOW = { draw: 3, minDamage: 50, minSpeed: 22, maxSpeed: 75, gravity: 6, volley: { count: 3, spread: 6, cooldown: 8 } };
+export const BOW = { draw: 3, minDamage: 58, minSpeed: 29, maxSpeed: 98, gravity: 6, volley: { count: 3, spread: 6, cooldown: 8 } };
 export const KATANA_IAI = { cooldown: 6, damage: 1.5, distance: 10, dashSpeed: 40, width: 1.2, pause: 0.1, lockShare: 0.7, speed: 0, shape: { radius: 0.2, height: 0.35, anchor: "top" } };
 // Прицеливание (движок: engine/input/aim.js). fov — угол обзора в прицеле, sensitivity — мышь в прицеле
 // так, как её чувствует игрок (1 — перекрестие бегает по экрану как без прицела, 0.5 — вдвое медленнее).

@@ -44,7 +44,7 @@ export class CombatPart {
     const from = cam.position.add(dir.scale(0.6));
     let n = 0;
     this.projectiles.launch({
-      owner, position: from, velocity: dir.scale(P.speed), gravity: P.gravity, spin: 0, maxLife: 4, skinned: true, skinTarget: "crossbow",
+      owner, position: from, velocity: dir.scale(P.speed), gravity: P.gravity, spin: 0, maxLife: 4, skinned: true, skinTarget: "crossbow", align: true,
       item: "bolt", attack, pierce: Math.max(0, (attack.pierce || 1) - 1),
       onHit: (p, hit) => {
         const k = Math.pow(attack.pierceFalloff ?? 0.8, n++) * attack.falloffAt(owner, hit.entity);
@@ -76,7 +76,7 @@ export class CombatPart {
     };
     this.projectiles.launch({
       owner, position: cam.position.add(dir.scale(0.6)), velocity: dir.scale(speed), gravity: BOW.gravity, spin: 0, maxLife: 5,
-      item: "bolt", attack, pierce, skinned: true, skinTarget: "bow",
+      item: "bolt", attack, pierce, skinned: true, skinTarget: "bow", align: true, // носом по полёту
       onHit: (p, hit) => {
         const k = Math.pow(0.8, n++);
         attack.hit(owner, hit.entity, this.combatContext({ part: hit.part, baseDamage: damage, damageScale: k, onHit: (r) => this.onPlayerHit(r), shot: { projectile: { item: "bolt", speed, gravity: BOW.gravity } } }));

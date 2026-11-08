@@ -42,7 +42,7 @@ export default async function (t, g) {
   hp = foe.stats.hp;
   await shot(3.2);
   const strong = hp - foe.stats.hp;
-  t.check("лук: урон растёт с натяжением (50 → 110)", weak > 0 && strong > weak * 1.8 && Math.abs(strong - C.ATTACKS.bow.damage) < 15, `${weak} → ${strong}`);
+  t.check("лук: урон растёт с натяжением (58 → 126)", weak > 0 && strong > weak * 1.8 && Math.abs(strong - C.ATTACKS.bow.damage) < 15, `${weak} → ${strong}`);
   a.readyAt = performance.now() / 1000 + C.ATTACKS.bow.cooldown; // как сразу после выстрела
   a.primary(scene);
   t.check("лук: сразу после выстрела не натянуть (пауза 1 с)", !a.drawing);
@@ -65,6 +65,14 @@ export default async function (t, g) {
   engine.input.isDown = isDown;
   scene.removeEntity(foe);
   t.check("снайперка: раз в 1.75 с", C.ATTACKS.rifle.cooldown === 1.75);
+  // стрела смотрит носом по полёту (дуга — нос опускается)
+  const pr = scene.projectiles;
+  scene.look.pitch = 0.3;
+  a.readyAt = 0;
+  a.shoot(scene, 0.2, [0]);
+  await g.frames(20);
+  const arrow = pr.list.at(-1);
+  t.check("стрела поворачивается по полёту", arrow && arrow.align && Math.abs(arrow.tilt - Math.atan2(-arrow.velocity.y, Math.hypot(arrow.velocity.x, arrow.velocity.z))) < 1e-6, arrow ? `${arrow.tilt}` : "нет стрелы");
   const tab = scene.talents.tree.tabs.find((x) => x.id === "w-bow");
   t.check("вкладка талантов ЛУК", tab && ["bow-pierce", "bow-power", "bow-blast", "bow-quick", "bow-mastery"].every((id) => tab.talents.some((x) => x.id === id)));
 }

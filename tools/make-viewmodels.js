@@ -401,9 +401,18 @@ function fingers(arm, curled) {
   arm.box([0, 0.47, 0.5], [0.03, 0.14, 0.035], WOOD); //           верхний конец (назад)
   arm.box([0, -0.15, 0.56], [0.035, 0.3, 0.045], WOOD); //         нижнее плечо
   arm.box([0, -0.35, 0.5], [0.03, 0.14, 0.035], WOOD);
-  const STRING = arm.at(0, 0.06, 0.46), ARROW = arm.at(0, 0.08, 0.66);
-  arm.bones.push({ name: "string", parent: "arm", pos: STRING });
-  arm.parts.push({ bone: "string", center: STRING, size: [0.006, 0.9, 0.006], color: [0.85, 0.85, 0.8] }); // тетива
+  // Тетива — две половины от концов лука к точке натяга (кости — в концах): натяжение — половины поворачиваются,
+  // середина уходит назад, а концы остаются на луке
+  const TOP = arm.at(0, 0.53, 0.48), BOT = arm.at(0, -0.41, 0.48), ARROW = arm.at(0, 0.08, 0.66);
+  const NOCK = arm.at(0, 0.06, 0.48);
+  const half = (name, from) => {
+    arm.bones.push({ name, parent: "arm", pos: from });
+    const len = Math.abs(from[1] - NOCK[1]);
+    arm.parts.push({ bone: name, center: [from[0], (from[1] + NOCK[1]) / 2, from[2]], size: [0.006, len, 0.006], color: [0.85, 0.85, 0.8] });
+  };
+  half("stringTop", TOP);
+  half("stringBot", BOT);
+  const PULL = 21; // градусов: середина тетивы уходит назад на ~0.17 м
   arm.bones.push({ name: "arrow", parent: "arm", pos: ARROW });
   arm.parts.push({ bone: "arrow", center: ARROW, size: [0.012, 0.012, 0.5], color: [0.62, 0.45, 0.28] }); //        древко
   arm.parts.push({ bone: "arrow", center: arm.at(0, 0.08, 0.92), size: [0.024, 0.024, 0.05], color: [0.6, 0.62, 0.66] }); // наконечник
@@ -419,13 +428,15 @@ function fingers(arm, curled) {
       Aim: [rotQ("arm", [0], [pose()]), move("arm", [0], [at(0, 0, 0)])],
       // натянут: тетива и стрела назад (держится, пока тянем — база клипа)
       Draw: [
-        move("string", [0, 0.3], [back(STRING, 0.26), back(STRING, 0.26)]),
-        move("arrow", [0, 0.3], [back(ARROW, 0.26), back(ARROW, 0.26)]),
+        rotQ("stringTop", [0, 0.3], [quat(X, PULL), quat(X, PULL)]),
+        rotQ("stringBot", [0, 0.3], [quat(X, -PULL), quat(X, -PULL)]),
+        move("arrow", [0, 0.3], [back(ARROW, 0.17), back(ARROW, 0.17)]),
         move("arm", [0, 0.3], [at(-0.02, 0.01, 0.02), at(-0.02, 0.01, 0.02)]),
       ],
       Shoot: [
         move("arm", [0, 0.05, 0.3], [at(0, 0, 0), at(0, 0.01, -0.04), at(0, 0, 0)]),
-        move("string", [0, 0.04], [back(STRING, 0.26), STRING]),
+        rotQ("stringTop", [0, 0.04], [quat(X, PULL), quat(X, 0)]),
+        rotQ("stringBot", [0, 0.04], [quat(X, -PULL), quat(X, 0)]),
         scale("arrow", [0, 0.02], [[1, 1, 1], [0, 0, 0]]),
       ],
       Reload: [

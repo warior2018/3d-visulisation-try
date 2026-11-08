@@ -98,6 +98,11 @@ export class Projectiles {
       }
       p.position = p.position.add(step);
       p.roll += dt * (p.spin ?? this.spin) * Math.PI * 2; // кувыркается в полёте
+      // align — смотрит носом по полёту (стрела, болт): поворот и наклон по скорости (дуга — нос опускается)
+      if (p.align) {
+        p.yaw = Math.atan2(p.velocity.x, p.velocity.z);
+        p.tilt = Math.atan2(-p.velocity.y, Math.hypot(p.velocity.x, p.velocity.z));
+      }
       if (p.age > (p.maxLife ?? this.maxLife)) {
         (p.onExpire || (() => {}))(p);
         this.remove(p);
