@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { BUILD, PALETTE, PALETTE_SURFACE } from "../config.js";
+import { BUILD, PALETTE, PALETTE_SURFACE, REACH } from "../config.js";
 import { itemName, maxStack, ITEMS } from "../items.js";
 
 export class BuildingPart {
@@ -13,6 +13,25 @@ export class BuildingPart {
   // Нельзя ставить в занятую клетку и туда, где стоит хоть одна сущность (её «коробка»)
   canPlace(c) {
     return c.y >= 0 && !this.world.has(c.x, c.y, c.z) && !this.entities.overlapsCell(c);
+  }
+
+  // Мост (стройка к островам): смотришь вниз и вперёд за край, а прицел — в пустоту или в верх блока, на котором
+  // стоишь, — блок ставится продолжением ряда под ногами: первая пустая клетка на уровне ног − 1 по направлению
+  // взгляда (по главной оси), если перед ней есть блок. Не надо вставать на самый край и ловить грань
+  bridgeTarget() {
+    if (this.look.pitch > -0.35) return null; // только когда смотрим вниз
+    const p = this.player.position;
+    const dir = this.look.lookDirection();
+    const ax = Math.abs(dir.x) >= Math.abs(dir.z);
+    const sx = ax ? Math.sign(dir.x) : 0, sz = ax ? 0 : Math.sign(dir.z);
+    const x0 = Math.floor(p.x), y = Math.floor(p.y + 1e-3) - 1, z0 = Math.floor(p.z);
+    if (!this.world.has(x0, y, z0)) return null; // стоим не на блоке (в воздухе, на краю чужого) — не мост
+    for (let k = 1; k <= REACH; k++) {
+      const c = { x: x0 + sx * k, y, z: z0 + sz * k };
+      if (this.world.has(c.x, c.y, c.z)) continue;
+      return this.canPlace(c) ? { place: c, block: null, bridge: true } : null;
+    }
+    return null;
   }
 
   placeBlock() {

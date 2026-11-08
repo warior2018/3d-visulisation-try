@@ -650,6 +650,11 @@ export class GameScene extends Scene {
     if (this.building) {
       const cam = this.rig.camera;
       this.target = this.world.raycast(cam.position, cam.lookDirection(), REACH + this.rig.behind);
+      // мост: смотрим вниз за край (в пустоту или в блок под ногами) — ставим блок продолжением края (building.js)
+      // (или в верх блока под ногами); в другой блок смотрим — как обычно
+      const under = this.target?.block && this.target.block.y === Math.floor(this.player.position.y + 1e-3) - 1
+        && Math.floor(this.player.position.x) === this.target.block.x && Math.floor(this.player.position.z) === this.target.block.z;
+      if (!this.target || under || !this.canPlace(this.target.place)) this.target = this.bridgeTarget() || this.target;
       if (this.target) {
         const c = this.target.place;
         // Красный призрак — сюда нельзя или нет камня
