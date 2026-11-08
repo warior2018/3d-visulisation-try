@@ -104,7 +104,7 @@ function armorItems() {
   const out = {};
   for (const [setId, set] of Object.entries(ARMOR.sets)) {
     for (const [part, p] of Object.entries(set.parts)) {
-      out[`${setId}-${part}`] = { name: `${set.name} ${p.name}`, slot: ARMOR_PART_SLOT[part], armor: p.armor, speed: p.speed || 0, set: setId, maxStack: 1, color: set.color, drawIcon: drawArmor(part, set.color) };
+      out[`${setId}-${part}`] = { name: `${set.name} ${p.name}`, slot: ARMOR_PART_SLOT[part], armor: p.armor, speed: p.speed || 0, headshot: p.headshot || 0, set: setId, maxStack: 1, color: set.color, drawIcon: drawArmor(part, set.color) };
     }
   }
   return out;

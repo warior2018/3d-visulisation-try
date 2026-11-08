@@ -56,6 +56,7 @@ export function describeSlot(g, slot) {
   } else if (isArmor(id)) {
     const k = 1 + rarity.power;
     lines.push({ text: `ARMOR: -${Math.round((info.armor || 0) * k * 100)}% PHYSICAL DMG`, color: TEXT, size: 2 });
+    if (info.headshot) lines.push({ text: `HEADSHOTS: -${Math.round(info.headshot * k * 100)}% DMG`, color: TEXT });
     if (info.speed) lines.push({ text: `SPEED: ${info.speed > 0 ? "+" : ""}${Math.round(info.speed * 100)}%`, color: MUTED });
     const set = ARMOR.sets[info.set];
     if (set?.full?.text) lines.push({ text: `FULL SET: ${translate(set.full.text)}`, color: MUTED });

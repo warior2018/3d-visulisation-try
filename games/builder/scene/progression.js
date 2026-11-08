@@ -61,6 +61,12 @@ export class ProgressionPart {
     return (this.player.armor?.slots || []).reduce((sum, sl) => sum + (sl ? (ITEMS[sl.item]?.armor || 0) * (1 + rarityOf(sl.data?.rarity).power) : 0), 0);
   }
 
+  // Шлем: на сколько меньше урон от попаданий в голову (ITEMS[id].headshot надетых частей; редкость — крепче)
+  helmetHeadshot() {
+    const v = (this.player.armor?.slots || []).reduce((sum, sl) => sum + (sl ? (ITEMS[sl.item]?.headshot || 0) * (1 + rarityOf(sl.data?.rarity).power) : 0), 0);
+    return Math.min(0.9, v);
+  }
+
   // Скорость от надетой брони (железо тяжёлое, кость лёгкая): сумма частей, ITEMS[id].speed
   armorSpeed() {
     return (this.player.armor?.slots || []).reduce((sum, sl) => sum + (sl ? ITEMS[sl.item]?.speed || 0 : 0), 0);

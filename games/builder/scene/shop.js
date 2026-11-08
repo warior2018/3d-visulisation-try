@@ -6,7 +6,7 @@
 
 import { itemName, ITEMS, isArmor, isWeapon, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
 import { describeSlot } from "../item-info.js";
-import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
+import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR, DUEL } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
 import { openTuneScene } from "../tune.js";
@@ -41,7 +41,8 @@ export class ShopPart {
     // так словарь перевода (lang/ru.js) находит надпись по частям
     const armorText = (p, set) => {
       const spd = p.speed ? `, ${signedPct(p.speed)}% SPEED` : "";
-      return `ARMOR: -${Math.round(p.armor * 1000) / 10}% PHYSICAL DMG${p.speed ? spd : ""}. FULL ${set.name} SET: ${set.full.text}. GOES STRAIGHT ON IF THE SLOT IS FREE`;
+      const head = p.headshot ? `, -${Math.round(p.headshot * 100)}% HEADSHOT DMG` : "";
+      return `ARMOR: -${Math.round(p.armor * 1000) / 10}% PHYSICAL DMG${p.speed ? spd : ""}${p.headshot ? head : ""}. FULL ${set.name} SET: ${set.full.text}. GOES STRAIGHT ON IF THE SLOT IS FREE`;
     };
     return new Shop({
       currency: "coin",
@@ -49,11 +50,12 @@ export class ShopPart {
       // Разделы — по классам оружия, как вкладки талантов
       // Раздел класса виден только своему классу (до выбора класса — только «ПРОЧЕЕ»)
       categories: [
+        // в дуэли — только броня (раздел ПРОЧЕЕ), по ценам дуэли (DUEL.armorPrice)
         ...["melee", "ranged", "demo"].map((id) => ({
           id, name: CLASSES[id].name,
-          when: () => CLASSES[this.playerClass]?.shop === id,
+          when: () => !this.duel && CLASSES[this.playerClass]?.shop === id,
         })),
-        { id: "upgrades", name: "UPGRADES", when: () => !!this.playerClass },
+        { id: "upgrades", name: "UPGRADES", when: () => !this.duel && !!this.playerClass },
         { id: "other", name: "OTHER" },
       ],
       slots: [
@@ -119,9 +121,12 @@ export class ShopPart {
         },
         { ...supply("medkit", SHOP.medkit, 1, `ITEM SLOT. HOLD LMB ${MEDKIT.useTime} S: +${SHOP.medkitHeal} HP`), category: "other" },
         // Броня (ARMOR): каждая часть — своя ячейка, срезает долю физического урона
-        ...Object.entries(ARMOR.sets).flatMap(([setId, set]) => Object.entries(set.parts).map(([part, p]) =>
-          weapon(`${setId}-${part}`, p.price, armorText(p, set)))),
-      ],
+        ...Object.entries(ARMOR.sets).flatMap(([setId, set]) => Object.entries(set.parts).map(([part, p]) => ({
+          ...weapon(`${setId}-${part}`, p.price, armorText(p, set)),
+          price: () => (this.duel ? Math.round(p.price * (DUEL.armorPrice[setId] ?? 1)) : p.price), // дуэль: дешевле
+          duelOk: true,
+        }))),
+      ].map((slot) => (slot.duelOk ? slot : { ...slot, when: () => !this.duel && (slot.when ? slot.when() : true) })), // в дуэли — только броня
     });
   }
 

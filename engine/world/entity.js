@@ -118,6 +118,7 @@ export class Entity {
       this.report(damage, 0, false, true);
       return { dealt: 0, killed: false, blocked: true };
     }
+    this.onIncoming?.(damage); // игра может поправить урон до сопротивлений (например, шлем — меньше урона в голову)
     const resist = resistTo(this.stats.resist, damage);
     const dealt = Math.max(0, Math.round(damage.amount * (1 - resist)));
     const hpBefore = this.stats.hp;

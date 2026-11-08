@@ -82,6 +82,10 @@ export class SessionPart {
     this.stamina = STAMINA.enabled ? new Stamina(STAMINA) : null;
     this.controller.canRun = () => this.stamina?.canRun ?? true;
     // Блок отбил удар (движок: статус parry → entity.onBlock) — «дзынь» и надпись
+    // Попали в голову — шлем срезает часть урона (до брони; ARMOR: headshot)
+    this.player.onIncoming = (d) => {
+      if (d.part === "head") d.amount *= 1 - this.helmetHeadshot();
+    };
     this.player.onBlock = (d, guard) => {
       this.engine.sound.play("parry");
       this.reflectShot(d, guard); // отбили выстрел — отбитая доля летит туда, куда смотрим

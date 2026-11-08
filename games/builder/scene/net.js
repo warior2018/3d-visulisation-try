@@ -114,13 +114,14 @@ const duelSnap = (g) => {
 let nextNetId = 1;
 const netId = (e) => (e.netId ||= nextNetId++);
 
-// Урон своему герою, посчитанный на другом компьютере (n — уже со всем). Если наш блок его ловит (выстрел или удар
-// спереди) — через receive: блок срежет долю и отразит выстрел (combat.js → reflectShot). Иначе — как раньше, числом
-function hurtLocal(g, n, source, kind, shot) {
+// Урон своему герою, пришедший с другого компьютера: n — урон ДО брони (там он посчитан с талантами бьющего).
+// Здесь — как обычный удар (receive): своя броня, шлем (голова — part), блок (срежет долю и отразит выстрел:
+// combat.js → reflectShot)
+function hurtLocal(g, n, source, kind, shot, part = null) {
   const d = new Damage({ amount: n, source, kind: kind || null });
   d.shot = shot || null;
-  if (source?.position && g.player.statuses.some((st) => st.guard?.(d, g.player))) g.player.receive(d);
-  else g.player.damage(n);
+  d.part = part;
+  g.player.receive(d);
 }
 
 export class HostNet {
@@ -256,7 +257,8 @@ export class HostNet {
         // по гостю попали (мобы на хосте) — урон уходит гостю; здесь он не умирает (здоровье — у гостя)
         hero.onDamage = (d, dealt) => {
           // k, s — вид атаки и выстрел (пуля / снаряд), si — кто бил: у гостя блок отобьёт и отразит (shotDamage)
-          this.server.send(peer, { t: "hurt", n: dealt, from: d.source?.name || "", k: d.kind || null, s: d.shot || null, si: d.source ? netId(d.source) : 0 });
+          // a — урон до брони (броню, шлем и блок считает гость — у себя), p — часть тела (голова)
+          this.server.send(peer, { t: "hurt", n: dealt, a: d.amount, p: d.part || null, from: d.source?.name || "", k: d.kind || null, s: d.shot || null, si: d.source ? netId(d.source) : 0 });
           hero.stats.hp = hero.stats.maxHp;
         };
         this.guests.set(peer.id, { peer, hero, name: hero.name });
@@ -363,7 +365,7 @@ export class HostNet {
           // дуэль: гость попал по герою — по хосту: урон хосту; по другому гостю: «ранен» ему (здоровье — у него)
           if (target === g.player) {
             g.player.attackedBy = h;
-            hurtLocal(g, n, h, msg.k, msg.s);
+            hurtLocal(g, Math.max(0, Math.min(100000, +msg.a || n)), h, msg.k, msg.s, msg.p);
             g.player.lastDamageFrom = h.position;
           } else for (const q of this.guests.values()) if (q.hero === target) this.server.send(q.peer, { t: "hurt", n, from: guest.name });
         } else if (target?.alive && !target.remote && target !== g.player) {
@@ -579,7 +581,7 @@ export class ClientNet {
         return;
       case "hurt":
         if (g.player.alive) {
-          hurtLocal(g, Math.max(0, +msg.n || 0), this.copies.get(msg.si) || null, msg.k, msg.s);
+          hurtLocal(g, Math.max(0, +(msg.a ?? msg.n) || 0), this.copies.get(msg.si) || null, msg.k, msg.s, msg.p);
           g.engine.sound.play("hurt");
         }
         return;
@@ -622,7 +624,7 @@ export class ClientNet {
         const shown = e.onDamage;
         e.onDamage = (d, dealt) => {
           shown?.(d, dealt);
-          if (d.source === g.player || !d.source) this.client.send({ t: "hit", id, n: dealt, k: d.kind || null, s: d.shot || null });
+          if (d.source === g.player || !d.source) this.client.send({ t: "hit", id, n: dealt, a: d.amount, p: d.part || null, k: d.kind || null, s: d.shot || null });
         };
         this.copies.set(id, e);
       }
