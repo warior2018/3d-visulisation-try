@@ -14,7 +14,7 @@ export default async function (t, g) {
     const b = dps[base[cls]];
     for (const w of list) {
       if (w === "rifle") continue; // снайперка — урон за выстрел (в голову 222 из 220 HP в дуэли), не урон в секунду: 111 раз в 3 с, обойма 3
-      if (w === "bow") continue; //      лук — разовый урон за натяг (25–110), не поток: числа задал дизайнер
+      if (w === "bow") continue; //      лук — разовый урон за натяг (50–110), не поток: числа задал дизайнер
       if (w === "dynamite") continue; // динамит — разовый взрыв по площади (105 в радиусе 4), не поток урона по одной цели
       const r = dps[w] / b;
       t.check(`${w}: ${dps[w].toFixed(0)}/с = ${r.toFixed(2)}× ${base[cls]}`, r >= 1.3 && r <= 2.2);

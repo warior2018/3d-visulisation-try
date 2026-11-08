@@ -42,7 +42,7 @@ export default async function (t, g) {
   hp = foe.stats.hp;
   await shot(3.2);
   const strong = hp - foe.stats.hp;
-  t.check("лук: урон растёт с натяжением (25 → 110)", weak > 0 && strong > weak * 2.5 && Math.abs(strong - C.ATTACKS.bow.damage) < 15, `${weak} → ${strong}`);
+  t.check("лук: урон растёт с натяжением (50 → 110)", weak > 0 && strong > weak * 1.8 && Math.abs(strong - C.ATTACKS.bow.damage) < 15, `${weak} → ${strong}`);
   a.readyAt = performance.now() / 1000 + C.ATTACKS.bow.cooldown; // как сразу после выстрела
   a.primary(scene);
   t.check("лук: сразу после выстрела не натянуть (пауза 1 с)", !a.drawing);
