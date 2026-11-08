@@ -83,6 +83,9 @@ export const TALENT_TREE = {
           describe: (r) => `CRIT X${at([2, 3], r)} ONCE EVERY ${at([8, 7], r)} S`, modifiers: (r) => [guaranteedCrit(at([2, 3], r), at([8, 7], r), "fighter-crit")] },
         damageTrophy("melee", "FIGHTER TROPHIES", "IN MELEE", 3, 3, ["f-crit"]),
         // Дальность ударов ближнего боя (reachFor: мачете, катана, копьё, кулак): 1 очко за ранг
+        // Блок отражает выстрелы: отбитая доля летит туда, куда смотришь (combat.js → reflectShot)
+        { id: "f-reflect", name: "REFLECT", maxRank: 2, cost: GENERAL, col: 2, row: 4, requires: ["f-reach"],
+          describe: (r) => `BLOCKED SHOTS FLY BACK WHERE YOU LOOK: ${pct(at([0.5, 1], r))} OF THE BLOCKED DMG`, stats: (r) => ({ reflect: at([0.5, 1], r) }) },
         { id: "f-reach", name: "REACH", maxRank: 3, cost: 1, col: 2, row: 3,
           describe: (r) => `+${pct(at([0.1, 0.2, 0.3], r))} MELEE REACH`, modifiers: (r) => [reachBonus(at([0.1, 0.2, 0.3], r))] },
         { id: "katana-iai", name: "IAI MULTIPLIER", maxRank: 3, cost: SIDE, col: 4, row: 0,

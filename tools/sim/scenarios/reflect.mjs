@@ -1,4 +1,4 @@
-// Блок отражает выстрелы: пуля (луч) и снаряд (болт, камень) спереди — проходит половина, отбитая половина
+// Блок ловит выстрелы спереди (проходит половина); с талантом REFLECT отражает их: пуля (луч) и снаряд (болт, камень) спереди — проходит половина, отбитая половина
 // летит туда, куда смотрит блокирующий; попал во врага — урон этой половины. Удар сбоку не отбивается
 export default async function (t, g) {
   const { scene, E, C } = g;
@@ -28,7 +28,17 @@ export default async function (t, g) {
   gun.hit(foe, me, {});
   t.check("без блока: пуля — весь урон", me.stats.hp === 960 && foe.stats.hp === 5000, `${me.stats.hp} / ${foe.stats.hp}`);
 
-  // блок: пуля — половина нам, половина — лучом во врага (смотрим на него)
+  // блок без таланта: пуля — проходит половина, отражения нет
+  me.stats.hp = 1000;
+  const stats0 = scene.talentStats;
+  scene.talentStats = { ...(stats0 || {}), reflect: 0 };
+  scene.blockCooldown = 0;
+  scene.tryBlock();
+  gun.hit(foe, me, {});
+  t.check("блок без таланта: половина проходит, отражения нет", me.stats.hp === 980 && foe.stats.hp === 5000, `${me.stats.hp} / ${foe.stats.hp}`);
+  t.check("перезарядка блока: в дуэли ×1.5", (() => { scene.duel = true; scene.blockCooldown = 0; scene.tryBlock(); const c = scene.blockCooldown; scene.duel = false; return Math.abs(c - C.BLOCK.cooldown * C.BLOCK.duel) < 1e-9; })());
+  // талант REFLECT (ранг 2 — 100 % отбитого): пуля — половина нам, половина — лучом во врага (смотрим на него)
+  scene.talentStats = { ...(stats0 || {}), reflect: 1 };
   me.stats.hp = 1000;
   scene.blockCooldown = 0;
   scene.tryBlock();
@@ -55,4 +65,5 @@ export default async function (t, g) {
   scene.tryBlock();
   gun.hit(foe, me, {});
   t.check("пуля со спины — блок не ловит", me.stats.hp === 960, `${me.stats.hp}`);
+  scene.talentStats = stats0;
 }

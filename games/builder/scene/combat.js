@@ -59,13 +59,14 @@ export class CombatPart {
     });
   }
 
-  // Блок отбил выстрел (d.shot): отбитая доля урона летит туда, куда смотрим. Пуля — лучом (BLOCK.reflect.range),
-  // снаряд — таким же снарядом из глаз. Попал во врага — урон этой доли (его тоже можно отбить блоком)
+  // Блок отбил выстрел (d.shot), есть талант REFLECT: отбитая доля урона (× ранг таланта) летит туда, куда смотрим.
+  // Пуля — лучом (BLOCK.reflect.range), снаряд — таким же снарядом из глаз. Попал во врага — урон (его тоже можно отбить)
   reflectShot(d, guard) {
     const p = this.player;
-    if (!d?.shot || !p.alive) return;
+    const k = this.talentStats?.reflect || 0;
+    if (!d?.shot || !p.alive || !k) return;
     const share = guard?.blockShare ?? 1;
-    const n = (share < 1 ? d.amount / (1 - share) : d.amount) * share; // d.amount — уже то, что прошло сквозь блок
+    const n = (share < 1 ? d.amount / (1 - share) : d.amount) * share * k; // d.amount — уже то, что прошло сквозь блок
     if (n < 0.5) return;
     const strike = (target, part = null) => {
       if (!target?.alive || target === p || !p.isHostileTo(target)) return false;

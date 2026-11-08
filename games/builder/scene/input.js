@@ -130,8 +130,8 @@ export class InputPart {
   // (движок: статус parry), потом перезарядка BLOCK.cooldown
   tryBlock(ability) {
     if (this.blockCooldown > 0) return false;
-    this.player.addStatus(parry({ duration: BLOCK.window, share: BLOCK.share, shots: true })); // и пули: отражаются (combat.js → reflectShot)
-    this.blockCooldown = BLOCK.cooldown;
+    this.player.addStatus(parry({ duration: BLOCK.window, share: BLOCK.share, shots: true })); // и пули; отражение — талант REFLECT (combat.js → reflectShot)
+    this.blockCooldown = BLOCK.cooldown * (this.duel ? BLOCK.duel : 1); // в дуэли — дольше
     this.viewModel()?.play("Block");
     this.player.view?.animator.playOnce("Block");
     this.engine.sound.play("guard");
