@@ -25,4 +25,21 @@ export default async function (t, g) {
   await g.frames(2);
   t.check("смотрим прямо — моста нет", !scene.target?.bridge);
   for (let z = 0; z <= 4; z++) scene.world.remove(bx, by, bz + z);
+  // в воздух: рядом с блоком — можно (призрак показывает клетку)
+  scene.world.place(bx, by + 3, bz + 5, [90, 90, 90]); // одиночный блок в воздухе впереди
+  P.x = bx + 0.5; P.y = by + 1; P.z = bz + 0.5;
+  scene.world.place(bx, by, bz, [90, 90, 90]);
+  scene.look.yaw = 0;
+  const eye = scene.look.position;
+  const to = { x: bx + 0.5 - eye.x, y: by + 3.5 - eye.y, z: bz + 4.5 - eye.z }; // в клетку перед блоком
+  scene.look.pitch = Math.atan2(to.y, Math.hypot(to.x, to.z));
+  await g.frames(2);
+  const c = scene.target?.place;
+  t.check("в воздух: клетка рядом с блоком", scene.target?.air && [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].some(([x, y, z]) => scene.world.has(c.x + x, c.y + y, c.z + z)), JSON.stringify(scene.target));
+  t.check("в воздух: предпросмотр (призрак)", !!scene.ghost);
+  scene.look.pitch = 0.9;
+  await g.frames(2);
+  t.check("в пустое небо (рядом блоков нет) — некуда", !scene.target);
+  scene.world.remove(bx, by + 3, bz + 5);
+  scene.world.remove(bx, by, bz);
 }

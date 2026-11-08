@@ -353,7 +353,9 @@ export const REACH = 8; // как далеко ставим блоки (метр
 // (как в Minecraft: блоки домов — тоже источник камня)
 // Стройка: блоки — отдельный предмет («БЛОК», белый; в мире красится в цвет палитры). 1 блок — 1 клетка;
 // сломал — блок вернулся. В магазине — пачкой по pack штук
-export const BUILD = { item: "block", perBlock: 1, refundOnBreak: true, pack: 16 };
+// airPlace — ставить блок «в воздух»: прицел ни во что не упёрся, а на луче есть пустая клетка рядом с блоком
+// (building.js → airTarget). false — выключить
+export const BUILD = { item: "block", perBlock: 1, refundOnBreak: true, pack: 16, airPlace: true };
 
 export const PICKUP_REACH = 3.5; // как далеко дотягиваемся до предмета на земле (метры от глаз)
 export const PICKUP_AUTO_RADIUS = 1.6; // автоподбор: всё, что ближе — само в сумку (V — вкл/выкл)

@@ -655,6 +655,8 @@ export class GameScene extends Scene {
       const under = this.target?.block && this.target.block.y === Math.floor(this.player.position.y + 1e-3) - 1
         && Math.floor(this.player.position.x) === this.target.block.x && Math.floor(this.player.position.z) === this.target.block.z;
       if (!this.target || under || !this.canPlace(this.target.place)) this.target = this.bridgeTarget() || this.target;
+      // в воздух: прицел ни во что не упёрся — ставим в первую пустую клетку на луче, рядом с которой есть блок
+      if (!this.target && BUILD.airPlace) this.target = this.airTarget(cam.position, cam.lookDirection(), REACH + this.rig.behind);
       if (this.target) {
         const c = this.target.place;
         // Красный призрак — сюда нельзя или нет камня

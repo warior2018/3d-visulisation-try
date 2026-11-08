@@ -34,6 +34,21 @@ export class BuildingPart {
     return null;
   }
 
+  // Блок «в воздух» (BUILD.airPlace): идём по лучу взгляда; первая пустая клетка, у которой есть сосед-блок
+  // (по грани), — туда. Призрак-предпросмотр показывает её, как обычно
+  airTarget(origin, dir, max) {
+    const N = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+    let last = null;
+    for (let t = 1; t <= max; t += 0.2) {
+      const c = { x: Math.floor(origin.x + dir.x * t), y: Math.floor(origin.y + dir.y * t), z: Math.floor(origin.z + dir.z * t) };
+      if (last && last.x === c.x && last.y === c.y && last.z === c.z) continue;
+      last = c;
+      if (this.world.has(c.x, c.y, c.z)) return null;
+      if (N.some(([dx, dy, dz]) => this.world.has(c.x + dx, c.y + dy, c.z + dz)) && this.canPlace(c)) return { place: c, block: null, air: true };
+    }
+    return null;
+  }
+
   placeBlock() {
     if (!this.target || !this.canPlace(this.target.place)) return;
     // Ставим блоки из сумки (предмет BUILD.item). Нет блоков — не строим (купить в магазине или сломать блок)
