@@ -5,7 +5,7 @@
 // ============================================================
 
 import { Vec3, Input, abilityHelp, Damage } from "../../../engine/index.js";
-import { MELEE_STAMINA, BLOCK, CROUCH } from "../config.js";
+import { MELEE_STAMINA, BLOCK, CROUCH, BOW } from "../config.js";
 import { CLASS_HELP } from "../help.js";
 
 export class CombatPart {
@@ -52,6 +52,39 @@ export class CombatPart {
         this.engine.sound.play("hit", { at: hit.entity.position });
       },
       onLand: (p) => {
+        this.engine.sound.play("pickup", { at: p.position, volume: 0.5 });
+        this.sparkFx?.(p.position);
+      },
+    });
+  }
+
+  // Стрела лука (abilities.js → BowAbility): из глаз по прицелу (yawOffset — веер залпа), урон и скорость — от
+  // натяжения; насквозь — pierce врагов (каждому следующему ×0.8); blast — взрыв там, где попала / упала
+  shootArrow(ability, { damage, speed, yawOffset = 0, pierce = 0, blast = false }) {
+    const cam = this.rig.camera;
+    let dir = cam.lookDirection();
+    if (yawOffset) {
+      const c = Math.cos(yawOffset), s = Math.sin(yawOffset);
+      dir = new Vec3(dir.x * c + dir.z * s, dir.y, -dir.x * s + dir.z * c);
+    }
+    const owner = this.player, attack = ability.attack;
+    let n = 0, boomed = false;
+    const boom = (at) => {
+      if (!blast || boomed) return;
+      boomed = true;
+      this.explode(ability.blast, at);
+    };
+    this.projectiles.launch({
+      owner, position: cam.position.add(dir.scale(0.6)), velocity: dir.scale(speed), gravity: BOW.gravity, spin: 0, maxLife: 5,
+      item: "bolt", attack, pierce, skinned: true, skinTarget: "bow",
+      onHit: (p, hit) => {
+        const k = Math.pow(0.8, n++);
+        attack.hit(owner, hit.entity, this.combatContext({ part: hit.part, baseDamage: damage, damageScale: k, onHit: (r) => this.onPlayerHit(r), shot: { projectile: { item: "bolt", speed, gravity: BOW.gravity } } }));
+        this.engine.sound.play("hit", { at: hit.entity.position });
+        boom(p.position);
+      },
+      onLand: (p) => {
+        boom(p.position);
         this.engine.sound.play("pickup", { at: p.position, volume: 0.5 });
         this.sparkFx?.(p.position);
       },

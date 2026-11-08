@@ -508,10 +508,13 @@ export const ATTACKS = {
   shotgunBlast: { id: "shotgun-blast", name: "BLAST JUMP", damage: 45, reach: 7, arc: 70, maxTargets: 6 },
   katana: { id: "katana", name: "KATANA SLASH", damage: 65, reach: 3.2, cooldown: 1.3, arc: 110, maxTargets: 6 }, // 65 каждому; ИАЙ — ×1.5 (талант — до ×3)
   // Снайперская винтовка: урон фиксированный (120, хедшот 240), бьёт далеко, но медленно перезаряжается
-  rifle: { id: "rifle", name: "SNIPER SHOT", damage: 111, range: 200, cooldown: 3.0, magazine: 3, reloadTime: 2.4 }, // 3 с: передёргиваем затвор; в голову (×2) — 222
+  rifle: { id: "rifle", name: "SNIPER SHOT", damage: 111, range: 200, cooldown: 1.75, magazine: 3, reloadTime: 2.4 }, // 1.75 с: передёргиваем затвор; в голову (×2) — 222
   // Арбалет: болт — снаряд (летит 80 м/с и слегка падает: на 100 м — ~3 м ниже; целься выше вдаль),
   // пробивает насквозь до 3 врагов на линии (каждому следующему — 80 % урона); после выстрела —
   // взвод (магазин 1). Один на один ~57/с, по толпе в ряд — до ~139/с
+  // Лук: урон — от натяжения (BOW: min → damage), стрела — снаряд; бесконечные стрелы, после выстрела — cooldown
+  bow: { id: "bow", name: "ARROW", damage: 110, range: 120, cooldown: 1 },
+  bowBlast: { id: "bow-blast", name: "EXPLOSIVE ARROW", damage: 30, radius: 1.5, cooldown: 0, cost: 0 },
   crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 85, range: 100, falloff: [50, 0.8], projectile: { speed: 80, gravity: 4 }, cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
   // Дробовик (СТРЕЛОК, покупной): 8 дробин с разбросом, вблизи — 72 за выстрел (~63/с, если все попали)
   shotgun: { id: "shotgun", name: "BUCKSHOT", damage: 9, range: 28, falloff: [10, 0.4], cooldown: 0.9, magazine: 6, reloadTime: 2.4, pellets: 8, spread: 0.06 },
@@ -625,7 +628,7 @@ export const PORTRAIT_PALETTE = {
 
 // Оружие в руках замедляет: пистолет маленький — на 5 %. Прицеливание (ПКМ, держать) —
 // ещё на 10 % (вместе 15 %), камера приближается (fov), пистолет встаёт к центру экрана.
-export const WEAPON_SPEED = { launcher: -0.08, pistol: -0.05, rifle: -0.1, crossbow: -0.06, auto: -0.08, shotgun: -0.08, warHammer: -0.08 }; // винтовка тяжелее
+export const WEAPON_SPEED = { bow: -0.03, launcher: -0.08, pistol: -0.05, rifle: -0.1, crossbow: -0.06, auto: -0.08, shotgun: -0.08, warHammer: -0.08 }; // винтовка тяжелее
 // Сколько секунд достают оружие после выбора (до этого не стреляет и не бьёт): тяжёлое — дольше
 // Копьё, разбег (ПКМ, держать): бежишь вперёд сам (движок: Charge), куда — правишь взглядом. Посмотрел в сторону
 // в пределах deadZone (20°) — без потерь (направление само доворачивает freeTurn °/с); дальше — скорость падает
@@ -644,7 +647,7 @@ export const SPEAR = {
   momentum: { speed: [0.3, 0.6, 0.9], hits: [2, 4, 6], rampTime: 2 },
 };
 
-export const EQUIP_TIME = { launcher: 0.45, spear: 0.3, pistol: 0.3, auto: 0.45, rifle: 0.7, crossbow: 0.5, shotgun: 0.5, machete: 0.25, warHammer: 0.45, katana: 0.25, trap: 0.2, item: 0.15 };
+export const EQUIP_TIME = { bow: 0.35, launcher: 0.45, spear: 0.3, pistol: 0.3, auto: 0.45, rifle: 0.7, crossbow: 0.5, shotgun: 0.5, machete: 0.25, warHammer: 0.45, katana: 0.25, trap: 0.2, item: 0.15 };
 
 // Ловушки: ставятся ЛКМ на любую грань блока или на землю под прицелом (не дальше reach м) — «клеятся»
 // к стенам и потолку. Стоят, пока не сработают (капкан) или пока не поставишь сверх max (самая старая исчезает).
@@ -857,7 +860,7 @@ export const TIERS = {
 export const ITEM_TIER = {
   machete: 1, pistol: 1, grenades: 1, //                      боец: мачете ~43/с, стрелок: пистолет ~35/с, подрывник: граната ~33/с
   "war-hammer": 2, auto: 2, shotgun: 2, launcher: 2, //       молот ~28/с + оглушение, автомат ~48/с, дробовик ~49/с вблизи, гранатомёт ~40/с
-  spear: 3, crossbow: 3, dynamite: 3, //                      копьё — разбег, арбалет ~50/с насквозь, динамит 110 раз в 3 с
+  spear: 3, crossbow: 3, dynamite: 3, bow: 3, //                      копьё — разбег, арбалет ~50/с насквозь, динамит 110 раз в 3 с
   katana: 4, rifle: 4, //                                     катана 75 всем, снайперка 90
 };
 export const ARMOR_TIER = { leather: 1, bone: 2, iron: 3 };
@@ -883,7 +886,7 @@ export const LOOT = {
 export const SHOP = {
   machete: tierPrice("machete"), "war-hammer": tierPrice("war-hammer"), spear: tierPrice("spear"), katana: tierPrice("katana"),
   grenades: tierPrice("grenades"), launcher: tierPrice("launcher"), dynamite: tierPrice("dynamite"),
-  pistol: tierPrice("pistol"), auto: tierPrice("auto"), shotgun: tierPrice("shotgun"), crossbow: tierPrice("crossbow"), rifle: tierPrice("rifle"),
+  pistol: tierPrice("pistol"), auto: tierPrice("auto"), shotgun: tierPrice("shotgun"), crossbow: tierPrice("crossbow"), rifle: tierPrice("rifle"), bow: tierPrice("bow"),
   "bear-trap": 25, spikes: 40, //                                       ловушки
   "pistol-clip": 4, "auto-clip": 8, "shotgun-clip": 6, "rifle-clip": 8, // обоймы (CLIPS.enabled: false — не продаются)
   builder: 50, block: 15, medkit: 60, medkitHeal: 40, //                 прочее: молот-стройка, 16 блоков, аптечка
@@ -936,6 +939,11 @@ export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.2
 // где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся
 // врага — удар ×damage одному (первому), прыжок кончается; никого не задел — урона нет. lift — подскок вверх (м/с)
 export const MACHETE_LEAP = { cooldown: 5.5, damage: 1.5, distance: 4.5, speed: 15, lift: 4, hitbox: { forward: 0.85, height: 0.95, radius: 0.55 } };
+// Лук (СТРЕЛОК, второе оружие): зажал ЛКМ — тетива натягивается (draw с до полного), отпустил — выстрел: урон
+// minDamage → ATTACKS.bow.damage и скорость стрелы minSpeed → maxSpeed растут с натяжением; gravity — дуга.
+// Q — залп: volley.count стрел веером (spread° между ними), сразу полное натяжение, перезарядка volley.cooldown.
+// Таланты (вкладка ЛУК): пробивание, урон за натяжение, взрывная стрела (ATTACKS.bowBlast), быстрее натяжение (до 2 с)
+export const BOW = { draw: 3, minDamage: 25, minSpeed: 22, maxSpeed: 75, gravity: 9, volley: { count: 3, spread: 6, cooldown: 8 } };
 export const KATANA_IAI = { cooldown: 6, damage: 1.5, distance: 10, dashSpeed: 40, width: 1.2, pause: 0.1, lockShare: 0.7, speed: 0, shape: { radius: 0.2, height: 0.35, anchor: "top" } };
 // Прицеливание (движок: engine/input/aim.js). fov — угол обзора в прицеле, sensitivity — мышь в прицеле
 // так, как её чувствует игрок (1 — перекрестие бегает по экрану как без прицела, 0.5 — вдвое медленнее).
@@ -976,7 +984,7 @@ export const CLASSES = {
 // и открывается его вкладка талантов (talents.js → weaponTab). Остальное покупное оружие класса закрыто
 export const SUBCLASS = {
   level: 10,
-  weapons: { melee: ["war-hammer", "katana"], ranged: ["auto", "shotgun", "rifle", "crossbow"], demo: ["launcher", "dynamite"] },
+  weapons: { melee: ["war-hammer", "katana"], ranged: ["auto", "shotgun", "rifle", "crossbow", "bow"], demo: ["launcher", "dynamite"] },
 };
 export const SUBCLASS_WEAPONS = new Set(Object.values(SUBCLASS.weapons).flat());
 // Что можно выбрать на SUBCLASS.level: базовое оружие класса (усиливается — primaryPick) или одно из покупных

@@ -61,6 +61,10 @@ export const SKIN_TARGETS = [
     { id: "elven", fx: [120, 220, 110], name: "ELVEN", text: "GREEN WOOD, GOLDEN FITTINGS", paint: P.chain(gold, P.dye([0.22, 0.55, 0.3])) },
     { id: "nighthunter", fx: [110, 140, 220], name: "NIGHT HUNTER", text: "DARK AS A MOONLESS FOREST", paint: P.gradientMap([[0.02, 0.03, 0.05], [0.2, 0.25, 0.35], [0.55, 0.7, 0.9]]) },
   ]),
+  weapon("bow", "BOW", [
+    { id: "yew", fx: [200, 160, 90], name: "OLD YEW", text: "DARK WOOD, WORN GRIP", paint: P.gradientMap([[0.12, 0.07, 0.03], [0.62, 0.42, 0.22]]) },
+    { id: "frost", fx: [140, 220, 255], name: "FROSTBOW", text: "ICE THAT NEVER MELTS", paint: P.gradientMap([[0.05, 0.15, 0.3], [0.7, 0.9, 1]]) },
+  ]),
   weapon("grenades", "GRENADES", [
     { id: "toxic", fx: [130, 255, 60], name: "TOXIC", text: "DO NOT LICK", paint: P.chain(P.metal([0.05, 0.15, 0.02], [0.6, 1, 0.35]), P.dye([0.45, 0.95, 0.2])) },
     { id: "candy", fx: [255, 120, 200], name: "CANDY", text: "SWEET ON THE OUTSIDE", paint: P.dye([1, 0.45, 0.75]) },

@@ -74,6 +74,7 @@ export class ShopPart {
         weapon("pistol", SHOP.pistol, `${ATTACKS.pistol.damage} DMG, MAG ${ATTACKS.pistol.magazine}. RMB - AIM`),
         weapon("auto", SHOP.auto, `${ATTACKS.auto.damage} DMG FULL AUTO, MAG ${ATTACKS.auto.magazine}. MIND THE RECOIL`),
         weapon("shotgun", SHOP.shotgun, `${SG.pellets} PELLETS X ${SG.damage} DMG, MAG ${SG.magazine}. CLOSE RANGE. SKILL BLAST JUMP: STUNNING BLAST, THE KICK THROWS YOU BACK`),
+        weapon("bow", SHOP.bow, `HOLD LMB TO DRAW: ${ATTACKS.bow.damage} DMG AT FULL DRAW. ENDLESS ARROWS. SKILL VOLLEY: 3 ARROWS IN A FAN`),
         weapon("rifle", SHOP.rifle, `${ATTACKS.rifle.damage} DMG, MAG ${ATTACKS.rifle.magazine}. RMB - SCOPE`),
         weapon("crossbow", SHOP.crossbow, `${ATTACKS.crossbow.damage} DMG, THE BOLT GOES THROUGH UP TO ${ATTACKS.crossbow.pierce} ENEMIES IN A LINE (-${Math.round((1 - ATTACKS.crossbow.pierceFalloff) * 100)}% EACH). RELOAD AFTER EVERY SHOT`),
         // Обоймы — у каждого ствола своя (R — вставить, недострелянная вернётся в сумку неполной)

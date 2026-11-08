@@ -10,7 +10,7 @@
 import { Ability, MeleeAttack, SlamAttack, RangedAttack, MagicAttack, buff, dash, stun, withStatus, bleed } from "../../engine/index.js";
 import { skinFx } from "./skins.js";
 import { lighter } from "./scene/throwers.js";
-import { PALETTE, ATTACKS, WEAPON_SPEED, AIM_PISTOL, AIM_RIFLE, AIM_AUTO, RECOIL_PISTOL, RECOIL_RIFLE, RECOIL_AUTO, KATANA_IAI, MACHETE_LEAP, EQUIP_TIME, SHOTGUN_BLAST, DEMO, MEDKIT, DASH_SLIDE } from "./config.js";
+import { PALETTE, ATTACKS, WEAPON_SPEED, AIM_PISTOL, AIM_RIFLE, AIM_AUTO, RECOIL_PISTOL, RECOIL_RIFLE, RECOIL_AUTO, KATANA_IAI, MACHETE_LEAP, BOW, EQUIP_TIME, SHOTGUN_BLAST, DEMO, MEDKIT, DASH_SLIDE } from "./config.js";
 
 // Вид от 3-го лица: модель оружия крепится к правому предплечью героя (кость forearm_R скелета) —
 // в кулак (0.31 м ниже локтя), повёрнутая так, чтобы ствол / клинок шёл вдоль руки от кулака.
@@ -185,6 +185,88 @@ export class CrossbowAbility extends Ability {
     ui.rect(x + s * 0.68, y + s * 0.2, s * 0.07, s * 0.6, METAL); //           плечи лука
     ui.rect(x + s * 0.58, y + s * 0.22, s * 0.04, s * 0.56, [220, 220, 210]); // тетива
     ui.rect(x + s * 0.3, y + s * 0.44, s * 0.62, s * 0.03, [200, 205, 215]); // болт
+  }
+}
+
+// Лук (СТРЕЛОК, второе оружие): зажал ЛКМ — тетива натягивается (до BOW.draw с, талант QUICK DRAW — быстрее),
+// отпустил — стрела: урон и скорость растут с натяжением (BOW). Стрелы бесконечные, после выстрела — пауза
+// ATTACKS.bow.cooldown. ПКМ — прицел. Q — залп: 3 стрелы веером, сразу полное натяжение (BOW.volley).
+// Таланты: пробивание, урон за натяжение, взрывная стрела (game-scene → shootArrow)
+export class BowAbility extends Ability {
+  constructor() {
+    super({
+      id: "bow", name: "BOW", viewModel: "fp-bow", moveSpeed: WEAPON_SPEED.bow,
+      aim: AIM_AUTO, held: held("w-bow", "HoldPistol"), equipTime: EQUIP_TIME.bow,
+      skills: { skill1: { id: "volley", name: "VOLLEY", press: (g, a) => a.volley(g), cooldown: (a) => ({ left: a.volleyLeft, total: BOW.volley.cooldown }) } },
+    });
+    this.attack = new RangedAttack(ATTACKS.bow);
+    this.blast = blastAttack(ATTACKS.bowBlast);
+    this.draw = -1; //         сколько уже тянем (с); -1 — не тянем
+    this.readyAt = 0; //       когда можно снова (после выстрела — пауза)
+    this.volleyReadyAt = 0;
+  }
+  get drawing() {
+    return this.draw >= 0;
+  }
+  get volleyLeft() {
+    return Math.max(0, this.volleyReadyAt - performance.now() / 1000);
+  }
+  // 0…1 — натяжение (для прицела / HUD)
+  drawShare(g) {
+    return this.drawing ? Math.min(1, this.draw / this.bowStats(g).draw) : 0;
+  }
+  bowStats(g) {
+    const s = g.talentStats || {};
+    return { draw: s.bowDraw || BOW.draw, power: s.bowPower || 0, pierce: s.bowPierce || 0, blast: !!s.bowBlast };
+  }
+  primary(g) {
+    if (this.drawing || performance.now() / 1000 < this.readyAt || g.abilities.equipping) return;
+    this.draw = 0;
+    g.engine.sound.play("boltOpen");
+  }
+  update(dt, g) {
+    g.aiming = g.aimWanted();
+    if (!this.drawing) return;
+    if (!g.background && g.engine.input.isDown("primary")) this.draw = Math.min(this.bowStats(g).draw, this.draw + dt);
+    else this.release(g);
+  }
+  unequip(g) {
+    this.draw = -1;
+    g.aiming = false;
+  }
+  release(g) {
+    const k = this.drawShare(g);
+    this.draw = -1;
+    this.shoot(g, k, [0]);
+  }
+  // Q: залп веером, сразу полное натяжение
+  volley(g) {
+    if (this.volleyLeft > 0 || g.abilities.equipping) return;
+    const V = BOW.volley;
+    this.volleyReadyAt = performance.now() / 1000 + V.cooldown;
+    this.draw = -1;
+    this.shoot(g, 1, Array.from({ length: V.count }, (_, i) => ((i - (V.count - 1) / 2) * V.spread * Math.PI) / 180));
+  }
+  shoot(g, k, offsets) {
+    const S = this.bowStats(g);
+    const damage = (BOW.minDamage + (ATTACKS.bow.damage - BOW.minDamage) * k) * (1 + S.power * k);
+    const speed = BOW.minSpeed + (BOW.maxSpeed - BOW.minSpeed) * k;
+    for (const yawOffset of offsets) g.shootArrow(this, { damage, speed, yawOffset, pierce: S.pierce, blast: S.blast });
+    this.readyAt = performance.now() / 1000 + ATTACKS.bow.cooldown;
+    g.viewModel()?.play("Shoot");
+    g.player.view?.animator.playOnce("ShootSniper");
+    g.engine.sound.play("snap");
+    g.engine.log(`лук: выстрел, натяжение ${Math.round(k * 100)}%, урон ${Math.round(damage)}${offsets.length > 1 ? `, залп ×${offsets.length}` : ""}`);
+  }
+  drawIcon(ui, x, y, s) {
+    const W = [150, 100, 60];
+    ui.rect(x + s * 0.4, y + s * 0.42, s * 0.08, s * 0.16, [90, 60, 36]); //  рукоять
+    ui.rect(x + s * 0.44, y + s * 0.22, s * 0.07, s * 0.22, W); //           верхнее плечо
+    ui.rect(x + s * 0.52, y + s * 0.1, s * 0.06, s * 0.14, W);
+    ui.rect(x + s * 0.44, y + s * 0.56, s * 0.07, s * 0.22, W); //           нижнее плечо
+    ui.rect(x + s * 0.52, y + s * 0.76, s * 0.06, s * 0.14, W);
+    ui.rect(x + s * 0.6, y + s * 0.12, s * 0.02, s * 0.76, [225, 225, 215]); // тетива
+    ui.rect(x + s * 0.12, y + s * 0.49, s * 0.62, s * 0.03, [200, 205, 215]); // стрела
   }
 }
 
@@ -810,6 +892,7 @@ export const ABILITY_FOR_ITEM = {
   pistol: () => new PistolAbility(),
   rifle: () => new RifleAbility(),
   crossbow: () => new CrossbowAbility(),
+  bow: () => new BowAbility(),
   auto: () => new AutoAbility(),
   shotgun: () => new ShotgunAbility(),
   machete: () => new MacheteAbility(),

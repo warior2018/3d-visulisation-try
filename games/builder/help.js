@@ -4,7 +4,7 @@
 //  reload, palette... Числа — из config.js, поэтому справка сама следует за балансом.
 // ============================================================
 
-import { ATTACKS as A, BLOCK, SPEAR, KATANA_IAI as IAI, MACHETE_LEAP as ML, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT } from "./config.js";
+import { ATTACKS as A, BLOCK, SPEAR, KATANA_IAI as IAI, MACHETE_LEAP as ML, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT, BOW } from "./config.js";
 
 const block = { name: "BLOCK", text: `FOR ${BLOCK.window} S HITS AND SHOTS FROM THE FRONT DEAL ${Math.round((1 - BLOCK.share) * 100)}% DMG. COOLDOWN ${BLOCK.cooldown} S (DUEL: X${BLOCK.duel}). TALENT REFLECT - SHOTS FLY BACK` };
 const aim = { name: "AIM", text: "HOLD TO AIM: ZOOM IN, LESS SPREAD" };
@@ -16,6 +16,11 @@ const rocket = { name: "ROCKET JUMP", text: "YOUR OWN BLAST NEARBY THROWS YOU AW
 export const HELP = {
   hand: { primary: punch, secondary: block },
   pistol: { primary: { name: "SHOOT", text: `${A.pistol.damage} DMG. CLIP ${A.pistol.magazine}` }, secondary: aim, reload },
+  bow: {
+    primary: { name: "DRAW", text: `HOLD TO DRAW, RELEASE TO SHOOT: ${BOW.minDamage}-${A.bow.damage} DMG, THE LONGER THE DRAW - THE STRONGER AND FASTER THE ARROW (FULL IN ${BOW.draw} S). ENDLESS ARROWS, ${A.bow.cooldown} S BETWEEN SHOTS` },
+    secondary: aim,
+    skill1: { text: `VOLLEY: ${BOW.volley.count} FULLY DRAWN ARROWS IN A FAN. COOLDOWN ${BOW.volley.cooldown} S` },
+  },
   rifle: { primary: { name: "SHOOT", text: `${A.rifle.damage} DMG, ONE SHOT EVERY ${A.rifle.cooldown} S. CLIP ${A.rifle.magazine}` }, secondary: { name: "SCOPE", text: "HOLD TO LOOK THROUGH THE SCOPE" }, reload },
   auto: { primary: { name: "FIRE", text: `HOLD TO FIRE: ${A.auto.damage} DMG PER BULLET. CLIP ${A.auto.magazine}` }, secondary: aim, reload },
   shotgun: {

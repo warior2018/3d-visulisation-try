@@ -74,5 +74,5 @@ export default async function (t, g) {
   const autoHead = new g.E.RangedAttack(C.ATTACKS.auto).makeDamage(null, null, { part: head, noElementStatus: true }).amount;
   const pistolHead = new g.E.RangedAttack(C.ATTACKS.pistol).makeDamage(null, null, { part: head, noElementStatus: true }).amount;
   t.check("автомат: в голову ×1.5, пистолет — ×2", autoHead === C.ATTACKS.auto.damage * 1.5 && pistolHead === C.ATTACKS.pistol.damage * 2, `${autoHead} / ${pistolHead}`);
-  t.check("снайперка: 111 урона, раз в 3 с, обойма 3; граната быстрее", C.ATTACKS.rifle.damage === 111 && C.ATTACKS.rifle.cooldown === 3 && C.ATTACKS.rifle.magazine === 3 && C.ATTACKS.handGrenade.speed === 23.1);
+  t.check("снайперка: 111 урона, раз в 1.75 с, обойма 3; граната быстрее", C.ATTACKS.rifle.damage === 111 && C.ATTACKS.rifle.cooldown === 1.75 && C.ATTACKS.rifle.magazine === 3 && C.ATTACKS.handGrenade.speed === 23.1);
 }

@@ -58,12 +58,24 @@ export const weaponTab = (item) => `w-${item}`;
 const WEAPON_BRANCH = { // предмет → [id атаки, имя вкладки, приставка id талантов, которые туда переезжают]
   "war-hammer": ["war-hammer", "WAR HAMMER", "hammer-"], katana: ["katana", "KATANA", "katana-"], spear: [["spear", "spear-charge"], "SPEAR", "spear-"],
   auto: ["auto", "ASSAULT RIFLE", "rifle-"], shotgun: ["shotgun", "SHOTGUN", "shotgun-"], rifle: ["rifle", "SNIPER", "sniper-head"], crossbow: ["crossbow", "CROSSBOW", null],
+  bow: ["bow", "BOW", null],
   launcher: ["launcher", "LAUNCHER", "launcher-"], dynamite: ["dynamite", "DYNAMITE", "dynamite-"],
 };
 // Свои таланты у оружия, у которого их было мало
 const EXTRA = () => ({ // функция: у каждого дерева (режима) — свои объекты (shiftCols их двигает)
   crossbow: [{ id: "crossbow-head", name: "HEADSHOT", maxRank: 2, cost: SIDE, col: 0, row: 0,
     describe: (r) => `CROSSBOW HEADSHOTS X${at([1.5, 2], r)} MORE`, modifiers: (r) => [onlyAttack("crossbow", headshotBonus(at([1.5, 2], r)))] }],
+  // Лук: правила читает abilities.js → BowAbility (stats)
+  bow: [
+    { id: "bow-pierce", name: "PIERCE", maxRank: 2, cost: SIDE, col: 0, row: 0,
+      describe: (r) => `ARROWS GO THROUGH +${r} ENEMIES`, stats: (r) => ({ bowPierce: r }) },
+    { id: "bow-power", name: "DRAW POWER", maxRank: 3, cost: SIDE, col: 1, row: 0,
+      describe: (r) => `FULL DRAW +${pct(at([0.15, 0.3, 0.45], r))} DMG`, stats: (r) => ({ bowPower: at([0.15, 0.3, 0.45], r) }) },
+    { id: "bow-blast", name: "EXPLOSIVE ARROW", maxRank: 1, cost: SIDE, col: 2, row: 0,
+      describe: () => "ARROWS EXPLODE WHERE THEY HIT: 30 DMG IN 1.5 BLOCKS", stats: () => ({ bowBlast: 1 }) },
+    { id: "bow-quick", name: "QUICK DRAW", maxRank: 2, cost: SIDE, col: 1, row: 1,
+      describe: (r) => `FULL DRAW IN ${at([2.5, 2], r)} S (BASE 3 S)`, stats: (r) => ({ bowDraw: at([2.5, 2], r) }) },
+  ],
 });
 const shiftCols = (list) => {
   const min = Math.min(...list.map((t) => t.col));

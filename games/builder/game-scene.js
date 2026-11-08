@@ -638,7 +638,7 @@ export class GameScene extends Scene {
     const walking = move.moving && player.onGround && this.aimT < 0.5; // в прыжке и в прицеле рука не качается
     const vm = this.viewModel();
     // Рука на ходу не машет своей анимацией — её покачивает HeadBob.hand (дугой, как в Minecraft)
-    vm?.setBase(this.spearRun.active ? "Charge" : this.abilities.current?.using ? "Use" : this.aimT > 0.5 ? "Aim" : "Idle", 1);
+    vm?.setBase(this.spearRun.active ? "Charge" : this.abilities.current?.drawing ? "Draw" : this.abilities.current?.using ? "Use" : this.aimT > 0.5 ? "Aim" : "Idle", 1);
     if (vm) vm.sway = this.settings.general.headBob !== false ? this.bob.hand() /* сила сама плавно гаснет, когда стоишь */ : { x: 0, y: 0, z: 0, roll: 0 };
     if (vm) {
       vm.aim = this.aimT; // пистолет — к центру экрана, мушка — в прицел

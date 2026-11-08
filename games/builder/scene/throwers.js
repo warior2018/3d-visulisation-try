@@ -9,7 +9,7 @@ import { Vec3, aimArc } from "../../../engine/index.js";
 import { skinFx } from "../skins.js";
 
 // Атака → оружие (чей скин красит эффект)
-export const ITEM_OF_ATTACK = { pistol: "pistol", auto: "auto", shotgun: "shotgun", rifle: "rifle", crossbow: "crossbow", "hand-grenade": "grenades", launcher: "launcher", cluster: "launcher", dynamite: "dynamite", katana: "katana", machete: "machete", "war-hammer": "war-hammer" };
+export const ITEM_OF_ATTACK = { pistol: "pistol", auto: "auto", shotgun: "shotgun", rifle: "rifle", crossbow: "crossbow", bow: "bow", "bow-blast": "bow", "hand-grenade": "grenades", launcher: "launcher", cluster: "launcher", dynamite: "dynamite", katana: "katana", machete: "machete", "war-hammer": "war-hammer" };
 export const lighter = (c) => c.map((v) => Math.round(v + (255 - v) * 0.6));
 
 export class ThrowersPart {

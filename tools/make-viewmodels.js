@@ -388,6 +388,54 @@ function fingers(arm, curled) {
   }));
 }
 
+// ---------- 3а-лук. Лук ----------
+// Лук стоймя в руке перед экраном, тетива и стрела — свои кости: натяжение (Draw) — тетива и стрела назад;
+// выстрел (Shoot) — тетива хлопает вперёд, стрела улетает (прячем); новая стрела (Reload) — появляется на месте
+{
+  const arm = makeArm({ P: [0.2, -0.3, 0.02], BASE: qmul(quat(Y, -6), quat(X, -7)) });
+  fingers(arm, true);
+  const WOOD = [0.42, 0.28, 0.16];
+  const WOOD_DARK = [0.3, 0.2, 0.12];
+  arm.box([0, 0.06, 0.55], [0.05, 0.13, 0.06], WOOD_DARK); //      рукоять в кулаке
+  arm.box([0, 0.27, 0.56], [0.035, 0.3, 0.045], WOOD); //          верхнее плечо
+  arm.box([0, 0.47, 0.5], [0.03, 0.14, 0.035], WOOD); //           верхний конец (назад)
+  arm.box([0, -0.15, 0.56], [0.035, 0.3, 0.045], WOOD); //         нижнее плечо
+  arm.box([0, -0.35, 0.5], [0.03, 0.14, 0.035], WOOD);
+  const STRING = arm.at(0, 0.06, 0.46), ARROW = arm.at(0, 0.08, 0.66);
+  arm.bones.push({ name: "string", parent: "arm", pos: STRING });
+  arm.parts.push({ bone: "string", center: STRING, size: [0.006, 0.9, 0.006], color: [0.85, 0.85, 0.8] }); // тетива
+  arm.bones.push({ name: "arrow", parent: "arm", pos: ARROW });
+  arm.parts.push({ bone: "arrow", center: ARROW, size: [0.012, 0.012, 0.5], color: [0.62, 0.45, 0.28] }); //        древко
+  arm.parts.push({ bone: "arrow", center: arm.at(0, 0.08, 0.92), size: [0.024, 0.024, 0.05], color: [0.6, 0.62, 0.66] }); // наконечник
+  arm.parts.push({ bone: "arrow", center: arm.at(0, 0.08, 0.43), size: [0.004, 0.04, 0.06], color: [0.9, 0.3, 0.25] }); //  оперение
+  arm.bones.push({ name: "sight", parent: "arm", pos: arm.at(0, 0.1, 0.92) });
+  arm.bones.push({ name: "sight_rear", parent: "arm", pos: arm.at(0, 0.1, 0.5) });
+  const { at, pose } = arm;
+  const back = (p, d) => [p[0], p[1], p[2] - d];
+  writeGLB(out("fp-bow.glb"), buildGLB({
+    name: "FirstPersonBow", generator: "VOID tools/make-viewmodels.js", bones: arm.bones, parts: arm.parts,
+    animations: {
+      ...arm.common,
+      Aim: [rotQ("arm", [0], [pose()]), move("arm", [0], [at(0, 0, 0)])],
+      // натянут: тетива и стрела назад (держится, пока тянем — база клипа)
+      Draw: [
+        move("string", [0, 0.3], [back(STRING, 0.26), back(STRING, 0.26)]),
+        move("arrow", [0, 0.3], [back(ARROW, 0.26), back(ARROW, 0.26)]),
+        move("arm", [0, 0.3], [at(-0.02, 0.01, 0.02), at(-0.02, 0.01, 0.02)]),
+      ],
+      Shoot: [
+        move("arm", [0, 0.05, 0.3], [at(0, 0, 0), at(0, 0.01, -0.04), at(0, 0, 0)]),
+        move("string", [0, 0.04], [back(STRING, 0.26), STRING]),
+        scale("arrow", [0, 0.02], [[1, 1, 1], [0, 0, 0]]),
+      ],
+      Reload: [
+        scale("arrow", [0, 0.6, 0.75], [[0, 0, 0], [0, 0, 0], [1, 1, 1]]),
+        move("arrow", [0, 0.6, 0.9], [ARROW, [ARROW[0], ARROW[1] - 0.06, ARROW[2] - 0.12], ARROW]),
+      ],
+    },
+  }));
+}
+
 // ---------- 3а. Арбалет ----------
 // Ложа вдоль руки, плечи лука поперёк впереди, тетива и болт сверху. Прицел — по болту (точки sight)
 {

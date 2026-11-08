@@ -31,6 +31,7 @@ export function loadModels(models) {
   models.load("fp-pistol", path.join(ASSETS, "fp-pistol.glb"));
   models.load("fp-rifle", path.join(ASSETS, "fp-rifle.glb"));
   models.load("fp-crossbow", path.join(ASSETS, "fp-crossbow.glb"));
+  models.load("fp-bow", path.join(ASSETS, "fp-bow.glb"));
   models.load("fp-machete", path.join(ASSETS, "fp-machete.glb"));
   models.load("fp-katana", path.join(ASSETS, "fp-katana.glb"));
   models.load("fp-auto", path.join(ASSETS, "fp-auto.glb"));
@@ -44,7 +45,7 @@ export function loadModels(models) {
   models.load("item-stone", path.join(ASSETS, "stone.glb"));
   for (const m of ["magma", "spore", "grenade", "turret"]) models.load(`item-${m}`, path.join(ASSETS, `${m}.glb`));
   // Оружие «для мира» — в руке героя от 3-го лица (tools/make-weapons.js)
-  for (const w of ["pistol", "rifle", "crossbow", "auto", "shotgun", "machete", "war-hammer", "spear", "katana", "katana-sheathed", "katana-saya", "grenade", "dynamite", "launcher", "medkit", "builder", "hammer", "fire-staff", "frost-wand", "bear-trap", "spikes", "bone", "stone", "knife"]) models.load(`w-${w}`, path.join(ASSETS, `w-${w}.glb`));
+  for (const w of ["pistol", "rifle", "crossbow", "bow", "auto", "shotgun", "machete", "war-hammer", "spear", "katana", "katana-sheathed", "katana-saya", "grenade", "dynamite", "launcher", "medkit", "builder", "hammer", "fire-staff", "frost-wand", "bear-trap", "spikes", "bone", "stone", "knife"]) models.load(`w-${w}`, path.join(ASSETS, `w-${w}.glb`));
   models.load("item-knife", path.join(ASSETS, "knife.glb"));
   models.load("item-bolt", path.join(ASSETS, "bolt.glb")); // болт арбалета в полёте
   models.load("urn", path.join(ASSETS, "urn.glb")); // урна погибшего (сетевая игра)
