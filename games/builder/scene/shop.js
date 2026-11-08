@@ -125,6 +125,7 @@ export class ShopPart {
   }
 
   openShop() {
+    if (this.duel && this.duelStatus?.()?.phase !== "prep") return this.engine.toast("SHOP: ONLY BETWEEN ROUNDS", 1500); // дуэль: магазин — на подготовке
     this.hints?.event("shop");
     this.pushLive(new ShopScene({
       shop: this.shop,

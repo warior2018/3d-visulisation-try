@@ -291,6 +291,7 @@ function lobby(net) {
     game, net,
     name: engine.settings.data.net?.name || (net.role === "host" ? "HOST" : "GUEST"),
     onStart: (n) => {
+      engine.profile?.add("matches"); // профиль: сыграно матчей
       game.net = n;
       engine.setScene(new GameScene(game));
     },

@@ -38,6 +38,7 @@ PROF.tick = profiler.register("TICK", PROF.update);
 import fs from "node:fs";
 import path from "node:path";
 import { Journal, Watchdog, PHASES } from "./watchdog.js";
+import { Profile } from "./profile.js";
 import { SettingsStore, deepMerge } from "./settings.js";
 import { GPURenderer } from "../graphics/gpu-renderer.js";
 import { locale } from "../ui/i18n.js";
@@ -155,6 +156,7 @@ export class Engine {
     if (renderer.silhouetteError) journal.write("силуэты союзников не собрались: " + renderer.silhouetteError);
     journal.write(`окно ${window.width}x${window.height} (пикселей ${window.pixelWidth}x${window.pixelHeight}), видеокарта готова: ${renderer.adapterName}${renderer.gpuFlags.length ? ` [${renderer.gpuFlags.join(", ")}]` : ""}`);
     const engine = new Engine({ window, renderer, settings, actionLabels, journal, theme });
+    engine.profile = new Profile(path.join(path.dirname(settingsFile), "profile.json")); // победы, поражения... (core/profile.js)
     // Дальность прорисовки (и дымки) — ступенями: render.distances = [близко, средне, далеко] (м); настройка
     // graphics.drawDistance — номер ступени. Нет списка — одна, render.fadeDist
     engine.viewDistances = Array.isArray(render.distances) && render.distances.length ? render.distances : [renderer.fadeDist];

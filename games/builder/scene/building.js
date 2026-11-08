@@ -32,10 +32,11 @@ export class BuildingPart {
   removeBlock() {
     if (!this.building || !this.target?.block) return;
     const b = this.target.block;
-    this.blockFx(b.x, b.y, b.z, this.world.get?.(b.x, b.y, b.z)?.color); // крошка блока (scene/effects.js)
-    this.world.remove(b.x, b.y, b.z);
-    // Блок возвращается в сумку (не влез — падает на землю на месте блока)
-    if (BUILD.refundOnBreak) {
+    const color = this.world.get?.(b.x, b.y, b.z)?.color;
+    if (!this.world.remove(b.x, b.y, b.z)) return; // неразрушимый (стены арены дуэли)
+    this.blockFx(b.x, b.y, b.z, color); // крошка блока (scene/effects.js)
+    // Блок возвращается в сумку (не влез — падает на землю на месте блока). Дуэль — не возвращается
+    if (BUILD.refundOnBreak && !this.duel) {
       const left = this.giveResource(BUILD.item, BUILD.perBlock);
       if (left > 0) this.pickups.add(BUILD.item, left, { x: b.x + 0.5, y: b.y, z: b.z + 0.5 });
     }

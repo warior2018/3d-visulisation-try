@@ -104,6 +104,12 @@ const showHeld = (g, e, json) => {
   e.view?.animator.setOverlay(h?.pose ?? null);
 };
 
+// Дуэль: где мы (фаза, раунд, секунд осталось, победитель раунда, счёт) — гостям в каждом снимке
+const duelSnap = (g) => {
+  const S = g.duel && g.duelState;
+  return S ? [S.phase, S.round, Math.max(0, Math.ceil(S.time)), S.winner || "", Object.entries(S.wins)] : undefined;
+};
+
 // Номер сущности в сети (один на всю игру хоста)
 let nextNetId = 1;
 const netId = (e) => (e.netId ||= nextNetId++);
@@ -141,7 +147,7 @@ export class HostNet {
       for (const q of this.guests.values()) if (now - (q.peer.data.seen || now) > TIMEOUT) this.server.kick(q.peer, "timeout");
     }
     this.smoothGuests();
-    if (g.match) g.teamPaused = !this.teamReady(); // матч: кто-то ещё выбирает класс / второе оружие — мир стоит
+    if (g.match && !g.duel) g.teamPaused = !this.teamReady(); // матч: кто-то ещё выбирает класс / второе оружие — мир стоит
     const mine = this.fx.take();
     if (mine) for (const [kind, args] of mine) this.fxOut.push([0, kind, args]);
     if (++this.ticks % SNAP_EVERY) return;
@@ -167,7 +173,7 @@ export class HostNet {
     const fx = this.fxOut.length ? this.fxOut.splice(0) : undefined;
     // таблица игроков (TAB) — раз в секунду: [имя, пинг, класс, погиб, хост]
     const tab = this.ticks % 60 === 0 ? g.scoreRows().map((r) => [r.name, r.ping, r.cls || "", r.down ? 1 : 0, r.host ? 1 : 0]) : undefined;
-    this.server.broadcast({ t: "snap", k: this.ticks, e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx, tab, pz: g.teamPaused ? 1 : 0 });
+    this.server.broadcast({ t: "snap", k: this.ticks, e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx, tab, pz: g.teamPaused ? 1 : 0, du: duelSnap(g) });
   }
 
   sendChat(text) {
@@ -343,7 +349,14 @@ export class HostNet {
       case "hit": {
         const target = g.entities.list.find((e) => e.netId === msg.id);
         const n = Math.max(0, Math.min(100000, +msg.n || 0));
-        if (target?.alive && !target.remote && target !== g.player) {
+        if (g.duel && target?.alive && target.type === "player") {
+          // дуэль: гость попал по герою — по хосту: урон хосту; по другому гостю: «ранен» ему (здоровье — у него)
+          if (target === g.player) {
+            g.player.attackedBy = h;
+            g.player.damage(n);
+            g.player.lastDamageFrom = h.position;
+          } else for (const q of this.guests.values()) if (q.hero === target) this.server.send(q.peer, { t: "hurt", n, from: guest.name });
+        } else if (target?.alive && !target.remote && target !== g.player) {
           target.attackedBy = h; // злится на того, кто бил
           target.damage(n);
         }
@@ -500,7 +513,8 @@ export class ClientNet {
           }
         }
         if (msg.tab) this.table = msg.tab;
-        if (g.match) g.teamPaused = !!msg.pz; // кто-то выбирает класс / оружие — стоим
+        if (g.match && !g.duel) g.teamPaused = !!msg.pz; // кто-то выбирает класс / оружие — стоим
+        if (msg.du) g.duelRemote = { phase: msg.du[0], round: msg.du[1], time: msg.du[2], winner: msg.du[3], wins: Object.fromEntries(msg.du[4] || []) };
         if (msg.inv) {
           g.invasion.active = !!msg.inv[0];
           g.invasion.timeLeft = msg.inv[1];
@@ -532,6 +546,15 @@ export class ClientNet {
         return;
       case "revive":
         g.standUp(); // нас оживил союзник
+        return;
+      case "duelPrep": // дуэль: подготовка раунда — в свою комнату, награды
+        g.duelEnterPrep(msg.round, msg.grant, msg.at);
+        return;
+      case "duelFight": // дуэль: бой — на арену
+        g.duelEnterFight(msg.at);
+        return;
+      case "duelOver": // дуэль окончена
+        g.duelFinish(msg.champion, msg.wins);
         return;
       case "over":
         g.endMatch(); // погибли все — матч окончен

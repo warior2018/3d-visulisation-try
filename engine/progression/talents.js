@@ -106,6 +106,7 @@ export class Talents {
     if (!entry) return { ok: false, reason: "NO SUCH TALENT" };
     const { talent, tab } = entry;
     if (!this.isAllowed(tab.id)) return { ok: false, reason: "NOT FOR YOUR CLASS" };
+    if (this.banned?.has(id)) return { ok: false, reason: "NOT IN THIS MODE" }; // режим запретил (дуэль: трофеи)
     if (this.rank(id) >= talent.maxRank) return { ok: false, reason: "MAXED" };
     if (talent.tier) {
       const need = this.tierRequirement(talent.tier);

@@ -43,7 +43,8 @@ export class SessionPart {
       if (this.arena) this.buildArena(this.arena);
     }
     this.treasure = saved?.worldgen?.treasure || null; // сундук на дальнем острове (scene/islands.js)
-    if (!saved) this.generateWorld(); // новый мир: рельеф, постройки, деревья
+    // дуэль: вместо обычного мира — арена-коробка и комнаты подготовки (scene/duel.js; гостю мир придёт от хоста)
+    if (this.duel) { if (this.role !== "client") this.buildDuelWorld((this.game.net?.roster || [1, 2]).length); } else if (!saved) this.generateWorld(); // новый мир: рельеф, постройки, деревья
     // Камни и прочее на земле. В сохранениях до камней их нет — разбрасываем, чтобы было из чего строить
     if (Array.isArray(saved?.pickups)) this.pickups.loadFrom(saved.pickups);
 
@@ -134,11 +135,11 @@ export class SessionPart {
     if (this.playerClass === "ranged") this.giveAmmoOnce(); // стрелок из старого сохранения — без патронов не останется
 
     // В старых сохранениях существ нет — расставляем заново
-    const creatures = Array.isArray(saved?.entities) ? saved.entities : DEFAULT_SPAWNS;
+    const creatures = this.duel ? [] : Array.isArray(saved?.entities) ? saved.entities : DEFAULT_SPAWNS; // в дуэли — никого
     for (const d of creatures) this.spawn(d.type, d); // неизвестные типы (убрали из игры) spawn пропускает
     this.dropUnknownItems(); //                         и предметы, которых больше нет, — из их добычи тоже
     // Жители (НПС) — всегда в мире, даже в старых сохранениях
-    for (const d of RESIDENTS) if (!this.entities.list.some((e) => e.type === d.type)) this.spawn(d.type, d);
+    if (!this.duel) for (const d of RESIDENTS) if (!this.entities.list.some((e) => e.type === d.type)) this.spawn(d.type, d);
 
     // Мобы появляются сами вокруг героя, в пределах прорисовки (правила — в config.js → SPAWN, MOB_MIX)
     const view = VIEW_DISTANCE; // где появляются мобы — не от настройки графики (DRAW DISTANCE), у всех одинаково
@@ -216,6 +217,12 @@ export class SessionPart {
     this.engine.onStats = (s) => this.showStats(s);
     if (saved) this.engine.toast("WORLD LOADED");
     this.startNet(); // сетевая игра: хост — слушать гостей, гость — подключиться и получить мир хоста
+    if (this.duel) { // дуэль: ни мобов, ни кабанов, ни нашествий
+      this.spawner.max = 0;
+      this.boarSpawner.max = 0;
+      this.invasion.every = Infinity;
+      this.startDuel();
+    }
   }
 
   exit() {

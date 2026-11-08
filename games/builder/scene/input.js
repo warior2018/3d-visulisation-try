@@ -91,6 +91,10 @@ export class InputPart {
   // Игрок погиб: сохранение удаляем (следующая игра — с чистого мира), показываем экран гибели
   die() {
     if (this.dead) return;
+    if (this.duel) { // дуэль: до конца раунда — призраком (scene/duel.js)
+      if (!this.downed) this.duelDown();
+      return;
+    }
     if (this.match) { // матч: не конец — урна, ждём, пока оживят (scene/coop.js)
       if (!this.downed) this.goDown();
       return;

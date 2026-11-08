@@ -35,6 +35,9 @@ export class Chunk {
 export class VoxelWorld {
   constructor() {
     this.blocks = new Map(); // key(x, y, z) -> { x, y, z, color: [r, g, b] }
+    // Неразрушимые: блоки с такой поверхностью remove не убирает (стены арены). Поверхность передаётся по сети
+    // вместе с блоком — у гостя то же правило
+    this.unbreakable = new Set();
     // Верхний блок столбика (x, z) (или null) — запоминаем: миникарта спрашивает сотни столбиков на каждую
     // перерисовку, а искать сверху вниз — до maxY обращений на столбик. Поставили / сломали — поправляем
     this.tops = new Map();
@@ -198,8 +201,10 @@ export class VoxelWorld {
     return true;
   }
 
+  // Убрать блок. Вернёт true, если убрали (нет блока или неразрушимый — false)
   remove(x, y, z) {
     const b = this.blocks.get(key(x, y, z));
+    if (b?.surface && this.unbreakable.has(b.surface)) return false;
     const removed = this.blocks.delete(key(x, y, z));
     if (removed) {
       if (b.surface) this.surfaces--;

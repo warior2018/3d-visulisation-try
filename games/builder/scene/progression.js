@@ -7,7 +7,7 @@
 import { TROPHY_TALENTS, TROPHY, weaponTab } from "../talents.js";
 import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3, rarityOf } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
-import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, MULTIPLAYER, subclassOptions } from "../config.js";
+import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, MULTIPLAYER, DUEL, subclassOptions } from "../config.js";
 import { ITEMS } from "../items.js";
 
 export class ProgressionPart {
@@ -27,7 +27,10 @@ export class ProgressionPart {
       const pct = TROPHY.pct[kind];
       if (this.talents.rank(id) > 0 && pct > 0) p.modifiers.push(onlyFor(kind, damageMultiplier(1 + pct / 100)));
     }
-    p.setMaxHp(CREATURES.player.maxHp + (s.maxHp || 0) + (hpTrophies ? Math.floor(TROPHY.hp) : 0));
+    // дуэль: своё базовое здоровье, быстрее ходит, весь урон слабее (config.js → DUEL)
+    p.setMaxHp((this.duel ? DUEL.hp : CREATURES.player.maxHp) + (s.maxHp || 0) + (hpTrophies ? Math.floor(TROPHY.hp) : 0));
+    p.speedBonuses.duel = this.duel ? DUEL.speed : 0;
+    if (this.duel) p.modifiers.push(damageMultiplier(DUEL.damage));
     p.regen = p.stats.maxHp * (s.regenPct || 0); // HP в секунду — доля от макс. HP (дробные копятся)
     p.burnLevel = s.burnLevel || 1; //            сила горения от огня героя (ОГНЕННЫЕ ПУЛИ)
     p.speedBonuses.talents = s.speed || 0; //     прибавка к скорости

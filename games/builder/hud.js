@@ -504,7 +504,7 @@ export const HUD_PARTS = [
     // Матч (scene/coop.js): погиб — надпись «ждём оживления»; рядом урна союзника — «держи F», шкала оживления
     id: "coop",
     watch: (g) => {
-      if (!g.match) return null;
+      if (!g.match || g.duel) return null;
       if (g.teamPaused && !g.choosingClass) return ["wait"];
       if (g.downed) return ["down"];
       if (g.reviving) return ["rev", Math.round((g.reviving.t / g.reviveTime()) * 40)];
@@ -527,6 +527,27 @@ export const HUD_PARTS = [
       ui.ring(cx, cy, 15, 21, [20, 24, 30], 150);
       ui.ring(cx, cy, 15, 21, [140, 210, 255], 235, Math.min(1, d[1] / 40));
       ui.text("REVIVING...", cx, cy + 40, 2, [200, 225, 255], "center");
+    },
+  },
+  {
+    // Дуэль (scene/duel.js): сверху — раунд, фаза и таймер, счёт; погиб — «выбыл до конца раунда»
+    id: "duel",
+    watch: (g) => {
+      const S = g.duel && g.duelStatus?.();
+      return S ? JSON.stringify([S.phase, S.round, Math.ceil(S.time), S.winner, S.wins, !!g.downed]) : null;
+    },
+    draw: (ui, g, d) => {
+      if (!d) return;
+      const [phase, round, time, winner, wins, out] = JSON.parse(d);
+      const cx = Math.round(ui.width / 2);
+      const title = phase === "prep" ? `ROUND ${round} - PREPARE: ${Math.max(0, time)}` : phase === "fight" ? `ROUND ${round} - FIGHT!` :
+        phase === "end" ? (winner ? `${winner} WINS THE ROUND` : "DRAW") : phase === "wait" ? "WAITING FOR PLAYERS" : "";
+      ui.rect(cx - 260, 8, 520, 64, [14, 18, 26], 200);
+      ui.text(title, cx, 16, 3, phase === "fight" ? RED : GOLD, "center", 255, 500);
+      const score = Object.entries(wins || {}).map(([n, w]) => `${n} ${w}`).join("   ");
+      ui.text(score, cx, 48, 2, TEXT, "center", 255, 500);
+      if (phase === "prep") ui.text(`${key(g, "shop")} - SHOP   ${key(g, "talents")} - TALENTS`, cx, 84, 2, MUTED, "center");
+      if (out && phase === "fight") ui.text("YOU ARE OUT THIS ROUND", cx, Math.round(ui.height / 2) - 80, 3, [200, 225, 255], "center");
     },
   },
   {

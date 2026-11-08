@@ -102,6 +102,7 @@ export { ShopScene } from "./scenes/shop-scene.js";
 export { ChoiceScene } from "./scenes/choice-scene.js";
 export { ConfirmScene, confirmAction } from "./scenes/confirm-scene.js";
 export { Updater, compareVersions, readChangelog } from "./core/updates.js";
+export { Profile } from "./core/profile.js";
 export { ChangelogScene } from "./scenes/changelog-scene.js";
 export { Aim } from "./input/aim.js";
 export { Recoil } from "./input/recoil.js";

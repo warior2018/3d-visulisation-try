@@ -2,6 +2,8 @@
 //  Лобби сетевой игры (как в Fortnite): перед матчем все стоят моделями в ряд, у каждого — имя и READY.
 //  Все нажали READY — через LOBBY.countdown секунд у всех стартует матч: новый мир на один раз
 //  (не сохраняется), класс выбирают все сразу, опыт общий. В начатый матч не заходят.
+//  Режим выбирает хост: CLASSIC — вместе против мобов; DUEL — каждый сам за себя на арене (scene/duel.js),
+//  нужно 2+ игрока.
 //
 //  Хост (role "host"): сервер уже слушает; гости присылают lobbyHello / ready, хост рассылает состав.
 //  Гость (role "client"): подключился → lobbyHello { name } → ждёт состав и start.
@@ -34,6 +36,7 @@ export class LobbyScene extends Scene {
     this.camera = new Camera({ position: new Vec3(0, 1.45, 6.2), fovDeg: 40 });
     this.camera.yaw = Math.PI;
     this.started = false;
+    this.mode = "classic"; // режим матча (выбирает хост): "classic" | "duel"
     if (this.role === "host") {
       this.players = [{ id: 0, name: this.myName, ready: false, host: true }];
       const s = net.server;
@@ -57,7 +60,7 @@ export class LobbyScene extends Scene {
   // Хост: состав — всем (каждому — его id)
   broadcast() {
     const s = this.net.server;
-    for (const peer of s.peers.values()) s.send(peer, { t: "lobby", players: this.players, you: peer.id, countdown: this.countdown });
+    for (const peer of s.peers.values()) s.send(peer, { t: "lobby", players: this.players, you: peer.id, countdown: this.countdown, mode: this.mode });
   }
 
   handle(peer, msg) {
@@ -86,7 +89,9 @@ export class LobbyScene extends Scene {
       this.players = Array.isArray(msg.players) ? msg.players : [];
       this.me = msg.you;
       this.countdown = msg.countdown ?? null;
+      this.mode = msg.mode === "duel" ? "duel" : "classic";
     } else if (msg.t === "start") {
+      this.mode = msg.mode === "duel" ? "duel" : "classic";
       this.begin(msg.matchId);
     } else if (msg.t === "bye" || msg.t === "closed") {
       this.leave(msg.reason || "host left");
@@ -113,7 +118,7 @@ export class LobbyScene extends Scene {
     if (this.started) return;
     this.started = true;
     this.engine.log(`лобби: матч ${matchId} начался, игроков ${this.players.length}`);
-    this.onStart({ ...this.net, match: true, matchId, roster: this.players.map((x) => x.name), name: this.players.find((x) => x.id === this.me)?.name || this.myName });
+    this.onStart({ ...this.net, match: true, mode: this.mode, matchId, roster: this.players.map((x) => x.name), name: this.players.find((x) => x.id === this.me)?.name || this.myName });
   }
 
   leave(reason = "") {
@@ -131,7 +136,9 @@ export class LobbyScene extends Scene {
     if (this.started) return;
     // хост: все готовы — отсчёт, дошёл до нуля — старт у всех
     if (this.role === "host") {
-      const all = this.players.length > 0 && this.players.every((x) => x.ready);
+      const enough = this.mode !== "duel" || this.players.length >= 2; // дуэль — хотя бы двое
+      const all = enough && this.players.length > 0 && this.players.every((x) => x.ready);
+      if (!all && this.countdown !== null) { this.countdown = null; this.broadcast(); }
       if (all && this.countdown === null) {
         this.countdown = LOBBY.countdown;
         this.broadcast();
@@ -142,7 +149,7 @@ export class LobbyScene extends Scene {
         if (Math.ceil(this.countdown) !== before) this.broadcast();
         if (this.countdown <= 0) {
           const matchId = Date.now().toString(36);
-          this.net.server.broadcast({ t: "start", matchId });
+          this.net.server.broadcast({ t: "start", matchId, mode: this.mode });
           this.begin(matchId);
           return;
         }
@@ -205,11 +212,27 @@ export class LobbyScene extends Scene {
     const by = ui.height - 70;
     ui.button("ready", mine?.ready ? "NOT READY" : "READY", ui.width / 2 + 110, by, 200, 52, 3, !!mine?.ready);
     ui.button("leave", "LEAVE", ui.width / 2 - 110, by, 200, 52, 3);
-    if (this.countdown !== null) ui.text(`STARTING IN ${Math.max(0, Math.ceil(this.countdown))}`, ui.width / 2, by - 64, 3, th.accent, "center");
+    // режим: хост переключает, гости видят
+    const my = by - 120;
+    if (this.role === "host") {
+      ui.button("mode:classic", "CLASSIC", ui.width / 2 - 110, my, 200, 44, 2, this.mode === "classic");
+      ui.button("mode:duel", "DUEL", ui.width / 2 + 110, my, 200, 44, 2, this.mode === "duel");
+    } else ui.text(`MODE: ${this.mode === "duel" ? "DUEL" : "CLASSIC"}`, ui.width / 2, my - 8, 3, th.text, "center");
+    ui.text(this.mode === "duel" ? "EVERYONE FOR THEMSELVES, BEST OF 3 ROUNDS" : "TOGETHER AGAINST THE MOBS", ui.width / 2, my + 30, 1, th.muted, "center");
+    // своя статистика (профиль движка: engine.profile)
+    const pr = this.engine.profile;
+    if (pr) ui.text(`YOUR DUELS: ${pr.get("duelWins")} WON / ${pr.get("duelLosses")} LOST   MATCHES: ${pr.get("matches")}`, 20, ui.height - 30, 1, th.muted);
+    if (this.mode === "duel" && n < 2) ui.text("DUEL NEEDS 2+ PLAYERS", ui.width / 2, by - 64, 2, th.warn || th.accent, "center");
+    else if (this.countdown !== null) ui.text(`STARTING IN ${Math.max(0, Math.ceil(this.countdown))}`, ui.width / 2, by - 64, 3, th.accent, "center");
     else ui.text(`${this.players.filter((x) => x.ready).length} / ${n} READY`, ui.width / 2, by - 64, 2, th.muted, "center");
   }
 
   onButton(id) {
+    if (id.startsWith("mode:") && this.role === "host") {
+      this.mode = id.slice(5) === "duel" ? "duel" : "classic";
+      this.countdown = null;
+      this.broadcast();
+    }
     if (id === "ready") this.toggleReady();
     if (id === "leave") this.leave();
   }

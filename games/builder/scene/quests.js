@@ -73,6 +73,7 @@ export class QuestsPart {
   }
 
   updateQuests(dt) {
+    if (this.duel) return; // в дуэли заданий нет
     this.questWait = Math.max(0, (this.questWait || 0) - dt);
   }
 

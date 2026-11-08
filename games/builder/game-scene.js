@@ -36,6 +36,7 @@ import { BuffsPart } from "./scene/buffs.js";
 import { BossesPart } from "./scene/bosses.js";
 import { InteractPart } from "./scene/interact.js";
 import { CoopPart } from "./scene/coop.js";
+import { DuelPart } from "./scene/duel.js";
 import { LootPart } from "./scene/loot.js";
 import { MountPart } from "./scene/mount.js";
 import { AudioPart } from "./scene/audio.js";
@@ -59,7 +60,8 @@ export class GameScene extends Scene {
     this.role = game.net?.role || "solo";
     // Матч из лобби (lobby.js): новый мир на один раз — без сохранений, класс выбирают все, опыт общий ×0.5
     this.match = !!game.net?.match;
-    this.teamPaused = this.match; // матч: мир стоит, пока все не зайдут и не выберут класс (scene/net.js → teamReady)
+    this.duel = this.match && game.net?.mode === "duel"; // дуэль: каждый сам за себя на арене (scene/duel.js)
+    this.teamPaused = this.match && !this.duel; // матч: мир стоит, пока все не зайдут и не выберут класс (scene/net.js → teamReady); в дуэли — своя подготовка
     this.net = null;
     this.chat = new Chat(this); // чат (Enter) — scene/chat.js
     this.god = false; //          консоль: god — бессмертие
@@ -303,7 +305,8 @@ export class GameScene extends Scene {
     // его считает хост и присылает (тогда tickWorld заменяет сеть: net.applyWorld)
     if (this.role !== "client" && !frozen) this.tickWorld(dt);
     this.net?.tick(dt); // хост — разобрать сообщения гостей и разослать снимок; гость — применить снимки хоста
-    this.tickCoop(dt, input); // матч: урны, оживление, силуэты союзников (scene/coop.js)
+    if (this.duel) this.tickDuel(dt); // дуэль: раунды, подготовка, враги друг другу (scene/duel.js)
+    else this.tickCoop(dt, input); // матч: урны, оживление, силуэты союзников (scene/coop.js)
     if (this.matchEnded) return;
     if (this.god) player.stats.hp = player.stats.maxHp; // консоль: god
 
@@ -729,4 +732,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);
