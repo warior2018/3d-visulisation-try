@@ -16,7 +16,7 @@ export default async function (t, g) {
   p.receive(new E.Damage({ amount: 1, source: mob }));
   await g.frames(2);
   t.check("получил урон от моба — в бою", scene.outOfCombat === false && !p.speedBonuses.ooc);
-  t.check("регенерация обычная", Math.abs(p.regen - p.stats.maxHp * 0.01) < 1e-9);
+  t.check("регенерация обычная, но раненая (×0.5: попали оружием)", Math.abs(p.regen - p.stats.maxHp * 0.01 * C.WOUND.regen) < 1e-9);
   await g.frames(Math.ceil(O.delay * 60) + 5);
   t.check("через 5 с — снова вне боя", scene.outOfCombat === true);
   // сам ударил — в бою

@@ -12,8 +12,18 @@ export default async function (t, g) {
   const near = () => g.mobs().filter((e) => Math.hypot(e.position.x - g.player.position.x, e.position.z - g.player.position.z) < 8).length;
   t.log(`мобов рядом с героем: ${near()}`);
 
-  // Ближний бой: след удара (сектор), у молота — вертикальный, в момент удара о землю
-  for (const [name, id, arc] of [["мачете", "machete", 80], ["катана", "katana", 110], ["молот", "war-hammer", 100]]) {
+  // Мачете и катана: разрез-серп (как у ИАЙ), размер — по дальности удара
+  for (const [name, id] of [["мачете", "machete"], ["катана", "katana"]]) {
+    const a = g.equip(id);
+    ready(a);
+    scene.crescents.list.length = 0;
+    a.primary(scene);
+    await g.frames(1);
+    const c = scene.crescents.list[0];
+    t.check(`${name}: разрез-серп по хитбоксу`, c && Math.abs(c.size - a.attack.reachFor(g.player) / 1.8) < 1e-6);
+  }
+  // Молот: след удара (сектор) — вертикальный, в момент удара о землю
+  for (const [name, id, arc] of [["молот", "war-hammer", 100]]) {
     const a = g.equip(id);
     ready(a);
     scene.slashes.list.length = 0;

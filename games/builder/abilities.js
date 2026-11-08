@@ -8,6 +8,8 @@
 // ============================================================
 
 import { Ability, MeleeAttack, SlamAttack, RangedAttack, MagicAttack, buff, dash, stun, withStatus, bleed } from "../../engine/index.js";
+import { skinFx } from "./skins.js";
+import { lighter } from "./scene/throwers.js";
 import { PALETTE, ATTACKS, WEAPON_SPEED, AIM_PISTOL, AIM_RIFLE, AIM_AUTO, RECOIL_PISTOL, RECOIL_RIFLE, RECOIL_AUTO, KATANA_IAI, MACHETE_LEAP, EQUIP_TIME, SHOTGUN_BLAST, DEMO, MEDKIT, DASH_SLIDE } from "./config.js";
 
 // Вид от 3-го лица: модель оружия крепится к правому предплечью героя (кость forearm_R скелета) —
@@ -302,7 +304,7 @@ export class MacheteAbility extends Ability {
     if (this.busy) return;
     const used = g.useAttack(this.attack, { anim: "Attack", bodyAnim: "MacheteSlash", sound: "swing", hitSound: "hit" });
     // След, как у катаны (плоский и сразу, по хитбоксу), только уже — сектор мачете 80° — и чуть наискось
-    if (used) g.slashTrail(this.attack, { from: -0.25, to: -0.4, dir: -1, delay: 0, instant: true }); // справа налево, как взмах
+    if (used) g.slashCrescent(this.attack, "machete", -1); // разрез-серп по хитбоксу, справа налево, как взмах
   }
   drawIcon(ui, x, y, s) {
     ui.rect(x + s * 0.44, y + s * 0.12, s * 0.12, s * 0.5, [190, 194, 204]); // клинок
@@ -474,7 +476,8 @@ export class KatanaAbility extends Ability {
     this.cutDone = true;
     g.viewModel()?.play("Iai", 2);
     // серп — вдоль пореза: перед героем, поперёк взгляда, едет вместе с ним
-    g.crescents.add({ anchor: () => g.look.position, yaw: g.look.yaw, pitch: g.look.pitch, dir: 1 });
+    const fx = skinFx(g.settings, "katana");
+    g.crescents.add({ anchor: () => g.look.position, yaw: g.look.yaw, pitch: g.look.pitch, dir: 1, ...(fx ? { color: lighter(fx), edge: fx } : {}) });
     g.engine.sound.play("slash");
   }
 
@@ -495,7 +498,7 @@ export class KatanaAbility extends Ability {
     const used = g.useAttack(this.attack, { anim: "Iai", bodyAnim: "Iai", sound: "slash", hitSound: "hit", animSpeed: 2 });
     if (!used) return;
     this.drawn = 0.35; //  клинок вне ножен, пока идёт Iai (×2 — вдвое короче)
-    g.slashTrail(this.attack, { from: -0.35, to: -0.35, delay: 0, instant: true }); // след — плоский и сразу, ровно по хитбоксу
+    g.slashCrescent(this.attack, "katana", 1); // разрез-серп (как у ИАЙ) по хитбоксу
   }
   drawIcon(ui, x, y, s) {
     // Клинок по диагонали: снизу слева вверх вправо, цуба и рукоять

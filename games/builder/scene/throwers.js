@@ -6,6 +6,11 @@
 
 import { ATTACKS, MOB_RANGED, BULLET } from "../config.js";
 import { Vec3, aimArc } from "../../../engine/index.js";
+import { skinFx } from "../skins.js";
+
+// Атака → оружие (чей скин красит эффект)
+export const ITEM_OF_ATTACK = { pistol: "pistol", auto: "auto", shotgun: "shotgun", rifle: "rifle", crossbow: "crossbow", "hand-grenade": "grenades", launcher: "launcher", cluster: "launcher", dynamite: "dynamite", katana: "katana", machete: "machete", "war-hammer": "war-hammer" };
+export const lighter = (c) => c.map((v) => Math.round(v + (255 - v) * 0.6));
 
 export class ThrowersPart {
   // ---------- Метатели (мобы, которые бросают издалека) ----------
@@ -58,7 +63,8 @@ export class ThrowersPart {
   // Трассер выстрела (BULLET.trace по id атаки); оружия нет в списке — ничего
   tracer(from, to, attackId) {
     const tr = BULLET.trace[attackId];
-    if (tr) this.beams.add({ from, to, color: BULLET.color, core: BULLET.core, life: tr.life, width: tr.width });
+    const fx = skinFx(this.settings, ITEM_OF_ATTACK[attackId]); // скин оружия красит трассер
+    if (tr) this.beams.add({ from, to, color: fx || BULLET.color, core: fx ? lighter(fx) : BULLET.core, life: tr.life, width: tr.width });
   }
 
   // Чёрная точка там, где пуля ударила в блок (чуть ближе к стрелку — чтобы её не закрывала сама грань)

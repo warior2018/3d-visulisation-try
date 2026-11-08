@@ -6,6 +6,8 @@
 
 import { toWorld, viewBasis, Vec3, Slow, TrapAttack, withStatus, dash } from "../../../engine/index.js";
 import { SHAKE, DEMO, FALL_DAMAGE, TRAPS, ATTACKS, ROCKET_JUMP, DASH_SLIDE } from "../config.js";
+import { skinFx } from "../skins.js";
+import { ITEM_OF_ATTACK, lighter } from "./throwers.js";
 
 export class MagicPart {
   // ---------- Магия, ножи, ловушки ----------
@@ -35,13 +37,14 @@ export class MagicPart {
     const extra = damage !== 1 ? { baseDamage: attack.roll() * damage } : {};
     const r = attack.burst(this.player, point, this.combatContext({ ...extra, onHit: (h) => this.onPlayerHit(h) }), { include, radius });
     this.engine.sound.play("boom", { at: point });
-    this.boomFx(point, radius); // огонь и дым (scene/effects.js)
+    const fx = skinFx(this.settings, ITEM_OF_ATTACK[attack.id]); // скин оружия красит взрыв
+    this.boomFx(point, radius, fx); // огонь и дым (scene/effects.js)
     this.shakeNear(point, SHAKE.explosion); // взрыв рядом — тряхнуло
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
       const up = ((i % 3) - 1) * 0.6;
       const k = radius * (0.7 + 0.3 * Math.random());
-      this.beams.add({ from: point, to: { x: point.x + Math.sin(a) * k, y: point.y + up * k * 0.6, z: point.z + Math.cos(a) * k }, color: [255, 130, 40], core: [255, 230, 140], life: 0.3, width: 12 });
+      this.beams.add({ from: point, to: { x: point.x + Math.sin(a) * k, y: point.y + up * k * 0.6, z: point.z + Math.cos(a) * k }, color: fx || [255, 130, 40], core: fx ? lighter(fx) : [255, 230, 140], life: 0.3, width: 12 });
     }
     if (r.hits.length) this.engine.log(`взрыв ${attack.id}: задел ${r.hits.length}, урон ${r.hits.map((h) => h.dealt).join(", ")}`);
     return r;
@@ -60,12 +63,13 @@ export class MagicPart {
     const lie = (p) => {
       // Лежит, где упал (у существа — у его ног), горит фитиль: «снаряд» без скорости — его рисуют, но он не летит
       const at = { x: p.position.x, y: p.position.y, z: p.position.z };
-      const lit = this.projectiles.launch({ owner: this.player, position: at, velocity: { x: 0, y: 0, z: 0 }, item, gravity: 0, spin: 0 });
+      const lit = this.projectiles.launch({ owner: this.player, position: at, velocity: { x: 0, y: 0, z: 0 }, item, gravity: 0, spin: 0, skinned: true, skinTarget: ITEM_OF_ATTACK[attack.id] });
       this.fuses.push({ left: fuse, at, lit, boom });
     };
     const v = velocity || this.rig.camera.lookDirection().scale(speed);
     this.projectiles.launch({
       owner: this.player, position: from, velocity: v, item, gravity, spin: 2, maxLife: 5,
+      skinned: true, skinTarget: ITEM_OF_ATTACK[attack.id], // снаряд — в скине своего оружия
       onHit: (p, hit) => (fuse > 0 ? lie({ position: { ...p.position, y: hit.entity.position.y } }) : boom(p.position)),
       onLand: (p) => (fuse > 0 ? lie(p) : boom(p.position)),
       onExpire: (p) => boom(p.position),

@@ -5,6 +5,8 @@
 // ============================================================
 
 import { CLIPS } from "../config.js";
+import { skinFx } from "../skins.js";
+import { lighter } from "./throwers.js";
 import { markerFor } from "./shared.js";
 
 export class AmmoPart {
@@ -86,6 +88,15 @@ export class AmmoPart {
   // instant — след сразу целиком и плоский (катана): без пробега и без «вылета» из угла камеры
   // roll — крен плоскости следа (радианы): π/2 — след вертикальный, сверху вниз (удар молотом о землю);
   // arc / reach — свои, если след не совпадает с хитбоксом атаки (у молота хитбокс — круг на земле)
+  // Разрез-серп (как у ИАЙ) по хитбоксу удара: размер — по дальности удара, dir — направление взмаха,
+  // цвет — скин оружия (fx)
+  slashCrescent(attack, item, dir = 1) {
+    const fx = skinFx(this.settings, item);
+    const size = attack.reachFor(this.player) / 1.8; // форма серпа ~1.8 м вперёд при size 1
+    this.crescents.add({ anchor: () => this.look.position, yaw: this.look.yaw, pitch: this.look.pitch, dir, size, life: 0.18,
+      ...(fx ? { color: lighter(fx), edge: fx } : {}) });
+  }
+
   slashTrail(attack, { from = -0.55, to = -0.25, dir = 1, delay = 0.06, sweep = 0.17, instant = false, roll = 0, arc = attack.arc, reach = attack.reachFor(this.player) } = {}) {
     const eye = this.look.position; // глаза (с выглядыванием) — след в плоскости камеры, как и хитбокс
     // straight — на экране прямая линия слева снизу направо, чуть поднимаясь (как рез клинка)

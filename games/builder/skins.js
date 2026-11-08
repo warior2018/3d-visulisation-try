@@ -26,52 +26,52 @@ const utility = (id, name, skin, models) => ({ id, category: "utility", name, mo
 
 export const SKIN_TARGETS = [
   weapon("machete", "MACHETE", [
-    { id: "jungle", name: "JUNGLE RUST", text: "A BLADE THAT HAS SEEN TOO MANY RAINS", paint: P.metal([0.22, 0.1, 0.04], [0.8, 0.48, 0.26]) },
-    { id: "bloodmoon", name: "BLOOD MOON", text: "RED STEEL FOR A RED NIGHT", paint: P.chain(P.metal([0.2, 0.02, 0.02], [1, 0.35, 0.3]), P.dye([0.75, 0.08, 0.08])) },
+    { id: "jungle", fx: [200, 120, 60], name: "JUNGLE RUST", text: "A BLADE THAT HAS SEEN TOO MANY RAINS", paint: P.metal([0.22, 0.1, 0.04], [0.8, 0.48, 0.26]) },
+    { id: "bloodmoon", fx: [230, 30, 30], name: "BLOOD MOON", text: "RED STEEL FOR A RED NIGHT", paint: P.chain(P.metal([0.2, 0.02, 0.02], [1, 0.35, 0.3]), P.dye([0.75, 0.08, 0.08])) },
   ]),
   weapon("war-hammer", "WAR HAMMER", [
-    { id: "molten", name: "MOLTEN", text: "STILL GLOWING FROM THE FURNACE", paint: P.metal([0.35, 0.03, 0.01], [1, 0.72, 0.2]) },
-    { id: "glacier", name: "GLACIER", text: "CUT FROM ETERNAL ICE", paint: P.gradientMap([[0.05, 0.15, 0.3], [0.6, 0.85, 1]]) },
+    { id: "molten", fx: [255, 140, 30], name: "MOLTEN", text: "STILL GLOWING FROM THE FURNACE", paint: P.metal([0.35, 0.03, 0.01], [1, 0.72, 0.2]) },
+    { id: "glacier", fx: [140, 210, 255], name: "GLACIER", text: "CUT FROM ETERNAL ICE", paint: P.gradientMap([[0.05, 0.15, 0.3], [0.6, 0.85, 1]]) },
   ]),
   weapon("katana", "KATANA", [
-    { id: "sakura", name: "SAKURA", text: "PINK STEEL, PETAL WRAP", paint: P.chain(P.metal([0.45, 0.3, 0.38], [1, 0.86, 0.93]), P.dye([0.92, 0.42, 0.62])) },
-    { id: "shadow", name: "SHADOW", text: "BLACK BLADE, RED EDGE", paint: P.gradientMap([[0.01, 0.01, 0.02], [0.25, 0.25, 0.3], [0.9, 0.15, 0.15]]) },
+    { id: "sakura", fx: [255, 130, 190], name: "SAKURA", text: "PINK STEEL, PETAL WRAP", paint: P.chain(P.metal([0.45, 0.3, 0.38], [1, 0.86, 0.93]), P.dye([0.92, 0.42, 0.62])) },
+    { id: "shadow", fx: [220, 20, 30], name: "SHADOW", text: "BLACK BLADE, RED EDGE", paint: P.gradientMap([[0.01, 0.01, 0.02], [0.25, 0.25, 0.3], [0.9, 0.15, 0.15]]) },
   ], ["w-katana", "w-katana-sheathed", "w-katana-saya", "fp-katana"]),
   weapon("spear", "SPEAR", [
-    { id: "bone", name: "OSSUARY", text: "CARVED FROM ONE GIANT BONE", paint: P.gradientMap([[0.22, 0.19, 0.15], [0.95, 0.92, 0.82]]) },
-    { id: "bronze", name: "BRONZE AGE", text: "AN HEIRLOOM OF OLD WARS", paint: P.metal([0.25, 0.12, 0.04], [0.95, 0.65, 0.35]) },
+    { id: "bone", fx: [235, 225, 200], name: "OSSUARY", text: "CARVED FROM ONE GIANT BONE", paint: P.gradientMap([[0.22, 0.19, 0.15], [0.95, 0.92, 0.82]]) },
+    { id: "bronze", fx: [230, 160, 80], name: "BRONZE AGE", text: "AN HEIRLOOM OF OLD WARS", paint: P.metal([0.25, 0.12, 0.04], [0.95, 0.65, 0.35]) },
   ]),
   weapon("pistol", "PISTOL", [
-    { id: "gilded", name: "GILDED", text: "SOLID GOLD. PROBABLY", paint: gold },
-    { id: "neon", name: "NEON", text: "GLOWS IN THE DARK. SORT OF", paint: P.gradientMap([[0.05, 0.02, 0.1], [0.1, 0.9, 0.95], [1, 0.3, 0.9]]) },
+    { id: "gilded", fx: [255, 210, 80], name: "GILDED", text: "SOLID GOLD. PROBABLY", paint: gold },
+    { id: "neon", fx: [60, 240, 255], name: "NEON", text: "GLOWS IN THE DARK. SORT OF", paint: P.gradientMap([[0.05, 0.02, 0.1], [0.1, 0.9, 0.95], [1, 0.3, 0.9]]) },
   ]),
   weapon("auto", "ASSAULT RIFLE", [
-    { id: "arctic", name: "ARCTIC", text: "WHITE CAMO FOR THE NORTH", paint: P.gradientMap([[0.18, 0.26, 0.36], [0.93, 0.97, 1]]) },
-    { id: "urban", name: "URBAN", text: "CONCRETE GREY", paint: P.gradientMap([[0.08, 0.08, 0.09], [0.55, 0.56, 0.6]]) },
+    { id: "arctic", fx: [220, 240, 255], name: "ARCTIC", text: "WHITE CAMO FOR THE NORTH", paint: P.gradientMap([[0.18, 0.26, 0.36], [0.93, 0.97, 1]]) },
+    { id: "urban", fx: [170, 170, 180], name: "URBAN", text: "CONCRETE GREY", paint: P.gradientMap([[0.08, 0.08, 0.09], [0.55, 0.56, 0.6]]) },
   ]),
   weapon("shotgun", "SHOTGUN", [
-    { id: "swamp", name: "SWAMP", text: "MOSS ON THE STOCK, MUD ON THE BARREL", paint: P.chain(P.metal([0.06, 0.08, 0.04], [0.45, 0.5, 0.34]), P.dye([0.3, 0.42, 0.14])) },
-    { id: "chrome", name: "CHROME", text: "POLISHED TO A MIRROR", paint: P.metal([0.15, 0.16, 0.18], [1, 1, 1]) },
+    { id: "swamp", fx: [120, 170, 50], name: "SWAMP", text: "MOSS ON THE STOCK, MUD ON THE BARREL", paint: P.chain(P.metal([0.06, 0.08, 0.04], [0.45, 0.5, 0.34]), P.dye([0.3, 0.42, 0.14])) },
+    { id: "chrome", fx: [235, 240, 255], name: "CHROME", text: "POLISHED TO A MIRROR", paint: P.metal([0.15, 0.16, 0.18], [1, 1, 1]) },
   ]),
   weapon("rifle", "SNIPER RIFLE", [
-    { id: "void", name: "VOID", text: "BLACK AS THE ABYSS UNDER THE ISLANDS", paint: P.gradientMap([[0.02, 0.01, 0.05], [0.32, 0.14, 0.58], [0.82, 0.62, 1]]) },
-    { id: "jade", name: "JADE", text: "A STONE THAT NEVER MISSES", paint: P.chain(P.metal([0.02, 0.12, 0.08], [0.5, 1, 0.75]), P.dye([0.1, 0.65, 0.45])) },
+    { id: "void", fx: [170, 90, 255], name: "VOID", text: "BLACK AS THE ABYSS UNDER THE ISLANDS", paint: P.gradientMap([[0.02, 0.01, 0.05], [0.32, 0.14, 0.58], [0.82, 0.62, 1]]) },
+    { id: "jade", fx: [60, 220, 140], name: "JADE", text: "A STONE THAT NEVER MISSES", paint: P.chain(P.metal([0.02, 0.12, 0.08], [0.5, 1, 0.75]), P.dye([0.1, 0.65, 0.45])) },
   ]),
   weapon("crossbow", "CROSSBOW", [
-    { id: "elven", name: "ELVEN", text: "GREEN WOOD, GOLDEN FITTINGS", paint: P.chain(gold, P.dye([0.22, 0.55, 0.3])) },
-    { id: "nighthunter", name: "NIGHT HUNTER", text: "DARK AS A MOONLESS FOREST", paint: P.gradientMap([[0.02, 0.03, 0.05], [0.2, 0.25, 0.35], [0.55, 0.7, 0.9]]) },
+    { id: "elven", fx: [120, 220, 110], name: "ELVEN", text: "GREEN WOOD, GOLDEN FITTINGS", paint: P.chain(gold, P.dye([0.22, 0.55, 0.3])) },
+    { id: "nighthunter", fx: [110, 140, 220], name: "NIGHT HUNTER", text: "DARK AS A MOONLESS FOREST", paint: P.gradientMap([[0.02, 0.03, 0.05], [0.2, 0.25, 0.35], [0.55, 0.7, 0.9]]) },
   ]),
   weapon("grenades", "GRENADES", [
-    { id: "toxic", name: "TOXIC", text: "DO NOT LICK", paint: P.chain(P.metal([0.05, 0.15, 0.02], [0.6, 1, 0.35]), P.dye([0.45, 0.95, 0.2])) },
-    { id: "candy", name: "CANDY", text: "SWEET ON THE OUTSIDE", paint: P.dye([1, 0.45, 0.75]) },
+    { id: "toxic", fx: [130, 255, 60], name: "TOXIC", text: "DO NOT LICK", paint: P.chain(P.metal([0.05, 0.15, 0.02], [0.6, 1, 0.35]), P.dye([0.45, 0.95, 0.2])) },
+    { id: "candy", fx: [255, 120, 200], name: "CANDY", text: "SWEET ON THE OUTSIDE", paint: P.dye([1, 0.45, 0.75]) },
   ], ["w-grenade", "fp-grenade", "item-grenade"]),
   weapon("launcher", "GRENADE LAUNCHER", [
-    { id: "sandstorm", name: "SANDSTORM", text: "DESERT PAINT, CHIPPED", paint: P.gradientMap([[0.28, 0.2, 0.1], [0.96, 0.86, 0.6]]) },
-    { id: "lava", name: "LAVA", text: "HOT TO THE TOUCH", paint: P.gradientMap([[0.05, 0.01, 0], [0.8, 0.15, 0.02], [1, 0.85, 0.3]]) },
+    { id: "sandstorm", fx: [240, 200, 120], name: "SANDSTORM", text: "DESERT PAINT, CHIPPED", paint: P.gradientMap([[0.28, 0.2, 0.1], [0.96, 0.86, 0.6]]) },
+    { id: "lava", fx: [255, 90, 20], name: "LAVA", text: "HOT TO THE TOUCH", paint: P.gradientMap([[0.05, 0.01, 0], [0.8, 0.15, 0.02], [1, 0.85, 0.3]]) },
   ]),
   weapon("dynamite", "DYNAMITE", [
-    { id: "frostbite", name: "FROSTBITE", text: "COLD ON THE OUTSIDE", paint: P.dye([0.35, 0.72, 1]) },
-    { id: "golden", name: "GOLDEN BOOM", text: "GO OUT WITH STYLE", paint: gold },
+    { id: "frostbite", fx: [110, 200, 255], name: "FROSTBITE", text: "COLD ON THE OUTSIDE", paint: P.dye([0.35, 0.72, 1]) },
+    { id: "golden", fx: [255, 210, 80], name: "GOLDEN BOOM", text: "GO OUT WITH STYLE", paint: gold },
   ], ["w-dynamite", "fp-dynamite", "item-dynamite-lit"]),
   // герой — одна модель на класс (одежда), скелет один
   { id: "fighter", category: "character", name: "FIGHTER", models: ["hero"], items: [], skins: [DEFAULT, { id: "ronin", name: "RONIN", text: "BLACK YUKATA OF A MASTERLESS SWORDSMAN", paint: P.dye([0.14, 0.14, 0.17]) }] },
@@ -92,6 +92,11 @@ const BY_ID = new Map(SKIN_TARGETS.map((t) => [t.id, t]));
 const BY_MODEL = new Map(SKIN_TARGETS.flatMap((t) => t.models.map((m) => [m, t])));
 
 export const skinTarget = (id) => BY_ID.get(id) || null;
+// Цвет эффектов выбранного скина оружия (трассер, взрыв, разрез; fx у скина) или null — обычные цвета
+export const skinFx = (settings, item) => {
+  const t = BY_ID.get(item);
+  return t ? skinOf(settings, t).fx || null : null;
+};
 // Броня — по приставке набора ("iron-" → iron-helmet, iron-boots...): только предметы брони (slot у ITEMS —
 // ячейка брони), не «bone-crown» и прочие с той же приставкой
 const ARMOR_SLOTS = ["head", "chest", "legs", "feet"];
@@ -116,7 +121,8 @@ const keepArm = (brush) => (r, g, b) => (ARM_COLORS.some((c) => Math.abs(c[0] - 
 // Перекрашиваем модели от 1-го лица (они всегда свои) и модели сущностей с флагом skinned (свой герой, меню)
 export function installSkins(models, items, settings) {
   models.resolve = (name, owner) => {
-    const t = BY_MODEL.get(name);
+    // owner.skinTarget — чей скин (снаряд гранатомёта и граната — одна модель, а скины разные)
+    const t = owner?.skinTarget ? BY_ID.get(owner.skinTarget) : BY_MODEL.get(name);
     if (!t || (!owner?.skinned && !name.startsWith("fp-"))) return name;
     const s = skinOf(settings.data, t, owner?.skinOverride);
     // от 1-го лица в модели и рука героя (кости скелета) — её скин оружия не трогает

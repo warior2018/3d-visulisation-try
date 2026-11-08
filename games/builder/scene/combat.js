@@ -44,7 +44,7 @@ export class CombatPart {
     const from = cam.position.add(dir.scale(0.6));
     let n = 0;
     this.projectiles.launch({
-      owner, position: from, velocity: dir.scale(P.speed), gravity: P.gravity, spin: 0, maxLife: 4,
+      owner, position: from, velocity: dir.scale(P.speed), gravity: P.gravity, spin: 0, maxLife: 4, skinned: true, skinTarget: "crossbow",
       item: "bolt", attack, pierce: Math.max(0, (attack.pierce || 1) - 1),
       onHit: (p, hit) => {
         const k = Math.pow(attack.pierceFalloff ?? 0.8, n++) * attack.falloffAt(owner, hit.entity);

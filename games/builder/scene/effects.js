@@ -25,9 +25,10 @@ export class EffectsPart {
   }
 
   // Взрыв: вспышка огня (быстро гаснет) и клубы дыма (медленно поднимаются и растут)
-  boomFx(at, radius = 2) {
+  // color — свой цвет огня (скин оружия), иначе обычный
+  boomFx(at, radius = 2, color = null) {
     if (!this.fx) return;
-    this.fx.burst(at, { count: 18 + Math.round(radius * 6), speed: radius * 3.2, color: FX.fire, size: 0.16, life: 0.35, drag: 3, grow: 0.3, up: 0.6 });
+    this.fx.burst(at, { count: 18 + Math.round(radius * 6), speed: radius * 3.2, color: color || FX.fire, size: 0.16, life: 0.35, drag: 3, grow: 0.3, up: 0.6 });
     this.fx.burst(at, { count: 10, speed: radius * 1.8, color: FX.fireCore, size: 0.1, life: 0.25, drag: 4, grow: 0.2 });
     this.fx.burst({ x: at.x, y: at.y + 0.3, z: at.z }, { count: 10 + Math.round(radius * 3), speed: 1.2, up: 1.5, color: FX.smoke, alpha: 0.55, size: 0.3, life: 1.6, drag: 1.5, gravity: -0.8, grow: 3 });
   }
