@@ -68,15 +68,24 @@ export class ThrowersPart {
     this.sparkFx(p); // искры и пыль (scene/effects.js)
   }
 
-  // Моб стреляет из пистолета: мгновенный луч из руки в грудь цели с разбросом spread; первым на пути —
-  // блок (пуля в стену) или существо (урон — только врагу). След пули — жёлтый луч
+  // Моб стреляет из пистолета: мгновенный луч из руки — чаще в голову цели (w.head), иначе в грудь, с разбросом
+  // spread и отдачей recoil (вверх и чуть вбок); первым на пути — блок (пуля в стену) или существо (урон — только
+  // врагу; в голову — хедшот). След пули — жёлтый луч
   mobGunshot(e, target, attack) {
     const w = e.ranged;
     const from = new Vec3(e.position.x + Math.sin(e.yaw) * 0.3, e.position.y + e.height * 0.75, e.position.z + Math.cos(e.yaw) * 0.3);
-    const to = { x: target.position.x, y: target.position.y + target.height * 0.6, z: target.position.z };
+    const head = Math.random() < (w.head ?? 0);
+    const to = { x: target.position.x, y: target.position.y + target.height * (head ? 0.93 : 0.6), z: target.position.z };
     let dir = new Vec3(to.x - from.x, to.y - from.y, to.z - from.z);
     const len = Math.hypot(dir.x, dir.y, dir.z) || 1;
-    dir = new Vec3(dir.x / len + (Math.random() * 2 - 1) * w.spread, dir.y / len + (Math.random() * 2 - 1) * w.spread * 0.5, dir.z / len + (Math.random() * 2 - 1) * w.spread);
+    // отдача: вверх на 0…recoil, вбок на ±recoil/2 (вбок — поперёк линии выстрела)
+    const kick = Math.random() * (w.recoil || 0), side = (Math.random() - 0.5) * (w.recoil || 0);
+    const sx = -dir.z / len, sz = dir.x / len;
+    dir = new Vec3(
+      dir.x / len + (Math.random() * 2 - 1) * w.spread + sx * side,
+      dir.y / len + (Math.random() * 2 - 1) * w.spread * 0.5 + kick,
+      dir.z / len + (Math.random() * 2 - 1) * w.spread + sz * side,
+    );
     const k = Math.hypot(dir.x, dir.y, dir.z);
     dir = new Vec3(dir.x / k, dir.y / k, dir.z / k);
     const max = w.range + 6;

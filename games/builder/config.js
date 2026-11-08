@@ -310,13 +310,15 @@ export const TROLL_HIDE = { first: 0.1, step: 0.015 };
 //   камень 45 %, нож 45 % — МЕТАТЕЛЬНЫЕ: бросил по дуге — перезарядка (5 с), и пока она идёт, подходит
 //     ближе (advance); готово, цель ближе range и видна — снова бросает;
 //   пистолет 10 % — держится на дистанции range (10 м): дальше — подходит, ближе — стоит и стреляет по перезарядке.
+//     Целится преимущественно в голову (head — доля выстрелов в голову, остальные — в грудь), разброс spread,
+//     отдача recoil (рад): ствол уводит вверх на 0…recoil и вбок на ±recoil/2 — небольшая, часть пуль мимо головы
 // Вплотную (ближе minRange) — бьёт рукой, как обычный моб. names — как зовут стрелка (по типу моба)
 export const MOB_RANGED = {
   chance: 0.1, minRange: 3.5, gravity: 20,
   weapons: {
     stone: { weight: 45, attack: "stoneThrow", item: "stone", held: "w-stone", range: 14, advance: true },
     knife: { weight: 45, attack: "knifeThrow", item: "knife", held: "w-knife", range: 14, advance: true },
-    pistol: { weight: 10, attack: "mobPistol", held: "w-pistol", range: 10, hitscan: true, spread: 0.05 },
+    pistol: { weight: 10, attack: "mobPistol", held: "w-pistol", range: 10, hitscan: true, spread: 0.02, head: 0.75, recoil: 0.035 },
   },
   names: {
     skeleton: { stone: "SKELETON THROWER", knife: "SKELETON KNIFER", pistol: "SKELETON GUNNER" },
