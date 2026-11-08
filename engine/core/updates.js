@@ -17,11 +17,15 @@
 //
 //  Как узнаём: раз в interval мс смотрим, не поменялся ли файл. Верхняя версия
 //  больше той, с которой игра стартовала — значит, есть обновление.
+//  remote — адрес того же файла в интернете (например, raw.githubusercontent.com/.../CHANGELOG.json): раз в
+//  remoteEvery мс скачиваем; там версия новее — обновление тоже есть (available.remote). Установить его —
+//  restart: в папке игры git pull (если это копия git), потом перезапуск; без git — сказать, где скачать
 //  Перезапуск: запускаем тот же node с теми же аргументами и закрываемся сами.
 // ============================================================
 
 import fs from "node:fs";
-import { spawn } from "node:child_process";
+import path from "node:path";
+import { spawn, execFileSync } from "node:child_process";
 
 // Сравнить версии «1.2.10» и «1.2.9»: > 0 — первая новее
 export function compareVersions(a, b) {
@@ -45,7 +49,7 @@ export function readChangelog(file) {
 }
 
 export class Updater {
-  constructor({ file, interval = 2000, onAvailable = () => {} }) {
+  constructor({ file, interval = 2000, onAvailable = () => {}, remote = null, remoteEvery = 60000 }) {
     this.file = file;
     this.entries = readChangelog(file);
     this.current = this.entries[0]?.version || "0.0.0"; // с этой версией игра запустилась
@@ -56,6 +60,40 @@ export class Updater {
     this.updatedFrom = process.env.VOID_UPDATED_FROM || null;
     this.timer = setInterval(() => this.check(), interval);
     this.timer.unref?.(); // таймер не держит процесс живым
+    this.remote = remote;
+    if (remote) {
+      setTimeout(() => this.checkRemote(), 5000).unref?.();
+      this.remoteTimer = setInterval(() => this.checkRemote(), remoteEvery);
+      this.remoteTimer.unref?.();
+    }
+  }
+
+  // Версия в интернете (remote) новее нашей — обновление (скачать: git pull при установке)
+  async checkRemote() {
+    if (!this.remote || typeof fetch !== "function") return;
+    try {
+      const res = await fetch(`${this.remote}?t=${Date.now()}`, { cache: "no-store", signal: AbortSignal.timeout?.(10000) });
+      if (!res.ok) return;
+      const list = await res.json();
+      const top = Array.isArray(list) ? list.find((e) => e && e.version) : null;
+      if (!top || compareVersions(top.version, this.current) <= 0) return;
+      if (this.available && compareVersions(this.available.version, top.version) >= 0) return;
+      this.available = { ...top, remote: true };
+      this.remoteEntries = list.filter((e) => e && e.version);
+      this.onAvailable(this);
+    } catch {} // нет сети — проверим в следующий раз
+  }
+
+  // Скачать новую версию: папка игры — копия git → git pull. { ok, reason }
+  pull() {
+    const root = path.dirname(this.file);
+    if (!fs.existsSync(path.join(root, ".git"))) return { ok: false, reason: "NO GIT: DOWNLOAD THE NEW VERSION FROM GITHUB" };
+    try {
+      execFileSync("git", ["pull", "--ff-only"], { cwd: root, timeout: 120000, stdio: "pipe" });
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, reason: "UPDATE FAILED: " + String(e.stderr || e.message).split("\n")[0].slice(0, 80) };
+    }
   }
 
   stat() {
@@ -86,6 +124,11 @@ export class Updater {
 
   // Перезапустить игру с новым кодом: before() — успеть сохраниться
   restart(engine, { before = () => {} } = {}) {
+    if (this.available?.remote) { // новая версия — в интернете: сначала скачать
+      const r = this.pull();
+      engine.log(`обновление из интернета: ${r.ok ? "скачано (git pull)" : r.reason}`);
+      if (!r.ok) return engine.toast(r.reason, 6000);
+    }
     before();
     engine.log(`обновление: ${this.current} -> ${this.available?.version || "?"}, перезапуск`);
     if (globalThis.VOID_PLATFORM?.relaunch) { // Electron: перезапускает само приложение
@@ -103,5 +146,6 @@ export class Updater {
 
   stop() {
     clearInterval(this.timer);
+    clearInterval(this.remoteTimer);
   }
 }

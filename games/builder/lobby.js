@@ -50,12 +50,17 @@ export class LobbyScene extends Scene {
       const c = net.client;
       c.onMessage = (msg) => this.inbox.push([null, msg]);
       c.onClose = (reason) => this.inbox.push([null, { t: "closed", reason }]);
-      c.send({ t: "lobbyHello", name: this.myName });
+      c.send({ t: "lobbyHello", name: this.myName, v: this.version() }); // и версия игры: разные — не пустят
     }
   }
 
   get label() {
     return "лобби";
+  }
+
+  // Версия игры (CHANGELOG.json, движок: updater) — у хоста и гостя должна совпадать
+  version() {
+    return this.net.version || this.engine?.updater?.current || null;
   }
 
   // ---------- Сеть ----------
@@ -71,6 +76,8 @@ export class LobbyScene extends Scene {
       const p = this.players.find((x) => x.id === peer.id);
       if (msg.t === "lobbyHello" && !p) {
         if (this.players.length >= LOBBY.maxPlayers) return this.net.server.send(peer, { t: "bye", reason: "lobby is full" });
+        const mine = this.version();
+        if (msg.v && mine && msg.v !== mine) return this.net.server.send(peer, { t: "bye", reason: `different game version: host ${mine}, you ${msg.v} - update` });
         let name = String(msg.name || "GUEST").slice(0, 16).toUpperCase();
         while (this.players.some((x) => x.name === name)) name = name.slice(0, 13) + " " + (this.players.length + 1);
         this.players.push({ id: peer.id, name, ready: false, host: false });

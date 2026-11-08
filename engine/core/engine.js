@@ -133,7 +133,8 @@ export class Engine {
   // logFile — журнал (по умолчанию log.txt рядом с настройками). Его стоит прислать, если игра зависла.
   // theme — своя тема интерфейса: только то, что меняешь (engine/ui/theme.js)
   // changelog — файл записей обновлений (CHANGELOG.json): движок следит за ним и сообщает о новой версии
-  static async create({ title = "VOID", settingsFile, defaults = {}, actionLabels = {}, logFile, theme = {}, changelog = null, render = {} }) {
+  // remoteChangelog — тот же файл в интернете: раз в минуту сверяем версию (Updater: remote)
+  static async create({ title = "VOID", settingsFile, defaults = {}, actionLabels = {}, logFile, theme = {}, changelog = null, remoteChangelog = null, render = {} }) {
     const journal = new Journal(logFile || path.join(path.dirname(settingsFile), "log.txt"));
     journal.sync = true; // до первых кадров — каждая строка сразу на диск (см. frame)
     const settings = new SettingsStore(settingsFile, deepMerge(ENGINE_DEFAULTS, defaults));
@@ -165,6 +166,7 @@ export class Engine {
       // Новая версия на диске: сообщаем (на любой сцене) и перерисовываем — меню покажет кнопку
       engine.updater = new Updater({
         file: changelog,
+        remote: remoteChangelog,
         onAvailable: (u) => {
           engine.log(`доступно обновление ${u.available.version}`);
           engine.toast(`UPDATE ${u.available.version}: INSTALL FROM THE MAIN MENU`, 6000);

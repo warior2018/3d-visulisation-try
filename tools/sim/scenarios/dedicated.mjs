@@ -9,7 +9,7 @@ export default async function (t, g) {
   await ca.connect("127.0.0.1", server.port);
   await cb.connect("127.0.0.1", server.port);
   let hostNet = null, aNet = null, bNet = null;
-  const L0 = new LobbyScene({ game: g.game, net: { role: "host", server, dedicated: true, mode: "duel" }, name: "SERVER", onStart: (n) => { hostNet = n; } });
+  const L0 = new LobbyScene({ game: g.game, net: { role: "host", server, dedicated: true, mode: "duel", version: "1.0.0" }, name: "SERVER", onStart: (n) => { hostNet = n; } });
   const LA = new LobbyScene({ game: g.game, net: { role: "client", client: ca }, name: "anna", onStart: (n) => { aNet = n; } });
   const LB = new LobbyScene({ game: g.game, net: { role: "client", client: cb }, name: "boris", onStart: (n) => { bNet = n; } });
   for (const l of [L0, LA, LB]) l.engine = g.engine;
@@ -17,6 +17,15 @@ export default async function (t, g) {
   await lt(15);
   t.check("лобби сервера: в составе только гости", L0.players.length === 2 && !L0.players.some((p) => p.host), JSON.stringify(L0.players));
   t.check("лобби: режим — с сервера (дуэль)", LA.mode === "duel");
+  const old = new E.NetClient();
+  let bye = null;
+  await old.connect("127.0.0.1", server.port);
+  old.onMessage = (m) => { if (m.t === "bye") bye = m.reason; };
+  old.send({ t: "lobbyHello", name: "OLD", v: "0.9.0" });
+  await lt(10);
+  t.check("другая версия игры — не пускает (сказано, что обновиться)", /different game version/.test(bye || "") && L0.players.length === 2, bye);
+  old.close("тест");
+  await lt(5);
   LA.toggleReady(); LB.toggleReady();
   await lt(C.LOBBY.countdown * 60 + 40);
   t.check("матч начался у всех, в составе — двое", hostNet && aNet && bNet && hostNet.roster.length === 2 && !hostNet.roster.includes("SERVER"));

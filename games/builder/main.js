@@ -35,6 +35,8 @@ const engine = await Engine.create({
   render: { fadeDist: VIEW_DISTANCE, distances: DRAW_DISTANCES }, // дальность прорисовки (м): ступени — настройка DRAW DISTANCE
   // Записи обновлений: появилась новая версия — уведомление, в главном меню — кнопка «ОБНОВИТЬ»
   changelog: fileURLToPath(new URL("../../CHANGELOG.json", import.meta.url)),
+  // и на GitHub: раз в минуту — вышла новая версия? (кнопка «ОБНОВИТЬ» скачает её: git pull)
+  remoteChangelog: "https://raw.githubusercontent.com/warior2018/3d-visulisation-try/main/CHANGELOG.json",
 });
 // Q / E раньше выбирали оружие (weaponLeft / weaponRight), теперь это скиллы (skill1 / skill2):
 // в старом файле настроек скиллы пустые — ставим Q / E, старые действия убираем
@@ -294,7 +296,7 @@ async function hostGame() {
 // Лобби (lobby.js): все READY — матч у всех (game.net.match); вышли — в главное меню
 function lobby(net) {
   return new LobbyScene({
-    game, net,
+    game, net: { ...net, version: engine.updater?.current || null }, // версия — сверить с хостом
     name: engine.settings.data.net?.name || (net.role === "host" ? "HOST" : "GUEST"),
     onStart: (n) => {
       engine.profile?.add("matches"); // профиль: сыграно матчей

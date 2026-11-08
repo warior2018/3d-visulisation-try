@@ -32,6 +32,8 @@ const { loadModels } = await import(path.join(ROOT, "games", "builder", "load-mo
 const { SettingsStore, deepMerge } = await import(path.join(ROOT, "engine", "core", "settings.js"));
 const { Journal } = await import(path.join(ROOT, "engine", "core", "watchdog.js"));
 const PORT = +arg("port", 0) || E.DEFAULT_PORT;
+const { Updater } = await import(path.join(ROOT, "engine", "core", "updates.js"));
+const { spawn } = await import("node:child_process");
 
 const win = any("window");
 Object.assign(win, { width: 1280, height: 720, pixelWidth: 1280, pixelHeight: 720, destroyed: false, x: 0, y: 0 });
@@ -55,6 +57,29 @@ console.log(`СЕРВЕР «Стройки»: режим ${MODE.toUpperCase()}, 
 console.log(`Подключаться (JOIN GAME): ${ips.map((ip) => `${ip}:${server.port}`).join("  ") || "?"}`);
 console.log("Остановить — Ctrl+C");
 
+// Обновления: раз в минуту — версия на GitHub; вышла новая — в лобби (не посреди матча) git pull и перезапуск
+const updater = new Updater({
+  file: path.join(ROOT, "CHANGELOG.json"),
+  remote: "https://raw.githubusercontent.com/warior2018/3d-visulisation-try/main/CHANGELOG.json",
+  onAvailable: (u) => engine.log(`сервер: вышла версия ${u.available.version} (у нас ${u.current}) — обновлюсь, когда никто не играет`),
+});
+engine.updater = updater; // лобби сверяет версию гостей с этой
+console.log(`Версия: ${updater.current}`);
+function updateAndRestart() {
+  const r = updater.available?.remote ? updater.pull() : { ok: true };
+  if (!r.ok) {
+    engine.log(`сервер: обновиться не вышло — ${r.reason}`);
+    updater.available = null; // попробуем при следующей новой версии
+    return;
+  }
+  engine.log(`сервер: обновился до ${updater.available.version}, перезапуск`);
+  updater.stop();
+  clearInterval(loop);
+  server.close?.();
+  // новый сервер — через пару секунд (порт освободится), этот ждёт его и выходит вместе с ним
+  setTimeout(() => spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1)], { cwd: process.cwd(), stdio: "inherit" }).on("exit", (code) => process.exit(code ?? 0)), 2000);
+}
+
 const game = { models, net: null, openSettings() {}, toMenu: () => toLobby() };
 let match = null; // { scene, endedAt, emptySince }
 
@@ -62,7 +87,7 @@ function toLobby() {
   match = null;
   game.net = null;
   const lobby = new LobbyScene({
-    game, net: { role: "host", server, dedicated: true, mode: MODE }, name: "SERVER",
+    game, net: { role: "host", server, dedicated: true, mode: MODE, version: updater.current }, name: "SERVER",
     onStart: (n) => {
       game.net = { ...n, dedicated: true };
       const scene = new GameScene(game);
@@ -81,7 +106,9 @@ toLobby();
 
 // Кадры: 60 в секунду. Матч окончен (или все ушли) — через несколько секунд снова лобби
 const STEP = 1000 / 60;
-setInterval(() => {
+const loop = setInterval(() => {
+  // новая версия и сейчас лобби без игроков — обновляемся
+  if (updater.available && !match && !server.peers?.size) return updateAndRestart();
   engine.lastTime = performance.now() - STEP;
   try {
     engine.tick();
