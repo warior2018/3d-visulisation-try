@@ -12,8 +12,9 @@
 //  Стены арены и комнат (поверхность "arena") не ломаются; всё внутри — ломается без дропа и строится.
 // ============================================================
 
-import { SummaryScene } from "../../../engine/index.js";
-import { DUEL, PALETTE, BUILD, CLASSES, subclassOptions } from "../config.js";
+import { SummaryScene, rarityOf } from "../../../engine/index.js";
+import { DUEL, PALETTE, BUILD, CLASSES, ITEM_TIER, ARMOR_TIER, subclassOptions } from "../config.js";
+import { ITEMS, isWeapon, slotOf, ARMOR_SLOTS } from "../items.js";
 import { TROPHY_TALENTS } from "../talents.js";
 
 const ARENA = "arena"; // поверхность неразрушимых стен
@@ -208,11 +209,48 @@ export class DuelPart {
       if (list.length) this.chooseSubclass(list[Math.floor(Math.random() * list.length)]);
     }
     while (this.engine.scene !== this && this.engine.scenes.includes(this)) this.engine.pop(); // магазин и таланты — закрыть
+    this.duelOutfit(); // лучшее оружие — в руки, лучшая броня — на себя, лишнее — в утиль
     this.duelKit = this.saveKit();
     p.stats.hp = p.stats.maxHp;
     this.teleport(at);
     this.engine.toast("FIGHT!", 2000);
     this.engine.sound.play("growl");
+  }
+
+  // Дуэль: лучшее оружие — в ячейку оружия и в руки (выбранное вторым, иначе — старше по тиру, потом по редкости),
+  // в каждую ячейку брони — лучшая часть (по тиру комплекта, потом по редкости). Остальное оружие и броня —
+  // в утиль (пропадают). Вызывается перед боем и после покупки в магазине
+  duelOutfit() {
+    const p = this.player;
+    const where = []; // { inv, i, slot }
+    for (const inv of [p.hotbar, p.inventory, p.armor]) inv.slots.forEach((slot, i) => slot && where.push({ inv, i, slot }));
+    const power = (x) => rarityOf(x.slot.data?.rarity).power || 0;
+    const pick = (list, tier) => list.sort((a, b) => tier(b) - tier(a) || power(b) - power(a))[0];
+    let scrapped = 0;
+    const scrap = (list, keep) => {
+      for (const x of list) if (x !== keep) { x.inv.slots[x.i] = null; scrapped++; }
+    };
+    // оружие
+    const weapons = where.filter((x) => isWeapon(x.slot.item));
+    const best = pick(weapons, (x) => (x.slot.item === this.subclass ? 100 : 0) + (ITEM_TIER[x.slot.item] || 0));
+    if (best) {
+      scrap(weapons, best);
+      if (best.inv !== p.hotbar) this.equipWeapon(best.slot.item);
+    }
+    // броня: по ячейке
+    ARMOR_SLOTS.forEach((slotId, i) => {
+      const parts = where.filter((x) => slotOf(x.slot.item) === slotId);
+      const top = pick(parts, (x) => ARMOR_TIER[ITEMS[x.slot.item]?.set] || 0);
+      if (!top) return;
+      scrap(parts, top);
+      if (top.inv !== p.armor || top.i !== i) {
+        if (top.inv.slots[top.i] === top.slot) top.inv.slots[top.i] = null;
+        p.armor.slots[i] = { ...top.slot };
+      }
+    });
+    this.syncAbilities();
+    this.applyTalents();
+    if (scrapped) this.engine.log(`дуэль: лучшее надето, в утиль — ${scrapped}`);
   }
 
   // Погиб в дуэли: призрак до конца раунда (оживлений нет)

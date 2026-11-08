@@ -6,7 +6,7 @@
 
 import { itemName, ITEMS, isArmor, isWeapon, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
 import { describeSlot } from "../item-info.js";
-import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR, DUEL } from "../config.js";
+import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR, ARMOR_TIER, DUEL } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
 import { openTuneScene } from "../tune.js";
@@ -21,7 +21,7 @@ export class ShopPart {
   makeShop() {
     // Оружие и инструмент — без ограничений: выбросил случайно — купи снова
     const weapon = (id, price, text) => ({
-      id, name: itemName(id), price: SUBCLASS_WEAPONS.has(id) ? WEAPON_UPGRADES.rebuy : price, describe: () => text, category: ITEMS[id].class || "other",
+      id, name: itemName(id), price: SUBCLASS_WEAPONS.has(id) ? WEAPON_UPGRADES.rebuy : price, describe: () => text, category: ITEMS[id].class || "utility",
       // покупное оружие класса — только выбранное на SUBCLASS.level уровне (выдаётся сразу; здесь — если потерял)
       when: SUBCLASS_WEAPONS.has(id) ? () => this.subclass === id && !this.itemCount(id) : undefined,
       canGive: () => this.canTake(id, 1) || "NO ROOM IN INVENTORY",
@@ -31,7 +31,7 @@ export class ShopPart {
     const scene = this;
     // Расходники (ловушки, грибы, патроны): пачкой по count штук — если влезут
     const supply = (id, price, count, text) => ({
-      id, name: count > 1 ? `${itemName(id)} X${count}` : itemName(id), price, describe: () => text, category: ITEMS[id].class || "other",
+      id, name: count > 1 ? `${itemName(id)} X${count}` : itemName(id), price, describe: () => text, category: ITEMS[id].class || "utility",
       canGive: () => this.canTake(id, count) || "NO ROOM IN INVENTORY",
       give: () => this.giveResource(id, count), // в руку берущееся — в хотбар, остальное (блоки) — в сумку
       drawIcon: (ui, x, y, s) => ITEMS[id].drawIcon(ui, x, y, s),
@@ -42,21 +42,24 @@ export class ShopPart {
     const armorText = (p, set) => {
       const spd = p.speed ? `, ${signedPct(p.speed)}% SPEED` : "";
       const head = p.headshot ? `, -${Math.round(p.headshot * 100)}% HEADSHOT DMG` : "";
-      return `ARMOR: -${Math.round(p.armor * 1000) / 10}% PHYSICAL DMG${p.speed ? spd : ""}${p.headshot ? head : ""}. FULL ${set.name} SET: ${set.full.text}. GOES STRAIGHT ON IF THE SLOT IS FREE`;
+      return `-${Math.round(p.armor * 1000) / 10}% DMG${p.speed ? spd : ""}${p.headshot ? head : ""}. FULL SET: ${set.full.text}`;
     };
+    // Броня — своя вкладка: 3 столбца (комплекты по тиру: кожа, кость, железо), ряды — шлем, нагрудник, штаны, ботинки
+    const armorSets = Object.keys(ARMOR.sets).sort((a, b) => (ARMOR_TIER[a] || 0) - (ARMOR_TIER[b] || 0));
     return new Shop({
       currency: "coin",
       currencyName: "COINS",
       // Разделы — по классам оружия, как вкладки талантов
       // Раздел класса виден только своему классу (до выбора класса — только «ПРОЧЕЕ»)
       categories: [
-        // в дуэли — только броня (раздел ПРОЧЕЕ), по ценам дуэли (DUEL.armorPrice)
+        // в дуэли разделов оружия и улучшений нет: броня и полезное (DUEL.shop), по ценам дуэли
         ...["melee", "ranged", "demo"].map((id) => ({
           id, name: CLASSES[id].name,
           when: () => !this.duel && CLASSES[this.playerClass]?.shop === id,
         })),
         { id: "upgrades", name: "UPGRADES", when: () => !this.duel && !!this.playerClass },
-        { id: "other", name: "OTHER" },
+        { id: "armor", name: "ARMOR", headers: armorSets.map((id) => ARMOR.sets[id].name), compact: true },
+        { id: "utility", name: "UTILITY" }, // аптечка, ловушки, молоток-стройка, блоки, маунт
       ],
       slots: [
         // В каждом разделе сначала базовое (дёшево), потом продвинутое
@@ -79,7 +82,7 @@ export class ShopPart {
         supply("bear-trap", SHOP["bear-trap"], 1, `${BT.damage} DMG + ${TRAPS["bear-trap"].percentHp * 100}% HP, HOLDS ${TRAPS["bear-trap"].root} S. SNAPS TO A BLOCK`),
         supply("spikes", SHOP.spikes, 1, `${SP.damage} DMG TO ALL EVERY ${SP.rearm} S. PERMANENT, UP TO ${TRAPS.spikes.max}`),
         weapon("builder", SHOP.builder, "LMB - BREAK, RMB - PLACE A BLOCK. G - COLOR"),
-        { ...supply(BUILD.item, SHOP.block, BUILD.pack, "BLOCKS FOR BUILDING (HAMMER)"), category: "other" },
+        { ...supply(BUILD.item, SHOP.block, BUILD.pack, "BLOCKS FOR BUILDING (HAMMER)"), category: "utility" },
         // Улучшения оружия: базовое (50 / 100) и выбранное на 10 уровне (200 / 400 / 600) — +урон за уровень
         ...["primary", "second"].map((track) => {
           const U = WEAPON_UPGRADES[track];
@@ -102,7 +105,7 @@ export class ShopPart {
         }),
         // Маунт — один раз навсегда (этот герой): Z — позвать, исчезает от урона (scene/mount.js)
         {
-          id: "mount", name: "MOUNT", price: MOUNT.price, category: "other", when: () => !this.hasMount,
+          id: "mount", name: "MOUNT", price: MOUNT.price, category: "utility", when: () => !this.hasMount,
           describe: () => `${Input.label(this.settings.controls.bindings.mount)} - CALL. +${Math.round((MOUNT.speed / PLAYER.speed - 1) * 100)}% SPEED. ANY HIT THROWS YOU OFF, THEN ${MOUNT.cooldown} S COOLDOWN. OPENS THE MOUNT TALENT TAB`,
           canGive: () => true,
           give: () => {
@@ -119,14 +122,22 @@ export class ShopPart {
             ui.rect(x + s * 0.54, y + s * 0.72, s * 0.1, s * 0.18, [90, 62, 45]);
           },
         },
-        { ...supply("medkit", SHOP.medkit, 1, `ITEM SLOT. HOLD LMB ${MEDKIT.useTime} S: +${SHOP.medkitHeal} HP`), category: "other" },
-        // Броня (ARMOR): каждая часть — своя ячейка, срезает долю физического урона
-        ...Object.entries(ARMOR.sets).flatMap(([setId, set]) => Object.entries(set.parts).map(([part, p]) => ({
-          ...weapon(`${setId}-${part}`, p.price, armorText(p, set)),
-          price: () => (this.duel ? Math.round(p.price * (DUEL.armorPrice[setId] ?? 1)) : p.price), // дуэль: дешевле
-          duelOk: true,
-        }))),
-      ].map((slot) => (slot.duelOk ? slot : { ...slot, when: () => !this.duel && (slot.when ? slot.when() : true) })), // в дуэли — только броня
+        { ...supply("medkit", SHOP.medkit, 1, `ITEM SLOT. HOLD LMB ${MEDKIT.useTime} S: +${SHOP.medkitHeal} HP`), category: "utility" },
+        // Броня (ARMOR): каждая часть — своя ячейка, срезает долю физического урона. Рядами: шлем, нагрудник,
+        // штаны, ботинки; в ряду — комплекты по тиру (столбцы вкладки). В дуэли — своя цена (duel)
+        ...["helmet", "chest", "legs", "boots"].flatMap((part) => armorSets.map((setId) => {
+          const set = ARMOR.sets[setId], p = set.parts[part];
+          return {
+            ...weapon(`${setId}-${part}`, p.price, armorText(p, set)), category: "armor",
+            price: () => (this.duel ? p.duel ?? p.price : p.price),
+          };
+        })),
+      ].map((slot) => {
+        // Дуэль: продаётся броня и полезное из DUEL.shop (по своей цене); остальное — нет
+        if (slot.category === "armor") return slot;
+        if (DUEL.shop[slot.id] !== undefined) return { ...slot, category: "utility", price: () => (this.duel ? DUEL.shop[slot.id] : slot.price) };
+        return { ...slot, when: () => !this.duel && (slot.when ? slot.when() : true) };
+      }),
     });
   }
 
@@ -140,6 +151,7 @@ export class ShopPart {
       onBuy: (slot) => {
         this.engine.sound.play("loot");
         this.engine.log(`куплено: ${this.shop.nameOf(slot)}`);
+        if (this.duel) this.duelOutfit(); // дуэль: купленное лучше — сразу надето, прежнее — в утиль
       },
     }));
   }

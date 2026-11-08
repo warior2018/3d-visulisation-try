@@ -39,7 +39,7 @@ export default async function (t, g) {
   t.check("дуэль: комнаты — по одной на игрока", host.duelRooms.length === 2 && Math.hypot(host.duelRooms[0].x - host.duelRooms[1].x, host.duelRooms[0].z - host.duelRooms[1].z) > 20);
   const inRoom = (s, r) => Math.hypot(s.player.position.x - r.x, s.player.position.z - r.z) < 1;
   t.check("дуэль: каждый в своей комнате", inRoom(host, host.duelRooms[0]) && inRoom(guest, host.duelRooms[1]));
-  t.check("дуэль: 1-й раунд — 5 очков и 120 монет у обоих", host.talents.points >= 5 && guest.talents.points >= 5 && host.itemCount("coin") >= 120 && guest.itemCount("coin") >= 120, `${host.talents.points}/${guest.talents.points}, ${host.itemCount("coin")}/${guest.itemCount("coin")}`);
+  t.check("дуэль: 1-й раунд — очки и монеты у обоих", host.talents.points >= 5 && guest.talents.points >= 5 && host.itemCount("coin") >= C.DUEL.rounds[0].coins && guest.itemCount("coin") >= C.DUEL.rounds[0].coins, `${host.talents.points}/${guest.talents.points}, ${host.itemCount("coin")}/${guest.itemCount("coin")}`);
   t.check("дуэль: здоровье 220", host.player.stats.maxHp >= 220 && guest.player.stats.maxHp >= 220, `${host.player.stats.maxHp}/${guest.player.stats.maxHp}`);
   t.check("дуэль: скорость +25 %", host.player.speedBonuses.duel === 0.25);
   t.check("дуэль: трофеи нельзя", host.talents.check("trophies").reason === "NOT IN THIS MODE" || !host.talents.byId.has("trophies"), host.talents.check("trophies").reason);
@@ -88,7 +88,7 @@ export default async function (t, g) {
   host.duelState.time = 0.01;
   await both(10);
   t.check("раунд 2: подготовка, гость снова жив", host.duelState.phase === "prep" && host.duelState.round === 2 && !guest.downed && guest.player.alive);
-  t.check("раунд 2: вещи как на начало прошлого раунда + 200 монет", host.itemCount("coin") === coins0 + 200, `${coins0} → ${host.itemCount("coin")}`);
+  t.check("раунд 2: вещи как на начало прошлого раунда + монеты 2-го раунда", host.itemCount("coin") === coins0 + C.DUEL.rounds[1].coins, `${coins0} → ${host.itemCount("coin")}`);
   t.check("раунд 2: 10 очков талантов за 2 раунда (если не тратили)", host.talents.points >= 10);
   t.check("гость видит счёт и фазу", guest.duelRemote?.phase === "prep" && guest.duelRemote.wins.ALPHA === 1, JSON.stringify(guest.duelRemote));
 

@@ -217,11 +217,11 @@ export const DUEL = {
   prep: 45, //       секунд подготовки перед раундом
   endPause: 4, //    секунд после раунда (кто победил)
   rounds: [
-    { points: 5, coins: 120, pick: "class" },
-    { points: 5, coins: 200, pick: "second" },
-    { points: 10, coins: 600 },
-    { points: 5, coins: 300 },
-    { points: 5, coins: 300 },
+    { points: 5, coins: 200, pick: "class" },
+    { points: 5, coins: 250, pick: "second" },
+    { points: 10, coins: 250 },
+    { points: 5, coins: 250 },
+    { points: 5, coins: 250 },
   ],
   hp: 220, //        здоровье героя (вместо обычного)
   speed: 0.25, //    +25 % скорости
@@ -230,9 +230,9 @@ export const DUEL = {
   room: { half: 3, height: 4, gap: 10 }, //     комната подготовки: полуширина, высота, отступ от арены
   wall: [112, 114, 122], //                     серые неразрушимые стены (поверхность "arena")
   lamp: [255, 214, 130], //                     светильники в потолке (цвет лампы — светится, LIGHTS.lamp)
-  // Магазин в дуэли — только броня, цена = цена брони × множитель комплекта: на монеты раунда — 1–2 части
-  // (1-й раунд 120: кожа 45–105; 2-й +200: кость 90–162; 3-й +600: железо 210–510; 4-й и 5-й — по +300)
-  armorPrice: { leather: 0.25, bone: 0.3, iron: 0.5 },
+  // Магазин в дуэли: броня (цены — ARMOR … duel) и полезное (shop: аптечка, ловушки, молоток-стройка).
+  // Лучшее оружие и броня надеваются сами, лишнее — в утиль (scene/duel.js → duelOutfit)
+  shop: { medkit: 40, "bear-trap": 35, spikes: 30, builder: 30 },
 };
 
 // Сколько живут в мире (секунды): спокойный моб (не злой) и предмет на земле исчезают через 2 минуты
@@ -497,7 +497,7 @@ export const ATTACKS = {
   // настильнее, радиус меньше (~51/с); динамит — лежит fuse с и рвёт сильно и широко (~47/с, но разом по толпе)
   handGrenade: { id: "hand-grenade", name: "GRENADE", damage: 40, radius: 2.5, cooldown: 1.2, cost: 0, projectile: true, speed: 23.1 }, // бросок рукой: +40 % (было 15)
   launcher: { id: "launcher", name: "LAUNCHER SHELL", damage: 36, radius: 2, cooldown: 0.7, cost: 0, projectile: true, speed: 28 },
-  dynamite: { id: "dynamite", name: "DYNAMITE", damage: 140, radius: 4, cooldown: 3, cost: 0, projectile: true, speed: 18.2 }, // бросок рукой: +40 % (было 13)
+  dynamite: { id: "dynamite", name: "DYNAMITE", damage: 105, radius: 4, cooldown: 3, cost: 0, projectile: true, speed: 18.2 }, // бросок рукой: +40 % (было 13)
   clusterBomb: { id: "cluster", name: "CLUSTER BOMBLET", damage: 30, radius: 1.8, cooldown: 0, cost: 0, projectile: true },
   // Дробовик, скилл Q «ОТСКОК» (SHOTGUN_BLAST): залп в упор — всем в конусе перед собой (до 7 м)
   shotgunBlast: { id: "shotgun-blast", name: "BLAST JUMP", damage: 45, reach: 7, arc: 70, maxTargets: 6 },
@@ -712,7 +712,9 @@ export const MAP_FOG = { radius: 22 };
 // (−51.5 %, части кроме ботинок замедляют), КОСТЬ — лёгкая (−17 %, каждая часть быстрее). Части можно смешивать.
 // Роли частей: нагрудник и штаны — основная защита (в 2.5 раза больше, чем было); ботинки — скорость
 // (кожа +7.5 %, кость +10 %, железо +12.5 % — выше тир, выше стат); шлем — headshot: меньше урона от попаданий
-// в голову (кожа −15 %, кость −20 %, железо −25 %). Тиры — ARMOR_TIER
+// в голову (кожа −15 %, кость −20 %, железо −25 %). Тиры — ARMOR_TIER.
+// duel — цена в дуэли: по пользе (1 % защиты или скорости — 8.4 монеты, 1 % защиты головы — 4.2, штраф скорости —
+// минус): 70…180, так что на монеты раунда (DUEL.rounds: 200, потом по 250) — 1–2 части
 // full — бонус за полный комплект (все 4 части одного): speed — к скорости, hp — к макс. HP,
 // attackSpeed — атаки быстрее (0.1 — на 10 %), text — как показать (F1, магазин)
 export const ARMOR = {
@@ -720,30 +722,30 @@ export const ARMOR = {
     leather: {
       name: "LEATHER", color: [150, 105, 65],
       parts: {
-        helmet: { name: "HELMET", armor: 0.03, headshot: 0.15, price: 240 },
-        chest: { name: "CHEST", armor: 0.15, price: 420 },
-        legs: { name: "LEGS", armor: 0.1, price: 300 },
-        boots: { name: "BOOTS", armor: 0.02, speed: 0.075, price: 180 },
+        helmet: { name: "HELMET", armor: 0.03, headshot: 0.15, price: 240, duel: 90 },
+        chest: { name: "CHEST", armor: 0.15, price: 420, duel: 125 },
+        legs: { name: "LEGS", armor: 0.1, price: 300, duel: 85 },
+        boots: { name: "BOOTS", armor: 0.02, speed: 0.075, price: 180, duel: 85 },
       },
       full: { speed: 0.05, text: "+5% SPEED" },
     },
     iron: {
       name: "IRON", color: [150, 156, 168],
       parts: {
-        helmet: { name: "HELMET", armor: 0.05, speed: -0.02, headshot: 0.25, price: 540 },
-        chest: { name: "CHEST", armor: 0.25, speed: -0.03, price: 1020 },
-        legs: { name: "LEGS", armor: 0.175, speed: -0.02, price: 780 },
-        boots: { name: "BOOTS", armor: 0.04, speed: 0.125, price: 420 },
+        helmet: { name: "HELMET", armor: 0.05, speed: -0.02, headshot: 0.25, price: 540, duel: 135 },
+        chest: { name: "CHEST", armor: 0.25, speed: -0.03, price: 1020, duel: 180 },
+        legs: { name: "LEGS", armor: 0.175, speed: -0.02, price: 780, duel: 135 },
+        boots: { name: "BOOTS", armor: 0.04, speed: 0.125, price: 420, duel: 140 },
       },
       full: { hp: 40, text: "+40 MAX HP" },
     },
     bone: {
       name: "BONE", color: [222, 214, 190],
       parts: {
-        helmet: { name: "HELMET", armor: 0.02, speed: 0.02, headshot: 0.2, price: 360 },
-        chest: { name: "CHEST", armor: 0.075, speed: 0.02, price: 540 },
-        legs: { name: "LEGS", armor: 0.0625, speed: 0.02, price: 480 },
-        boots: { name: "BOOTS", armor: 0.015, speed: 0.1, price: 300 },
+        helmet: { name: "HELMET", armor: 0.02, speed: 0.02, headshot: 0.2, price: 360, duel: 120 },
+        chest: { name: "CHEST", armor: 0.075, speed: 0.02, price: 540, duel: 85 },
+        legs: { name: "LEGS", armor: 0.0625, speed: 0.02, price: 480, duel: 70 },
+        boots: { name: "BOOTS", armor: 0.015, speed: 0.1, price: 300, duel: 100 },
       },
       full: { attackSpeed: 0.1, text: "+10% ATTACK SPEED" },
     },

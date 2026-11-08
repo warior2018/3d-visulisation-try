@@ -141,6 +141,7 @@ export const RU = {
   ", UP TO ${A.maxTargets} TARGETS": ", ДО ${A.maxTargets} ЦЕЛЕЙ",
   "-${Math.round(armor * 1000) / 10}% PHYSICAL DMG": "-${Math.round(armor * 1000) / 10}% ФИЗИЧЕСКОГО УРОНА",
   "-${Math.round(hide * 1000) / 10}% PHYSICAL DMG": "-${Math.round(hide * 1000) / 10}% ФИЗИЧЕСКОГО УРОНА",
+  "-${Math.round(p.armor * 1000) / 10}% DMG${p.speed ? spd : \"\"}${p.headshot ? head : \"\"}. FULL SET: ${set.full.text}": "-${Math.round(p.armor * 1000) / 10}% УРОНА${p.speed ? spd : \"\"}${p.headshot ? head : \"\"}. ПОЛНЫЙ КОМПЛЕКТ: ${set.full.text}",
   "-${pct(0.04 * r)} DMG OF ALL KINDS": "-${pct(0.04 * r)} ЛЮБОГО УРОНА",
   "-${pct(0.04 * r)} PHYSICAL AND MAGICAL DMG": "-${pct(0.04 * r)} ФИЗИЧЕСКОГО И МАГИЧЕСКОГО УРОНА",
   "-${pct(0.1 * r)} PHYSICAL DMG": "-${pct(0.1 * r)} ФИЗИЧЕСКОГО УРОНА",

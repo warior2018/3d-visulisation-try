@@ -3,6 +3,8 @@
 //  Карточки позиций: значок, название, описание, цена, остаток и кнопка «КУПИТЬ».
 //
 //    new ShopScene({ shop, buyer: player, ctx: game, onBuy: (slot) => sound("loot") })
+//  У раздела магазина можно задать headers: ["КОЖА", "КОСТЬ", "ЖЕЛЕЗО"] — подписи над 3 столбцами (позиции
+//  раздела идут рядами слева направо), и compact: true — карточки ниже (больше рядов на экране)
 // ============================================================
 
 import { translate } from "../ui/i18n.js";
@@ -51,10 +53,16 @@ export class ShopScene extends Scene {
     }
     // Карточки сеткой: по 3 в ряд; не влезают — листаем рядами (колесо мыши, стрелки справа)
     const slots = shop.visible(this.ctx, this.tab);
+    const cat = cats.find((c) => c.id === this.tab);
+    const compact = !!cat?.compact;
     const cw = 256;
-    const ch = 150;
-    const gap = 14;
+    const ch = compact ? 100 : 150;
+    const gap = compact ? 10 : 14;
     const cols = 3;
+    if (cat?.headers) { // подписи столбцов
+      cat.headers.slice(0, cols).forEach((h, i) => ui.text(h, box.cx + (i - 1) * (cw + gap), top + 2, 2, th.accent, "center"));
+      top += 22;
+    }
     const rows = Math.ceil(slots.length / cols);
     const fit = Math.max(1, Math.floor((box.y + box.h - 36 - top + gap) / (ch + gap))); // сколько рядов влезает
     this.maxScroll = Math.max(0, rows - fit);
@@ -66,7 +74,7 @@ export class ShopScene extends Scene {
       const inRow = Math.min(cols, slots.length - (row + this.scroll) * cols);
       const x = box.cx - (inRow * cw + (inRow - 1) * gap) / 2 + col * (cw + gap);
       const y = top + row * (ch + gap);
-      this.drawCard(ui, s, x, y, cw, ch);
+      this.drawCard(ui, s, x, y, cw, ch, compact);
     });
     if (this.maxScroll > 0) {
       const ax = box.x + box.w - 16;
@@ -80,11 +88,21 @@ export class ShopScene extends Scene {
     ui.text(msg ? msg.text : "PICK AN ITEM AND PRESS BUY", box.cx, box.y + box.h - 24, 2, msg ? (msg.ok ? th.accent : th.warn) : th.muted, "center");
   }
 
-  drawCard(ui, s, x, y, w, h) {
+  drawCard(ui, s, x, y, w, h, compact = false) {
     const th = ui.theme;
     const c = this.shop.check(s, this.buyer, this.ctx);
     ui.rect(x, y, w, h, th.button.fill, 235);
     ui.frame(x, y, w, h, c.ok ? th.button.hoverBorder : th.window.border, 2);
+    if (compact) {
+      // Ниже: значок 40, название, описание мелко (до 3 строк), цена, кнопка
+      ui.rect(x + 8, y + 8, 40, 40, [14, 16, 22], 255);
+      s.drawIcon?.(ui, x + 8, y + 8, 40, this.ctx);
+      ui.text(this.shop.nameOf(s), x + 56, y + 10, 2, th.text);
+      lines(s.describe?.(this.ctx) || "", 31).slice(0, 3).forEach((line, i) => ui.text(line, x + 56, y + 30 + i * 9, 1, th.muted));
+      ui.text(`PRICE: ${this.shop.priceOf(s)}`, x + 10, y + 60, 2, th.accent);
+      ui.button("buy:" + s.id, c.ok ? "BUY" : c.reason, x + w / 2, y + h - 12, w - 20, 20, 1, false);
+      return;
+    }
     // Значок слева сверху, название и описание справа
     const icon = 56;
     ui.rect(x + 10, y + 10, icon, icon, [14, 16, 22], 255);
