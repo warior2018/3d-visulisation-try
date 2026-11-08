@@ -29,14 +29,16 @@ export class CoopPart {
     if (!this.match) return;
     const mates = this.teammates();
     // силуэты: союзник — сквозь стены, погибший — призраком над урной
-    for (const e of [this.player, ...mates]) {
+    const own = this.dedicated ? [] : [this.player]; // сервер — без своего героя
+    for (const e of [...own, ...mates]) {
       e.silhouette = e.downed ? "ghost" : e === this.player ? null : "ally";
       e.drawOffsetY = e.downed ? GHOST_LIFT : 0;
     }
-    this.syncUrns([this.player, ...mates]);
-    if (!this.downed) this.tickRevive(dt, input, mates);
-    // хост: погибли все — матч окончен (у всех)
-    if (this.net?.role === "host" && this.downed && mates.every((e) => e.downed) && !this.matchEnded) this.endMatch();
+    this.syncUrns([...own, ...mates]);
+    if (!this.downed && !this.dedicated) this.tickRevive(dt, input, mates);
+    // хост: погибли все — матч окончен (у всех); сервер — когда пали все гости
+    const allDown = (this.dedicated || this.downed) && mates.every((e) => e.downed) && (mates.length > 0 || !this.dedicated);
+    if (this.net?.role === "host" && allDown && !this.matchEnded) this.endMatch();
   }
 
   // ---------- Гибель и оживление ----------
@@ -156,7 +158,7 @@ export class CoopPart {
     if (!this.net) return [];
     if (this.net.role === "host") {
       return [
-        { name: this.net.myName, ping: 0, cls: this.playerClass, down: !!this.downed, me: true, host: true },
+        ...(this.dedicated ? [] : [{ name: this.net.myName, ping: 0, cls: this.playerClass, down: !!this.downed, me: true, host: true }]),
         ...[...this.net.guests.values()].map((q) => ({ name: q.name, ping: q.ping ?? null, cls: q.cls || null, down: !!q.hero?.downed })),
       ];
     }

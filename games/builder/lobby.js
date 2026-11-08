@@ -37,8 +37,11 @@ export class LobbyScene extends Scene {
     this.camera.yaw = Math.PI;
     this.started = false;
     this.mode = "classic"; // режим матча (выбирает хост): "classic" | "duel"
+    this.dedicated = !!net.dedicated; // выделенный сервер (tools/server.mjs): хоста в составе нет, режим — его
+    if (net.mode === "duel") this.mode = "duel";
     if (this.role === "host") {
-      this.players = [{ id: 0, name: this.myName, ready: false, host: true }];
+      this.players = this.dedicated ? [] : [{ id: 0, name: this.myName, ready: false, host: true }];
+      if (this.dedicated) this.me = -1;
       const s = net.server;
       s.onMessage = (peer, msg) => this.inbox.push([peer, msg]);
       s.onDisconnect = (peer) => this.inbox.push([peer, { t: "gone" }]);

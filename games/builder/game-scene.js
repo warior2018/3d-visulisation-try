@@ -61,6 +61,9 @@ export class GameScene extends Scene {
     // Матч из лобби (lobby.js): новый мир на один раз — без сохранений, класс выбирают все, опыт общий ×0.5
     this.match = !!game.net?.match;
     this.duel = this.match && game.net?.mode === "duel"; // дуэль: каждый сам за себя на арене (scene/duel.js)
+    // Выделенный сервер (tools/server.mjs): хост без своего героя — только мир и рассылка; его «герой» стоит
+    // в стороне, неуязвим и ни в чём не участвует (heroes, дуэль, таблица, снимки)
+    this.dedicated = !!game.net?.dedicated;
     this.teamPaused = this.match && !this.duel; // матч: мир стоит, пока все не зайдут и не выберут класс (scene/net.js → teamReady); в дуэли — своя подготовка
     this.net = null;
     this.chat = new Chat(this); // чат (Enter) — scene/chat.js
@@ -318,6 +321,7 @@ export class GameScene extends Scene {
     else this.tickCoop(dt, input); // матч: урны, оживление, силуэты союзников (scene/coop.js)
     if (this.matchEnded) return;
     if (this.god) player.stats.hp = player.stats.maxHp; // консоль: god
+    if (this.dedicated) return this.parkServerHero(); // сервер: своего героя нет — стоит в стороне
 
     if (!player.alive) return this.die();
   }
@@ -325,9 +329,20 @@ export class GameScene extends Scene {
   // Все герои в мире: свой и гости сетевой игры (их герои у хоста — remote)
   heroes() {
     if (!this.net || this.net.role !== "host") return [this.player];
-    const list = [this.player];
+    const list = this.dedicated ? [] : [this.player];
     for (const q of this.net.guests.values()) if (q.hero?.alive) list.push(q.hero);
     return list;
+  }
+
+  // Сервер: «герой» хоста — высоко над миром, неподвижен, неуязвим, не цель для мобов
+  parkServerHero() {
+    const p = this.player;
+    p.invulnerable = true;
+    p.position.x = 0; p.position.y = 400; p.position.z = 0;
+    p.velocity.x = p.velocity.y = p.velocity.z = 0;
+    p.stats.hp = p.stats.maxHp;
+    p.faction = "server";
+    p.hostileTo?.clear?.();
   }
 
   // До ближайшего героя (по земле)

@@ -232,6 +232,7 @@ export class HostNet {
     const e = [];
     for (const x of g.entities.list) {
       if (!x.view && !x.remote) continue;
+      if (x === g.player && g.dedicated) continue; // сервер: своего героя не показываем
       const walking = x === g.player ? !!g.move?.moving : !!x.netWalk;
       e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.round(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow)]);
       x.netAttack = false;
@@ -240,11 +241,11 @@ export class HostNet {
     if (this.ticks % (SNAP_EVERY * 4) === 0) {
       // 7-е поле — кто выбросил (номер героя): у него автоподбор не берёт, пока не отойдёт
       p = g.pickups.list.map((x) => [netId(x), x.item, x.count, r2(x.position.x), r2(x.position.y), r2(x.position.z), x.ignore?.netId || 0]);
-      h = [[netId(g.player), heldOf(g)], ...[...this.guests.values()].map((q) => [netId(q.hero), q.held || ""])];
+      h = [...(g.dedicated ? [] : [[netId(g.player), heldOf(g)]]), ...[...this.guests.values()].map((q) => [netId(q.hero), q.held || ""])];
       // скины: свои и гостей — всем, раз в ~4 снимка ×4 (новые копии подхватят; дёшево — пара строк)
       if (this.ticks % (SNAP_EVERY * 16) === 0 || this.skinsDirty) {
         this.skinsDirty = false;
-        this.server.broadcast({ t: "skins", list: [[netId(g.player), mySkins(g)], ...[...this.guests.values()].map((q) => [netId(q.hero), q.hero.skinOverride || {}])] });
+        this.server.broadcast({ t: "skins", list: [...(g.dedicated ? [] : [[netId(g.player), mySkins(g)]]), ...[...this.guests.values()].map((q) => [netId(q.hero), q.hero.skinOverride || {}])] });
       }
       inv = [g.invasion.active ? 1 : 0, Math.ceil(g.invasion.timeLeft || 0), g.invasionKind?.name || "INVASION"];
     }
@@ -263,10 +264,10 @@ export class HostNet {
   teamReady() {
     const g = this.g;
     const roster = g.game.net?.roster;
-    if (roster && this.guests.size < roster.length - 1) return false; // ещё не все зашли
+    if (roster && this.guests.size < roster.length - (g.dedicated ? 0 : 1)) return false; // ещё не все зашли
     const needSub = g.experience.level >= SUBCLASS.level;
     const chose = (cls, sub) => !!cls && (!needSub || !!sub);
-    if (!chose(g.playerClass, g.subclass)) return false;
+    if (!g.dedicated && !chose(g.playerClass, g.subclass)) return false; // сервер сам не выбирает
     for (const q of this.guests.values()) if (!chose(q.cls, q.sub)) return false;
     return true;
   }

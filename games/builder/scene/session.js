@@ -150,9 +150,14 @@ export class SessionPart {
 
     // Мобы появляются сами вокруг героя, в пределах прорисовки (правила — в config.js → SPAWN, MOB_MIX)
     const view = VIEW_DISTANCE; // где появляются мобы — не от настройки графики (DRAW DISTANCE), у всех одинаково
-    const around = () => this.player.position;
+    // сервер (без своего героя) — вокруг случайного игрока
+    const around = () => {
+      if (!this.dedicated) return this.player.position;
+      const list = this.heroes();
+      return list.length ? list[Math.floor(Math.random() * list.length)].position : this.player.position;
+    };
     // Не у героя под носом и не внутри построек (иначе физика вытолкнет моба на крышу)
-    const far = (x, z) => Math.hypot(x - this.player.position.x, z - this.player.position.z) < SPAWN.minPlayerDistance || this.onStructure(x, z)
+    const far = (x, z) => (this.dedicated ? this.heroes() : [this.player]).some((h) => Math.hypot(x - h.position.x, z - h.position.z) < SPAWN.minPlayerDistance) || this.onStructure(x, z)
       || (!this.world.floor && !this.world.topBlock(Math.floor(x), Math.floor(z))); // летающие острова: не над бездной
     this.spawnRate = this.match ? MULTIPLAYER.spawn : 1; // матч: мобов больше (×1.3 чаще)
     this.spawner = new Spawner({

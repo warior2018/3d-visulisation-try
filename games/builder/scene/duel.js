@@ -88,7 +88,8 @@ export class DuelPart {
 
   // Все герои дуэли: свой + гости (у хоста)
   duelHeroes() {
-    return [this.player, ...(this.net?.role === "host" ? [...this.net.guests.values()].map((q) => q.hero) : [])];
+    const guests = this.net?.role === "host" ? [...this.net.guests.values()].map((q) => q.hero) : [];
+    return this.dedicated ? guests : [this.player, ...guests]; // сервер — без своего героя
   }
 
   startDuel() {
@@ -118,7 +119,7 @@ export class DuelPart {
     S.time -= dt;
     if (S.phase === "wait") {
       // все из лобби зашли — первая подготовка
-      if (this.net.guests.size >= roster.length - 1) this.duelPrep(1);
+      if (this.net.guests.size >= roster.length - (this.dedicated ? 0 : 1)) this.duelPrep(1);
     } else if (S.phase === "prep") {
       if (S.time <= 0) this.duelFight();
     } else if (S.phase === "fight") {
@@ -145,7 +146,7 @@ export class DuelPart {
     const roster = this.game.net?.roster || [];
     const spot = (name) => this.duelRooms[Math.max(0, roster.indexOf(name))] || this.duelRooms[0];
     const grant = DUEL.rounds[Math.min(round, DUEL.rounds.length) - 1];
-    this.duelEnterPrep(round, grant, spot(this.net.myName));
+    if (!this.dedicated) this.duelEnterPrep(round, grant, spot(this.net.myName));
     for (const q of this.net.guests.values()) this.net.server.send(q.peer, { t: "duelPrep", round, grant, at: spot(q.name) });
     this.engine.log(`дуэль: раунд ${round}, подготовка ${DUEL.prep} с`);
   }
@@ -155,7 +156,7 @@ export class DuelPart {
     Object.assign(S, { phase: "fight", time: 0 });
     const roster = this.game.net?.roster || [];
     const spot = (name) => this.duelSpawns[Math.max(0, roster.indexOf(name))] || this.duelSpawns[0];
-    this.duelEnterFight(spot(this.net.myName));
+    if (!this.dedicated) this.duelEnterFight(spot(this.net.myName));
     for (const q of this.net.guests.values()) this.net.server.send(q.peer, { t: "duelFight", at: spot(q.name) });
     this.engine.log(`дуэль: раунд ${S.round} — бой`);
   }
@@ -274,7 +275,7 @@ export class DuelPart {
     this.matchEnded = true;
     const me = this.net?.myName;
     const won = champion === me;
-    this.engine.profile?.add(won ? "duelWins" : "duelLosses");
+    if (!this.dedicated) this.engine.profile?.add(won ? "duelWins" : "duelLosses"); // сервер сам не играл
     this.engine.log(`дуэль окончена: победил ${champion}${won ? " (мы)" : ""}`);
     this.dead = true;
     while (this.engine.scene !== this && this.engine.scenes.includes(this)) this.engine.pop();
