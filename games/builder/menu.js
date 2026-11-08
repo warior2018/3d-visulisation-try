@@ -79,10 +79,10 @@ export class MainMenu extends Scene {
     this.rot = 0;
   }
 
-  // Порядок ленты после поворотов (по кругу): 0 — центр, 1 — слева, 2 — дальше слева, 3 — ещё дальше
+  // Лента после листания (до краёв, не по кругу): 0 — центр, 1 — слева, 2 — дальше слева, 3 — ещё дальше.
+  // Пролистанные (правее центра) — спрятаны: «создать» справа стоит на месте
   order() {
-    const n = this.ring.length;
-    return this.ring.map((_, i) => this.ring[(((i + this.rot) % n) + n) % n]);
+    return this.ring.slice(this.rot);
   }
 
   get center() {
@@ -90,7 +90,7 @@ export class MainMenu extends Scene {
   }
 
   turn(dir) {
-    if (this.ring.length > 1) this.rot += dir;
+    this.rot = Math.max(0, Math.min(this.ring.length - 1, this.rot + dir));
   }
 
   // Лента «o O БОЛЬШОЙ  +»: центр крупно, чем дальше влево — тем меньше и тусклее; «создать» — справа отдельно
@@ -116,14 +116,12 @@ export class MainMenu extends Scene {
     const ui = this.engine.ui;
     this.clock = (this.clock || 0) + dt; // блик на кнопке ИГРАТЬ
     const k = Math.min(1, dt * 12);
-    this.slotOf ||= new Map(); // id мира -> его место в ленте в прошлом кадре
-    this.order().forEach((w, i) => {
-      const t = this.slot(ui, i);
+    this.ring.forEach((w, j) => {
+      const i = j - this.rot;
+      // пролистанный — уезжает вправо от центра и тает
+      const t = i >= 0 ? this.slot(ui, i) : { x: ui.width / 2 + ringR(ui) * 1.3, y: ringY(ui), r: 0, a: 0 };
       const lift = this.hover === w.id ? 12 : 0;
-      let a = this.anim.get(w.id) || { ...t };
-      const was = this.slotOf.get(w.id);
-      if (was !== undefined && Math.abs(was - i) > 1) a = { ...t, r: 0 }; // перескочил через край (по кругу) — вырастает на новом месте
-      this.slotOf.set(w.id, i);
+      const a = this.anim.get(w.id) || { ...t };
       a.x += (t.x - a.x) * k;
       a.y += (t.y - lift - a.y) * k;
       a.r += (t.r - a.r) * k;
@@ -419,10 +417,9 @@ export class MainMenu extends Scene {
     }
     // стрелки по бокам
     const cy = ringY(ui);
-    if (this.ring.length > 1) {
-      ui.button("turn:1", "<", 40, cy, 56, 80, 4); // ← — в центр мир слева (как клавиша ←)
-      ui.button("turn:-1", ">", ui.width - 40, cy, 56, 80, 4);
-    }
+    // стрелки — пока есть куда листать (до краёв)
+    if (this.rot < this.ring.length - 1) ui.button("turn:1", "<", 40, cy, 56, 80, 4); // ← — в центр мир слева (как клавиша ←)
+    if (this.rot > 0) ui.button("turn:-1", ">", ui.width - 40, cy, 56, 80, 4);
     // ИГРАТЬ — внизу, на своём месте (не прыгает, когда наводишь мышь на мир). Картинка и удаление мира —
     // не здесь (будут в другом месте)
     const c = this.center;
@@ -557,7 +554,7 @@ export class MainMenu extends Scene {
   onKey(e) {
     if (e.scancode === KEYS.ESCAPE) return this.actions.escape?.(); // меню: настройки / новости / выход
     if (this.tab !== "play") return;
-    if (e.scancode === KEYS.LEFT) this.turn(1); //   ← — центральный уходит в конец, в центр — тот, что слева
+    if (e.scancode === KEYS.LEFT) this.turn(1); //   ← — в центр мир слева (у края — стоп)
     if (e.scancode === KEYS.RIGHT) this.turn(-1); // → — обратно
     if (e.scancode === KEYS.RETURN) this.onButton("play");
   }

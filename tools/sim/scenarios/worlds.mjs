@@ -40,8 +40,10 @@ export default async function (t, g) {
     const left = menu.order()[1], a1 = menu.anim.get(left.id);
     menu.onMouseDown({ x: a1.x, y: a1.y });
     t.check("лента: клик по миру слева — он в центре", menu.center.id === left.id);
-    for (let i = 0; i < menu.ring.length; i++) menu.turn(1);
-    t.check("лента: по кругу — полный оборот возвращает тот же мир", menu.center.id === left.id);
+    for (let i = 0; i < 10; i++) menu.turn(1);
+    t.check("лента: до края влево — последний мир, дальше не едет", menu.center.id === menu.ring.at(-1).id);
+    for (let i = 0; i < 10; i++) menu.turn(-1);
+    t.check("лента: до края вправо — первый мир", menu.center.id === menu.ring[0].id);
   }
   S.touchWorld(was);
   S.deleteWorld(a);
