@@ -55,6 +55,24 @@ export default async function (t, g) {
   const prop = [...host.world.blocks.values()].find((b) => !b.surface && Math.abs(b.x) < 10 && Math.abs(b.z) < 10 && b.y >= 1);
   t.check("дуэль: укрытие внутри ломается", !prop || host.world.remove(prop.x, prop.y, prop.z));
 
+  // ловушки по сети: у врага — почти прозрачные; у хозяина, когда попался враг, — красная обводка
+  const hp = host.player.position;
+  const trap = host.placeTrapAt("spikes", { x: hp.x + 1, y: hp.y, z: hp.z }, { safe: true });
+  await both(6);
+  const seen = [...(guest.netTraps?.values() || [])];
+  t.check("ловушка хоста видна гостю — почти прозрачная", seen.length === 1 && seen[0].type === "spikes" && seen[0].silhouette === "faint");
+  const gp = guest.player.position;
+  const gt = guest.placeTrapAt("bear-trap", { x: gp.x + 1, y: gp.y, z: gp.z }, { safe: true });
+  await both(6);
+  t.check("ловушка гостя видна хосту", [...(host.netTraps?.values() || [])].some((x) => x.type === "bear-trap" && x.silhouette === "faint"));
+  host.traps.onTrigger(trap, { hits: [{ target: [...host.net.guests.values()][0].hero }] });
+  await both(2);
+  t.check("у хозяина: в ловушку попал враг — красная обводка", trap.silhouette === "alert");
+  host.traps.remove(trap);
+  guest.traps.remove(gt);
+  await both(6);
+  t.check("ловушки убраны — пропали и у других", !guest.netTraps.size && !host.netTraps.size);
+
   // бой: все на арене, классы выбраны (кто не успел — за него)
   const coins0 = host.itemCount("coin");
   host.duelState.time = 0.01;

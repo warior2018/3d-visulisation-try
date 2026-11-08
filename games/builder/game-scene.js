@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Particles, Charge, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
-import { LIFETIME, THROW, SPEAR, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH } from "./config.js";
+import { LIFETIME, THROW, SPEAR, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
 import { HandAbility, IN_HAND } from "./abilities.js";
 import { helpFor } from "./help.js";
 import { talentTree } from "./talents.js";
@@ -93,10 +93,19 @@ export class GameScene extends Scene {
       onLand: (p) => this.engine.sound.play("pickup", { at: p.position, volume: 0.5 }),
     });
     // Ловушки героя (движок: Traps): стоят на земле, бьют врагов, которые в них зашли
+    // Сетевая игра: свои ловушки — видны другим (net.js → trapAdded / trapRemoved; у врага — почти прозрачные)
     this.traps = new Traps({
-      onAdd: (t) => game.models.attach(t, "item-" + t.type),
-      onRemove: (t) => game.models.detach(t),
+      onAdd: (t) => {
+        game.models.attach(t, "item-" + t.type);
+        if (t.owner === this.player) this.net?.trapAdded?.(t);
+      },
+      onRemove: (t) => {
+        game.models.detach(t);
+        if (t.owner === this.player) this.net?.trapRemoved?.(t);
+      },
       onTrigger: (t, r) => {
+        // попался враг — у хозяина ловушка светится красной обводкой (TRAPS.alert с)
+        if (r.hits.some((h) => h.target !== this.player)) t.alertUntil = (this.trapClock || 0) + TRAPS.alert;
         this.engine.sound.play(t.type === "bear-trap" ? "snap" : "spike", { at: t.position });
         const self = r.hits.find((h) => h.target === this.player);
         if (self) {
@@ -461,6 +470,8 @@ export class GameScene extends Scene {
     profiler.end(PROF.projectiles);
     profiler.begin(PROF.traps);
     this.traps.update(dt, this.combatContext()); // ловушки ловят
+    this.trapClock = (this.trapClock || 0) + dt;
+    for (const t of this.traps.list) t.silhouette = t.alertUntil > this.trapClock ? "alert" : null; // поймала врага — обводка
     profiler.end(PROF.traps);
     // Автоподбор (V — вкл/выкл): всё, что лежит рядом, само попадает в сумку
     profiler.begin(PROF.items);
@@ -671,7 +682,7 @@ export class GameScene extends Scene {
       camera,
       world: this.world,
       ghost: this.engine.scene === this ? this.ghost : null,
-      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...this.urnList()], firstPerson ? this.player : null),
+      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...this.urnList()], firstPerson ? this.player : null),
       viewModels: vm ? [vm] : [], // рука — слой «для экрана», только от 1-го лица
       particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
       // Оптика: всё вне круга прицела размыто (круг — в hud.js → SCOPE)

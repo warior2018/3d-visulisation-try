@@ -22,7 +22,7 @@
 //   fx — эффекты и звуки [[откуда (0 — хост, иначе номер гостя), вид, аргументы]] (гость шлёт свои: fx { list })
 // ============================================================
 
-import { encodeChunk, decodeChunk, Damage } from "../../../engine/index.js";
+import { encodeChunk, decodeChunk, Damage, Vec3 } from "../../../engine/index.js";
 import { isWeapon, isArmor } from "../items.js";
 import { PICKUP_AUTO_RADIUS, SUBCLASS } from "../config.js";
 import { lowerBody } from "./pets.js";
@@ -121,6 +121,34 @@ const lowFlags = (low) => (low === 2 ? 32 : low === 1 ? 16 : 0);
 // Клип тела чужого героя: в приседе / стойке — клипы стойки (колени согнуты)
 export const baseClip = (walk, low) => (low ? (walk ? "StanceWalk" : "StanceIdle") : walk ? "Walk" : "Idle");
 
+// ---------- Ловушки по сети ----------
+// Ловушка срабатывает и бьёт только у своего хозяина (там её урон и считается: удар по копии врага уходит ему).
+// Остальным — её вид: { t: "trap", a: 1 — поставлена / 0 — убрана, k — ключ, ty, x, y, z, yaw, tilt, o — хозяин }.
+// Вражеская (дуэль) — почти прозрачная (silhouette "faint"), союзника — как есть
+let trapSeq = 0;
+const trapMsg = (net, t, add) => {
+  t.netKey ||= `${net.myName}:${++trapSeq}`;
+  return add
+    ? { t: "trap", a: 1, k: t.netKey, ty: t.type, x: r2(t.position.x), y: r2(t.position.y), z: r2(t.position.z), yaw: r2(t.yaw || 0), tilt: r2(t.tilt || 0), o: net.myName }
+    : { t: "trap", a: 0, k: t.netKey, o: net.myName };
+};
+function applyTrap(g, msg) {
+  const map = (g.netTraps ||= new Map());
+  const old = map.get(msg.k);
+  if (old) {
+    g.game.models.detach(old);
+    map.delete(msg.k);
+  }
+  if (!msg.a || typeof msg.ty !== "string") return;
+  const t = {
+    type: msg.ty, owner: msg.o, alive: true, roll: 0, hurtTime: Infinity, deadTime: 0, view: null,
+    position: new Vec3(+msg.x || 0, +msg.y || 0, +msg.z || 0), yaw: +msg.yaw || 0, tilt: +msg.tilt || 0,
+    silhouette: g.duel ? "faint" : null, // дуэль: все — враги
+  };
+  try { g.game.models.attach(t, "item-" + msg.ty); } catch { return; }
+  map.set(msg.k, t);
+}
+
 // Урон своему герою, пришедший с другого компьютера: n — урон ДО брони (там он посчитан с талантами бьющего).
 // Здесь — как обычный удар (receive): своя броня, шлем (голова — part), блок (срежет долю и отразит выстрел:
 // combat.js → reflectShot)
@@ -132,6 +160,14 @@ function hurtLocal(g, n, source, kind, shot, part = null) {
 }
 
 export class HostNet {
+  // Своя ловушка поставлена / убрана — всем гостям (game-scene.js → Traps onAdd / onRemove)
+  trapAdded(t) {
+    this.server.broadcast(trapMsg(this, t, true));
+  }
+  trapRemoved(t) {
+    this.server.broadcast(trapMsg(this, t, false));
+  }
+
   constructor(scene, server) {
     this.g = scene;
     this.server = server;
@@ -319,6 +355,11 @@ export class HostNet {
           try { showHeld(g, h, msg.h); } catch {}
         }
         break;
+      case "trap":
+        // ловушка гостя: показать у себя и разослать остальным (сам гость свою пропустит — o)
+        applyTrap(g, { ...msg, o: guest.name });
+        this.server.broadcast({ ...msg, o: guest.name });
+        break;
       case "fx":
         // эффекты гостя: сыграть у себя и разослать (сам гость их пропустит — свои)
         if (Array.isArray(msg.list)) {
@@ -400,6 +441,14 @@ export class HostNet {
 }
 
 export class ClientNet {
+  // Своя ловушка поставлена / убрана — хосту (он покажет у себя и разошлёт остальным)
+  trapAdded(t) {
+    this.client.send(trapMsg(this, t, true));
+  }
+  trapRemoved(t) {
+    this.client.send(trapMsg(this, t, false));
+  }
+
   constructor(scene, client, name = "GUEST") {
     this.g = scene;
     this.client = client;
@@ -512,6 +561,7 @@ export class ClientNet {
         for (const e of [...g.entities.list]) if (e !== g.player) g.removeEntity(e);
         g.pickups.clear();
         g.traps.clear();
+        for (const k of [...(g.netTraps?.keys() || [])]) applyTrap(g, { a: 0, k });
         this.myId = msg.id;
         this.you = msg.you; // наш номер у хоста: свои эффекты из снимков пропускаем
         const s = msg.spawn || { x: 0, y: 0, z: 0 };
@@ -593,6 +643,9 @@ export class ClientNet {
         // матч: опыт общий, хост уже посчитал множители — добавляем как есть
         if (g.match) g.applyXp(Math.max(0, +msg.n || 0));
         else g.gainXp(Math.max(0, +msg.n || 0));
+        return;
+      case "trap":
+        if (msg.o !== this.myName) applyTrap(g, msg); // чужая ловушка (своя — уже стоит)
         return;
       case "hurt":
         if (g.player.alive) {

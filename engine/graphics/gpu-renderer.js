@@ -26,6 +26,37 @@ fn sil_ghost_fs(in: SkinOut) -> @location(0) vec4f {
   let shade = 0.7 + 0.3 * max(dot(n, LIGHT_DIR), 0.0);
   return vec4f(toOutput(vec3f(0.78, 0.92, 1.0) * shade), 0.38);
 }
+
+// "faint" — своими цветами, но почти прозрачно (вражеская ловушка: видна на 20 %)
+@fragment
+fn sil_faint_fs(in: SkinOut) -> @location(0) vec4f {
+  let n = normalize(in.normal);
+  let light = 0.45 + 0.55 * max(dot(n, LIGHT_DIR), 0.0);
+  return vec4f(toOutput(haze(in.color * light, in.worldXZ) * u.brightness), 0.2);
+}
+
+// "alert" — красная обводка: модель чуть раздута по нормалям, рисуются только задние грани (вокруг модели — кайма)
+@vertex
+fn sil_outline_vs(in: SkinIn) -> SkinOut {
+  let bones = skin.joints[in.joints.x] * in.weights.x
+            + skin.joints[in.joints.y] * in.weights.y
+            + skin.joints[in.joints.z] * in.weights.z
+            + skin.joints[in.joints.w] * in.weights.w;
+  let m = skin.model * bones;
+  let nw = normalize((m * vec4f(in.normal, 0.0)).xyz);
+  let world = (m * vec4f(in.pos, 1.0)).xyz + nw * 0.04;
+  var out: SkinOut;
+  out.pos = project(toView(world));
+  out.normal = nw;
+  out.color = in.color;
+  out.worldXZ = world.xz;
+  return out;
+}
+
+@fragment
+fn sil_alert_fs(in: SkinOut) -> @location(0) vec4f {
+  return vec4f(toOutput(vec3f(1.0, 0.12, 0.1)), 0.9);
+}
 `;
 
 const DEPTH_FORMAT = "depth24plus";
@@ -1039,7 +1070,8 @@ export class GPURenderer {
   }
 
   // Силуэты (сетевая игра): c.sil = "ally" — союзник: виден сквозь блоки голубым силуэтом (там, где его
-  // закрывает стена); "ghost" — призрак погибшего: только полупрозрачный силуэт, виден всегда.
+  // закрывает стена); "ghost" — призрак погибшего: только полупрозрачный силуэт, виден всегда;
+  // "faint" — своими цветами на 20 % (вражеская ловушка); "alert" — модель и красная обводка (в ловушке враг).
   // Свой модуль и конвейеры под ловушкой ошибок: не собралось — силуэтов нет, игра идёт
   async initSilhouettes() {
     const device = this.device;
@@ -1058,10 +1090,11 @@ export class GPURenderer {
         alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" },
       };
       const format = this.format || this.output.getPreferredFormat();
-      const make = (entry, compare) => device.createRenderPipeline({
+      const make = (entry, compare, { vs = "skin_vs", cull = "none" } = {}) => device.createRenderPipeline({
         layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+        primitive: { topology: "triangle-list", cullMode: cull },
         vertex: {
-          module, entryPoint: "skin_vs",
+          module, entryPoint: vs,
           buffers: [
             { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }] },
             { arrayStride: 12, attributes: [{ shaderLocation: 1, offset: 0, format: "float32x3" }] },
@@ -1075,10 +1108,12 @@ export class GPURenderer {
       });
       const ally = make("sil_ally_fs", "greater"); //  только где его закрывает что-то ближе (стена)
       const ghost = make("sil_ghost_fs", "always"); // всегда, полупрозрачно
+      const faint = make("sil_faint_fs", "less"); //   своими цветами, на 20 % (стены закрывают)
+      const alert = make("sil_alert_fs", "less", { vs: "sil_outline_vs", cull: "front" }); // красная обводка
       scoped = false;
       const err = device.popErrorScope ? await device.popErrorScope() : null;
       if (err) throw new Error(err.message || String(err));
-      this.silhouette = { layout, ally, ghost };
+      this.silhouette = { layout, ally, ghost, faint, alert };
     } catch (e) {
       if (scoped) try { await device.popErrorScope(); } catch {}
       this.silhouette = null;
@@ -1096,7 +1131,7 @@ export class GPURenderer {
       skin.silBind ||= this.device.createBindGroup({ layout: S.layout, entries: [
         { binding: 0, resource: { buffer: this.uniformBuffer } }, { binding: 3, resource: { buffer: skin.uniformBuffer } },
       ] });
-      pass.setPipeline(c.sil === "ghost" ? S.ghost : S.ally);
+      pass.setPipeline(S[c.sil] || S.ally);
       pass.setBindGroup(0, skin.silBind);
       skin.mesh.buffers.forEach((b, i) => pass.setVertexBuffer(i, b));
       pass.setIndexBuffer(skin.mesh.indexBuffer, skin.mesh.indexFormat);

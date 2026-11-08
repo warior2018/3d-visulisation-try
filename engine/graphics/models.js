@@ -197,8 +197,9 @@ export class ModelLibrary {
         v.tint.set([0, 0, 0, Math.max(0, Math.min(0.85, 1 - v.light))]);
       }
 
-      // e.silhouette — "ally" (союзник: виден сквозь стены) или "ghost" (призрак: только полупрозрачный силуэт)
-      const sil = e.silhouette || null, hidden = sil === "ghost";
+      // e.silhouette — "ally" (союзник: виден сквозь стены), "ghost" (призрак: только полупрозрачный силуэт),
+      // "faint" (почти прозрачно своими цветами), "alert" (модель + красная обводка)
+      const sil = e.silhouette || null, hidden = sil === "ghost" || sil === "faint"; // эти — только силуэтом
       out.push({ skin: v.skin, modelMatrix: v.modelMatrix, jointMatrices: v.animator.jointMatrices, tint: v.tint, sil, hidden });
 
       // Предмет в руке (и второй — extra): матрица сущности × мировая матрица кости × сдвиг предмета
