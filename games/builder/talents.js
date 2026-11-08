@@ -75,15 +75,25 @@ const shiftCols = (list) => {
 // свои (MODE_TALENTS ниже — поверх общих). Пока числа одинаковые: таблицы для дуэли — потом
 export const TALENT_MODES = ["classic", "duel"];
 // Поправки режима: { "id таланта": { maxRank, describe, modifiers, stats, ... } } — заменяют поля общего таланта
-export const MODE_TALENTS = { classic: {}, duel: {} };
+// Дуэль: множители (ИАЙ, хедшоты, первый удар, крит) — 2 ранга, и 2-й ранг = прежний 1-й (1-й — посередине
+// между «без таланта» и прежним 1-м)
+export const MODE_TALENTS = {
+  classic: {},
+  duel: {
+    "katana-iai": { maxRank: 2, describe: (r) => `IAI STRIKE X${at([1.75, 2], r)} DMG`, stats: (r) => ({ iaiMult: at([1.75, 2], r) }) },
+    "sniper-head": { maxRank: 2, describe: (r) => `SNIPER HEADSHOTS X${at([1.25, 1.5], r)} MORE`, modifiers: (r) => [onlyAttack("rifle", headshotBonus(at([1.25, 1.5], r)))] },
+    "crossbow-head": { maxRank: 2, describe: (r) => `CROSSBOW HEADSHOTS X${at([1.25, 1.5], r)} MORE`, modifiers: (r) => [onlyAttack("crossbow", headshotBonus(at([1.25, 1.5], r)))] },
+    "r-first": { maxRank: 2, describe: (r) => `FIRST HIT ON A TARGET +${pct(at([0.125, 0.25], r))} DMG`, modifiers: (r) => [firstHit(1 + at([0.125, 0.25], r))] },
+    "f-crit": { maxRank: 2, describe: (r) => `CRIT X${at([1.5, 2], r)} ONCE EVERY 8 S`, modifiers: (r) => [guaranteedCrit(at([1.5, 2], r), 8, "fighter-crit")] },
+  },
+};
 // Каких талантов в режиме нет совсем (вкладка опустела — её тоже нет). Дуэль: что там не прокачать или не работает
-// (трофеи за убийства, удача на добычу, маунт) и сильные множители, пока для дуэли нет своих чисел
+// (трофеи за убийства, удача на добычу, маунт)
 export const MODE_REMOVED = {
   classic: [],
   duel: [
     "trophies", "fighter-trophies", "marksman-trophies", "demo-trophies", // трофеи: копятся за убийства мобов
     "fortune", "mount-saddle", "mount-swift", "mount-call", //               удача на добычу, маунт — в дуэли их нет
-    "katana-iai", "sniper-head", "crossbow-head", "r-first", "f-crit", //     множители урона
   ],
 };
 

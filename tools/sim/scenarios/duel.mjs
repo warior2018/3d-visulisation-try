@@ -41,7 +41,9 @@ export default async function (t, g) {
   t.check("дуэль: каждый в своей комнате", inRoom(host, host.duelRooms[0]) && inRoom(guest, host.duelRooms[1]));
   t.check("дуэль: 1-й раунд — очки и монеты у обоих", host.talents.points >= 5 && guest.talents.points >= 5 && host.itemCount("coin") >= C.DUEL.rounds[0].coins && guest.itemCount("coin") >= C.DUEL.rounds[0].coins, `${host.talents.points}/${guest.talents.points}, ${host.itemCount("coin")}/${guest.itemCount("coin")}`);
   t.check("дуэль: своё дерево талантов (режим duel)", host.talents.tree.mode === "duel" && guest.talents.tree.mode === "duel");
-  t.check("дуэль: нет трофеев, маунта, удачи и множителей (IAI и т. п.)", ["trophies", "fighter-trophies", "fortune", "mount-saddle", "katana-iai", "sniper-head"].every((id) => !host.talents.byId.has(id)) && !host.talents.tree.tabs.some((t) => t.id === "mount"));
+  t.check("дуэль: нет трофеев, маунта, удачи", ["trophies", "fighter-trophies", "fortune", "mount-saddle"].every((id) => !host.talents.byId.has(id)) && !host.talents.tree.tabs.some((t) => t.id === "mount"));
+  const iai = host.talents.byId.get("katana-iai")?.talent;
+  t.check("дуэль: множители — 2 ранга, 2-й = прежний 1-й (ИАЙ x2)", iai?.maxRank === 2 && iai.stats(2).iaiMult === 2 && host.talents.byId.get("f-crit")?.talent.maxRank === 2);
   t.check("дуэль: здоровье 220", host.player.stats.maxHp >= 220 && guest.player.stats.maxHp >= 220, `${host.player.stats.maxHp}/${guest.player.stats.maxHp}`);
   t.check("дуэль: скорость +25 %", host.player.speedBonuses.duel === 0.25);
   t.check("дуэль: трофеи нельзя", host.talents.check("trophies").reason === "NOT IN THIS MODE" || !host.talents.byId.has("trophies"), host.talents.check("trophies").reason);
