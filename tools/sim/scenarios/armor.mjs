@@ -47,7 +47,10 @@ export default async function (t, g) {
   for (let i = 0; i < 4; i++) me.armor.slots[i] = null;
   scene.giveItem("machete");
   scene.equipWeapon("machete");
-  scene.giveItem("katana");
+  scene.giveItem("katana", 1, { rarity: "legendary" }); // в дуэли редкости нет
+  const anyRare = () => [...me.hotbar.slots, ...me.inventory.slots, ...me.armor.slots].some((x) => x?.data?.rarity);
+  t.check("дуэль: оружие выдаётся без редкости", !anyRare());
+  me.inventory.slots[me.inventory.slots.findIndex((x) => !x)] = { item: "iron-helmet", count: 1, data: { rarity: "epic" } }; // уже было редким
   scene.giveItem("leather-chest");
   scene.giveItem("iron-chest");
   scene.giveItem("bone-boots");
@@ -55,6 +58,7 @@ export default async function (t, g) {
   scene.subclass = "katana";
   scene.duelOutfit();
   t.check("дуэль: в руках лучшее оружие (второе), прежнее — в утиль", me.hotbar.slots[0]?.item === "katana" && !all().includes("machete"), all().join(","));
+  t.check("дуэль: редкость снята (всё обычное)", !anyRare() && Math.abs((scene.abilityCache.get("katana")?.attack.power ?? 1) - (1 + (scene.upgradeBonus?.("katana") || 0))) < 1e-9);
   t.check("дуэль: надета лучшая броня, хуже — в утиль", me.armor.slots[1]?.item === "iron-chest" && me.armor.slots[3]?.item === "bone-boots" && !all().includes("leather-chest"), JSON.stringify(me.armor.slots.map((x) => x?.item)));
   scene.subclass = sub;
   for (let i = 0; i < 4; i++) me.armor.slots[i] = null;

@@ -160,6 +160,7 @@ export class ShopPart {
   // data — свои данные экземпляра (редкость: { rarity, color, label })
   giveItem(id, count = 1, data = null) {
     const p = this.player;
+    if (this.duel && (isWeapon(id) || isArmor(id))) data = null; // дуэль: оружие и броня — всегда обычные (без редкости и талантов)
     const o = data ? { data } : {};
     if (isArmor(id)) {
       // Броня: в свою ячейку, если она пустая (сразу надета), иначе — в сумку

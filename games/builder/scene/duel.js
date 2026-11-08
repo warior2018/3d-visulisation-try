@@ -183,6 +183,7 @@ export class DuelPart {
     this.downed = false;
     p.downed = false;
     if (this.duelKit) this.restoreKit(this.duelKit); // что было на начало прошлого раунда — вернулось
+    this.duelOutfit(); //                              лучшее — на себе, редкости нет
     this.talents.points += grant?.points || 0;
     if (grant?.coins) this.giveResource("coin", grant.coins);
     const blocks = this.itemCount(BUILD.item);
@@ -224,6 +225,8 @@ export class DuelPart {
     const p = this.player;
     const where = []; // { inv, i, slot }
     for (const inv of [p.hotbar, p.inventory, p.armor]) inv.slots.forEach((slot, i) => slot && where.push({ inv, i, slot }));
+    // в дуэли редкости нет: оружие и броня — обычные (без редкости и прокачанных талантов на оружии)
+    for (const x of where) if ((isWeapon(x.slot.item) || slotOf(x.slot.item) && ARMOR_SLOTS.includes(slotOf(x.slot.item))) && x.slot.data) x.slot.data = null;
     const power = (x) => rarityOf(x.slot.data?.rarity).power || 0;
     const pick = (list, tier) => list.sort((a, b) => tier(b) - tier(a) || power(b) - power(a))[0];
     let scrapped = 0;
