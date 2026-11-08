@@ -55,6 +55,15 @@ export default async function (t, g) {
   const prop = [...host.world.blocks.values()].find((b) => !b.surface && Math.abs(b.x) < 10 && Math.abs(b.z) < 10 && b.y >= 1);
   t.check("дуэль: укрытие внутри ломается", !prop || host.world.remove(prop.x, prop.y, prop.z));
 
+  // скины по сети: каждый видит чужие
+  const pistol0 = host.settings.skins.pistol;
+  host.settings.skins.pistol = "neon";
+  await both(70);
+  const hostCopy0 = [...guest.net.copies.values()].find((e) => e.type === "player");
+  const heroG = [...host.net.guests.values()][0].hero;
+  t.check("скины хоста видны гостю", hostCopy0?.skinned && hostCopy0.skinOverride?.pistol === "neon", JSON.stringify(hostCopy0?.skinOverride));
+  t.check("скины гостя видны хосту", heroG.skinned && typeof heroG.skinOverride?.katana === "string");
+  host.settings.skins.pistol = pistol0;
   // ловушки по сети: у врага — почти прозрачные; у хозяина, когда попался враг, — красная обводка
   const hp = host.player.position;
   const trap = host.placeTrapAt("spikes", { x: hp.x + 1, y: hp.y, z: hp.z }, { safe: true });

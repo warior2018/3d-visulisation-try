@@ -105,6 +105,26 @@ const showHeld = (g, e, json) => {
   e.view?.animator.setOverlay(h?.pose ?? null);
 };
 
+// ---------- Скины по сети ----------
+// Каждый видит чужие скины: гость шлёт свои в hello (sk), хост рассылает всем { t: "skins", list: [[netId, скины]] }
+// (при входе гостя и раз в несколько секунд). Чужой герой в скинах: skinned + skinOverride (skins.js → resolve),
+// модель надевается заново, предмет в руке — тоже
+const mySkins = (g) => ({ ...(g.settings?.skins || {}) });
+const cleanSkins = (sk) => Object.fromEntries(Object.entries(sk && typeof sk === "object" ? sk : {}).filter(([k, v]) => typeof k === "string" && typeof v === "string").slice(0, 64));
+export function setSkins(g, e, sk) {
+  const map = cleanSkins(sk);
+  if (e.skinKey === JSON.stringify(map)) return;
+  e.skinKey = JSON.stringify(map);
+  e.skinned = true;
+  e.skinOverride = map;
+  const name = e.view?.name;
+  if (!name) return;
+  g.game.models.detach(e);
+  g.game.models.attach(e, name);
+  const held = e.netHeld ?? e.heldJson;
+  if (held) try { showHeld(g, e, held); } catch {}
+}
+
 // Дуэль: где мы (фаза, раунд, секунд осталось, победитель раунда, счёт) — гостям в каждом снимке
 const duelSnap = (g) => {
   const S = g.duel && g.duelState;
@@ -221,6 +241,11 @@ export class HostNet {
       // 7-е поле — кто выбросил (номер героя): у него автоподбор не берёт, пока не отойдёт
       p = g.pickups.list.map((x) => [netId(x), x.item, x.count, r2(x.position.x), r2(x.position.y), r2(x.position.z), x.ignore?.netId || 0]);
       h = [[netId(g.player), heldOf(g)], ...[...this.guests.values()].map((q) => [netId(q.hero), q.held || ""])];
+      // скины: свои и гостей — всем, раз в ~4 снимка ×4 (новые копии подхватят; дёшево — пара строк)
+      if (this.ticks % (SNAP_EVERY * 16) === 0 || this.skinsDirty) {
+        this.skinsDirty = false;
+        this.server.broadcast({ t: "skins", list: [[netId(g.player), mySkins(g)], ...[...this.guests.values()].map((q) => [netId(q.hero), q.hero.skinOverride || {}])] });
+      }
       inv = [g.invasion.active ? 1 : 0, Math.ceil(g.invasion.timeLeft || 0), g.invasionKind?.name || "INVASION"];
     }
     const fx = this.fxOut.length ? this.fxOut.splice(0) : undefined;
@@ -297,6 +322,8 @@ export class HostNet {
         const hero = g.spawn("player", spawn);
         hero.remote = true; // двигает сеть: физика и мозги его не трогают
         hero.name = String(msg.name || "GUEST").slice(0, 16).toUpperCase();
+        setSkins(g, hero, msg.sk); // скины гостя — на его герое у хоста
+        this.skinsDirty = true; //    и всем — с ближайшим снимком
         // по гостю попали (мобы на хосте) — урон уходит гостю; здесь он не умирает (здоровье — у гостя)
         hero.onDamage = (d, dealt) => {
           // k, s — вид атаки и выстрел (пуля / снаряд), si — кто бил: у гостя блок отобьёт и отразит (shotDamage)
@@ -352,6 +379,7 @@ export class HostNet {
         }
         if (typeof msg.h === "string" && msg.h !== guest.held) {
           guest.held = msg.h; // что в руках у гостя — показать у его героя и разослать другим
+          h.heldJson = msg.h;
           try { showHeld(g, h, msg.h); } catch {}
         }
         break;
@@ -489,7 +517,7 @@ export class ClientNet {
   }
 
   start() {
-    this.client.send({ t: "hello", name: this.name });
+    this.client.send({ t: "hello", name: this.name, sk: mySkins(this.g) }); // и свои скины
   }
 
   tick(dt) {
@@ -586,6 +614,7 @@ export class ClientNet {
           const e = this.copies.get(id);
           if (e && e.netHeld !== held) {
             e.netHeld = held;
+            if (this.skinsById?.has(id)) setSkins(g, e, this.skinsById.get(id));
             try { showHeld(g, e, held); } catch {}
           }
         }
@@ -646,6 +675,16 @@ export class ClientNet {
         return;
       case "trap":
         if (msg.o !== this.myName) applyTrap(g, msg); // чужая ловушка (своя — уже стоит)
+        return;
+      case "skins":
+        // чьи какие скины: копиям — сразу, ещё не появившимся — когда появятся
+        this.skinsById ||= new Map();
+        for (const [id, sk] of Array.isArray(msg.list) ? msg.list.slice(0, 16) : []) {
+          if (id === this.myId) continue;
+          this.skinsById.set(id, sk);
+          const e = this.copies.get(id);
+          if (e) setSkins(g, e, sk);
+        }
         return;
       case "hurt":
         if (g.player.alive) {
