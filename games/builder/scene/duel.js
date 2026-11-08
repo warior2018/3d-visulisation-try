@@ -36,11 +36,20 @@ export class DuelPart {
           wall(x, 0, z);
           if ((x - cx) % 4 === 0 && (z - cz) % 4 === 0 && !edge) lamp(x, height + 1, z);
           else wall(x, height + 1, z);
-          if (edge) for (let y = 1; y <= height; y++) wall(x, y, z);
+          // стены; на них — лампы на высоте ~2/3 через каждые 5 блоков (на арене светлее у стен)
+          const along = x === cx - half - 1 || x === cx + half + 1 ? z - cz : x - cx; // вдоль этой стены
+          if (edge) for (let y = 1; y <= height; y++) (y === Math.ceil(height * 0.6) && along % 5 === 0 && Math.abs(along) < half ? lamp : wall)(x, y, z);
         }
       }
     };
     box(0, 0, A.half, A.height);
+    // фонари на арене: серые столбики (2 блока) с лампой наверху — по четвертям и в центре (не ломаются)
+    const q = Math.round(A.half / 2);
+    for (const [x, z] of [[q, q], [-q, q], [q, -q], [-q, -q], [0, 0]]) {
+      wall(x, 1, z);
+      wall(x, 2, z);
+      lamp(x, 3, z);
+    }
     this.duelRooms = [];
     this.duelSpawns = [];
     const dist = A.half + R.half + R.gap;
@@ -67,7 +76,7 @@ export class DuelPart {
     const colors = PALETTE.filter((c, i) => i !== 0 && i !== 5); // без серого камня и льда
     const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
     const free = (x, z) => this.duelSpawns.every((s) => Math.hypot(x + 0.5 - s.x, z + 0.5 - s.z) > 2.5);
-    const put = (x, y, z, c) => { if (Math.abs(x) < h && Math.abs(z) < h && y <= A.height - 1 && free(x, z)) w.place(x, y, z, c); };
+    const put = (x, y, z, c) => { if (Math.abs(x) < h && Math.abs(z) < h && y <= A.height - 1 && free(x, z) && !w.has(x, y, z)) w.place(x, y, z, c); }; // фонари не трогаем
     for (let i = 0; i < A.props; i++) {
       const c = colors[rnd(0, colors.length - 1)];
       const x = rnd(-h + 1, h - 1), z = rnd(-h + 1, h - 1);

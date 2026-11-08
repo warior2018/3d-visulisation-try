@@ -35,6 +35,9 @@ export default async function (t, g) {
   const until = async (cond, max = 400) => { for (let i = 0; i < max && !cond(); i++) await both(); return cond(); };
   t.check("дуэль: гость в мире хоста", await until(() => guest.net?.ready));
   t.check("дуэль: подготовка 1-го раунда у обоих", await until(() => host.duelState?.phase === "prep" && guest.duelRound === 1), `${host.duelState?.phase} / ${guest.duelRound}`);
+  const lampC = JSON.stringify(C.DUEL.lamp);
+  const lamps = [...host.world.blocks.values()].filter((b) => JSON.stringify(b.color) === lampC && Math.abs(b.x) <= C.DUEL.arena.half + 1 && Math.abs(b.z) <= C.DUEL.arena.half + 1);
+  t.check("арена: лампы на потолке, стенах и фонари на полу", lamps.some((b) => b.y === C.DUEL.arena.height + 1) && lamps.some((b) => Math.abs(b.x) === C.DUEL.arena.half + 1 || Math.abs(b.z) === C.DUEL.arena.half + 1) && lamps.some((b) => b.y === 3 && Math.abs(b.x) < C.DUEL.arena.half), `${lamps.length}`);
   t.check("дуэль: мобов нет", !host.entities.list.some((e) => e.kind === "mob"));
   t.check("дуэль: комнаты — по одной на игрока", host.duelRooms.length === 2 && Math.hypot(host.duelRooms[0].x - host.duelRooms[1].x, host.duelRooms[0].z - host.duelRooms[1].z) > 20);
   const inRoom = (s, r) => Math.hypot(s.player.position.x - r.x, s.player.position.z - r.z) < 1;
