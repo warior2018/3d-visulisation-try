@@ -53,6 +53,18 @@ export default async function (t, g) {
   t.check("матч: мобы появляются в 1.3 раза чаще", Math.abs(host.spawner.interval - C.SPAWN.interval / 1.3) < 1e-6, `${host.spawner.interval}`);
   t.check("матч: сохранений нет", host.saveNow() === undefined && host.match);
 
+  // пауза выбора: пока не все выбрали класс — мир стоит у всех
+  await both(10);
+  t.check("пауза: пока класс не выбран — мир стоит у обоих", host.teamPaused && guest.teamPaused);
+  const mob0 = host.entities.list.find((e) => e.kind === "mob" && e.alive);
+  const spot = mob0 && { x: mob0.position.x, z: mob0.position.z };
+  host.chooseClass("ranged");
+  await both(20);
+  t.check("пауза: хост выбрал, гость ещё нет — всё ещё стоит", host.teamPaused && guest.teamPaused);
+  t.check("пауза: мобы не двигаются", !mob0 || (mob0.position.x === spot.x && mob0.position.z === spot.z));
+  guest.chooseClass("melee");
+  await both(20);
+  t.check("пауза: оба выбрали — мир идёт", !host.teamPaused && !guest.teamPaused);
   // опыт: общий, ×0.5
   const xp0 = host.experience.toJSON();
   host.gainXp(100);
@@ -64,6 +76,14 @@ export default async function (t, g) {
   await both(8);
   t.check("опыт: опыт гостя (задание) — тоже общий", JSON.stringify(guest.experience.toJSON()) === JSON.stringify(host.experience.toJSON()), `${JSON.stringify(guest.experience.toJSON())} / ${JSON.stringify(host.experience.toJSON())}`);
 
+  // 10 уровень (опыт общий) — второе оружие: снова пауза, пока оба не выберут
+  while (host.experience.level < C.SUBCLASS.level) host.gainXp(5000);
+  await both(20);
+  t.check("пауза: 10 уровень у обоих — мир стоит, пока не выбрали второе оружие", host.teamPaused && guest.teamPaused && guest.experience.level >= C.SUBCLASS.level, `${host.experience.level}/${guest.experience.level}`);
+  host.chooseSubclass(C.subclassOptions("ranged")[0]);
+  guest.chooseSubclass(C.subclassOptions("melee")[0]);
+  await both(20);
+  t.check("пауза: оба выбрали второе оружие — мир идёт", !host.teamPaused && !guest.teamPaused);
   // TAB: таблица
   await both(65);
   t.check("TAB: у хоста двое в таблице", host.scoreRows().length === 2);

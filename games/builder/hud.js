@@ -505,6 +505,7 @@ export const HUD_PARTS = [
     id: "coop",
     watch: (g) => {
       if (!g.match) return null;
+      if (g.teamPaused && !g.choosingClass) return ["wait"];
       if (g.downed) return ["down"];
       if (g.reviving) return ["rev", Math.round((g.reviving.t / g.reviveTime()) * 40)];
       return g.reviveTarget ? ["near", g.reviveTarget.name || ""] : null;
@@ -512,6 +513,11 @@ export const HUD_PARTS = [
     draw: (ui, g, d) => {
       if (!d) return;
       const { cx, cy } = center(ui);
+      if (d[0] === "wait") {
+        ui.text("WAITING FOR EVERYONE TO CHOOSE", cx, cy - 80, 3, [200, 225, 255], "center");
+        ui.text("THE WORLD IS PAUSED UNTIL ALL PLAYERS PICK", cx, cy - 46, 2, MUTED, "center");
+        return;
+      }
       if (d[0] === "down") {
         ui.text("YOU ARE DOWN", cx, cy - 80, 4, [200, 225, 255], "center");
         ui.text("AN ALLY CAN REVIVE YOU AT YOUR URN", cx, cy - 40, 2, MUTED, "center");

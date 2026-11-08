@@ -59,6 +59,7 @@ export class GameScene extends Scene {
     this.role = game.net?.role || "solo";
     // Матч из лобби (lobby.js): новый мир на один раз — без сохранений, класс выбирают все, опыт общий ×0.5
     this.match = !!game.net?.match;
+    this.teamPaused = this.match; // матч: мир стоит, пока все не зайдут и не выберут класс (scene/net.js → teamReady)
     this.net = null;
     this.chat = new Chat(this); // чат (Enter) — scene/chat.js
     this.god = false; //          консоль: god — бессмертие
@@ -296,10 +297,11 @@ export class GameScene extends Scene {
       if (this.needsSubclass()) return this.askSubclass(); // уровень уже 10+, а второе оружие не выбрано
     }
 
-    if (!this.downed) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
+    const frozen = this.match && this.teamPaused; // матч: кто-то выбирает класс / второе оружие — мир стоит у всех
+    if (!this.downed && !frozen) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
     // 2. Мир: существа, предметы, снаряды, ловушки, события. Клиент сетевой игры мир не считает —
     // его считает хост и присылает (тогда tickWorld заменяет сеть: net.applyWorld)
-    if (this.role !== "client") this.tickWorld(dt);
+    if (this.role !== "client" && !frozen) this.tickWorld(dt);
     this.net?.tick(dt); // хост — разобрать сообщения гостей и разослать снимок; гость — применить снимки хоста
     this.tickCoop(dt, input); // матч: урны, оживление, силуэты союзников (scene/coop.js)
     if (this.matchEnded) return;

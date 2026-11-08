@@ -24,7 +24,7 @@
 
 import { encodeChunk, decodeChunk } from "../../../engine/index.js";
 import { isWeapon, isArmor } from "../items.js";
-import { PICKUP_AUTO_RADIUS } from "../config.js";
+import { PICKUP_AUTO_RADIUS, SUBCLASS } from "../config.js";
 
 const SNAP_EVERY = 3; //   снимок раз в 3 тика (20 в секунду при 60 тиках)
 const TIMEOUT = 10000; // мс без единого сообщения — связь потеряна
@@ -141,6 +141,7 @@ export class HostNet {
       for (const q of this.guests.values()) if (now - (q.peer.data.seen || now) > TIMEOUT) this.server.kick(q.peer, "timeout");
     }
     this.smoothGuests();
+    if (g.match) g.teamPaused = !this.teamReady(); // матч: кто-то ещё выбирает класс / второе оружие — мир стоит
     const mine = this.fx.take();
     if (mine) for (const [kind, args] of mine) this.fxOut.push([0, kind, args]);
     if (++this.ticks % SNAP_EVERY) return;
@@ -166,11 +167,24 @@ export class HostNet {
     const fx = this.fxOut.length ? this.fxOut.splice(0) : undefined;
     // таблица игроков (TAB) — раз в секунду: [имя, пинг, класс, погиб, хост]
     const tab = this.ticks % 60 === 0 ? g.scoreRows().map((r) => [r.name, r.ping, r.cls || "", r.down ? 1 : 0, r.host ? 1 : 0]) : undefined;
-    this.server.broadcast({ t: "snap", k: this.ticks, e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx, tab });
+    this.server.broadcast({ t: "snap", k: this.ticks, e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx, tab, pz: g.teamPaused ? 1 : 0 });
   }
 
   sendChat(text) {
     this.server.broadcast({ t: "chat", from: this.myName, text });
+  }
+
+  // Матч: все из лобби зашли, у всех есть класс, а с SUBCLASS.level уровня (опыт общий) — и второе оружие.
+  // Нет — мир стоит у всех (выбирают)
+  teamReady() {
+    const g = this.g;
+    const roster = g.game.net?.roster;
+    if (roster && this.guests.size < roster.length - 1) return false; // ещё не все зашли
+    const needSub = g.experience.level >= SUBCLASS.level;
+    const chose = (cls, sub) => !!cls && (!needSub || !!sub);
+    if (!chose(g.playerClass, g.subclass)) return false;
+    for (const q of this.guests.values()) if (!chose(q.cls, q.sub)) return false;
+    return true;
   }
 
   // Оживить: свой герой — встаём; герой гостя — ему «встань» (здоровье и урна — у него, он пришлёт state)
@@ -260,6 +274,7 @@ export class HostNet {
         guest.target = { x: +msg.x || 0, y: +msg.y || 0, z: +msg.z || 0, yaw: +msg.yaw || 0 };
         h.netWalk = !!msg.w;
         if (typeof msg.c === "string") guest.cls = msg.c || null;
+        if (typeof msg.s === "string") guest.sub = msg.s || null; // второе оружие (матч: пауза, пока не выбрали)
         // погиб в матче (урна): мобы его не трогают; ожил — снова полное здоровье (настоящее — у гостя)
         if (!!msg.d !== !!h.downed) {
           h.downed = !!msg.d;
@@ -435,7 +450,7 @@ export class ClientNet {
     g.fog.reveal(g.player.position);
     if (++this.ticks % SNAP_EVERY === 0) {
       const p = g.player.position;
-      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0, d: g.downed ? 1 : 0, c: g.playerClass || "" };
+      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0, d: g.downed ? 1 : 0, c: g.playerClass || "", s: g.subclass || "" };
       if (this.ticks % (SNAP_EVERY * 4) === 0) st.h = heldOf(g);
       this.client.send(st);
       const list = this.fx.take();
@@ -485,6 +500,7 @@ export class ClientNet {
           }
         }
         if (msg.tab) this.table = msg.tab;
+        if (g.match) g.teamPaused = !!msg.pz; // кто-то выбирает класс / оружие — стоим
         if (msg.inv) {
           g.invasion.active = !!msg.inv[0];
           g.invasion.timeLeft = msg.inv[1];
