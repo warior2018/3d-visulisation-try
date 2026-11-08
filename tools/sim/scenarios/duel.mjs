@@ -43,6 +43,8 @@ export default async function (t, g) {
   t.check("дуэль: своё дерево талантов (режим duel)", host.talents.tree.mode === "duel" && guest.talents.tree.mode === "duel");
   t.check("дуэль: нет трофеев, маунта, удачи", ["trophies", "fighter-trophies", "fortune", "mount-saddle"].every((id) => !host.talents.byId.has(id)) && !host.talents.tree.tabs.some((t) => t.id === "mount"));
   const iai = host.talents.byId.get("katana-iai")?.talent;
+  const T = (id) => host.talents.byId.get(id)?.talent;
+  t.check("дуэль: регенерация 10/15/20/25 HP/с, здоровье — 25 HP за очко", T("regen").stats(4).regenFlat === 25 && !T("regen").stats(1).regenPct && T("tough-bones").stats(2).maxHp === 50 && T("veteran").stats(1).maxHp === 50);
   t.check("дуэль: множители — 2 ранга, 2-й = прежний 1-й (ИАЙ x2)", iai?.maxRank === 2 && iai.stats(2).iaiMult === 2 && host.talents.byId.get("f-crit")?.talent.maxRank === 2);
   t.check("дуэль: здоровье 220", host.player.stats.maxHp >= 220 && guest.player.stats.maxHp >= 220, `${host.player.stats.maxHp}/${guest.player.stats.maxHp}`);
   t.check("дуэль: скорость +25 %", host.player.speedBonuses.duel === 0.25);

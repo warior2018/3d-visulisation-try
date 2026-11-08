@@ -76,7 +76,7 @@ const shiftCols = (list) => {
 export const TALENT_MODES = ["classic", "duel"];
 // Поправки режима: { "id таланта": { maxRank, describe, modifiers, stats, ... } } — заменяют поля общего таланта
 // Дуэль: множители (ИАЙ, хедшоты, первый удар, крит) — 2 ранга, и 2-й ранг = прежний 1-й (1-й — посередине
-// между «без таланта» и прежним 1-м)
+// между «без таланта» и прежним 1-м); регенерация — HP в секунду; таланты здоровья — 25 HP за очко
 export const MODE_TALENTS = {
   classic: {},
   duel: {
@@ -85,6 +85,11 @@ export const MODE_TALENTS = {
     "crossbow-head": { maxRank: 2, describe: (r) => `CROSSBOW HEADSHOTS X${at([1.25, 1.5], r)} MORE`, modifiers: (r) => [onlyAttack("crossbow", headshotBonus(at([1.25, 1.5], r)))] },
     "r-first": { maxRank: 2, describe: (r) => `FIRST HIT ON A TARGET +${pct(at([0.125, 0.25], r))} DMG`, modifiers: (r) => [firstHit(1 + at([0.125, 0.25], r))] },
     "f-crit": { maxRank: 2, describe: (r) => `CRIT X${at([1.5, 2], r)} ONCE EVERY 8 S`, modifiers: (r) => [guaranteedCrit(at([1.5, 2], r), 8, "fighter-crit")] },
+    // Регенерация — HP в секунду числом (не доля макс. HP); здоровье — по 25 HP за каждое потраченное очко
+    regen: { describe: (r) => `+${at([10, 15, 20, 25], r)} HP PER SECOND`, stats: (r) => ({ regenFlat: at([10, 15, 20, 25], r) }) },
+    "tough-bones": { describe: (r) => `+${25 * r} MAX HP`, stats: (r) => ({ maxHp: 25 * r }) },
+    unbreakable: { describe: () => "+25 MAX HP", stats: () => ({ maxHp: 25 }) },
+    veteran: { describe: (r) => `+${50 * r} MAX HP`, stats: (r) => ({ maxHp: 50 * r }) }, // 2 очка за ранг
   },
 };
 // Каких талантов в режиме нет совсем (вкладка опустела — её тоже нет). Дуэль: что там не прокачать или не работает

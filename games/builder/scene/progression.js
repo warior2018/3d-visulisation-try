@@ -30,7 +30,7 @@ export class ProgressionPart {
     // дуэль: своё базовое здоровье и быстрее ходит (config.js → DUEL)
     p.setMaxHp((this.duel ? DUEL.hp : CREATURES.player.maxHp) + (s.maxHp || 0) + (hpTrophies ? Math.floor(TROPHY.hp) : 0));
     p.speedBonuses.duel = this.duel ? DUEL.speed : 0;
-    p.regen = p.stats.maxHp * (s.regenPct || 0); // HP в секунду — доля от макс. HP (дробные копятся)
+    p.regen = p.stats.maxHp * (s.regenPct || 0) + (s.regenFlat || 0); // HP в секунду: доля от макс. HP и/или числом (дуэль); дробные копятся
     p.burnLevel = s.burnLevel || 1; //            сила горения от огня героя (ОГНЕННЫЕ ПУЛИ)
     p.speedBonuses.talents = s.speed || 0; //     прибавка к скорости
     p.stats.resist = { ...(s.resist || {}) }; //  сопротивления стихиям
