@@ -27,10 +27,9 @@ export class ProgressionPart {
       const pct = TROPHY.pct[kind];
       if (this.talents.rank(id) > 0 && pct > 0) p.modifiers.push(onlyFor(kind, damageMultiplier(1 + pct / 100)));
     }
-    // дуэль: своё базовое здоровье, быстрее ходит, весь урон слабее (config.js → DUEL)
+    // дуэль: своё базовое здоровье и быстрее ходит (config.js → DUEL)
     p.setMaxHp((this.duel ? DUEL.hp : CREATURES.player.maxHp) + (s.maxHp || 0) + (hpTrophies ? Math.floor(TROPHY.hp) : 0));
     p.speedBonuses.duel = this.duel ? DUEL.speed : 0;
-    if (this.duel) p.modifiers.push(damageMultiplier(DUEL.damage));
     p.regen = p.stats.maxHp * (s.regenPct || 0); // HP в секунду — доля от макс. HP (дробные копятся)
     p.burnLevel = s.burnLevel || 1; //            сила горения от огня героя (ОГНЕННЫЕ ПУЛИ)
     p.speedBonuses.talents = s.speed || 0; //     прибавка к скорости
