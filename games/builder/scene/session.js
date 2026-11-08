@@ -9,7 +9,7 @@ import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../s
 import { Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, Hints, profiler } from "../../../engine/index.js";
 import { HINTS } from "../hints.js";
 import { maxStack, hotbarAccepts, armorAccepts } from "../items.js";
-import { TROPHY, TALENT_TREE, weaponTab } from "../talents.js";
+import { TROPHY, weaponTab } from "../talents.js";
 import { noSprint } from "../controls.js";
 import { DEFAULT_SPAWNS, RESIDENTS, mobGrowth } from "../creatures.js";
 import { pickWeighted, PROF } from "./shared.js";
@@ -121,7 +121,7 @@ export class SessionPart {
     if (this.playerClass) {
       let back = 0;
       const mine = new Set(this.subclass ? [] : (SUBCLASS.weapons[this.playerClass] || []).map(weaponTab));
-      for (const tab of TALENT_TREE.tabs) if (!this.talents.isAllowed(tab.id) && !mine.has(tab.id)) back += this.talents.refundTab(tab.id);
+      for (const tab of this.talents.tree.tabs) if (!this.talents.isAllowed(tab.id) && !mine.has(tab.id)) back += this.talents.refundTab(tab.id);
       if (back) this.engine.log(`очки из вкладок чужих классов возвращены: ${back}`);
     }
     TROPHY.hp = saved?.progression?.trophies?.hp || 0; //         набранное талантом «ТРОФЕИ»

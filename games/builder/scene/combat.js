@@ -7,7 +7,6 @@
 import { Vec3, Input, abilityHelp, Damage } from "../../../engine/index.js";
 import { MELEE_STAMINA, BLOCK, CROUCH } from "../config.js";
 import { CLASS_HELP } from "../help.js";
-import { TALENT_TREE } from "../talents.js";
 
 export class CombatPart {
   // ---------- Бой (способности 1 и 2) ----------
@@ -220,7 +219,7 @@ export class CombatPart {
     for (const [action, h] of Object.entries(CLASS_HELP[this.playerClass] || {})) skills.push({ key: label(action), name: h.name, text: h.text });
     // 3. Модификаторы: выученные таланты (ранг / предел и что дают сейчас) и навсегда полученное
     const mods = [];
-    for (const tab of TALENT_TREE.tabs) {
+    for (const tab of this.talents.tree.tabs) {
       for (const t of tab.talents) {
         const r = this.talents.rank(t.id);
         if (r > 0) mods.push({ key: `${r}/${t.maxRank}`, name: t.name, text: t.describe?.(r) || "" });

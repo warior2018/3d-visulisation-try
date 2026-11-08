@@ -40,6 +40,7 @@ export default async function (t, g) {
   const inRoom = (s, r) => Math.hypot(s.player.position.x - r.x, s.player.position.z - r.z) < 1;
   t.check("дуэль: каждый в своей комнате", inRoom(host, host.duelRooms[0]) && inRoom(guest, host.duelRooms[1]));
   t.check("дуэль: 1-й раунд — очки и монеты у обоих", host.talents.points >= 5 && guest.talents.points >= 5 && host.itemCount("coin") >= C.DUEL.rounds[0].coins && guest.itemCount("coin") >= C.DUEL.rounds[0].coins, `${host.talents.points}/${guest.talents.points}, ${host.itemCount("coin")}/${guest.itemCount("coin")}`);
+  t.check("дуэль: своё дерево талантов (режим duel)", host.talents.tree.mode === "duel" && guest.talents.tree.mode === "duel");
   t.check("дуэль: здоровье 220", host.player.stats.maxHp >= 220 && guest.player.stats.maxHp >= 220, `${host.player.stats.maxHp}/${guest.player.stats.maxHp}`);
   t.check("дуэль: скорость +25 %", host.player.speedBonuses.duel === 0.25);
   t.check("дуэль: трофеи нельзя", host.talents.check("trophies").reason === "NOT IN THIS MODE" || !host.talents.byId.has("trophies"), host.talents.check("trophies").reason);

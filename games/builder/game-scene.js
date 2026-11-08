@@ -11,7 +11,7 @@ import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps,
 import { LIFETIME, THROW, SPEAR, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH } from "./config.js";
 import { HandAbility, IN_HAND } from "./abilities.js";
 import { helpFor } from "./help.js";
-import { TALENT_TREE } from "./talents.js";
+import { talentTree } from "./talents.js";
 import { createHud, SCOPE } from "./hud.js";
 import { createCreature, modelFor } from "./creatures.js";
 import { NO_INPUT, PROF, CORPSE_TIME, mixParts } from "./scene/shared.js";
@@ -124,7 +124,7 @@ export class GameScene extends Scene {
 
     // Развитие героя: опыт → уровни → очки талантов (правила — в движке, содержимое — talents.js)
     this.experience = new Experience(PROGRESSION);
-    this.talents = new Talents(TALENT_TREE);
+    this.talents = new Talents(talentTree(this.duel ? "duel" : "classic")); // у дуэли своё дерево (talents.js → MODE_TALENTS)
 
     this.colorIndex = 0;
     this.paletteOpen = false; // панель цветов стройки (E)
