@@ -453,10 +453,9 @@ export class MainMenu extends Scene {
 
   drawMultiplayer(ui) {
     const th = ui.theme;
-    const c = this.worlds[0];
     ui.text("MULTIPLAYER", ui.width / 2, ui.height * 0.2, 5, th.text, "center");
     ui.button("host", "HOST GAME", ui.width / 2, ui.height * 0.38, 420, 60, 3);
-    ui.text(c ? `WORLD: ${c.name} (LAST PLAYED)` : "NO WORLD YET: CREATE ONE ON THE PLAY TAB", ui.width / 2, ui.height * 0.38 + 44, 2, th.muted, "center");
+    ui.text("LOBBY, THEN A NEW WORLD FOR THE MATCH (NOT SAVED)", ui.width / 2, ui.height * 0.38 + 44, 2, th.muted, "center");
     ui.button("join", "JOIN GAME", ui.width / 2, ui.height * 0.55, 420, 60, 3);
     ui.text("FRIEND'S ADDRESS: IP OR IP:PORT", ui.width / 2, ui.height * 0.55 + 44, 2, th.muted, "center");
   }
@@ -471,7 +470,7 @@ export class MainMenu extends Scene {
     }
     if (kind === "turn") return this.turn(Number(arg));
     if (kind === "update") return this.actions.update?.();
-    if (kind === "host") return this.worlds[0] ? this.actions.host(this.worlds[0].id) : this.actions.toast?.("CREATE A WORLD FIRST");
+    if (kind === "host") return this.actions.host();
     if (kind === "join") return this.actions.join();
     if (kind === "scat") return void (this.skinCat = arg);
     if (kind === "spick") return void (this.skinPick = arg);

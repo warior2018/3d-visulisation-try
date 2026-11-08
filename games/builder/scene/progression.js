@@ -7,7 +7,7 @@
 import { TROPHY_TALENTS, TROPHY, weaponTab } from "../talents.js";
 import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3, rarityOf } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
-import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, subclassOptions } from "../config.js";
+import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, MULTIPLAYER, subclassOptions } from "../config.js";
 import { ITEMS } from "../items.js";
 
 export class ProgressionPart {
@@ -100,8 +100,18 @@ export class ProgressionPart {
     }));
   }
 
+  // Опыт. В матче он общий: считает хост (×MULTIPLAYER.xp) и рассылает всем; гость свой опыт (задания)
+  // отдаёт хосту — тот добавит всем
   gainXp(amount) {
-    const gained = this.experience.add(Math.round(amount * (PROGRESSION.xpMultiplier ?? 1))); // ×1.15 — PROGRESSION
+    if (this.match && this.role === "client") return this.net?.requestXp(amount);
+    const n = Math.round(amount * (PROGRESSION.xpMultiplier ?? 1) * (this.match ? MULTIPLAYER.xp : 1)); // ×1.15 — PROGRESSION
+    if (this.match && this.role === "host") this.net?.shareXp(n);
+    this.applyXp(n);
+  }
+
+  // Добавить опыт как есть (уже с множителями): новый уровень — очки, вспышка, выбор класса / второго оружия
+  applyXp(n) {
+    const gained = this.experience.add(n);
     if (!gained) return;
     this.talents.points += gained * PROGRESSION.pointsPerLevel;
     this.levelFlash = 1; // золотая вспышка по краям — новый уровень (здоровье больше не лечится)
@@ -192,7 +202,7 @@ export class ProgressionPart {
 
   // Пора выбрать второе оружие: класс есть, уровень дорос, а подкласса нет (гость сетевой игры — не спрашиваем)
   needsSubclass() {
-    return !!this.playerClass && !this.subclass && this.role !== "client" && this.experience.level >= SUBCLASS.level;
+    return !!this.playerClass && !this.subclass && (this.role !== "client" || this.match) && this.experience.level >= SUBCLASS.level;
   }
 
   // Окно выбора второго оружия: покупные своего класса или базовое (тогда оно сильно крепнет). Закрыть, не

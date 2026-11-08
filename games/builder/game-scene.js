@@ -35,6 +35,7 @@ import { PetsPart } from "./scene/pets.js";
 import { BuffsPart } from "./scene/buffs.js";
 import { BossesPart } from "./scene/bosses.js";
 import { InteractPart } from "./scene/interact.js";
+import { CoopPart } from "./scene/coop.js";
 import { LootPart } from "./scene/loot.js";
 import { MountPart } from "./scene/mount.js";
 import { AudioPart } from "./scene/audio.js";
@@ -56,6 +57,8 @@ export class GameScene extends Scene {
     // Роль в сетевой игре: "solo" — одиночная, "host" — мир считаем мы и рассылаем, "client" — мир присылает
     // хост, мы считаем только своего героя (scene/net.js)
     this.role = game.net?.role || "solo";
+    // Матч из лобби (lobby.js): новый мир на один раз — без сохранений, класс выбирают все, опыт общий ×0.5
+    this.match = !!game.net?.match;
     this.net = null;
     this.chat = new Chat(this); // чат (Enter) — scene/chat.js
     this.god = false; //          консоль: god — бессмертие
@@ -289,15 +292,17 @@ export class GameScene extends Scene {
     if (!this.classChecked) {
       this.classChecked = true;
       // нет класса (новый мир, новый персонаж) — сразу выбор класса, мир стоит, пока не выбран
-      if (!this.playerClass && this.role !== "client") return this.askClass();
+      if (!this.playerClass && (this.role !== "client" || this.match)) return this.askClass();
       if (this.needsSubclass()) return this.askSubclass(); // уровень уже 10+, а второе оружие не выбрано
     }
 
-    this.tickPlayer(dt, input); // 1. свой герой: оружие, движение
+    if (!this.downed) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
     // 2. Мир: существа, предметы, снаряды, ловушки, события. Клиент сетевой игры мир не считает —
     // его считает хост и присылает (тогда tickWorld заменяет сеть: net.applyWorld)
     if (this.role !== "client") this.tickWorld(dt);
     this.net?.tick(dt); // хост — разобрать сообщения гостей и разослать снимок; гость — применить снимки хоста
+    this.tickCoop(dt, input); // матч: урны, оживление, силуэты союзников (scene/coop.js)
+    if (this.matchEnded) return;
     if (this.god) player.stats.hp = player.stats.maxHp; // консоль: god
 
     if (!player.alive) return this.die();
@@ -661,7 +666,7 @@ export class GameScene extends Scene {
       camera,
       world: this.world,
       ghost: this.engine.scene === this ? this.ghost : null,
-      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list], firstPerson ? this.player : null),
+      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...this.urnList()], firstPerson ? this.player : null),
       viewModels: vm ? [vm] : [], // рука — слой «для экрана», только от 1-го лица
       particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
       // Оптика: всё вне круга прицела размыто (круг — в hud.js → SCOPE)
@@ -722,4 +727,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart]);

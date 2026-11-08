@@ -152,6 +152,7 @@ export class Engine {
     if (renderer.glareError) journal.write("блик солнца не собрался: " + renderer.glareError);
     if (renderer.motionError) journal.write("размытие в движении не собралось: " + renderer.motionError);
     if (renderer.particleError) journal.write("частицы в 3D не собрались: " + renderer.particleError);
+    if (renderer.silhouetteError) journal.write("силуэты союзников не собрались: " + renderer.silhouetteError);
     journal.write(`окно ${window.width}x${window.height} (пикселей ${window.pixelWidth}x${window.pixelHeight}), видеокарта готова: ${renderer.adapterName}${renderer.gpuFlags.length ? ` [${renderer.gpuFlags.join(", ")}]` : ""}`);
     const engine = new Engine({ window, renderer, settings, actionLabels, journal, theme });
     // Дальность прорисовки (и дымки) — ступенями: render.distances = [близко, средне, далеко] (м); настройка

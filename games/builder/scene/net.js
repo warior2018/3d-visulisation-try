@@ -117,7 +117,7 @@ export class HostNet {
     this.guests = new Map(); // peer.id -> { peer, hero, name }
     this.blocks = []; //   изменения блоков с прошлого снимка
     this.ticks = 0;
-    this.myName = scene.settings.net?.name || "HOST";
+    this.myName = String(scene.game.net?.name || scene.settings.net?.name || "HOST").toUpperCase();
     server.onMessage = (peer, msg) => {
       peer.data.seen = Date.now();
       this.inbox.push([peer, msg]);
@@ -153,7 +153,7 @@ export class HostNet {
     for (const x of g.entities.list) {
       if (!x.view && !x.remote) continue;
       const walking = x === g.player ? !!g.move?.moving : !!x.netWalk;
-      e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.round(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0)]);
+      e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.round(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0)]);
       x.netAttack = false;
     }
     let p, h, inv;
@@ -164,11 +164,19 @@ export class HostNet {
       inv = [g.invasion.active ? 1 : 0, Math.ceil(g.invasion.timeLeft || 0), g.invasionKind?.name || "INVASION"];
     }
     const fx = this.fxOut.length ? this.fxOut.splice(0) : undefined;
-    this.server.broadcast({ t: "snap", k: this.ticks, e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx });
+    // таблица игроков (TAB) — раз в секунду: [имя, пинг, класс, погиб, хост]
+    const tab = this.ticks % 60 === 0 ? g.scoreRows().map((r) => [r.name, r.ping, r.cls || "", r.down ? 1 : 0, r.host ? 1 : 0]) : undefined;
+    this.server.broadcast({ t: "snap", k: this.ticks, e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx, tab });
   }
 
   sendChat(text) {
     this.server.broadcast({ t: "chat", from: this.myName, text });
+  }
+
+  // Оживить: свой герой — встаём; герой гостя — ему «встань» (здоровье и урна — у него, он пришлёт state)
+  revive(target) {
+    if (target === this.g.player) return this.g.standUp();
+    for (const q of this.guests.values()) if (q.hero === target) this.server.send(q.peer, { t: "revive" });
   }
 
   // Герои гостей — к последнему присланному месту, плавно (за ~0.1 с); далеко (телепорт, возрождение) — сразу
@@ -198,8 +206,19 @@ export class HostNet {
     const g = this.g;
     const guest = this.guests.get(peer.id);
     switch (msg.t) {
+      case "lobbyHello":
+        // лобби уже позади: в начатый матч не заходят
+        this.server.send(peer, { t: "bye", reason: "match already started" });
+        setTimeout(() => this.server.kick?.(peer, "match started"), 200);
+        return;
       case "hello": {
         if (guest) return;
+        const roster = g.game.net?.roster;
+        if (roster && !roster.includes(String(msg.name || "").toUpperCase())) {
+          this.server.send(peer, { t: "bye", reason: "match already started" });
+          setTimeout(() => this.server.kick?.(peer, "not in the lobby"), 200);
+          return;
+        }
         const p = g.player.position;
         const spawn = { x: p.x + 1.5, y: p.y + 0.5, z: p.z + 1.5 };
         const hero = g.spawn("player", spawn);
@@ -240,6 +259,13 @@ export class HostNet {
         // 20 раз в секунду и неровно, а кадров — 60+; без этого гость у хоста двигался рывками
         guest.target = { x: +msg.x || 0, y: +msg.y || 0, z: +msg.z || 0, yaw: +msg.yaw || 0 };
         h.netWalk = !!msg.w;
+        if (typeof msg.c === "string") guest.cls = msg.c || null;
+        // погиб в матче (урна): мобы его не трогают; ожил — снова полное здоровье (настоящее — у гостя)
+        if (!!msg.d !== !!h.downed) {
+          h.downed = !!msg.d;
+          h.stats.hp = h.downed ? 0 : h.stats.maxHp;
+          g.chat?.system(`${guest.name} ${h.downed ? "IS DOWN" : "IS BACK"}`);
+        }
         if (typeof msg.h === "string" && msg.h !== guest.held) {
           guest.held = msg.h; // что в руках у гостя — показать у его героя и разослать другим
           try { showHeld(g, h, msg.h); } catch {}
@@ -266,6 +292,16 @@ export class HostNet {
         this.server.broadcast({ t: "chat", from: guest.name, text }, peer);
         break;
       }
+      case "reviveReq": {
+        // гость дооживлял кого-то: хоста — встаём сами; другого гостя — ему «встань»
+        const target = msg.id === netId(g.player) ? g.player : g.entities.list.find((e) => e.netId === msg.id);
+        if (target) this.revive(target);
+        break;
+      }
+      case "xpReq":
+        // опыт гостя (задание) — в общий: хост добавит себе и разошлёт всем
+        g.gainXp(Math.max(0, Math.min(100000, +msg.n || 0)));
+        break;
       case "ping":
         guest.ping = Math.round(+msg.ms || 0);
         this.server.send(peer, { t: "pong", ts: msg.ts });
@@ -399,7 +435,7 @@ export class ClientNet {
     g.fog.reveal(g.player.position);
     if (++this.ticks % SNAP_EVERY === 0) {
       const p = g.player.position;
-      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0 };
+      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0, d: g.downed ? 1 : 0, c: g.playerClass || "" };
       if (this.ticks % (SNAP_EVERY * 4) === 0) st.h = heldOf(g);
       this.client.send(st);
       const list = this.fx.take();
@@ -448,6 +484,7 @@ export class ClientNet {
             try { showHeld(g, e, held); } catch {}
           }
         }
+        if (msg.tab) this.table = msg.tab;
         if (msg.inv) {
           g.invasion.active = !!msg.inv[0];
           g.invasion.timeLeft = msg.inv[1];
@@ -477,11 +514,19 @@ export class ClientNet {
         if (msg.from) g.chat?.add(String(msg.from).slice(0, 16), String(msg.text || "").slice(0, 120));
         else g.chat?.system(String(msg.text || "").slice(0, 120));
         return;
+      case "revive":
+        g.standUp(); // нас оживил союзник
+        return;
+      case "over":
+        g.endMatch(); // погибли все — матч окончен
+        return;
       case "pong":
         this.ping = Math.max(0, Date.now() - (+msg.ts || Date.now()));
         return;
       case "xp":
-        g.gainXp(Math.max(0, +msg.n || 0));
+        // матч: опыт общий, хост уже посчитал множители — добавляем как есть
+        if (g.match) g.applyXp(Math.max(0, +msg.n || 0));
+        else g.gainXp(Math.max(0, +msg.n || 0));
         return;
       case "hurt":
         if (g.player.alive) {
@@ -536,6 +581,7 @@ export class ClientNet {
       n.samples.push({ k: this.snapK ?? 0, x, y, z, yaw });
       if (n.samples.length > 6) n.samples.shift();
       n.walk = !!(flags & 2);
+      e.downed = !!(flags & 8); // погиб в матче: урна и призрак (scene/coop.js)
       if (flags & 4) e.view?.animator.playOnce("Attack"); // замахнулся на хосте
       e.stats.maxHp = maxHp;
       e.stats.hp = flags & 1 ? Math.max(1, hp) : 0;
@@ -549,6 +595,16 @@ export class ClientNet {
 
   sendChat(text) {
     this.client.send({ t: "chat", text });
+  }
+
+  // Дооживили союзника (держали F у его урны) — хосту: он поднимет того, кого надо
+  revive(target) {
+    if (target?.netId !== undefined) this.client.send({ t: "reviveReq", id: target.netId });
+  }
+
+  // Свой опыт (задание) — хосту: опыт в матче общий, считает он
+  requestXp(n) {
+    if (n > 0) this.client.send({ t: "xpReq", n });
   }
 
   // Подобрать (автоподбор или клавиша): копию убираем сразу, хост пришлёт give

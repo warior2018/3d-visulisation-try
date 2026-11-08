@@ -11,6 +11,23 @@ import { worldFxShader } from "./world-fx.js";
 import { MOTION_SHADER, motionVelocity } from "./motion-blur.js";
 import { GLARE_SHADER, glareOf } from "./glare.js";
 
+// Силуэты (initSilhouettes): цвет — свой, освещение — чуть по нормали (видно форму), прозрачность — своя
+const SILHOUETTE_FS = `
+@fragment
+fn sil_ally_fs(in: SkinOut) -> @location(0) vec4f {
+  let n = normalize(in.normal);
+  let shade = 0.65 + 0.35 * abs(n.y);
+  return vec4f(toOutput(vec3f(0.35, 0.85, 1.0) * shade), 0.42);
+}
+
+@fragment
+fn sil_ghost_fs(in: SkinOut) -> @location(0) vec4f {
+  let n = normalize(in.normal);
+  let shade = 0.7 + 0.3 * max(dot(n, LIGHT_DIR), 0.0);
+  return vec4f(toOutput(vec3f(0.78, 0.92, 1.0) * shade), 0.38);
+}
+`;
+
 const DEPTH_FORMAT = "depth24plus";
 import { PARTICLE_SHADER, FLOATS_PER_PARTICLE } from "./particles.js";
 import { FLOATS_PER_CUBE, LIGHT, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js"; // x, y, z, r, g, b на кубик
@@ -64,6 +81,8 @@ export class GPURenderer {
     await renderer.initMotionBlur(); // размытие в движении — не собралось: без него
     step("видеокарта: блик солнца");
     await renderer.initGlare(); //      солнце слепит — не собралось: без него
+    step("видеокарта: силуэты");
+    await renderer.initSilhouettes(); // союзники сквозь стены и призраки — не собралось: без них
     return renderer;
   }
 
@@ -850,6 +869,7 @@ export class GPURenderer {
     // боссов «висят» в пустоте за краем мира)
     t?.(`персонажи: ${characters.length}`);
     if (camera) this.drawCharacters(pass, characters, { x: camera.position.x, z: camera.position.z, max: this.viewDistance });
+    if (camera) this.drawSilhouettes(pass, characters); // союзники за стенами, призраки
 
     t?.("частицы");
     // частицы: прозрачные кубики с проверкой глубины (за стеной не видно), глубину сами не пишут
@@ -1008,11 +1028,79 @@ export class GPURenderer {
       this.device.queue.writeBuffer(uniformBuffer, 0, c.modelMatrix);
       this.device.queue.writeBuffer(uniformBuffer, 64, c.tint || NO_TINT);
       this.device.queue.writeBuffer(uniformBuffer, 80, c.jointMatrices);
+      c.skin.frame = this.frameNumber; // данные свежие — силуэт (drawSilhouettes) может рисовать по ним
+      if (c.hidden) continue; //         призрак: только силуэтом
       pass.setPipeline(this.skinPipeline);
       pass.setBindGroup(0, bindGroup);
       mesh.buffers.forEach((b, i) => pass.setVertexBuffer(i, b));
       pass.setIndexBuffer(mesh.indexBuffer, mesh.indexFormat);
       pass.drawIndexed(mesh.indexCount);
+    }
+  }
+
+  // Силуэты (сетевая игра): c.sil = "ally" — союзник: виден сквозь блоки голубым силуэтом (там, где его
+  // закрывает стена); "ghost" — призрак погибшего: только полупрозрачный силуэт, виден всегда.
+  // Свой модуль и конвейеры под ловушкой ошибок: не собралось — силуэтов нет, игра идёт
+  async initSilhouettes() {
+    const device = this.device;
+    let scoped = false;
+    try {
+      device.pushErrorScope?.("validation");
+      scoped = !!device.pushErrorScope;
+      const module = device.createShaderModule({ code: SHADERS + SILHOUETTE_FS });
+      const U = (gpu.GPUShaderStage?.VERTEX ?? 1) | (gpu.GPUShaderStage?.FRAGMENT ?? 2);
+      const layout = device.createBindGroupLayout({ entries: [
+        { binding: 0, visibility: U, buffer: { type: "uniform" } },
+        { binding: 3, visibility: U, buffer: { type: "uniform" } },
+      ] });
+      const blend = {
+        color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" },
+        alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" },
+      };
+      const format = this.format || this.output.getPreferredFormat();
+      const make = (entry, compare) => device.createRenderPipeline({
+        layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+        vertex: {
+          module, entryPoint: "skin_vs",
+          buffers: [
+            { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }] },
+            { arrayStride: 12, attributes: [{ shaderLocation: 1, offset: 0, format: "float32x3" }] },
+            { arrayStride: 12, attributes: [{ shaderLocation: 2, offset: 0, format: "float32x3" }] },
+            { arrayStride: 8, attributes: [{ shaderLocation: 3, offset: 0, format: "uint16x4" }] },
+            { arrayStride: 16, attributes: [{ shaderLocation: 4, offset: 0, format: "float32x4" }] },
+          ],
+        },
+        fragment: { module, entryPoint: entry, targets: [{ format, blend }] },
+        depthStencil: { format: DEPTH_FORMAT, depthWriteEnabled: false, depthCompare: compare },
+      });
+      const ally = make("sil_ally_fs", "greater"); //  только где его закрывает что-то ближе (стена)
+      const ghost = make("sil_ghost_fs", "always"); // всегда, полупрозрачно
+      scoped = false;
+      const err = device.popErrorScope ? await device.popErrorScope() : null;
+      if (err) throw new Error(err.message || String(err));
+      this.silhouette = { layout, ally, ghost };
+    } catch (e) {
+      if (scoped) try { await device.popErrorScope(); } catch {}
+      this.silhouette = null;
+      this.silhouetteError = e.message;
+      console.warn("Силуэты недоступны:", e.message);
+    }
+  }
+
+  drawSilhouettes(pass, list) {
+    const S = this.silhouette;
+    if (!S) return;
+    for (const c of list) {
+      if (!c.sil || c.skin.frame !== this.frameNumber) continue;
+      const skin = c.skin;
+      skin.silBind ||= this.device.createBindGroup({ layout: S.layout, entries: [
+        { binding: 0, resource: { buffer: this.uniformBuffer } }, { binding: 3, resource: { buffer: skin.uniformBuffer } },
+      ] });
+      pass.setPipeline(c.sil === "ghost" ? S.ghost : S.ally);
+      pass.setBindGroup(0, skin.silBind);
+      skin.mesh.buffers.forEach((b, i) => pass.setVertexBuffer(i, b));
+      pass.setIndexBuffer(skin.mesh.indexBuffer, skin.mesh.indexFormat);
+      pass.drawIndexed(skin.mesh.indexCount);
     }
   }
 

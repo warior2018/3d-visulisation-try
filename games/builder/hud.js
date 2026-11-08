@@ -501,6 +501,61 @@ export const HUD_PARTS = [
     },
   },
   {
+    // Матч (scene/coop.js): погиб — надпись «ждём оживления»; рядом урна союзника — «держи F», шкала оживления
+    id: "coop",
+    watch: (g) => {
+      if (!g.match) return null;
+      if (g.downed) return ["down"];
+      if (g.reviving) return ["rev", Math.round((g.reviving.t / g.reviveTime()) * 40)];
+      return g.reviveTarget ? ["near", g.reviveTarget.name || ""] : null;
+    },
+    draw: (ui, g, d) => {
+      if (!d) return;
+      const { cx, cy } = center(ui);
+      if (d[0] === "down") {
+        ui.text("YOU ARE DOWN", cx, cy - 80, 4, [200, 225, 255], "center");
+        ui.text("AN ALLY CAN REVIVE YOU AT YOUR URN", cx, cy - 40, 2, MUTED, "center");
+        return;
+      }
+      if (d[0] === "near") return ui.text(`HOLD ${key(g, "interact")} TO REVIVE ${d[1]}`, cx, cy + 40, 2, [200, 225, 255], "center");
+      ui.ring(cx, cy, 15, 21, [20, 24, 30], 150);
+      ui.ring(cx, cy, 15, 21, [140, 210, 255], 235, Math.min(1, d[1] / 40));
+      ui.text("REVIVING...", cx, cy + 40, 2, [200, 225, 255], "center");
+    },
+  },
+  {
+    // TAB (держать) — таблица игроков: имя, класс, жив / урна, пинг полосками (4 — <60 мс, 3 — <120, 2 — <200, 1 — дальше)
+    id: "scoreboard",
+    watch: (g) => (g.net && g.engine.input.isDown("scoreboard") && !g.background ? JSON.stringify(g.scoreRows()) : null),
+    draw: (ui, g, d) => {
+      if (!d) return;
+      const rows = JSON.parse(d);
+      const w = Math.min(640, ui.width - 40), rh = 34, h = 70 + rows.length * rh;
+      const x = Math.round(ui.width / 2 - w / 2), y = Math.round(ui.height * 0.22);
+      ui.rect(x, y, w, h, [14, 18, 26], 225);
+      ui.frame(x, y, w, h, [90, 100, 120], 2);
+      ui.text(`PLAYERS - LEVEL ${g.experience.level}`, x + 18, y + 16, 2, TEXT);
+      ui.text("PING", x + w - 18, y + 16, 2, MUTED, "right");
+      rows.forEach((r, i) => {
+        const ry = y + 52 + i * rh;
+        if (r.me) ui.rect(x + 6, ry - 6, w - 12, rh - 4, [40, 60, 90], 160);
+        const cls = r.cls ? CLASSES[r.cls]?.name || r.cls.toUpperCase() : "-";
+        ui.text(r.name + (r.host ? " (HOST)" : ""), x + 18, ry, 2, r.down ? MUTED : TEXT, "left", 255, w * 0.42);
+        ui.text(cls, x + w * 0.48, ry, 2, MUTED, "left", 255, w * 0.22);
+        ui.text(r.down ? "DOWN" : "ALIVE", x + w * 0.72, ry, 2, r.down ? RED : [120, 230, 140]);
+        // пинг: полоски по возрастанию, горят по качеству связи
+        const ms = r.ping;
+        const bars = ms == null ? 0 : ms < 60 ? 4 : ms < 120 ? 3 : ms < 200 ? 2 : 1;
+        const col = bars >= 3 ? [120, 230, 140] : bars === 2 ? GOLD : RED;
+        for (let b = 0; b < 4; b++) {
+          const bh = 6 + b * 4;
+          ui.rect(x + w - 70 + b * 9, ry + 16 - bh, 6, bh, b < bars ? col : [60, 66, 80], 255);
+        }
+        if (ms != null) ui.text(`${ms}`, x + w - 80, ry + 2, 1, MUTED, "right");
+      });
+    },
+  },
+  {
     id: "damage-numbers", // цифры урона — поверх всего (движок: DamageNumbers)
     watch: (g) => (g.settings.general.damageNumbers !== false ? animating(g.damageNumbers.active) : null),
     draw: (ui, g, d) => {

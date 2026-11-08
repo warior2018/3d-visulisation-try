@@ -182,7 +182,7 @@ export class ModelLibrary {
       let rotation = quatY(e.renderYaw ?? e.yaw);
       if (e.tilt) rotation = quatMultiply(rotation, quatX(e.tilt)); // наклон вперёд (ловушка на стене — tilt π/2)
       if (e.roll) rotation = quatMultiply(rotation, [0, 0, Math.sin(e.roll / 2), Math.cos(e.roll / 2)]);
-      if (!e.alive) rotation = quatMultiply(rotation, fallRotation(e));
+      if (!e.alive && !e.silhouette) rotation = quatMultiply(rotation, fallRotation(e)); // призрак не падает — стоит
       const p = e.renderPosition || e.position;
       const k = e.scale ?? 1; // размер (маленький скелет — 0.6, большая турель — 2)
       fromTRS([p.x, p.y + (e.drawOffsetY || 0), p.z], rotation, [(v.mirrorX ? -1 : 1) * k, k, k], v.modelMatrix);
@@ -197,14 +197,16 @@ export class ModelLibrary {
         v.tint.set([0, 0, 0, Math.max(0, Math.min(0.85, 1 - v.light))]);
       }
 
-      out.push({ skin: v.skin, modelMatrix: v.modelMatrix, jointMatrices: v.animator.jointMatrices, tint: v.tint });
+      // e.silhouette — "ally" (союзник: виден сквозь стены) или "ghost" (призрак: только полупрозрачный силуэт)
+      const sil = e.silhouette || null, hidden = sil === "ghost";
+      out.push({ skin: v.skin, modelMatrix: v.modelMatrix, jointMatrices: v.animator.jointMatrices, tint: v.tint, sil, hidden });
 
       // Предмет в руке (и второй — extra): матрица сущности × мировая матрица кости × сдвиг предмета
       for (const h of [v.held, v.extra]) {
         if (!h) continue;
         multiply(v.modelMatrix, v.animator.global[h.node], h.tmp);
         multiply(h.tmp, h.offset, h.modelMatrix);
-        out.push({ skin: h.skin, modelMatrix: h.modelMatrix, jointMatrices: h.animator.jointMatrices, tint: v.tint });
+        out.push({ skin: h.skin, modelMatrix: h.modelMatrix, jointMatrices: h.animator.jointMatrices, tint: v.tint, sil, hidden });
       }
     }
     return out;

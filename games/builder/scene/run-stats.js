@@ -62,7 +62,7 @@ export class RunStatsPart {
     const r = this.run || fresh();
     const best = Object.entries(r.by).sort((a, b) => b[1] - a[1])[0];
     const level = this.experience.level;
-    const info = worldInfo();
+    const info = this.match ? {} : worldInfo(); // матч — мир на один раз: рекордов мира нет
     const was = info.records || {};
     const rec = {
       runs: num(was.runs) + 1,
@@ -71,7 +71,7 @@ export class RunStatsPart {
       time: Math.max(num(was.time), Math.floor(r.time)),
     };
     const isBest = (k, v) => v > num(was[k]) && num(was.runs) > 0; // первый забег — рекордов «бить» нечем
-    if (currentWorld) updateWorld(currentWorld, { records: rec });
+    if (currentWorld && !this.match) updateWorld(currentWorld, { records: rec });
     const rows = [
       { label: "LEVEL", value: level, best: isBest("level", level) },
       { label: "KILLS", value: r.kills, best: isBest("kills", r.kills) },
@@ -86,7 +86,7 @@ export class RunStatsPart {
       { label: "MOST KILLS", value: rec.kills },
       { label: "LONGEST RUN", value: clock(rec.time) },
     ];
-    return { rows, records, killedBy: r.killedBy };
+    return { rows, records: this.match ? [] : records, killedBy: r.killedBy };
   }
 
   // Окно гибели (scene/input.js → die)
@@ -94,10 +94,10 @@ export class RunStatsPart {
     const { rows, records, killedBy } = this.runSummary();
     this.engine.log(`итоги: ${rows.map((r) => `${r.label} ${r.value}`).join(", ")}`);
     this.engine.push(new SummaryScene({
-      title: "YOU DIED",
-      subtitle: killedBy ? translate("KILLED BY ") + translate(killedBy) : "", // по частям: так переводится
+      title: this.match ? "MATCH OVER" : "YOU DIED", // матч: погибли все
+      subtitle: this.match ? "THE WHOLE TEAM IS DOWN" : killedBy ? translate("KILLED BY ") + translate(killedBy) : "", // по частям: так переводится
       rows, records, recordsTitle: "WORLD RECORDS",
-      footer: "WORLD, LEVEL AND TALENTS ARE LOST - A NEW RUN STARTS",
+      footer: this.match ? "THE MATCH WORLD IS GONE - HOST A NEW LOBBY TO PLAY AGAIN" : "WORLD, LEVEL AND TALENTS ARE LOST - A NEW RUN STARTS",
       buttons: [{ id: "menu", label: "MAIN MENU" }],
       lock: 1.5,
       onButton: () => this.game.toMenu(),

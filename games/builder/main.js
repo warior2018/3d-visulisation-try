@@ -15,8 +15,9 @@ import { watchModule, Engine, MenuScene, SettingsScene, ModelLibrary, Input, Cha
 import { GAME_DEFAULTS, GAME_ACTION_LABELS, GAMEPAD_ENABLED, CAMERA_MODES, SAVES, SOUNDS, THEME, THEMES, VIEW_DISTANCE, DRAW_DISTANCES } from "./config.js";
 import { GameScene } from "./game-scene.js";
 import { loadModels } from "./load-models.js";
-import { migrateOldSaves, touchWorld, setProfile, store as saveStore } from "./save.js";
+import { migrateOldSaves, setProfile, store as saveStore } from "./save.js";
 import { MainMenu } from "./menu.js";
+import { LobbyScene } from "./lobby.js";
 import { installSkins } from "./skins.js";
 import { loadMusic } from "./music.js";
 import { noSprint } from "./controls.js";
@@ -266,7 +267,7 @@ engine.onCrashMenu = () => {
 
 
 // ---------- Сетевая игра ----------
-// Хост: свой мир (сохранённый или новый) + сервер; гости подключаются по адресу этого компьютера
+// Хост: сервер + лобби (lobby.js); все готовы — матч в новом мире (не сохраняется)
 async function hostGame() {
   const port = engine.settings.data.net?.port || DEFAULT_PORT;
   const server = new NetServer({ port });
@@ -276,8 +277,7 @@ async function hostGame() {
     engine.log(`сеть: не открыть порт ${port}: ${e.message}`);
     return engine.toast(`CANNOT HOST ON PORT ${port}`, 4000);
   }
-  game.net = { role: "host", server };
-  engine.setScene(new GameScene(game));
+  engine.setScene(lobby({ role: "host", server }));
   const ips = localAddresses();
   engine.log(`сеть: хост на порту ${server.port}, адреса: ${ips.join(", ") || "нет"}`);
   engine.toast(`HOSTING: ${ips.slice(0, 2).join(" / ") || "?"} PORT ${server.port}`, 10000);
@@ -285,7 +285,24 @@ async function hostGame() {
   if (process.platform === "win32") engine.log("сеть (Windows): если брандмауэр спросил про Node.js — разрешить доступ в частных сетях, иначе гости не подключатся");
 }
 
-// Гость: адрес хоста (запоминается) -> подключиться -> мир хоста
+// Лобби (lobby.js): все READY — матч у всех (game.net.match); вышли — в главное меню
+function lobby(net) {
+  return new LobbyScene({
+    game, net,
+    name: engine.settings.data.net?.name || (net.role === "host" ? "HOST" : "GUEST"),
+    onStart: (n) => {
+      game.net = n;
+      engine.setScene(new GameScene(game));
+    },
+    onLeave: (reason) => {
+      game.net = null;
+      engine.setScene(mainMenu());
+      if (reason) engine.toast(String(reason).toUpperCase(), 4000);
+    },
+  });
+}
+
+// Гость: адрес хоста (запоминается) -> подключиться -> лобби хоста
 function joinWindow() {
   return new TextInputScene({
     title: "JOIN GAME",
@@ -307,8 +324,7 @@ function joinWindow() {
       engine.settings.data.net = { ...(engine.settings.data.net || {}), lastHost: addr };
       engine.settings.save();
       engine.log(`сеть: подключились к ${addr}`);
-      game.net = { role: "client", client, name: engine.settings.data.net?.name || "GUEST" };
-      engine.setScene(new GameScene(game));
+      engine.setScene(lobby({ role: "client", client }));
     },
   });
 }
@@ -337,10 +353,7 @@ function mainMenu() {
         },
       })),
       update: () => up?.restart(engine),
-      host: (worldId) => {
-        touchWorld(worldId);
-        hostGame();
-      },
+      host: () => hostGame(), // матч — всегда в новом мире (свои миры не трогаем)
       join: () => engine.push(joinWindow()),
       toast: (text) => engine.toast(text, 2000),
       confirm: (title, onYes) => engine.push(new MenuScene({

@@ -68,7 +68,8 @@ export const GAME_DEFAULTS = {
       inventory: "key:I",
       talents: "key:T",
       map: "key:M",
-      interact: "key:F", // подобрать предмет под прицелом
+      interact: "key:F", // подобрать предмет под прицелом (матч: держать у урны союзника — оживить)
+      scoreboard: "key:TAB", // сетевая игра: держать — таблица игроков и пинг
       chat: "key:RETURN", // чат (и «/команда» — консоль)
       mount: "key:Z", //    маунт: позвать / слезть (MOUNT)
       record: "key:F7", //  запись повтора (разработка): F7 — начать / закончить, в папку saves/replays
@@ -79,6 +80,7 @@ export const GAME_DEFAULTS = {
 };
 
 export const GAME_ACTION_LABELS = {
+  scoreboard: "PLAYERS (TAB)",
   mount: "MOUNT",
   tune: "BALANCE (DEV)",
   record: "REPLAY (DEV)",
@@ -190,6 +192,15 @@ export const PLAYER = {
 // interval — раз в сколько секунд новый моб (5 / 3: втрое чаще, чем было), max — предел живых мобов вокруг
 // interval — раз во сколько секунд новый моб (было 5 / 3 — вдвое чаще; ещё раньше 5)
 export const SPAWN = { interval: 10 / 3, max: 45, minPlayerDistance: 12, despawnDistance: 75, huntDespawn: 100 };
+// Сетевая игра (матч из лобби, lobby.js): опыт общий и капает медленнее, мобов больше; погибший — урна с призраком,
+// союзник оживляет, держа F revive.time с рядом (урон сбивает); погибли все — матч окончен
+export const MULTIPLAYER = {
+  xp: 0.5, //       опыт ×0.5 (общий на всех)
+  spawn: 1.3, //    мобы появляются в 1.3 раза чаще
+  revive: { time: 5, range: 2.5, hp: 0.5 }, // держать F 5 с ближе 2.5 м; встаёт с половиной здоровья
+  ghostHeight: 1.1, // призрак — над урной на столько метров (оттуда же смотрит камера погибшего)
+};
+export const LOBBY = { countdown: 3, maxPlayers: 6 };
 
 // Сколько живут в мире (секунды): спокойный моб (не злой) и предмет на земле исчезают через 2 минуты
 export const LIFETIME = { mob: 120, pickup: 120 };

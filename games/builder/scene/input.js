@@ -71,9 +71,9 @@ export class InputPart {
       overlay: true,
       items: [
         { id: "resume", label: "RESUME" },
-        { id: "save", label: "SAVE" },
+        ...(this.match ? [] : [{ id: "save", label: "SAVE" }]), // матч не сохраняется
         { id: "settings", label: "SETTINGS" },
-        { id: "menu", label: "MAIN MENU" },
+        { id: "menu", label: this.match ? "LEAVE MATCH" : "MAIN MENU" },
       ],
       onBack: () => engine.pop(),
       onSelect: (id) => {
@@ -91,6 +91,10 @@ export class InputPart {
   // Игрок погиб: сохранение удаляем (следующая игра — с чистого мира), показываем экран гибели
   die() {
     if (this.dead) return;
+    if (this.match) { // матч: не конец — урна, ждём, пока оживят (scene/coop.js)
+      if (!this.downed) this.goDown();
+      return;
+    }
     this.dismountSteed(null);
     if (this.role === "client") return this.guestRespawn(); // гость: мир не наш — не стираем, встаём рядом с хостом
     this.dead = true;

@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, subclassOptions, worldgenFor } from "../config.js";
+import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, MULTIPLAYER, subclassOptions, worldgenFor } from "../config.js";
 import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../save.js";
 import { Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, Hints, profiler } from "../../../engine/index.js";
 import { HINTS } from "../hints.js";
@@ -25,12 +25,13 @@ export class SessionPart {
     this.beams.particles = this.engine.renderer?.particlePipeline ? this.fx : null;
     this.game.models.lightAt = (p, e) => this.lightHere(p, e); // свет на моделях: под крышей темнее (scene/daylight.js)
     // Мир из слота: размер и летающие острова (info.json; старые миры — с полом, большие)
-    const info = this.role === "client" ? {} : worldInfo();
+    // матч: свой мир не трогаем — новый, летающие острова среднего размера, без читов, не сохраняется
+    const info = this.match ? { floating: true, size: 2, cheats: false } : this.role === "client" ? {} : worldInfo();
     this.world.floor = !info.floating;
     this.setupLights(); // светящиеся блоки (LIGHTS) — до загрузки: лампы из сохранения сразу светят (scene/daylight.js)
     this.cheats = info.cheats !== false; // читы консоли (галочка при создании мира; у старых миров — включены)
     this.worldgen = worldgenFor(info.size || 3, !!info.floating);
-    const saved = loadGame(this.world); // блоки — сразу в мир; null — нового мира ещё нет
+    const saved = this.match ? null : loadGame(this.world); // блоки — сразу в мир; null — нового мира ещё нет
     // Рельеф: по зерну из сохранения (кубики уже в blocks — только высота земли для расчётов)
     // Параметры рельефа — из сохранения (старые миры — TERRAIN_V1: тогда остров был меньше)
     this.terrainParams = saved?.worldgen?.terrain || TERRAIN_V1;
@@ -145,8 +146,10 @@ export class SessionPart {
     // Не у героя под носом и не внутри построек (иначе физика вытолкнет моба на крышу)
     const far = (x, z) => Math.hypot(x - this.player.position.x, z - this.player.position.z) < SPAWN.minPlayerDistance || this.onStructure(x, z)
       || (!this.world.floor && !this.world.topBlock(Math.floor(x), Math.floor(z))); // летающие острова: не над бездной
+    this.spawnRate = this.match ? MULTIPLAYER.spawn : 1; // матч: мобов больше (×1.3 чаще)
     this.spawner = new Spawner({
       ...SPAWN,
+      interval: SPAWN.interval / this.spawnRate,
       around, radius: view, minRadius: SPAWN.minPlayerDistance,
       count: () => this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length, // босс логова не в счёт
       avoid: far,
@@ -188,7 +191,7 @@ export class SessionPart {
       ...INVASION,
       id: "invasion",
       onStart: () => {
-        this.spawner.interval = SPAWN.interval / INVASION.spawnSpeed;
+        this.spawner.interval = SPAWN.interval / INVASION.spawnSpeed / this.spawnRate;
         this.spawner.max = INVASION.max;
         // Какое нашествие: обычное / быстрое (все мобы +30 % скорости) / дальнее (половина новых — стрелки)
         const id = pickWeighted(Object.fromEntries(Object.entries(INVASION.types).map(([k, t]) => [k, t.weight])));
@@ -199,7 +202,7 @@ export class SessionPart {
         this.engine.log(`нашествие №${this.invasion.count} (${this.invasionKind.id}): спавн раз в ${this.spawner.interval.toFixed(2)} с, до ${INVASION.max} мобов`);
       },
       onEnd: () => {
-        this.spawner.interval = SPAWN.interval;
+        this.spawner.interval = SPAWN.interval / this.spawnRate;
         this.spawner.max = SPAWN.max;
         for (const e of this.entities.list) delete e.speedBonuses.invasion; // быстрое нашествие кончилось — обычная скорость
         this.engine.sound.play("levelup");
@@ -219,6 +222,7 @@ export class SessionPart {
     this.engine.sound.environment = null;
     this.game.models.lightAt = null;
     this.resetDaylight();
+    this.clearUrns?.(); // урны матча (scene/coop.js)
     this.net?.close(); // сетевая игра — закрыть (гости отключатся / мы отключимся от хоста)
     this.net = null;
     this.engine.alwaysLive = false;
@@ -250,6 +254,7 @@ export class SessionPart {
 
   saveNow(toast = true, { background = false } = {}) {
     if (this.dead) return; // погибли — мир уже удалён, сохранять нечего
+    if (this.match) return; // матч — мир на один раз, ничего не пишем
     const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && !e.elite && e.type !== "steed"); // элиту не сохраняем // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
     const progression = { class: this.playerClass, subclass: this.subclass || null, upgrades: { ...(this.upgrades || {}) }, run: this.runStatsJSON(), quests: this.questsJSON(), mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
     this.autosaveIn = AUTOSAVE.every; // только что сохранились — следующее автосохранение отсчитываем заново
