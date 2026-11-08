@@ -103,6 +103,7 @@ export class ProgressionPart {
   }
 
   openTalents() {
+    if (this.duel && this.duelStatus?.()?.phase !== "prep") return this.engine.toast("TALENTS: ONLY BETWEEN ROUNDS", 1500); // дуэль: таланты — на подготовке
     this.hints?.event("talents");
     this.pushLive(new TalentScene({
       talents: this.talents,

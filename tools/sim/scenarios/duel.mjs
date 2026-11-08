@@ -62,6 +62,10 @@ export default async function (t, g) {
   const onArena = (s) => Math.abs(s.player.position.x) < C.DUEL.arena.half && Math.abs(s.player.position.z) < C.DUEL.arena.half;
   t.check("бой: оба на арене", host.duelState.phase === "fight" && onArena(host) && onArena(guest), `${host.duelState.phase}`);
   t.check("бой: класс выбран за не успевших", !!host.playerClass && !!guest.playerClass);
+  const depth = H.engine.scenes.length;
+  host.openTalents();
+  host.openShop();
+  t.check("бой: ни таланты, ни магазин не открываются (только на подготовке)", H.engine.scenes.length === depth);
   t.check("бой: враги друг другу", host.player.isHostileTo([...host.net.guests.values()][0].hero) && guest.player.isHostileTo([...guest.net.copies.values()].find((e) => e.type === "player")));
   // удар хоста по гостю — у гостя минус здоровье; удар гостя по хосту — у хоста
   const hero = [...host.net.guests.values()][0].hero;

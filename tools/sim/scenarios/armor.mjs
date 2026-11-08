@@ -78,4 +78,7 @@ export default async function (t, g) {
   sc.onWheel({ dy: -1 });
   sc.drawUI(mk(560));
   t.check("магазин: колесо листает вниз", sc.scroll === 1);
+  // скины: у каждого оружия — по 2 варианта (кроме обычного)
+  const { SKIN_TARGETS } = await import(g.root + "games/builder/skins.js");
+  t.check("скины: у каждого оружия 2 варианта + обычный", SKIN_TARGETS.filter((x) => x.category === "weapons").every((x) => x.skins.length === 3));
 }

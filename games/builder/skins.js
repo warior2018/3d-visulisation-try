@@ -20,23 +20,59 @@ export const SKIN_CATEGORIES = [
 const DEFAULT = { id: "default", name: "DEFAULT", text: "THE ORIGINAL LOOK" };
 const gold = P.metal([0.3, 0.17, 0.04], [1, 0.86, 0.4]);
 
-// оружие: модели в руке (w-) и от 1-го лица (fp-)
-const weapon = (id, name, skin, models = [`w-${id}`, `fp-${id}`]) => ({ id, category: "weapons", name, models, items: [id], skins: [DEFAULT, skin] });
+// оружие: модели в руке (w-) и от 1-го лица (fp-); skin — один скин или список
+const weapon = (id, name, skin, models = [`w-${id}`, `fp-${id}`]) => ({ id, category: "weapons", name, models, items: [id], skins: [DEFAULT, ...[skin].flat()] });
 const utility = (id, name, skin, models) => ({ id, category: "utility", name, models, items: [id], skins: [DEFAULT, skin] });
 
 export const SKIN_TARGETS = [
-  weapon("machete", "MACHETE", { id: "jungle", name: "JUNGLE RUST", text: "A BLADE THAT HAS SEEN TOO MANY RAINS", paint: P.metal([0.22, 0.1, 0.04], [0.8, 0.48, 0.26]) }),
-  weapon("war-hammer", "WAR HAMMER", { id: "molten", name: "MOLTEN", text: "STILL GLOWING FROM THE FURNACE", paint: P.metal([0.35, 0.03, 0.01], [1, 0.72, 0.2]) }),
-  weapon("katana", "KATANA", { id: "sakura", name: "SAKURA", text: "PINK STEEL, PETAL WRAP", paint: P.chain(P.metal([0.45, 0.3, 0.38], [1, 0.86, 0.93]), P.dye([0.92, 0.42, 0.62])) }, ["w-katana", "w-katana-sheathed", "w-katana-saya", "fp-katana"]),
-  weapon("spear", "SPEAR", { id: "bone", name: "OSSUARY", text: "CARVED FROM ONE GIANT BONE", paint: P.gradientMap([[0.22, 0.19, 0.15], [0.95, 0.92, 0.82]]) }),
-  weapon("pistol", "PISTOL", { id: "gilded", name: "GILDED", text: "SOLID GOLD. PROBABLY", paint: gold }),
-  weapon("auto", "ASSAULT RIFLE", { id: "arctic", name: "ARCTIC", text: "WHITE CAMO FOR THE NORTH", paint: P.gradientMap([[0.18, 0.26, 0.36], [0.93, 0.97, 1]]) }),
-  weapon("shotgun", "SHOTGUN", { id: "swamp", name: "SWAMP", text: "MOSS ON THE STOCK, MUD ON THE BARREL", paint: P.chain(P.metal([0.06, 0.08, 0.04], [0.45, 0.5, 0.34]), P.dye([0.3, 0.42, 0.14])) }),
-  weapon("rifle", "SNIPER RIFLE", { id: "void", name: "VOID", text: "BLACK AS THE ABYSS UNDER THE ISLANDS", paint: P.gradientMap([[0.02, 0.01, 0.05], [0.32, 0.14, 0.58], [0.82, 0.62, 1]]) }),
-  weapon("crossbow", "CROSSBOW", { id: "elven", name: "ELVEN", text: "GREEN WOOD, GOLDEN FITTINGS", paint: P.chain(gold, P.dye([0.22, 0.55, 0.3])) }),
-  weapon("grenades", "GRENADES", { id: "toxic", name: "TOXIC", text: "DO NOT LICK", paint: P.chain(P.metal([0.05, 0.15, 0.02], [0.6, 1, 0.35]), P.dye([0.45, 0.95, 0.2])) }, ["w-grenade", "fp-grenade", "item-grenade"]),
-  weapon("launcher", "GRENADE LAUNCHER", { id: "sandstorm", name: "SANDSTORM", text: "DESERT PAINT, CHIPPED", paint: P.gradientMap([[0.28, 0.2, 0.1], [0.96, 0.86, 0.6]]) }),
-  weapon("dynamite", "DYNAMITE", { id: "frostbite", name: "FROSTBITE", text: "COLD ON THE OUTSIDE", paint: P.dye([0.35, 0.72, 1]) }, ["w-dynamite", "fp-dynamite", "item-dynamite-lit"]),
+  weapon("machete", "MACHETE", [
+    { id: "jungle", name: "JUNGLE RUST", text: "A BLADE THAT HAS SEEN TOO MANY RAINS", paint: P.metal([0.22, 0.1, 0.04], [0.8, 0.48, 0.26]) },
+    { id: "bloodmoon", name: "BLOOD MOON", text: "RED STEEL FOR A RED NIGHT", paint: P.chain(P.metal([0.2, 0.02, 0.02], [1, 0.35, 0.3]), P.dye([0.75, 0.08, 0.08])) },
+  ]),
+  weapon("war-hammer", "WAR HAMMER", [
+    { id: "molten", name: "MOLTEN", text: "STILL GLOWING FROM THE FURNACE", paint: P.metal([0.35, 0.03, 0.01], [1, 0.72, 0.2]) },
+    { id: "glacier", name: "GLACIER", text: "CUT FROM ETERNAL ICE", paint: P.gradientMap([[0.05, 0.15, 0.3], [0.6, 0.85, 1]]) },
+  ]),
+  weapon("katana", "KATANA", [
+    { id: "sakura", name: "SAKURA", text: "PINK STEEL, PETAL WRAP", paint: P.chain(P.metal([0.45, 0.3, 0.38], [1, 0.86, 0.93]), P.dye([0.92, 0.42, 0.62])) },
+    { id: "shadow", name: "SHADOW", text: "BLACK BLADE, RED EDGE", paint: P.gradientMap([[0.01, 0.01, 0.02], [0.25, 0.25, 0.3], [0.9, 0.15, 0.15]]) },
+  ], ["w-katana", "w-katana-sheathed", "w-katana-saya", "fp-katana"]),
+  weapon("spear", "SPEAR", [
+    { id: "bone", name: "OSSUARY", text: "CARVED FROM ONE GIANT BONE", paint: P.gradientMap([[0.22, 0.19, 0.15], [0.95, 0.92, 0.82]]) },
+    { id: "bronze", name: "BRONZE AGE", text: "AN HEIRLOOM OF OLD WARS", paint: P.metal([0.25, 0.12, 0.04], [0.95, 0.65, 0.35]) },
+  ]),
+  weapon("pistol", "PISTOL", [
+    { id: "gilded", name: "GILDED", text: "SOLID GOLD. PROBABLY", paint: gold },
+    { id: "neon", name: "NEON", text: "GLOWS IN THE DARK. SORT OF", paint: P.gradientMap([[0.05, 0.02, 0.1], [0.1, 0.9, 0.95], [1, 0.3, 0.9]]) },
+  ]),
+  weapon("auto", "ASSAULT RIFLE", [
+    { id: "arctic", name: "ARCTIC", text: "WHITE CAMO FOR THE NORTH", paint: P.gradientMap([[0.18, 0.26, 0.36], [0.93, 0.97, 1]]) },
+    { id: "urban", name: "URBAN", text: "CONCRETE GREY", paint: P.gradientMap([[0.08, 0.08, 0.09], [0.55, 0.56, 0.6]]) },
+  ]),
+  weapon("shotgun", "SHOTGUN", [
+    { id: "swamp", name: "SWAMP", text: "MOSS ON THE STOCK, MUD ON THE BARREL", paint: P.chain(P.metal([0.06, 0.08, 0.04], [0.45, 0.5, 0.34]), P.dye([0.3, 0.42, 0.14])) },
+    { id: "chrome", name: "CHROME", text: "POLISHED TO A MIRROR", paint: P.metal([0.15, 0.16, 0.18], [1, 1, 1]) },
+  ]),
+  weapon("rifle", "SNIPER RIFLE", [
+    { id: "void", name: "VOID", text: "BLACK AS THE ABYSS UNDER THE ISLANDS", paint: P.gradientMap([[0.02, 0.01, 0.05], [0.32, 0.14, 0.58], [0.82, 0.62, 1]]) },
+    { id: "jade", name: "JADE", text: "A STONE THAT NEVER MISSES", paint: P.chain(P.metal([0.02, 0.12, 0.08], [0.5, 1, 0.75]), P.dye([0.1, 0.65, 0.45])) },
+  ]),
+  weapon("crossbow", "CROSSBOW", [
+    { id: "elven", name: "ELVEN", text: "GREEN WOOD, GOLDEN FITTINGS", paint: P.chain(gold, P.dye([0.22, 0.55, 0.3])) },
+    { id: "nighthunter", name: "NIGHT HUNTER", text: "DARK AS A MOONLESS FOREST", paint: P.gradientMap([[0.02, 0.03, 0.05], [0.2, 0.25, 0.35], [0.55, 0.7, 0.9]]) },
+  ]),
+  weapon("grenades", "GRENADES", [
+    { id: "toxic", name: "TOXIC", text: "DO NOT LICK", paint: P.chain(P.metal([0.05, 0.15, 0.02], [0.6, 1, 0.35]), P.dye([0.45, 0.95, 0.2])) },
+    { id: "candy", name: "CANDY", text: "SWEET ON THE OUTSIDE", paint: P.dye([1, 0.45, 0.75]) },
+  ], ["w-grenade", "fp-grenade", "item-grenade"]),
+  weapon("launcher", "GRENADE LAUNCHER", [
+    { id: "sandstorm", name: "SANDSTORM", text: "DESERT PAINT, CHIPPED", paint: P.gradientMap([[0.28, 0.2, 0.1], [0.96, 0.86, 0.6]]) },
+    { id: "lava", name: "LAVA", text: "HOT TO THE TOUCH", paint: P.gradientMap([[0.05, 0.01, 0], [0.8, 0.15, 0.02], [1, 0.85, 0.3]]) },
+  ]),
+  weapon("dynamite", "DYNAMITE", [
+    { id: "frostbite", name: "FROSTBITE", text: "COLD ON THE OUTSIDE", paint: P.dye([0.35, 0.72, 1]) },
+    { id: "golden", name: "GOLDEN BOOM", text: "GO OUT WITH STYLE", paint: gold },
+  ], ["w-dynamite", "fp-dynamite", "item-dynamite-lit"]),
   // герой — одна модель на класс (одежда), скелет один
   { id: "fighter", category: "character", name: "FIGHTER", models: ["hero"], items: [], skins: [DEFAULT, { id: "ronin", name: "RONIN", text: "BLACK YUKATA OF A MASTERLESS SWORDSMAN", paint: P.dye([0.14, 0.14, 0.17]) }] },
   { id: "ranger", category: "character", name: "RANGER", models: ["hero-ranged"], items: [], skins: [DEFAULT, { id: "outlaw", name: "OUTLAW", text: "A CRIMSON COAT FROM THE WANTED POSTER", paint: P.dye([0.62, 0.14, 0.1]) }] },
