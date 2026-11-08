@@ -76,6 +76,16 @@ const shiftCols = (list) => {
 export const TALENT_MODES = ["classic", "duel"];
 // Поправки режима: { "id таланта": { maxRank, describe, modifiers, stats, ... } } — заменяют поля общего таланта
 export const MODE_TALENTS = { classic: {}, duel: {} };
+// Каких талантов в режиме нет совсем (вкладка опустела — её тоже нет). Дуэль: что там не прокачать или не работает
+// (трофеи за убийства, удача на добычу, маунт) и сильные множители, пока для дуэли нет своих чисел
+export const MODE_REMOVED = {
+  classic: [],
+  duel: [
+    "trophies", "fighter-trophies", "marksman-trophies", "demo-trophies", // трофеи: копятся за убийства мобов
+    "fortune", "mount-saddle", "mount-swift", "mount-call", //               удача на добычу, маунт — в дуэли их нет
+    "katana-iai", "sniper-head", "crossbow-head", "r-first", "f-crit", //     множители урона
+  ],
+};
 
 function buildTree(mode) {
   const TALENT_TREE = {
@@ -257,10 +267,15 @@ function buildTree(mode) {
         describe: (r) => `MOUNT COOLDOWN -${at([2, 4], r)} S`, stats: (r) => ({ mountCooldown: at([2, 4], r) }) },
     ],
   });
-  // поправки режима — поверх общих
+  // поправки режима — поверх общих; убранные — убрать (и из требований других талантов), пустые вкладки — тоже
+  const gone = new Set(MODE_REMOVED[mode] || []);
   for (const tab of TALENT_TREE.tabs) {
-    tab.talents = tab.talents.map((t) => (MODE_TALENTS[mode]?.[t.id] ? { ...t, ...MODE_TALENTS[mode][t.id] } : t));
+    tab.talents = tab.talents.filter((t) => !gone.has(t.id))
+      .map((t) => (MODE_TALENTS[mode]?.[t.id] ? { ...t, ...MODE_TALENTS[mode][t.id] } : t))
+      .map((t) => (t.requires?.some((r) => gone.has(r)) ? { ...t, requires: t.requires.filter((r) => !gone.has(r)) } : t));
+    for (const t of tab.talents) if (t.requires && !t.requires.length) delete t.requires;
   }
+  TALENT_TREE.tabs = TALENT_TREE.tabs.filter((tab) => tab.talents.length);
   TALENT_TREE.mode = mode;
   return TALENT_TREE;
 }
