@@ -23,6 +23,8 @@ export class ShopScene extends Scene {
     this.onBuy = onBuy;
     this.message = null; // { text, ok }
     this.tab = shop.categoriesFor?.(ctx)?.[0]?.id ?? null; // открытый раздел (если у магазина есть разделы)
+    this.scroll = 0; // первый показанный ряд карточек (колесо мыши / стрелки справа)
+    this.maxScroll = 0;
   }
 
   get label() {
@@ -33,7 +35,7 @@ export class ShopScene extends Scene {
     const th = ui.theme;
     const shop = this.shop;
     drawDim(ui, 200);
-    const box = drawWindow(ui, { title: this.title, width: 900, height: 560, closeId: "close" });
+    const box = drawWindow(ui, { title: this.title, width: 900, height: Math.max(560, Math.min(ui.height - 24, 760)), closeId: "close" });
     ui.text(`YOU HAVE: ${shop.money(this.buyer)} ${shop.currencyName}`, box.cx, box.y, 2, th.accent, "center");
 
     // Разделы — вкладками сверху (как в окне талантов)
@@ -47,20 +49,31 @@ export class ShopScene extends Scene {
       });
       top = box.y + 76;
     }
-    // Карточки сеткой: по 3 в ряд
+    // Карточки сеткой: по 3 в ряд; не влезают — листаем рядами (колесо мыши, стрелки справа)
     const slots = shop.visible(this.ctx, this.tab);
-    const cw = 270;
-    const ch = 190;
-    const gap = 18;
+    const cw = 256;
+    const ch = 150;
+    const gap = 14;
     const cols = 3;
+    const rows = Math.ceil(slots.length / cols);
+    const fit = Math.max(1, Math.floor((box.y + box.h - 36 - top + gap) / (ch + gap))); // сколько рядов влезает
+    this.maxScroll = Math.max(0, rows - fit);
+    this.scroll = Math.max(0, Math.min(this.scroll, this.maxScroll));
     slots.forEach((s, i) => {
       const col = i % cols;
-      const row = Math.floor(i / cols);
-      const inRow = Math.min(cols, slots.length - row * cols);
+      const row = Math.floor(i / cols) - this.scroll;
+      if (row < 0 || row >= fit) return;
+      const inRow = Math.min(cols, slots.length - (row + this.scroll) * cols);
       const x = box.cx - (inRow * cw + (inRow - 1) * gap) / 2 + col * (cw + gap);
       const y = top + row * (ch + gap);
       this.drawCard(ui, s, x, y, cw, ch);
     });
+    if (this.maxScroll > 0) {
+      const ax = box.x + box.w - 16;
+      if (this.scroll > 0) ui.button("scroll:-1", "^", ax, top + 20, 32, 40, 2, false);
+      if (this.scroll < this.maxScroll) ui.button("scroll:1", "v", ax, top + fit * (ch + gap) - gap - 20, 32, 40, 2, false);
+      ui.text(`${this.scroll + 1}-${this.scroll + fit} / ${rows}`, ax, top + (fit * (ch + gap)) / 2, 1, th.muted, "center");
+    }
     if (!slots.length) ui.text("NOTHING FOR SALE YET", box.cx, box.y + 120, 2, th.muted, "center");
 
     const msg = this.message;
@@ -83,12 +96,12 @@ export class ShopScene extends Scene {
     if (big.length <= 3) big.forEach((line, i) => ui.text(line, x + 76, y + 36 + i * 18, 2, th.muted));
     else lines(desc, 30).slice(0, 6).forEach((line, i) => ui.text(line, x + 76, y + 34 + i * 9, 1, th.muted));
     // Цена и остаток
-    ui.text(`PRICE: ${this.shop.priceOf(s)}`, x + 12, y + 96, 2, th.accent);
+    ui.text(`PRICE: ${this.shop.priceOf(s)}`, x + 12, y + 94, 2, th.accent);
     const left = !Number.isFinite(s.left) ? "" : s.left > 0 ? `LEFT: ${s.left}` : "SOLD OUT";
-    if (left) ui.text(left, x + w - 12, y + 96, 2, th.muted, "right");
+    if (left) ui.text(left, x + w - 12, y + 94, 2, th.muted, "right");
     // Кнопка
     const label = c.ok ? "BUY" : c.reason;
-    ui.button("buy:" + s.id, label, x + w / 2, y + h - 30, w - 24, 36, 2, false);
+    ui.button("buy:" + s.id, label, x + w / 2, y + h - 22, w - 24, 30, 2, false);
   }
 
   onButton(id) {
@@ -96,14 +109,23 @@ export class ShopScene extends Scene {
     const [kind, slotId] = id.split(":");
     if (kind === "tab") {
       this.tab = slotId;
+      this.scroll = 0;
       this.message = null;
     }
+    if (kind === "scroll") this.scroll = Math.max(0, Math.min(this.maxScroll, this.scroll + Number(slotId)));
     if (kind === "buy") {
       const r = this.shop.buy(slotId, this.buyer, this.ctx);
       this.message = r.ok ? { text: `BOUGHT: ${this.shop.nameOf(r.slot)}`, ok: true } : { text: r.reason, ok: false };
       if (r.ok) this.onBuy(r.slot);
     }
     this.engine.redraw();
+  }
+
+  onWheel({ dy }) {
+    const next = Math.max(0, Math.min(this.maxScroll, this.scroll + (dy > 0 ? -1 : 1))); // от себя — вверх
+    if (next === this.scroll) return false;
+    this.scroll = next;
+    return true;
   }
 
   onPress(actions) {

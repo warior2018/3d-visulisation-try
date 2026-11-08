@@ -60,7 +60,8 @@ export default async function (t, g) {
   hero.receive(new E.Damage({ amount: 12, source: mob || null }));
   await g.both(peer, 4);
   t.check("моба удар по гостю (на хосте) — у гостя минус здоровье", guest.player.stats.hp < before, `${before} → ${guest.player.stats.hp}`);
-  t.check("у хоста герой гостя не умирает (здоровье — у гостя)", hero.alive && hero.stats.hp === hero.stats.maxHp);
+  await g.both(peer, 6);
+  t.check("у хоста герой гостя жив, здоровье — как у гостя", hero.alive && hero.stats.hp === Math.ceil(guest.player.stats.hp), `${hero.stats.hp} / ${guest.player.stats.hp}`);
 
   // эффекты и звуки: удар гостя (след) — у хоста виден; выстрел хоста (луч и звук) — у гостя
   const sl0 = host.slashes.list.length;

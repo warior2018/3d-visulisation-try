@@ -42,5 +42,17 @@ export default async function (t, g) {
   t.check("дуэль: 2-й раунд (200) — 1–2 части кости", price("bone-chest") <= R[1].coins && price("bone-helmet") + price("bone-boots") <= R[1].coins);
   t.check("дуэль: 3-й раунд (600) — 1–2 части железа", price("iron-chest") <= R[2].coins && price("iron-helmet") + price("iron-boots") <= R[2].coins, `${price("iron-chest")}`);
   scene.duel = was;
+  // окно магазина: позиций больше, чем влезает, — листается (колесо, стрелки)
+  const theme = scene.engine.ui?.theme;
+  const ui = new Proxy({ width: 1280, height: 720, mouseX: 0, mouseY: 0, theme }, { get: (o, k) => (k in o ? o[k] : () => false) });
+  const sc = new E.ShopScene({ shop, buyer: me, ctx: scene });
+  sc.engine = scene.engine;
+  sc.tab = "other";
+  sc.drawUI(ui);
+  const many = shop.visible(scene, "other").length;
+  t.check("магазин: позиций больше 9 — можно листать", many > 9 && sc.maxScroll > 0, `${many}, maxScroll ${sc.maxScroll}`);
+  sc.onWheel({ dy: -1 });
+  sc.drawUI(ui);
+  t.check("магазин: колесо листает вниз", sc.scroll === 1);
   t.check("вне дуэли — обычные цены", price("leather-chest") === A.leather.parts.chest.price && on("medkit"));
 }

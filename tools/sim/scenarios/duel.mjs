@@ -63,6 +63,8 @@ export default async function (t, g) {
   hero.receive(new E.Damage({ amount: 20, source: host.player }));
   await both(4);
   t.check("PvP: хост ранил гостя", guest.player.stats.hp < gh0, `${gh0} → ${guest.player.stats.hp}`);
+  await both(10);
+  t.check("хост видит здоровье гостя (полоска цели)", hero.stats.maxHp === guest.player.stats.maxHp && hero.stats.hp === Math.ceil(guest.player.stats.hp), `${hero.stats.hp}/${hero.stats.maxHp} vs ${guest.player.stats.hp}/${guest.player.stats.maxHp}`);
   const hostCopy = [...guest.net.copies.values()].find((e) => e.type === "player");
   const hh0 = host.player.stats.hp;
   hostCopy.receive(new E.Damage({ amount: 20, source: guest.player }));

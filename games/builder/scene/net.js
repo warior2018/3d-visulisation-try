@@ -10,7 +10,7 @@
 //  поставил / сломал блок, попал по мобу (сколько урона).
 //
 //  Сообщения ({ t: тип, ... }):
-//   гость → хост: hello { name }, state { x, y, z, yaw, w }, place { x, y, z, c, s }, remove { x, y, z },
+//   гость → хост: hello { name }, state { x, y, z, yaw, w, hp, mh }, place { x, y, z, c, s }, remove { x, y, z },
 //                 hit { id, n }, take { id } (подобрать с земли), drop { item, count, data, x, y, z },
 //                 chat { text }, ping { ts, ms }
 //   хост → гость: welcome { id, surfaces, chunks, spawn }, snap { e, b, p }, hurt { n, from }, give { item, count, data },
@@ -259,7 +259,7 @@ export class HostNet {
           // k, s — вид атаки и выстрел (пуля / снаряд), si — кто бил: у гостя блок отобьёт и отразит (shotDamage)
           // a — урон до брони (броню, шлем и блок считает гость — у себя), p — часть тела (голова)
           this.server.send(peer, { t: "hurt", n: dealt, a: d.amount, p: d.part || null, from: d.source?.name || "", k: d.kind || null, s: d.shot || null, si: d.source ? netId(d.source) : 0 });
-          hero.stats.hp = hero.stats.maxHp;
+          hero.stats.hp = Math.max(1, this.guests.get(peer.id)?.hp ?? hero.stats.maxHp); // как у гостя (state)
         };
         this.guests.set(peer.id, { peer, hero, name: hero.name });
         const surfaces = [];
@@ -293,6 +293,12 @@ export class HostNet {
         h.netWalk = !!msg.w;
         if (typeof msg.c === "string") guest.cls = msg.c || null;
         if (typeof msg.s === "string") guest.sub = msg.s || null; // второе оружие (матч: пауза, пока не выбрали)
+        // здоровье гостя (настоящее — у него): показать у его героя — полоска над целью, таблица, другим гостям
+        if (Number.isFinite(+msg.mh) && +msg.mh > 0) h.stats.maxHp = +msg.mh;
+        if (Number.isFinite(+msg.hp)) {
+          guest.hp = Math.max(0, +msg.hp);
+          if (!h.downed) h.stats.hp = Math.max(1, Math.min(h.stats.maxHp, guest.hp));
+        }
         // погиб в матче (урна): мобы его не трогают; ожил — снова полное здоровье (настоящее — у гостя)
         if (!!msg.d !== !!h.downed) {
           h.downed = !!msg.d;
@@ -475,7 +481,7 @@ export class ClientNet {
     g.fog.reveal(g.player.position);
     if (++this.ticks % SNAP_EVERY === 0) {
       const p = g.player.position;
-      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0, d: g.downed ? 1 : 0, c: g.playerClass || "", s: g.subclass || "" };
+      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0, d: g.downed ? 1 : 0, c: g.playerClass || "", s: g.subclass || "", hp: Math.ceil(g.player.stats.hp), mh: g.player.stats.maxHp };
       if (this.ticks % (SNAP_EVERY * 4) === 0) st.h = heldOf(g);
       this.client.send(st);
       const list = this.fx.take();
