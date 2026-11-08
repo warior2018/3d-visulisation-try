@@ -4,7 +4,7 @@
 //  Лобби → матч → итоги → снова лобби. Мир матча не сохраняется.
 //
 //    node --import ./tools/sim/register.mjs tools/server.mjs [--mode duel|classic] [--port 27015]
-//    (Windows: tools/run-server.cmd)
+//    (Windows: tools/run-server.cmd; Mac: tools/run-server.command — двойной клик)
 // ============================================================
 
 import fs from "node:fs";
