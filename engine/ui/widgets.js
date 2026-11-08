@@ -396,3 +396,38 @@ export function drawDamageArc(ui, angle, k, { radius, spread = 0.38, thick = 12,
     }
   }
 }
+
+// Плашка с информацией у курсора (подсказка): lines — [{ text, color?, size? }] (первая — заголовок, крупнее).
+// Встаёт справа-снизу от точки (x, y); не влезает в экран — сдвигается внутрь
+export function drawTooltip(ui, x, y, lines) {
+  if (!lines?.length) return;
+  const th = ui.theme;
+  const PAD = 12, maxW = Math.min(520, ui.width - 40);
+  // длинные строки — переносим по словам (ширина плашки не больше maxW)
+  const rows = [];
+  lines.filter(Boolean).forEach((l, i) => {
+    const size = l.size ?? (i === 0 ? 2 : 1);
+    let cur = "";
+    for (const word of translate(String(l.text)).split(" ")) {
+      const next = cur ? `${cur} ${word}` : word;
+      if (cur && measureText(next, size) > maxW - PAD * 2) {
+        rows.push({ ...l, text: cur, size });
+        cur = word;
+      } else cur = next;
+    }
+    rows.push({ ...l, text: cur, size });
+  });
+  const w = Math.min(maxW, Math.max(...rows.map((r) => measureText(translate(String(r.text)), r.size))) + PAD * 2);
+  const h = rows.reduce((sum, r) => sum + r.size * 9 + 6, 0) + PAD * 2 - 6;
+  let bx = Math.round(x + 18), by = Math.round(y + 18);
+  if (bx + w > ui.width - 8) bx = Math.round(x - 18 - w);
+  if (by + h > ui.height - 8) by = Math.max(8, ui.height - 8 - h);
+  bx = Math.max(8, bx);
+  ui.rect(bx, by, w, h, th.window?.fill || [16, 20, 28], 240);
+  ui.frame(bx, by, w, h, rows[0].color || th.window?.border || [90, 100, 120], 2);
+  let ty = by + PAD;
+  for (const r of rows) {
+    ui.text(r.text, bx + PAD, ty, r.size, r.color || th.text, "left", 255, w - PAD * 2);
+    ty += r.size * 9 + 6;
+  }
+}

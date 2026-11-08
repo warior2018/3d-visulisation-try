@@ -8,7 +8,7 @@ import { TROPHY_TALENTS, TROPHY, weaponTab } from "../talents.js";
 import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3, rarityOf } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
 import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, MULTIPLAYER, DUEL, subclassOptions } from "../config.js";
-import { ITEMS } from "../items.js";
+import { ITEMS, HOTBAR_SLOTS } from "../items.js";
 
 export class ProgressionPart {
   // ---------- Развитие героя ----------
@@ -190,7 +190,7 @@ export class ProgressionPart {
     const left = this.giveItem(item, count);
     // некуда положить (хотбар и сумка полны) — не пропадает: падает рядом на землю
     if (left > 0) this.pickups.add(item, left, this.player.position.add(new Vec3(0, 0.5, 0)));
-    this.abilities.select(this.player.hotbar.slots.findIndex((s) => s?.item === item), this); // сразу в руки
+    this.equipWeapon(item); // сразу в ячейку оружия и в руки
     if (id === "ranged") this.giveAmmoOnce();
     this.giveResource(BUILD.item, BUILD.pack); // всем (в сумку, не в хотбар) — немного блоков на первую стройку
     this.engine.sound.play("learn");
@@ -198,6 +198,25 @@ export class ProgressionPart {
     this.engine.log(`выбран класс ${id}${refunded ? `, возвращено очков ${refunded}` : ""}, выдано ${item} x${count}`);
     this.save(false);
     if (this.needsSubclass()) this.askSubclass(); // класс выбрали поздно — сразу и второе оружие
+  }
+
+  // Оружие id — в ячейку оружия хотбара и в руки. Там было другое — меняются местами с сумкой (прежнее — в сумку)
+  equipWeapon(id) {
+    const p = this.player;
+    const i = HOTBAR_SLOTS.indexOf("weapon");
+    if (i < 0) return;
+    const cur = p.hotbar.slots[i];
+    if (cur?.item !== id) {
+      const bi = p.inventory.slots.findIndex((s) => s?.item === id);
+      if (bi < 0) return; // нет в сумке (на земле — подберёт сам)
+      const it = p.inventory.slots[bi];
+      p.inventory.slots[bi] = cur ? { ...cur } : null;
+      p.hotbar.slots[i] = { ...it };
+      this.engine.log(`в ячейку оружия: ${id}${cur ? `, ${cur.item} — в сумку` : ""}`);
+    }
+    this.syncAbilities();
+    this.abilities.select(i, this);
+    this.onWeaponSwitch?.();
   }
 
   // ---------- Подкласс (config.js → SUBCLASS) ----------
@@ -244,6 +263,7 @@ export class ProgressionPart {
       const left = this.giveItem(id);
       if (left > 0) this.pickups.add(id, left, this.player.position.add(new Vec3(0, 0.5, 0))); // некуда — рядом на землю
     }
+    this.equipWeapon(id); // выбранное — сразу в ячейку оружия и в руки (прежнее — в сумку)
     this.syncAbilities(); // сила базового (если выбрали его) — сразу
     this.engine.sound.play("learn");
     const text = id === starter ? `BASE WEAPON MASTERED: ${ITEMS[id].name} +${Math.round(WEAPON_UPGRADES.primaryPick * 100)}% DMG` : `SECOND WEAPON: ${ITEMS[id].name}`;

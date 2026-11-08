@@ -214,6 +214,11 @@ for (const [cls, items] of Object.entries(SUBCLASS.weapons)) {
       id: weaponTab(item), name, kind: tab.kind, weapon: item, note: "SUBCLASS WEAPON: ITS OWN BRANCH", talents,
     });
   }
+  // Оружие, убранное из игры (нет в SUBCLASS.weapons — сейчас копьё): его таланты в классе не показываем
+  const offered = new Set(Object.values(SUBCLASS.weapons).flat());
+  for (const [item, [, , prefix]] of Object.entries(WEAPON_BRANCH)) {
+    if (!offered.has(item) && prefix) tab.talents = tab.talents.filter((t) => !t.id.startsWith(prefix));
+  }
   // В классе остались общие ветки (и базовое оружие) — сдвигаем к левому краю, подписи — следом
   const min = shiftCols(tab.talents);
   tab.sections = tab.sections.filter((sec) => tab.talents.some((t) => Math.abs(t.col - (sec.col - min)) <= 0.5)).map((sec) => ({ ...sec, col: sec.col - min }));

@@ -5,6 +5,7 @@
 // ============================================================
 
 import { itemName, ITEMS, isArmor, isWeapon, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
+import { describeSlot } from "../item-info.js";
 import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
@@ -210,6 +211,14 @@ export class ShopPart {
       }
       bar.set(i, ability);
     });
+    // Таланты на оружии в ячейке оружия (с мобов: data.perks) — действуют, пока оно там (talents.bonus)
+    const perks = this.player.hotbar.slots.find((s) => s && isWeapon(s.item))?.data?.perks || null;
+    const key = perks ? JSON.stringify(perks) : "";
+    if (key !== (this.perksKey || "")) {
+      this.perksKey = key;
+      this.talents.bonus = perks ? { ...perks } : {};
+      this.applyTalents();
+    }
     // Выбранная ячейка опустела (средняя без предмета) — берём оружие слева
     if (bar.index >= 0 && !bar.slots[bar.index]) bar.index = 0;
     // В выбранной ячейке теперь другое (переложили, выбросили) — «переодеваемся»
@@ -227,6 +236,7 @@ export class ShopPart {
     this.pushLive(new InventoryScene({
       entity: this.player,
       itemInfo,
+      describe: (slot) => describeSlot(this, slot), // плашка о предмете под мышью (item-info.js)
       dropKey: Input.label(b.drop),
       sections: [
         // Слева — сумка столбиком; справа — оружие | броня (сверху вниз: шлем, нагрудник, поножи, ботинки) | вещи

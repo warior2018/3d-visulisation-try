@@ -72,6 +72,14 @@ export class Talents {
     return this.ranks[id] || 0;
   }
 
+  // Сколько рангов действует: выученные + bonus (подарок со стороны, например таланты на оружии в руках),
+  // не больше максимума. bonus — { id: ранги }, задаёт игра; очков не тратит, сбросом не возвращается
+  effectiveRank(id) {
+    const r = this.rank(id) + (this.bonus?.[id] || 0);
+    const max = this.byId.get(id)?.talent.maxRank ?? r;
+    return Math.min(r, max);
+  }
+
   // Сколько стоит ранг rank таланта (по умолчанию — следующий)
   cost(id, rank = this.rank(id) + 1) {
     return rankCost(this.byId.get(id)?.talent, rank);
@@ -132,7 +140,7 @@ export class Talents {
     const out = [];
     for (const tab of this.tree.tabs) {
       for (const t of tab.talents) {
-        const r = this.rank(t.id);
+        const r = this.effectiveRank(t.id);
         if (!r || !t.modifiers) continue;
         for (const m of t.modifiers(r)) out.push(tab.kind ? onlyFor(tab.kind, m) : m);
       }
@@ -153,7 +161,7 @@ export class Talents {
     };
     for (const tab of this.tree.tabs) {
       for (const t of tab.talents) {
-        const r = this.rank(t.id);
+        const r = this.effectiveRank(t.id);
         if (r && t.stats) add(out, t.stats(r));
       }
     }

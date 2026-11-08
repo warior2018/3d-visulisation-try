@@ -8,7 +8,8 @@
 // ============================================================
 
 import { rarityOf, rollRarity, chance, pickWeightedKey, TradeScene, translate } from "../../../engine/index.js";
-import { LOOT, ITEM_TIER, ARMOR_TIER, ARMOR, SHOP, TIERS } from "../config.js";
+import { LOOT, ITEM_TIER, ARMOR_TIER, ARMOR, SHOP, TIERS, WEAPON_PERKS } from "../config.js";
+import { TALENT_TREE, weaponTab } from "../talents.js";
 import { ITEMS, itemName, isWeapon, isArmor, itemInfo } from "../items.js";
 import { RESIDENTS } from "../creatures.js";
 import { INTERACT_REACH } from "./shared.js";
@@ -28,6 +29,29 @@ export function shopPrice(id) {
   const info = ITEMS[id];
   if (info?.set) return ARMOR.sets[info.set]?.parts?.[id.slice(info.set.length + 1)]?.price ?? 0;
   return 0;
+}
+
+// Таланты на оружии (WEAPON_PERKS): у оружия со своей веткой талантов — случайные прокачанные таланты из неё.
+// Вернёт { id таланта: ранг } или null
+export function rollPerks(item, rarity = "common") {
+  const tab = TALENT_TREE.tabs.find((t) => t.id === weaponTab(item));
+  if (!tab?.talents.length || Math.random() >= (WEAPON_PERKS.chance[rarity] ?? 0)) return null;
+  const [a, b] = WEAPON_PERKS.count[rarity] || [1, 1];
+  const n = Math.min(tab.talents.length, a + Math.floor(Math.random() * (b - a + 1)));
+  const pool = [...tab.talents];
+  const out = {};
+  for (let i = 0; i < n; i++) {
+    const t = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    out[t.id] = 1 + Math.floor(Math.random() * t.maxRank);
+  }
+  return out;
+}
+
+// «KATANA: MASTERY 2, IAI MULTIPLIER 1» — что на оружии (для надписей)
+export function perksText(perks, tr = (s) => s) {
+  if (!perks) return "";
+  const name = (id) => tr(TALENT_TREE.tabs.flatMap((t) => t.talents).find((t) => t.id === id)?.name || id);
+  return Object.entries(perks).map(([id, r]) => `${name(id)} ${r}`).join(", ");
 }
 
 export function tierOf(id) {
@@ -57,11 +81,14 @@ export class LootPart {
   dropGear(e) {
     const g = this.rollGear(e);
     if (!g) return;
-    const data = rarityData(g.rarity);
+    let data = rarityData(g.rarity);
+    const perks = isWeapon(g.item) ? rollPerks(g.item, g.rarity) : null; // прокачанные таланты на оружии
+    if (perks) data = { ...(data || {}), perks, label: (data?.label || "") + "+" };
     this.pickups.add(g.item, 1, { x: e.position.x, y: e.position.y + 0.6, z: e.position.z }, data ? { data } : {});
     const r = rarityOf(g.rarity);
-    this.engine.log(`добыча: ${r.name} ${g.item} (T${tierOf(g.item)}) с ${e.name}, удача ${this.luck().toFixed(2)}`);
-    if (g.rarity !== "common") this.engine.toast(`${translate(r.name)} ${translate(itemName(g.item))}!`, 1500); // по частям: так переводится
+    this.engine.log(`добыча: ${r.name} ${g.item} (T${tierOf(g.item)}) с ${e.name}, удача ${this.luck().toFixed(2)}${perks ? `, таланты: ${perksText(perks)}` : ""}`);
+    if (perks) this.engine.toast(`${translate(itemName(g.item))} + ${translate(perksText(perks))}`, 2500);
+    else if (g.rarity !== "common") this.engine.toast(`${translate(r.name)} ${translate(itemName(g.item))}!`, 1500); // по частям: так переводится
     this.engine.sound.play("loot", { at: e.position });
   }
 

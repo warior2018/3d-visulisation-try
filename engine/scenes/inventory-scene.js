@@ -27,11 +27,12 @@
 // ============================================================
 
 import { Scene } from "../core/scene.js";
-import { drawDim, drawInventoryGrid, inventoryGridSize, drawItem } from "../ui/widgets.js";
+import { drawDim, drawInventoryGrid, inventoryGridSize, drawItem, drawTooltip } from "../ui/widgets.js";
 import { drawWindow } from "../ui/window.js";
 
 export class InventoryScene extends Scene {
-  constructor({ entity, itemInfo, sections = null, title = "INVENTORY", closeActions = ["inventory", "pause"], dropAction = "drop", dropKey = "Q", onChange = () => {}, onDrop = () => {}, canDrop = () => true }) {
+  // describe(slot) → [{ text, color?, size? }] — плашка с информацией о предмете под мышью (null — без неё)
+  constructor({ entity, itemInfo, sections = null, title = "INVENTORY", closeActions = ["inventory", "pause"], dropAction = "drop", dropKey = "Q", onChange = () => {}, onDrop = () => {}, canDrop = () => true, describe = null }) {
     super();
     this.transparent = true;
     this.showToasts = false; // всплывающие надписи закрыли бы заголовок окна
@@ -46,6 +47,7 @@ export class InventoryScene extends Scene {
     this.onChange = onChange;
     this.onDrop = onDrop;
     this.canDrop = canDrop;
+    this.describe = describe;
     this.held = null; //   { stack: { item, count }, from: { s, i } } — что взяли «в руку»
     this.hover = null; //  { s, i } — ячейка под мышью (с прошлой отрисовки)
   }
@@ -90,6 +92,7 @@ export class InventoryScene extends Scene {
 
     // Предмет «в руке» — у курсора
     if (this.held) drawItem(ui, this.itemInfo, this.held.stack, ui.mouseX - 40, ui.mouseY - 40, 80, { name: false });
+    this.drawInfo(ui);
   }
 
   // Размер ячейки: 100, а если окно с такими ячейками выше экрана — меньше (не меньше 60). heightOf(k) —
@@ -156,6 +159,14 @@ export class InventoryScene extends Scene {
     const warn = this.warning && performance.now() < this.warning.until ? this.warning.text : null;
     ui.text(warn || `LMB - WHOLE SLOT, RMB - ONE BY ONE. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK`, box.cx, box.y + box.h - 30, 2, warn ? ui.theme.warn : ui.theme.muted, "center", 255, box.w);
     if (this.held) drawItem(ui, this.itemInfo, this.held.stack, ui.mouseX - 40, ui.mouseY - 40, 80, { name: false });
+    this.drawInfo(ui);
+  }
+
+  // Плашка о предмете под мышью (describe), если ничего не держим
+  drawInfo(ui) {
+    if (this.held || !this.hover || !this.describe) return;
+    const slot = this.slotsOf(this.hover.s)[this.hover.i];
+    if (slot) drawTooltip(ui, ui.mouseX, ui.mouseY, this.describe(slot));
   }
 
   hoverIndex(ui, s) {
