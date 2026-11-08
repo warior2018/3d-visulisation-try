@@ -33,8 +33,10 @@ export class Attack {
   // modifiers — модификаторы самой атаки (оружия)
   // fixedCooldown — перезарядку не ускоряют никакие модификаторы («атаки на 10 % чаще»): тяжёлое оружие
   // damageType — вид урона ("physical" / "magical" / "pure", elements.js); не задан — по стихии
-  constructor({ id, name, damage = 10, element = "physical", damageType = null, cooldown = 0.5, modifiers = [], fixedCooldown = false }) {
+  // headMultiplier — свой множитель за попадание в голову (вместо множителя части тела у цели); null — как у цели
+  constructor({ id, name, damage = 10, element = "physical", damageType = null, cooldown = 0.5, modifiers = [], fixedCooldown = false, headMultiplier = null }) {
     this.id = id;
+    this.headMultiplier = headMultiplier;
     this.name = name;
     this.kind = "attack"; // вид: melee / ranged / magic / item / trap — проставляют наследники
     this.damage = damage;
@@ -102,8 +104,9 @@ export class Attack {
       if (d.amount !== before) d.applied.push({ id: m.id, delta: d.amount - before }); // для счётчика урона
     }
     // Попали в часть тела с множителем (голова) — урон умножается после всех модификаторов
-    if (ctx.part?.multiplier && ctx.part.multiplier !== 1) {
-      d.amount *= ctx.part.multiplier;
+    const partMult = ctx.part?.id === "head" && this.headMultiplier != null ? this.headMultiplier : ctx.part?.multiplier;
+    if (partMult && partMult !== 1) {
+      d.amount *= partMult;
       d.tags.add(ctx.part.id === "head" ? "headshot" : "part:" + ctx.part.id);
       d.part = ctx.part.id;
     }

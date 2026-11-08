@@ -1,5 +1,5 @@
 // Мачете, прыжок на Q: прыжок вперёд, хитбокс у клинка — коснулся врага: удар ×1.5 одному (первому); никого не
-// задел — урона нет; перезарядка; таланты (урон, дальность, кровотечение); фитиль динамита по рангам
+// задел — урона нет; перезарядка; таланты (урон, дальность, кровотечение); фитиль динамита по рангам; хедшот автомата ×1.5
 export default async function (t, g) {
   const { scene, C } = g;
   for (const e of [...scene.entities.list]) if (e !== scene.player) scene.removeEntity(e);
@@ -70,5 +70,9 @@ export default async function (t, g) {
   // динамит: фитиль по рангам — до 0.3 с
   const tal = scene.talents.byId.get("dynamite-fuse")?.talent;
   t.check("динамит: SHORT FUSE 3 ранга, последний — 0.3 с", tal?.maxRank === 3 && tal.stats(3).shortFuse === 0.3 && tal.stats(1).shortFuse === 0.75, JSON.stringify(tal?.stats?.(3)));
+  const head = { id: "head", multiplier: 2 };
+  const autoHead = new g.E.RangedAttack(C.ATTACKS.auto).makeDamage(null, null, { part: head, noElementStatus: true }).amount;
+  const pistolHead = new g.E.RangedAttack(C.ATTACKS.pistol).makeDamage(null, null, { part: head, noElementStatus: true }).amount;
+  t.check("автомат: в голову ×1.5, пистолет — ×2", autoHead === C.ATTACKS.auto.damage * 1.5 && pistolHead === C.ATTACKS.pistol.damage * 2, `${autoHead} / ${pistolHead}`);
   t.check("снайперка: 111 урона, раз в 3 с, обойма 3; граната быстрее", C.ATTACKS.rifle.damage === 111 && C.ATTACKS.rifle.cooldown === 3 && C.ATTACKS.rifle.magazine === 3 && C.ATTACKS.handGrenade.speed === 23.1);
 }

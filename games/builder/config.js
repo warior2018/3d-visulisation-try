@@ -461,7 +461,7 @@ export const ATTACKS = {
   //   наравне со вторым по одной цели (2-е с улучшениями — 1.45× своего), но без его площади
   // Мобы: скелет 50 HP + 2 за каждого следующего (к 10 уровню ≈ 200), после 400-го — вдвое медленнее (GROWTH_SOFTCAP)
   pistol: { id: "pistol", name: "SHOT", damage: 28, range: 65, falloff: [35, 0.7], cooldown: 0.6, magazine: 7, reloadTime: 1.7, shake: 0.14 }, // «пустынный орёл»: редко, но больно (хедшот 56)
-  auto: { id: "auto", name: "BURST", damage: 10, range: 75, falloff: [30, 0.6], cooldown: 0.1, magazine: 30, reloadTime: 2.1 },
+  auto: { id: "auto", name: "BURST", damage: 10, range: 75, falloff: [30, 0.6], cooldown: 0.1, magazine: 30, reloadTime: 2.1, headMultiplier: 1.5 }, // в голову ×1.5 (у остальных ×2)
   // Мачете: свои статы оружия — дальше достаёт и бьёт больнее, но медленнее кулака (раз в 1.4 с);
   // хитбокс шире кулака — задевает двоих. Таланты ближнего боя ускоряют её в процентах: 1.4 → 0.76 с
   machete: { id: "machete", name: "MACHETE SWING", damage: 42, reach: 2.9, cooldown: 1.4, arc: 80, maxTargets: 2 },
