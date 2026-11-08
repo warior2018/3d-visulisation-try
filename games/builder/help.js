@@ -11,6 +11,8 @@ const aim = { name: "AIM", text: "HOLD TO AIM: ZOOM IN, LESS SPREAD" };
 const reload = { name: "RELOAD", text: "PUT IN A NEW CLIP FROM THE BAG. THE REST OF THE OLD ONE GOES BACK AS A PARTIAL CLIP" };
 const punch = { name: "PUNCH", text: `${A.punch.damage} DMG, UP TO ${A.punch.maxTargets} ENEMIES IN FRONT` };
 
+// Пассивка подрывника: свой взрыв рядом подкидывает (ROCKET_JUMP), урона себе нет
+const rocket = { name: "ROCKET JUMP", text: "YOUR OWN BLAST NEARBY THROWS YOU AWAY FROM IT AND UP. NO DMG TO YOU" };
 export const HELP = {
   hand: { primary: punch, secondary: block },
   pistol: { primary: { name: "SHOOT", text: `${A.pistol.damage} DMG. CLIP ${A.pistol.magazine}` }, secondary: aim, reload },
@@ -37,12 +39,13 @@ export const HELP = {
     secondary: block,
     skill1: { text: `DASH ${IAI.distance} M WHERE YOU LOOK (UP AND DOWN TOO), X${IAI.damage} DMG TO ALL ON THE PATH. COOLDOWN ${IAI.cooldown} S` },
   },
-  grenades: { primary: { name: "THROW", text: `${A.handGrenade.damage} DMG TO ALL WITHIN ${A.handGrenade.radius} BLOCKS WHERE IT HITS. ENDLESS` } },
+  grenades: { primary: { name: "THROW", text: `${A.handGrenade.damage} DMG TO ALL WITHIN ${A.handGrenade.radius} BLOCKS WHERE IT HITS. ENDLESS` }, passive: rocket },
   launcher: {
     primary: { name: "FIRE", text: `FAST FLAT SHELL: ${A.launcher.damage} DMG TO ALL WITHIN ${A.launcher.radius} BLOCKS` }, secondary: aim,
+    passive: rocket,
     skill1: { text: `THE SHELL BURSTS AND SCATTERS ${DEMO.cluster.count} BOMBLETS: ${A.clusterBomb.damage} DMG EACH IN ${A.clusterBomb.radius} BLOCKS. COOLDOWN ${DEMO.cluster.cooldown} S` },
   },
-  dynamite: { primary: { name: "THROW", text: `LIES ${DEMO.fuse} S WITH A BURNING FUSE, THEN ${A.dynamite.damage} DMG TO ALL WITHIN ${A.dynamite.radius} BLOCKS` } },
+  dynamite: { primary: { name: "THROW", text: `LIES ${DEMO.fuse} S WITH A BURNING FUSE, THEN ${A.dynamite.damage} DMG TO ALL WITHIN ${A.dynamite.radius} BLOCKS` }, passive: rocket },
   build: {
     primary: { name: "BREAK", text: "REMOVE THE BLOCK UNDER THE CROSSHAIR" },
     secondary: { name: "PLACE", text: "PUT A BLOCK. ONE STONE = ONE BLOCK" },

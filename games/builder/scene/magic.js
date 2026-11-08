@@ -4,8 +4,8 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { toWorld, viewBasis, Vec3, Slow, TrapAttack, withStatus } from "../../../engine/index.js";
-import { SHAKE, DEMO, FALL_DAMAGE, TRAPS, ATTACKS } from "../config.js";
+import { toWorld, viewBasis, Vec3, Slow, TrapAttack, withStatus, dash } from "../../../engine/index.js";
+import { SHAKE, DEMO, FALL_DAMAGE, TRAPS, ATTACKS, ROCKET_JUMP, DASH_SLIDE } from "../config.js";
 
 export class MagicPart {
   // ---------- Магия, ножи, ловушки ----------
@@ -54,6 +54,7 @@ export class MagicPart {
     const radius = attack.radius * (1 + (this.talentStats.blastRadius || 0));
     const boom = (at) => {
       this.explode(attack, at, [], { radius });
+      this.rocketJump(at, radius); // свой взрыв подкидывает (урона себе нет)
       then?.(at);
     };
     const lie = (p) => {
@@ -69,6 +70,20 @@ export class MagicPart {
       onLand: (p) => (fuse > 0 ? lie(p) : boom(p.position)),
       onExpire: (p) => boom(p.position),
     });
+  }
+
+  // Ракетный прыжок (ROCKET_JUMP): взрыв рядом отбрасывает героя от своего центра — рывок, как отдача дробовика
+  rocketJump(at, radius) {
+    const R = ROCKET_JUMP, p = this.player;
+    if (!p.alive || this.downed) return;
+    const c = { x: p.position.x - at.x, y: p.position.y + p.height / 2 - at.y, z: p.position.z - at.z };
+    const d = Math.hypot(c.x, c.y, c.z);
+    const k = 1 - d / (radius * R.reach);
+    if (k < R.min) return;
+    const l = d || 1;
+    this.beforeMovementSkill?.(); // верхом — сначала слезть (MOUNT)
+    dash(p, c.x / l, c.z / l, R.push * k, R.pushTime, c.y / l + R.lift, { slide: DASH_SLIDE });
+    this.engine.log(`ракетный прыжок: сила ${Math.round(k * 100)}%`);
   }
 
   // Горящие фитили (динамит): искрит, догорел — взрыв

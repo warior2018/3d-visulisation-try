@@ -51,6 +51,7 @@ export function describeSlot(g, slot) {
       const h = help?.[k];
       if (h && (k === "skill1" || k === "skill2" || h.name)) lines.push({ text: `${label}${h.name ? " " + translate(h.name) : ""}: ${translate(h.text)}`, color: k.startsWith("skill") ? GOLD : MUTED });
     }
+    if (help?.passive) lines.push({ text: `PASSIVE ${help.passive.name}: ${help.passive.text}`, color: GOOD });
     if (slot.data?.perks) lines.push({ text: `TALENTS: ${perksText(slot.data.perks, translate)}`, color: GOOD, size: 2 });
   } else if (isArmor(id)) {
     const k = 1 + rarity.power;

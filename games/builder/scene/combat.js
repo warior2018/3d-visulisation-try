@@ -207,7 +207,7 @@ export class CombatPart {
   // Справка F1: колонки — оружие и предметы хотбара, скиллы класса, ультимейт (hud.js → help)
   helpColumns() {
     const b = this.settings.controls.bindings;
-    const label = (action) => Input.label(b[action]) || "-";
+    const label = (action) => (action === "passive" ? "PASSIVE" : Input.label(b[action]) || "-"); // пассивка — без клавиши
     // 1. Оружие (в ячейке оружия; пусто — кулак): ЛКМ / ПКМ / перезарядка и его скилл
     const w = this.abilities.slots[0] || this.hand;
     const weapon = { title: w.name, rows: abilityHelp(w, label), empty: "NOTHING TO SHOW" };
