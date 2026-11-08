@@ -95,6 +95,17 @@ export default async function (t, g) {
   host.invasion.start(30);
   await g.both(peer, 15);
   t.check("нашествие хоста — у гостя тоже идёт", guest.invasion.active === true && guest.invasion.timeLeft > 0);
+  // нашествие: моб рядом с героем гостя (далеко от хоста) идёт на гостя, а не на хоста
+  {
+    const hp = hero.position;
+    const far = host.spawn("skeleton", { x: hp.x + 3, y: hp.y, z: hp.z });
+    host.player.position.x = hp.x - 40; // хост далеко
+    await g.both(peer, 40);
+    t.check("нашествие: моб злится на ближайшего героя (гостя), а не на хоста", far?.aggro === hero, far?.aggro ? far.aggro.name : "без цели");
+    host.removeEntity(far);
+    host.player.position.x = hp.x - 1;
+    await g.both(peer, 5);
+  }
 
   // сохранение у гостя: мир — хоста, не пишем; прогресс — в своё сохранение
   const fs = await import("node:fs");
@@ -122,6 +133,18 @@ export default async function (t, g) {
   await g.both(peer, 6);
   t.check("гость подобрал — у хоста предмета больше нет", !host.pickups.list.includes(coin));
   t.check("гость подобрал — кости у гостя в сумке", guest.itemCount("bone") === bones0 + 3, `${bones0} → ${guest.itemCount("bone")}`);
+  // гость выбросил предмет — он у хоста на земле (видят все), а у гостя — копия, которую сам он сразу не подберёт
+  {
+    const n0 = host.pickups.list.length;
+    const gp2 = guest.player.position;
+    const local = guest.pickups.add("bone", 2, { x: gp2.x, y: gp2.y + 0.5, z: gp2.z }, { ignore: guest.player });
+    await g.both(peer, 20);
+    const dropped = host.pickups.list.find((x) => x.item === "bone" && x.count === 2);
+    t.check("гость выбросил — предмет у хоста на земле", local === null && !!dropped && host.pickups.list.length === n0 + 1);
+    t.check("у хоста выброшенное гостем не подбирает сам гость (ignore — его герой)", dropped?.ignore === hero);
+    const mine = [...guest.net.items.values()].find((x) => x.netId === dropped?.netId);
+    t.check("у гостя копия выброшенного, автоподбор её сразу не берёт", !!mine && mine.ignore === guest.player);
+  }
   // опыт общий: хост убил моба — опыт и гостю
   // (в копии мира герой может быть на последнем уровне — тогда опыт не копится: проверяем, что дошло)
   let xpGot = 0;

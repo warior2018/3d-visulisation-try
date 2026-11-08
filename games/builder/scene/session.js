@@ -221,6 +221,7 @@ export class SessionPart {
     this.resetDaylight();
     this.net?.close(); // сетевая игра — закрыть (гости отключатся / мы отключимся от хоста)
     this.net = null;
+    this.engine.alwaysLive = false;
     this.ultimate?.detach(); // перестать слушать журнал боя
     for (const e of this.entities.list) this.game.models.detach(e);
     this.pickups.clear();

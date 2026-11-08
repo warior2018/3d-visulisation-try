@@ -303,11 +303,29 @@ export class GameScene extends Scene {
     if (!player.alive) return this.die();
   }
 
+  // Все герои в мире: свой и гости сетевой игры (их герои у хоста — remote)
+  heroes() {
+    if (!this.net || this.net.role !== "host") return [this.player];
+    const list = [this.player];
+    for (const q of this.net.guests.values()) if (q.hero?.alive) list.push(q.hero);
+    return list;
+  }
+
+  // До ближайшего героя (по земле)
+  nearestHeroDist(e) {
+    let best = Infinity;
+    for (const h of this.heroes()) best = Math.min(best, Math.hypot(e.position.x - h.position.x, e.position.z - h.position.z));
+    return best;
+  }
+
   // Сетевая игра (game.net от главного меню: { role, server | client, name }) — scene/net.js
   startNet() {
     registerCommands(this); // команды консоли этой игры (scene/commands.js)
     const n = this.game.net;
     if (!n) return;
+    // по сети мир не останавливается ни под каким окном (пауза, настройки): иначе остальные «замирают»
+    // и через 10 с тишины связь рвётся
+    this.engine.alwaysLive = true;
     if (n.role === "host") this.net = new HostNet(this, n.server);
     if (n.role === "client") {
       this.net = new ClientNet(this, n.client, n.name);
@@ -456,7 +474,7 @@ export class GameScene extends Scene {
       entities: this.entities.list,
       near: (e) => this.entities.near(e), //  соседи из сетки (separate)
       navWorld: this.navWorld,
-      hunt: this.invasion.active ? player : null, // нашествие: все мобы — на героя
+      hunt: this.invasion.active ? this.heroes() : null, // нашествие: каждый моб — на ближайшего героя (свой + гости)
       shoot: (e, target, attack) => (e.ranged.hitscan ? this.mobGunshot(e, target, attack) : this.mobThrow(e, target, attack)), // стрелок (HostileBrain ranged)
       // Контекст атак — один на существо (не новый объект каждый кадр); стена между ним и целью — луч не чаще
       // раза в 0.25 с (стрелки проверяют это каждый кадр)
@@ -496,7 +514,7 @@ export class GameScene extends Scene {
       }
       // Ушёл слишком далеко — исчезает: спокойный моб (или живёт дольше 2 минут) и дикий кабан — дальше
       // despawnDistance, злой моб — дальше huntDespawn (отстал от героя). Злых нашествия не трогаем
-      const dist = Math.hypot(e.position.x - player.position.x, e.position.z - player.position.z);
+      const dist = this.nearestHeroDist(e); // сетевая игра: до ближайшего из героев (моб у гостя не исчезает)
       const wildBoar = e.type === "boar";
       const gone = e.boss ? false : e.kind === "mob"
         ? (!e.aggro && (dist > SPAWN.despawnDistance || e.age > LIFETIME.mob)) || (dist > SPAWN.huntDespawn && !this.invasion.active)

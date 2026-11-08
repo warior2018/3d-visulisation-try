@@ -6,7 +6,10 @@
 //   3. Не толпится с остальными (separate). Подошёл — бьёт своей атакой (melee).
 //   4. Злиться не на кого — бродит вокруг места, где появилось (wander — как WanderBrain).
 //  Аура провокации (у сущности tauntRadius, например у стража): зашёл в зону — злится на неё (social.js).
-//  Охота (ctx.hunt — сущность): все злятся на неё, где бы она ни была (нашествие), leash не действует.
+//  Охота (ctx.hunt — сущность или список): все злятся на неё (на ближайшую из списка — сетевая игра:
+//  каждый моб на ближайшего героя), где бы она ни была (нашествие), leash не действует.
+//  Злится на героя (type "player"), а другой герой намного ближе (на SWITCH м) — переключается на него
+//  (раз в RETARGET с, без «дёрганья»). Провокация и аура стража сильнее этого.
 //  Своя территория (territory: { x, z, radius }) — для боссов в логове: из неё не выходит. Цель внутри — гонится;
 //  снаружи — только стреляет (если стрелок и достаёт), дальше radius + дальность выстрела — успокаивается.
 //  Без цели — возвращается домой (в центр территории). Нашествие таких не зовёт.
@@ -27,6 +30,8 @@ import { pursue, separate, neighbors, melee, turnTowards } from "../world/behavi
 
 const dist2d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z);
 const NONE = Object.freeze([]); // «никто не разозлился» — один общий пустой список, а не новый каждый кадр
+const SWITCH = 3; //    другой герой ближе на столько метров — переключиться на него
+const RETARGET = 0.5; // как часто проверять (с)
 
 export class HostileBrain extends Brain {
   // herd: { radius, alertOnSight } или null — без стада
@@ -46,18 +51,42 @@ export class HostileBrain extends Brain {
     this.huntRadius = huntRadius;
   }
 
-  // Ближайший враг ближе radius
-  nearestEnemy(e, entities, radius) {
+  // Ближайший враг ближе radius (only — ещё условие: например, только герои)
+  nearestEnemy(e, entities, radius, only = null) {
     let best = null;
     let bestD = radius;
     for (const o of entities) {
-      if (!o.alive || !e.isHostileTo(o)) continue;
+      if (!o.alive || !e.isHostileTo(o) || (only && !only(o))) continue;
       if (Math.abs(o.position.y - e.position.y) > this.sightHeight) continue;
       const d = dist2d(e, o);
       if (d <= bestD) {
         best = o;
         bestD = d;
       }
+    }
+    return best;
+  }
+
+  // Пора ли снова выбрать цель (раз в RETARGET с — у каждого моба свои часы)
+  retargetDue(e, dt) {
+    e.retargetIn = (e.retargetIn ?? Math.random() * RETARGET) - dt;
+    if (e.retargetIn > 0) return false;
+    e.retargetIn = RETARGET;
+    return true;
+  }
+
+  // Цель охоты: ctx.hunt — сущность или список (герои); из списка — ближайший живой, с «прилипанием»:
+  // текущий остаётся, пока другой не ближе на SWITCH м (проверка раз в RETARGET с)
+  huntTarget(e, hunt, dt) {
+    if (!hunt) return null;
+    if (!Array.isArray(hunt)) return hunt.alive && e.isHostileTo(hunt) ? hunt : null;
+    const cur = hunt.includes(e.aggro) && e.aggro.alive ? e.aggro : null;
+    if (cur && !this.retargetDue(e, dt)) return cur;
+    let best = cur, bestD = cur ? dist2d(e, cur) - SWITCH : Infinity;
+    for (const o of hunt) {
+      if (!o?.alive || !e.isHostileTo(o)) continue;
+      const d = dist2d(e, o);
+      if (d < bestD) { best = o; bestD = d; }
     }
     return best;
   }
@@ -89,10 +118,15 @@ export class HostileBrain extends Brain {
     const taunted = tauntTarget(e, dt); //                                   провокация — сильнее всего
     const T = this.territory;
     const fromHome = (o) => Math.hypot(o.position.x - T.x, o.position.z - T.z);
-    const hunt = !T && ctx.hunt?.alive && e.isHostileTo(ctx.hunt) ? ctx.hunt : null; // нашествие: цель одна на всех (кроме сидящих в логове)
+    const hunt = T ? null : this.huntTarget(e, ctx.hunt, dt); // нашествие: ближайший герой (кроме сидящих в логове)
     const aura = !hunt && !taunted ? auraTarget(e, entities) : null; //      зашёл в зону стража — злится на него
     force(taunted || hunt || aura);
     if (e.aggro && e.aggro !== hunt && e.aggro !== taunted && e.aggro !== aura && (!e.aggro.alive || dist2d(e, e.aggro) > this.leash)) e.aggro = null;
+    // Злится на героя, а рядом другой герой гораздо ближе — на него (сетевая игра: не все мобы на одного)
+    if (e.aggro?.type === "player" && e.aggro !== hunt && e.aggro !== taunted && e.aggro !== aura && this.retargetDue(e, dt)) {
+      const near = this.nearestEnemy(e, entities, this.aggroRadius, (o) => o.type === "player");
+      if (near && near !== e.aggro && dist2d(e, near) + SWITCH < dist2d(e, e.aggro)) e.aggro = near;
+    }
     if (!e.aggro && (!this.herd || this.herd.alertOnSight !== false)) {
       const seen = this.nearestEnemy(e, entities, this.aggroRadius);
       if (seen) alerted = this.anger(e, seen, entities);

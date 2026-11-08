@@ -377,7 +377,7 @@ export class Engine {
     for (let i = this.scenes.length - 2; i >= 0; i--) {
       const s = this.scenes[i];
       if (s.realtime) return s;
-      if (!s.live) return null;
+      if (!s.live && !this.alwaysLive) return null;
     }
     return null;
   }
@@ -788,7 +788,8 @@ export class Engine {
     // иначе на экран может вылезти старый буфер (меню «телепортируется» или пропадает).
     // Окно поверх мира, которое время НЕ останавливает (scene.live: карта, таланты, магазин, инвентарь):
     // мир под ним живёт дальше — его update(dt, { background: true }) (игра не читает клавиши героя)
-    const live = !scene.realtime && scene.live ? this.liveBelow() : null;
+    // alwaysLive — сетевая игра: любое окно (пауза, настройки) мир не останавливает — время у всех общее
+    const live = !scene.realtime && (scene.live || this.alwaysLive) ? this.liveBelow() : null;
     if (!scene.realtime && !live) {
       this.prevLiveEnd = 0; // меню / пауза: следующий живой кадр — без промежутка (не рывок)
       this.fixed.reset(); //   время стояло — тиков догонять не нужно

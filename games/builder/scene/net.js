@@ -140,6 +140,7 @@ export class HostNet {
       const now = Date.now();
       for (const q of this.guests.values()) if (now - (q.peer.data.seen || now) > TIMEOUT) this.server.kick(q.peer, "timeout");
     }
+    this.smoothGuests();
     const mine = this.fx.take();
     if (mine) for (const [kind, args] of mine) this.fxOut.push([0, kind, args]);
     if (++this.ticks % SNAP_EVERY) return;
@@ -157,7 +158,8 @@ export class HostNet {
     }
     let p, h, inv;
     if (this.ticks % (SNAP_EVERY * 4) === 0) {
-      p = g.pickups.list.map((x) => [netId(x), x.item, x.count, r2(x.position.x), r2(x.position.y), r2(x.position.z)]);
+      // 7-е поле — кто выбросил (номер героя): у него автоподбор не берёт, пока не отойдёт
+      p = g.pickups.list.map((x) => [netId(x), x.item, x.count, r2(x.position.x), r2(x.position.y), r2(x.position.z), x.ignore?.netId || 0]);
       h = [[netId(g.player), heldOf(g)], ...[...this.guests.values()].map((q) => [netId(q.hero), q.held || ""])];
       inv = [g.invasion.active ? 1 : 0, Math.ceil(g.invasion.timeLeft || 0), g.invasionKind?.name || "INVASION"];
     }
@@ -167,6 +169,24 @@ export class HostNet {
 
   sendChat(text) {
     this.server.broadcast({ t: "chat", from: this.myName, text });
+  }
+
+  // Герои гостей — к последнему присланному месту, плавно (за ~0.1 с); далеко (телепорт, возрождение) — сразу
+  smoothGuests() {
+    for (const q of this.guests.values()) {
+      const t = q.target, h = q.hero;
+      if (!t) continue;
+      const p = h.position;
+      const far = Math.hypot(t.x - p.x, t.y - p.y, t.z - p.z) > 6;
+      const k = far ? 1 : 0.3;
+      p.x += (t.x - p.x) * k;
+      p.y += (t.y - p.y) * k;
+      p.z += (t.z - p.z) * k;
+      let d = (t.yaw - (h.yaw || 0)) % (Math.PI * 2);
+      if (d > Math.PI) d -= Math.PI * 2;
+      else if (d < -Math.PI) d += Math.PI * 2;
+      h.yaw = (h.yaw || 0) + d * (far ? 1 : 0.35);
+    }
   }
 
   // Опыт за убитого — и гостям (общий, как в кооперативе)
@@ -216,10 +236,9 @@ export class HostNet {
     const h = guest.hero;
     switch (msg.t) {
       case "state":
-        h.position.x = +msg.x || 0;
-        h.position.y = +msg.y || 0;
-        h.position.z = +msg.z || 0;
-        h.yaw = +msg.yaw || 0;
+        // куда встать — цель; сам герой гостя доезжает до неё плавно (smoothGuests): состояние приходит
+        // 20 раз в секунду и неровно, а кадров — 60+; без этого гость у хоста двигался рывками
+        guest.target = { x: +msg.x || 0, y: +msg.y || 0, z: +msg.z || 0, yaw: +msg.yaw || 0 };
         h.netWalk = !!msg.w;
         if (typeof msg.h === "string" && msg.h !== guest.held) {
           guest.held = msg.h; // что в руках у гостя — показать у его героя и разослать другим
@@ -259,10 +278,17 @@ export class HostNet {
         this.server.send(peer, { t: "give", item: it.item, count: it.count, data: it.data || null });
         break;
       }
-      case "drop":
-        // не влезло гостю — обратно на землю
-        if (typeof msg.item === "string" && msg.count > 0) g.pickups.add(msg.item, msg.count | 0, { x: +msg.x || 0, y: (+msg.y || 0) + 0.5, z: +msg.z || 0 }, msg.data ? { data: msg.data, ignore: h } : { ignore: h });
+      case "drop": {
+        // гость выбросил (или не влезло) — на землю у хоста: видят все, подобрать может любой
+        if (typeof msg.item !== "string" || !(msg.count > 0)) break;
+        const opts = { ignore: h };
+        if (msg.data) opts.data = msg.data;
+        if (Array.isArray(msg.v)) opts.velocity = { x: +msg.v[0] || 0, y: +msg.v[1] || 0, z: +msg.v[2] || 0 };
+        const at = { x: +msg.x || 0, y: (+msg.y || 0) + (msg.exact ? 0 : 0.5), z: +msg.z || 0 };
+        netId(h);
+        g.pickups.add(msg.item, msg.count | 0, at, opts);
         break;
+      }
       case "hit": {
         const target = g.entities.list.find((e) => e.netId === msg.id);
         const n = Math.max(0, Math.min(100000, +msg.n || 0));
@@ -308,6 +334,18 @@ export class ClientNet {
       else this.client.send({ t: "remove", x, y, z });
     };
     this.fx = new FxRelay(scene);
+    // Свои выброшенные предметы (выбросил, не влезло, выпало из сундука) — не на свою землю, а хосту:
+    // мир у него, иначе их видим только мы и никто, кроме нас, их не подберёт
+    const pickups = scene.pickups;
+    const addLocal = pickups.add;
+    this.copyAdd = (...a) => addLocal.apply(pickups, a);
+    pickups.add = (item, count, at, opts = {}) => {
+      if (!this.ready) return addLocal.call(pickups, item, count, at, opts);
+      const v = opts.velocity;
+      this.client.send({ t: "drop", item, count, data: opts.data || null, x: r2(at.x), y: r2(at.y), z: r2(at.z), exact: 1, v: v ? [r2(v.x), r2(v.y), r2(v.z)] : undefined });
+      return null;
+    };
+    this.undoPickups = () => { pickups.add = addLocal; };
   }
 
   start() {
@@ -525,12 +563,13 @@ export class ClientNet {
   applyPickups(rows) {
     const g = this.g;
     const seen = new Set();
-    for (const [id, item, count, x, y, z] of rows) {
+    for (const [id, item, count, x, y, z, by] of rows) {
       if ((this.taken.get(id) || 0) > this.ticks) continue;
       seen.add(id);
       let it = this.items.get(id);
       if (!it) {
-        it = g.pickups.add(item, count, { x, y, z }, { stuck: true }); // без физики: место — от хоста
+        // без физики: место — от хоста. Выбросили мы сами — автоподбор не берёт, пока не отойдём
+        it = this.copyAdd(item, count, { x, y, z }, { stuck: true, ignore: by && by === this.myId ? g.player : null });
         if (!it) continue;
         it.netId = id;
         this.items.set(id, it);
@@ -550,6 +589,7 @@ export class ClientNet {
   close() {
     this.g.world.onChange = null;
     this.fx.close();
+    this.undoPickups?.();
     this.client.close("вышли");
   }
 }
