@@ -426,6 +426,7 @@ export const RU = {
   "EQUIPPED": "НАДЕТО",
   "EVERY 15 RIFLE SHOTS - A SMALL GRENADE: 200% RIFLE DMG, 2.5 BLOCKS RADIUS": "КАЖДЫЕ 15 ВЫСТРЕЛОВ АВТОМАТА - ГРАНАТА: 200% УРОНА, РАДИУС 2.5 БЛОКА",
   "EVERYONE FOR THEMSELVES, BEST OF 3 ROUNDS": "КАЖДЫЙ САМ ЗА СЕБЯ, ДО 2 ПОБЕД",
+  "EVERYONE FOR THEMSELVES, FIRST TO 3 WINS (UP TO 5 ROUNDS)": "КАЖДЫЙ САМ ЗА СЕБЯ, ДО 3 ПОБЕД (ДО 5 РАУНДОВ)",
   "EXECUTE X${k}": "ДОБИВАНИЕ X${k}",
   "EXPLOSIONS SET ON FIRE: BURNS 7.5% HP/S, MAX 30% HP": "ВЗРЫВЫ ПОДЖИГАЮТ: ГОРЕНИЕ 7.5% HP/С, МАКС. 30% HP",
   "EXPLOSIONS STUN FOR ${at([0.3, 0.6], r)} S": "ВЗРЫВЫ ОГЛУШАЮТ НА ${at([0.3, 0.6], r)} С",

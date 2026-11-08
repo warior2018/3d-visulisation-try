@@ -218,7 +218,7 @@ export class LobbyScene extends Scene {
       ui.button("mode:classic", "CLASSIC", ui.width / 2 - 110, my, 200, 44, 2, this.mode === "classic");
       ui.button("mode:duel", "DUEL", ui.width / 2 + 110, my, 200, 44, 2, this.mode === "duel");
     } else ui.text(`MODE: ${this.mode === "duel" ? "DUEL" : "CLASSIC"}`, ui.width / 2, my - 8, 3, th.text, "center");
-    ui.text(this.mode === "duel" ? "EVERYONE FOR THEMSELVES, BEST OF 3 ROUNDS" : "TOGETHER AGAINST THE MOBS", ui.width / 2, my + 30, 1, th.muted, "center");
+    ui.text(this.mode === "duel" ? "EVERYONE FOR THEMSELVES, FIRST TO 3 WINS (UP TO 5 ROUNDS)" : "TOGETHER AGAINST THE MOBS", ui.width / 2, my + 30, 1, th.muted, "center");
     // своя статистика (профиль движка: engine.profile)
     const pr = this.engine.profile;
     if (pr) ui.text(`YOUR DUELS: ${pr.get("duelWins")} WON / ${pr.get("duelLosses")} LOST   MATCHES: ${pr.get("matches")}`, 20, ui.height - 30, 1, th.muted);

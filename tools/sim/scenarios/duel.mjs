@@ -1,6 +1,6 @@
 // Дуэль на одном компьютере: лобби в режиме DUEL → арена и комнаты по кругу, подготовка (очки, монеты, свои
 // комнаты), стены арены не ломаются, бой (все на арене, враги друг другу), раунд за последним живым,
-// вещи на начало раунда возвращаются, до 2 побед, итог — в профиль
+// вещи на начало раунда возвращаются, до 3 побед (до 5 раундов), итог — в профиль
 import os from "node:os";
 import path from "node:path";
 
@@ -82,7 +82,7 @@ export default async function (t, g) {
   t.check("раунд 2: 10 очков талантов за 2 раунда (если не тратили)", host.talents.points >= 10);
   t.check("гость видит счёт и фазу", guest.duelRemote?.phase === "prep" && guest.duelRemote.wins.ALPHA === 1, JSON.stringify(guest.duelRemote));
 
-  // раунд 2: хост снова побеждает — 2 победы, дуэль окончена
+  // раунд 2: хост снова побеждает — 2:0, но до 3 побед: будет 3-й раунд
   host.duelState.time = 0.01;
   await both(10);
   t.check("раунд 2: второе оружие выбрано", !!host.subclass && !!guest.subclass);
@@ -90,7 +90,16 @@ export default async function (t, g) {
   await both(10);
   host.duelState.time = 0.01;
   await both(15);
-  t.check("дуэль окончена у обоих (2:0)", host.matchEnded && guest.matchEnded);
+  t.check("2:0 — дуэль идёт дальше (до 3 побед), 3-й раунд", !host.matchEnded && host.duelState.phase === "prep" && host.duelState.round === 3, JSON.stringify(host.duelState));
+  t.check("раундов в дуэли — 5", C.DUEL.rounds.length === 5 && C.DUEL.wins === 3);
+  // раунд 3: хост побеждает — 3:0, дуэль окончена
+  host.duelState.time = 0.01;
+  await both(10);
+  guest.player.stats.hp = 0;
+  await both(10);
+  host.duelState.time = 0.01;
+  await both(15);
+  t.check("дуэль окончена у обоих (3:0)", host.matchEnded && guest.matchEnded);
   t.check("профиль: победа записана", H.engine.profile.get("duelWins") === 1);
   await host.net?.close();
 }
