@@ -7,7 +7,7 @@
 import { TROPHY_TALENTS, TROPHY, weaponTab } from "../talents.js";
 import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3, rarityOf } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
-import { ARMOR, PLAYER, KATANA_IAI, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, MULTIPLAYER, DUEL, subclassOptions } from "../config.js";
+import { ARMOR, PLAYER, KATANA_IAI, MACHETE_LEAP, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, MULTIPLAYER, DUEL, subclassOptions } from "../config.js";
 import { ITEMS, HOTBAR_SLOTS } from "../items.js";
 
 export class ProgressionPart {
@@ -82,6 +82,12 @@ export class ProgressionPart {
       atk.magazine = Math.ceil(atk.baseMagazine * (1 + bonus));
       atk.ammo = Math.min(atk.ammo, atk.magazine);
     }
+  }
+
+  // Прыжок мачете (Q) с талантами: множитель удара, дальность (м), кровотечение (доля макс. HP за 3 с)
+  leapStats() {
+    const s = this.talentStats || {};
+    return { mult: MACHETE_LEAP.damage * (1 + (s.leapDamage || 0)), distance: MACHETE_LEAP.distance + (s.leapDistance || 0), bleed: s.leapBleed || 0 };
   }
 
   // ИАЙ катаны с талантами: множитель удара и прибавка к бегу

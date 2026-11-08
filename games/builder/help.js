@@ -4,7 +4,7 @@
 //  reload, palette... Числа — из config.js, поэтому справка сама следует за балансом.
 // ============================================================
 
-import { ATTACKS as A, BLOCK, SPEAR, KATANA_IAI as IAI, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT } from "./config.js";
+import { ATTACKS as A, BLOCK, SPEAR, KATANA_IAI as IAI, MACHETE_LEAP as ML, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT } from "./config.js";
 
 const block = { name: "BLOCK", text: `FOR ${BLOCK.window} S HITS FROM THE FRONT DEAL ${Math.round((1 - BLOCK.share) * 100)}% DMG. COOLDOWN ${BLOCK.cooldown} S` };
 const aim = { name: "AIM", text: "HOLD TO AIM: ZOOM IN, LESS SPREAD" };
@@ -20,7 +20,10 @@ export const HELP = {
     primary: { name: "SHOOT", text: `${A.shotgun.pellets} PELLETS OF ${A.shotgun.damage} DMG. CLIP ${A.shotgun.magazine}` }, secondary: aim, reload,
     skill1: { text: `POINT-BLANK BLAST: ${A.shotgunBlast.damage} DMG TO UP TO ${A.shotgunBlast.maxTargets} ENEMIES AHEAD, STUNS ${SB.stun} S. THE KICK THROWS YOU BACK (SHOOT DOWN - FLY UP). NO AMMO. COOLDOWN ${SB.cooldown} S` },
   },
-  machete: { primary: { name: "SWING", text: `${A.machete.damage} DMG, UP TO ${A.machete.maxTargets} ENEMIES IN FRONT` }, secondary: block },
+  machete: {
+    primary: { name: "SWING", text: `${A.machete.damage} DMG, UP TO ${A.machete.maxTargets} ENEMIES IN FRONT` }, secondary: block,
+    skill1: { text: `LEAP: REVERSE GRIP, JUMP ${ML.distance} M FORWARD WITH A SWING. THE BLADE HITS THE FIRST ENEMY IT TOUCHES: X${ML.damage} DMG. NO TOUCH - NO DMG. COOLDOWN ${ML.cooldown} S` },
+  },
   "war-hammer": {
     primary: { name: "SLAM", text: `${A.warHammer.damage} DMG TO ALL IN A CIRCLE. IN THE AIR: FALL FAST AND HIT ON LANDING, HIGHER = MORE DMG` },
     secondary: block,

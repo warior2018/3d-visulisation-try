@@ -482,7 +482,7 @@ export const ATTACKS = {
   // ПОДРЫВНИК: всё — взрывы по площади (MagicAttack, снаряд летит, долетел — burst). Вид атак — "blast" (свои таланты).
   // Граната (базовая): бросок по дуге, взрыв от удара ~33 урона/с ПО ВСЕМ в радиусе; гранатомёт — быстрее и
   // настильнее, радиус меньше (~51/с); динамит — лежит fuse с и рвёт сильно и широко (~47/с, но разом по толпе)
-  handGrenade: { id: "hand-grenade", name: "GRENADE", damage: 40, radius: 2.5, cooldown: 1.2, cost: 0, projectile: true, speed: 21 }, // бросок рукой: +40 % (было 15)
+  handGrenade: { id: "hand-grenade", name: "GRENADE", damage: 40, radius: 2.5, cooldown: 1.2, cost: 0, projectile: true, speed: 23.1 }, // бросок рукой: +40 % (было 15)
   launcher: { id: "launcher", name: "LAUNCHER SHELL", damage: 36, radius: 2, cooldown: 0.7, cost: 0, projectile: true, speed: 28 },
   dynamite: { id: "dynamite", name: "DYNAMITE", damage: 140, radius: 4, cooldown: 3, cost: 0, projectile: true, speed: 18.2 }, // бросок рукой: +40 % (было 13)
   clusterBomb: { id: "cluster", name: "CLUSTER BOMBLET", damage: 30, radius: 1.8, cooldown: 0, cost: 0, projectile: true },
@@ -490,7 +490,7 @@ export const ATTACKS = {
   shotgunBlast: { id: "shotgun-blast", name: "BLAST JUMP", damage: 45, reach: 7, arc: 70, maxTargets: 6 },
   katana: { id: "katana", name: "KATANA SLASH", damage: 65, reach: 3.2, cooldown: 1.3, arc: 110, maxTargets: 6 }, // 65 каждому; ИАЙ — ×1.5 (талант — до ×3)
   // Снайперская винтовка: урон фиксированный (120, хедшот 240), бьёт далеко, но медленно перезаряжается
-  rifle: { id: "rifle", name: "SNIPER SHOT", damage: 120, range: 200, cooldown: 2.0, magazine: 5, reloadTime: 2.4 }, // 2 с: передёргиваем затвор
+  rifle: { id: "rifle", name: "SNIPER SHOT", damage: 111, range: 200, cooldown: 3.0, magazine: 3, reloadTime: 2.4 }, // 3 с: передёргиваем затвор; в голову (×2) — 222
   // Арбалет: болт — снаряд (летит 80 м/с и слегка падает: на 100 м — ~3 м ниже; целься выше вдаль),
   // пробивает насквозь до 3 врагов на линии (каждому следующему — 80 % урона); после выстрела —
   // взвод (магазин 1). Один на один ~57/с, по толпе в ряд — до ~139/с
@@ -880,10 +880,10 @@ export const BLOCK = { window: 0.4, cooldown: 1.5, share: 0.5 };
 // прямо и пролетаешь над блоком перед собой, щель в блок — тоже; после рывка — снова в рост, на ноги
 // (катана — всегда в стойке, рост 1.4: коробка 0.35 у макушки → низ на 1.05 над ногами, выше блока)
 // ПОДРЫВНИК: тяжесть для брошенного (gravity — граната и динамит, launcherGravity — снаряд гранатомёта летит
-// настильнее), fuse — сколько секунд горит фитиль лежащего динамита (талант SHORT FUSE — shortFuse).
+// настильнее), fuse — сколько секунд горит фитиль лежащего динамита (талант SHORT FUSE — shortFuse: фитиль по рангам).
 // Скилл Q гранатомёта — КАССЕТА: снаряд рвётся и разбрасывает count бомбочек (ATTACKS.clusterBomb) вокруг,
 // каждая взрывается, где упадёт. Перезарядка cooldown с
-export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1, shortFuse: 0.5, cluster: { cooldown: 10, count: 6, up: 7, spread: 4.5 } };
+export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1, shortFuse: [0.75, 0.5, 0.3], cluster: { cooldown: 10, count: 6, up: 7, spread: 4.5 } };
 
 // Дробовик — скилл Q «ОТСКОК»: залп в упор (ATTACKS.shotgunBlast, патроны не тратит) оглушает задетых на stun с,
 // а отдача отбрасывает героя назад — против взгляда: смотришь вниз — подлетаешь вверх (выпрыгнуть из толпы, на крышу).
@@ -895,6 +895,10 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // Прощение краёв у рывков: stepUp — задел край блока низом тела не глубже 0.5 — поднимает на него; stepDown —
 // задел головой край потолка не глубже 0.25 — проходишь под ним; corner — задел угол стены краешком до 0.25 м — огибаешь
 export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
+// Прыжок с мачете (Q): нож — обратным хватом (лезвием вниз), прыжок вперёд на distance м с замахом. Хитбокс — там,
+// где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся
+// врага — удар ×damage одному (первому), прыжок кончается; никого не задел — урона нет. lift — подскок вверх (м/с)
+export const MACHETE_LEAP = { cooldown: 5.5, damage: 1.5, distance: 4.5, speed: 15, lift: 4, hitbox: { forward: 0.85, height: 0.95, radius: 0.55 } };
 export const KATANA_IAI = { cooldown: 6, damage: 1.5, distance: 10, dashSpeed: 40, width: 1.2, pause: 0.1, lockShare: 0.7, speed: 0, shape: { radius: 0.2, height: 0.35, anchor: "top" } };
 // Прицеливание (движок: engine/input/aim.js). fov — угол обзора в прицеле, sensitivity — мышь в прицеле
 // так, как её чувствует игрок (1 — перекрестие бегает по экрану как без прицела, 0.5 — вдвое медленнее).

@@ -13,7 +13,7 @@
 //  (game-scene.js → applyTalents и места, где это работает).
 // ============================================================
 
-import { HAMMER, FALL_DAMAGE, SUBCLASS } from "./config.js";
+import { HAMMER, FALL_DAMAGE, SUBCLASS, DEMO } from "./config.js";
 import {
   damageMultiplier, cooldownReduction, lifesteal, guaranteedCrit, withStatus, convertTo, bleed, stun, Slow,
   firstHit, vsStunned, headshotBonus, rampPerHit, onlyAttack, reachBonus,
@@ -55,7 +55,7 @@ export const TALENT_TREE = {
     // ---------- БОЕЦ ----------
     {
       id: "melee", name: "FIGHTER", kind: "melee", note: "BASE: MACHETE. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB",
-      sections: [{ name: "WAR HAMMER", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "KATANA", col: 4.5 }, { name: "SPEAR", col: 6 }],
+      sections: [{ name: "MACHETE", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "KATANA", col: 4.5 }, { name: "SPEAR", col: 6 }],
       talents: [
         { id: "hammer-stun", name: "STUN", maxRank: 3, cost: SIDE, col: 0, row: 0,
           describe: (r) => `HAMMER STUNS ${at([0.5, 0.75, 1], r)} S, +${pct(at([0.05, 0.1, 0.15], r))} DMG VS STUNNED`,
@@ -65,6 +65,13 @@ export const TALENT_TREE = {
           stats: (r) => ({ hammerSlam: at([1.5, 2, 2.5], r) }) },
         { id: "hammer-leap", name: "JUMP SLAM", maxRank: 1, cost: SIDE, col: 0.5, row: 1, requires: ["hammer-slam"],
           describe: () => `WITH THE HAMMER: JUMP 80% HIGHER, SLAM X${HAMMER.perStep} DMG MORE PER ${HAMMER.step} BLOCK FALLEN (UP TO X${HAMMER.maxMult}). FALL DMG FROM +${FALL_DAMAGE.jumpSlam.from} BLOCKS HIGHER, X${FALL_DAMAGE.jumpSlam.mult}`, stats: () => ({ hammerLeap: true }) },
+        // Мачете (базовое оружие бойца): прыжок на Q — abilities.js → MacheteAbility.leap, progression.js → leapStats
+        { id: "machete-leap-dmg", name: "LEAP DAMAGE", maxRank: 2, cost: SIDE, col: 0, row: 0,
+          describe: (r) => `MACHETE LEAP +${pct(at([0.25, 0.5], r))} DMG`, stats: (r) => ({ leapDamage: at([0.25, 0.5], r) }) },
+        { id: "machete-leap-far", name: "LONG LEAP", maxRank: 2, cost: SIDE, col: 1, row: 0,
+          describe: (r) => `MACHETE LEAP +${at([1.5, 3], r)} M FURTHER`, stats: (r) => ({ leapDistance: at([1.5, 3], r) }) },
+        { id: "machete-leap-bleed", name: "LEAP BLEED", maxRank: 2, cost: SIDE, col: 0.5, row: 1, requires: ["machete-leap-dmg", "machete-leap-far"],
+          describe: (r) => `MACHETE LEAP BLEEDS ${pct(at([0.1, 0.15], r))} MAX HP IN 3 S`, stats: (r) => ({ leapBleed: at([0.1, 0.15], r) }) },
         damageTalent("f-damage", [0.1, 0.15, 0.2, 0.25, 0.3]),
         { id: "f-speed", name: "ATTACK SPEED", maxRank: 5, cost: GENERAL, col: 3, row: 0,
           describe: (r) => `+${pct(at([0.1, 0.2, 0.3, 0.4, 0.5], r))} ATTACK SPEED`, modifiers: (r) => [faster(at([0.1, 0.2, 0.3, 0.4, 0.5], r))] },
@@ -139,8 +146,9 @@ export const TALENT_TREE = {
         damageTrophy("blast", "DEMO TROPHIES", "WITH EXPLOSIVES", 2.5, 3, ["d-concussion"]),
         { id: "launcher-cluster", name: "BIG CLUSTER", maxRank: 2, cost: SIDE, col: 4, row: 0,
           describe: (r) => `CLUSTER SKILL: +${at([2, 4], r)} BOMBLETS`, stats: (r) => ({ clusterExtra: at([2, 4], r) }) },
-        { id: "dynamite-fuse", name: "SHORT FUSE", maxRank: 1, cost: SIDE, col: 5, row: 0,
-          describe: () => "DYNAMITE FUSE HALVED", stats: () => ({ shortFuse: true }) },
+        // Фитиль динамита по рангам (config.js → DEMO.shortFuse): 1 с → 0.75 / 0.5 / 0.3 с
+        { id: "dynamite-fuse", name: "SHORT FUSE", maxRank: DEMO.shortFuse.length, cost: SIDE, col: 5, row: 0,
+          describe: (r) => `DYNAMITE FUSE ${at(DEMO.shortFuse, r)} S (BASE ${DEMO.fuse} S)`, stats: (r) => ({ shortFuse: at(DEMO.shortFuse, r) }) },
       ],
     },
     // ---------- ВЫЖИВАНИЕ (всем) ----------

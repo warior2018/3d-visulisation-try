@@ -7,8 +7,8 @@
 //  g — игровая сцена (game-scene.js): через неё способности бьют, стреляют, строят.
 // ============================================================
 
-import { Ability, MeleeAttack, SlamAttack, RangedAttack, MagicAttack, buff, dash, stun } from "../../engine/index.js";
-import { PALETTE, ATTACKS, WEAPON_SPEED, AIM_PISTOL, AIM_RIFLE, AIM_AUTO, RECOIL_PISTOL, RECOIL_RIFLE, RECOIL_AUTO, KATANA_IAI, EQUIP_TIME, SHOTGUN_BLAST, DEMO, MEDKIT, DASH_SLIDE } from "./config.js";
+import { Ability, MeleeAttack, SlamAttack, RangedAttack, MagicAttack, buff, dash, stun, withStatus, bleed } from "../../engine/index.js";
+import { PALETTE, ATTACKS, WEAPON_SPEED, AIM_PISTOL, AIM_RIFLE, AIM_AUTO, RECOIL_PISTOL, RECOIL_RIFLE, RECOIL_AUTO, KATANA_IAI, MACHETE_LEAP, EQUIP_TIME, SHOTGUN_BLAST, DEMO, MEDKIT, DASH_SLIDE } from "./config.js";
 
 // Вид от 3-го лица: модель оружия крепится к правому предплечью героя (кость forearm_R скелета) —
 // в кулак (0.31 м ниже локтя), повёрнутая так, чтобы ствол / клинок шёл вдоль руки от кулака.
@@ -218,16 +218,88 @@ export class AutoAbility extends Ability {
 }
 
 // Мачете: ближний бой — бьёт сильнее и дальше кулака
+// Мачете: ЛКМ — взмах, ПКМ — блок. Q — прыжок (MACHETE_LEAP): нож обратным хватом (лезвием вниз), прыжок вперёд
+// с замахом; хитбокс — у самого клинка (чуть больше): кого коснулся — тому удар ×damage (одному), не коснулся — урона нет.
+// Таланты (вкладка БОЕЦ, MACHETE): урон прыжка, дальность, кровотечение — scene/progression.js → leapStats
+const MACHETE_HELD = held("w-machete", "HoldMachete");
+const MACHETE_REVERSE = { ...MACHETE_HELD, rotation: [-Math.SQRT1_2, 0, 0, Math.SQRT1_2] }; // обратный хват: клинок вдоль предплечья
+
 export class MacheteAbility extends Ability {
   constructor() {
-    super({ id: "machete", name: "MACHETE", viewModel: "fp-machete", autoRepeat: true, held: held("w-machete", "HoldMachete"), equipTime: EQUIP_TIME.machete });
+    super({
+      id: "machete", name: "MACHETE", viewModel: "fp-machete", autoRepeat: true, held: MACHETE_HELD, equipTime: EQUIP_TIME.machete,
+      skills: { skill1: { id: "leap", name: "LEAP", press: (g, a) => a.leap(g), cooldown: (a) => ({ left: a.leapCooldown, total: MACHETE_LEAP.cooldown }) } },
+    });
     this.attack = new MeleeAttack(ATTACKS.machete);
+    this.leapAttack = new MeleeAttack({ ...ATTACKS.machete, id: "machete-leap", name: "MACHETE LEAP" });
+    this.leapReadyAt = 0; // когда прыжок снова готов (секунды часов): перезарядка идёт, даже если мачете не в руках
+    this.leapLeft = 0; //    идёт прыжок: сколько ещё секунд
     this.blocks = true;
   }
+  get leapCooldown() {
+    return Math.max(0, this.leapReadyAt - performance.now() / 1000);
+  }
+  get busy() {
+    return this.leapLeft > 0;
+  }
   secondary(g) {
+    if (this.busy) return;
     g.tryBlock(this); // ПКМ — блок
   }
+  // Q: прыжок вперёд (куда смотрим, по земле) с подскоком; нож — обратным хватом
+  leap(g) {
+    if (this.busy || this.leapCooldown > 0 || g.abilities.equipping) return;
+    g.beforeMovementSkill?.(); // верхом — сначала слезть (MOUNT)
+    const L = g.leapStats();
+    const dir = g.look.lookDirection();
+    const len = Math.hypot(dir.x, dir.z) || 1;
+    this.leapReadyAt = performance.now() / 1000 + MACHETE_LEAP.cooldown;
+    this.leapLeft = L.distance / MACHETE_LEAP.speed;
+    this.leapDir = { x: dir.x / len, z: dir.z / len };
+    dash(g.player, this.leapDir.x, this.leapDir.z, MACHETE_LEAP.speed, this.leapLeft, null, { slide: DASH_SLIDE });
+    g.player.velocity.y = MACHETE_LEAP.lift;
+    this.held = MACHETE_REVERSE;
+    // урон прыжка: сила оружия (редкость, улучшения) — как у взмаха; кровотечение — с талантом
+    this.leapAttack.power = this.attack.power;
+    this.leapAttack.modifiers = L.bleed ? [withStatus(bleed(L.bleed))] : [];
+    g.viewModel()?.play("Leap");
+    g.player.view?.animator.playOnce("MacheteSlash");
+    g.engine.sound.play("swing");
+  }
+  update(dt, g) {
+    if (this.leapLeft <= 0) return;
+    if (this.leapHit(g)) return this.endLeap(g);
+    this.leapLeft -= dt;
+    if (this.leapLeft <= 0) this.endLeap(g);
+  }
+  // Хитбокс у клинка: шар впереди героя; первый враг, чьё тело (отрезок от ног до макушки) его касается — удар
+  leapHit(g) {
+    const H = MACHETE_LEAP.hitbox;
+    const p = g.player;
+    const bx = p.position.x + this.leapDir.x * H.forward, by = p.position.y + H.height, bz = p.position.z + this.leapDir.z * H.forward;
+    let target = null, best = Infinity;
+    for (const e of g.entities.list) {
+      if (e === p || !e.alive || !p.isHostileTo(e)) continue;
+      const up = Math.max(0, e.position.y - by, by - (e.position.y + e.height)); // по высоте — до ближайшей точки тела
+      const d = Math.hypot(Math.hypot(e.position.x - bx, e.position.z - bz), up);
+      if (d <= H.radius + (e.radius || 0) && d < best) { best = d; target = e; }
+    }
+    if (!target) return false;
+    this.leapAttack.hit(p, target, g.combatContext({ baseDamage: this.leapAttack.roll() * g.leapStats().mult, onHit: (h) => g.onPlayerHit(h) }));
+    g.engine.sound.play("hit", { at: target.position });
+    return true;
+  }
+  endLeap(g) {
+    this.leapLeft = 0;
+    g.player.dash = null;
+    g.player.velocity.x = g.player.velocity.z = 0; // по инерции дальше не летим — прыжок ровно на свою длину
+    this.held = MACHETE_HELD;
+  }
+  unequip(g) {
+    if (this.leapLeft > 0) this.endLeap(g);
+  }
   primary(g) {
+    if (this.busy) return;
     const used = g.useAttack(this.attack, { anim: "Attack", bodyAnim: "MacheteSlash", sound: "swing", hitSound: "hit" });
     // След, как у катаны (плоский и сразу, по хитбоксу), только уже — сектор мачете 80° — и чуть наискось
     if (used) g.slashTrail(this.attack, { from: -0.25, to: -0.4, dir: -1, delay: 0, instant: true }); // справа налево, как взмах
@@ -588,7 +660,7 @@ export class DynamiteAbility extends Ability {
   }
   primary(g) {
     if (!g.useAttack(this.attack, { anim: "Throw", bodyAnim: "ThrowDynamite", sound: "swing" })) return;
-    g.throwBomb(this.attack, { item: "dynamite-lit", speed: ATTACKS.dynamite.speed, gravity: DEMO.gravity, fuse: g.talentStats?.shortFuse ? DEMO.shortFuse : DEMO.fuse });
+    g.throwBomb(this.attack, { item: "dynamite-lit", speed: ATTACKS.dynamite.speed, gravity: DEMO.gravity, fuse: g.talentStats?.shortFuse || DEMO.fuse });
   }
   drawIcon(ui, x, y, s) {
     for (const k of [0.28, 0.42, 0.56]) ui.rect(x + s * k, y + s * 0.3, s * 0.13, s * 0.5, [190, 40, 34]); // шашки
