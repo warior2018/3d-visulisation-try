@@ -172,6 +172,7 @@ export const RU = {
   "AIM SENSITIVITY": "ЧУВСТВИТЕЛЬНОСТЬ В ПРИЦЕЛЕ",
   "ALIVE": "ЖИВ",
   "ALL SKINS ARE UNLOCKED FOR NOW": "ПОКА ВСЕ СКИНЫ ОТКРЫТЫ",
+  "ALL WORLD SLOTS ARE TAKEN - DELETE ONE FIRST": "ВСЕ СЛОТЫ МИРОВ ЗАНЯТЫ - СНАЧАЛА УДАЛИ ОДИН",
   "ALREADY OWNED": "УЖЕ ЕСТЬ",
   "ALT ACTION": "ДОП. ДЕЙСТВИЕ",
   "ALWAYS ACTIVE": "ДЕЙСТВУЕТ ВСЕГДА",

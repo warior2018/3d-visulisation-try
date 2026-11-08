@@ -75,12 +75,11 @@ export class MainMenu extends Scene {
 
   reload() {
     this.worlds = listWorlds();
-    this.ring = [...this.worlds];
-    if (this.worlds.length < MAX_WORLDS) this.ring.push({ id: "new", create: true, name: "NEW WORLD" });
+    this.ring = [...this.worlds]; // только миры; «создать» — отдельно справа, всегда на месте
     this.rot = 0;
   }
 
-  // Порядок в круге после поворотов: 0 — центр, 1 — слева, 2 — справа, дальше — очередь
+  // Порядок ленты после поворотов (по кругу): 0 — центр, 1 — слева, 2 — дальше слева, 3 — ещё дальше
   order() {
     const n = this.ring.length;
     return this.ring.map((_, i) => this.ring[(((i + this.rot) % n) + n) % n]);
@@ -94,16 +93,22 @@ export class MainMenu extends Scene {
     if (this.ring.length > 1) this.rot += dir;
   }
 
-  // Где кругляш позиции k: центр крупно, слева / справа поменьше, очередь — ещё меньше и дальше по бокам
+  // Лента «o O БОЛЬШОЙ  +»: центр крупно, чем дальше влево — тем меньше и тусклее; «создать» — справа отдельно
   slot(ui, k) {
-    const cx = ui.width / 2, y = ringY(ui);
-    const R = Math.min(110, ui.height * 0.12);
-    if (k === 0) return { x: cx, y, r: R, a: 1 };
-    if (k === 1) return { x: cx - R * 2.6, y: y + 10, r: R * 0.68, a: 0.9 };
-    if (k === 2) return { x: cx + R * 2.6, y: y + 10, r: R * 0.68, a: 0.9 };
-    const q = k - 3; // очередь: дальше — меньше и тусклее, попеременно слева и справа
-    const side = q % 2 === 0 ? -1 : 1, depth = Math.floor(q / 2);
-    return { x: cx + side * (R * 4.1 + depth * R * 0.7), y: y + 22, r: Math.max(10, R * (0.4 - depth * 0.08)), a: Math.max(0.25, 0.6 - depth * 0.15) };
+    const cx = ui.width / 2, y = ringY(ui), R = ringR(ui);
+    const S = [
+      { x: cx, y, r: R, a: 1 },
+      { x: cx - R * 2.35, y: y + 10, r: R * 0.62, a: 0.9 },
+      { x: cx - R * 3.95, y: y + 20, r: R * 0.4, a: 0.7 },
+      { x: cx - R * 5.0, y: y + 26, r: R * 0.24, a: 0.5 },
+    ];
+    return S[Math.min(k, S.length - 1)];
+  }
+
+  // Кругляш «создать мир» — справа от центра, на месте
+  createSlot(ui) {
+    const R = ringR(ui);
+    return { x: ui.width / 2 + R * 2.6, y: ringY(ui) + 10, r: R * 0.62 };
   }
 
   update(dt) {
@@ -111,10 +116,14 @@ export class MainMenu extends Scene {
     const ui = this.engine.ui;
     this.clock = (this.clock || 0) + dt; // блик на кнопке ИГРАТЬ
     const k = Math.min(1, dt * 12);
+    this.slotOf ||= new Map(); // id мира -> его место в ленте в прошлом кадре
     this.order().forEach((w, i) => {
       const t = this.slot(ui, i);
       const lift = this.hover === w.id ? 12 : 0;
-      const a = this.anim.get(w.id) || { ...t };
+      let a = this.anim.get(w.id) || { ...t };
+      const was = this.slotOf.get(w.id);
+      if (was !== undefined && Math.abs(was - i) > 1) a = { ...t, r: 0 }; // перескочил через край (по кругу) — вырастает на новом месте
+      this.slotOf.set(w.id, i);
       a.x += (t.x - a.x) * k;
       a.y += (t.y - lift - a.y) * k;
       a.r += (t.r - a.r) * k;
@@ -374,30 +383,36 @@ export class MainMenu extends Scene {
     for (let i = order.length - 1; i >= 0; i--) {
       const w = order[i], a = this.anim.get(w.id);
       if (!a) continue;
-      if (i < 3 && (mx - a.x) ** 2 + (my - a.y) ** 2 <= a.r * a.r) this.hover = w.id;
+      if ((mx - a.x) ** 2 + (my - a.y) ** 2 <= a.r * a.r) this.hover = w.id;
     }
+    const cs = this.createSlot(ui), full = this.worlds.length >= MAX_WORLDS;
+    const onCreate = (mx - cs.x) ** 2 + (my - cs.y) ** 2 <= cs.r * cs.r;
+    if (onCreate) this.hover = "new";
     for (let i = order.length - 1; i >= 0; i--) {
       const w = order[i], a = this.anim.get(w.id);
       if (!a) continue;
       const lit = i === 0 || this.hover === w.id;
       ui.circle(a.x, a.y, a.r + 5, lit ? th.accent : th.window.border, 255);
-      if (w.create) {
-        ui.circle(a.x, a.y, a.r, [24, 24, 30], 255);
-        ui.text("+", a.x, a.y - a.r * 0.35, Math.max(2, Math.round(a.r / 9)), th.accent, "center");
-      } else {
+      {
         const img = this.icons[w.icon] || this.icons[this.iconIds[0]];
         if (img) ui.image(img, a.x - a.r, a.y - a.r, a.r * 2, a.r * 2, { circle: true, dim: i === 0 || lit ? 0 : 0.35 * (1 - a.a) + 0.15 });
         else ui.circle(a.x, a.y, a.r, [60, 60, 70], 255);
       }
-      if (i < 3) {
-        const name = w.create ? "NEW WORLD" : w.name;
-        ui.text(name, a.x, a.y + a.r + 14, i === 0 ? 3 : 2, lit ? th.text : th.muted, "center");
-        if (!w.create && !w.saved && i === 0) ui.text("NEW RUN", a.x, a.y + a.r + 44, 2, th.warn, "center");
+      if (i < 2 || this.hover === w.id) {
+        ui.text(w.name, a.x, a.y + a.r + 14, i === 0 ? 3 : 2, lit ? th.text : th.muted, "center");
+        if (!w.saved && i === 0) ui.text("NEW RUN", a.x, a.y + a.r + 44, 2, th.warn, "center");
       }
     }
+    // «создать мир» — справа, всегда; слоты заняты — тусклый
+    const cl = onCreate && !full ? 12 : 0;
+    ui.circle(cs.x, cs.y - cl, cs.r + 5, onCreate && !full ? th.accent : th.window.border, 255);
+    ui.circle(cs.x, cs.y - cl, cs.r, [24, 24, 30], 255);
+    ui.text("+", cs.x, cs.y - cl - cs.r * 0.35, Math.max(2, Math.round(cs.r / 9)), full ? th.muted : th.accent, "center");
+    ui.text("NEW WORLD", cs.x, cs.y + cs.r + 14, 2, onCreate && !full ? th.text : th.muted, "center");
+    ui.text(`${this.worlds.length}/${MAX_WORLDS}`, cs.x, cs.y + cs.r + 36, 2, full ? th.warn : th.muted, "center");
     // у центрального мира (не «новый») — шестерёнка снизу справа: настройки мира (имя, картинка, удаление)
     const c0 = this.center, a0 = c0 && this.anim.get(c0.id);
-    if (c0 && !c0.create && a0) {
+    if (c0 && a0) {
       const gx = Math.round(a0.x + a0.r * 0.74), gy = Math.round(a0.y + a0.r * 0.74);
       ui.button("wset", "", gx, gy, 36, 36, 2, false);
       drawTabIcon(ui, "gear", gx, gy, th.text);
@@ -411,10 +426,10 @@ export class MainMenu extends Scene {
     // ИГРАТЬ — внизу, на своём месте (не прыгает, когда наводишь мышь на мир). Картинка и удаление мира —
     // не здесь (будут в другом месте)
     const c = this.center;
-    if (c) ui.button("play", c.create ? "CREATE" : c.saved ? "PLAY" : "START", ui.width / 2, playY(ui), 300, 56, 3, true);
+    ui.button("play", !c ? "CREATE" : c.saved ? "PLAY" : "START", ui.width / 2, playY(ui), 300, 56, 3, true);
     // герой (3D: окошко прозрачное) и статы показанного мира
     const w = this.shown();
-    if (w && !w.create) {
+    if (w) {
       const b = this.heroBox(ui);
       if (w.saved && !w.old && w.cls && !w.noCharacter) {
         ui.frame(b.x - 3, b.y - 3, b.w + 6, b.h + 6, th.window.border, 3);
@@ -483,13 +498,13 @@ export class MainMenu extends Scene {
       return;
     }
     const c = this.center;
+    if (kind === "play" && !c) return this.newWorld();
     if (!c) return;
     if (kind === "play") {
-      if (c.create) return this.newWorld();
       touchWorld(c.id);
       return this.actions.play(c.id);
     }
-    if (kind === "wset" && !c.create) return this.openWorldSettings(c);
+    if (kind === "wset") return this.openWorldSettings(c);
   }
 
   // Настройки созданного мира: имя, картинка, удаление (с подтверждением и отсчётом — движок: confirmAction)
@@ -509,6 +524,7 @@ export class MainMenu extends Scene {
   }
 
   newWorld() {
+    if (this.worlds.length >= MAX_WORLDS) return this.actions.toast?.("ALL WORLD SLOTS ARE TAKEN - DELETE ONE FIRST");
     const n = this.worlds.length + 1;
     this.engine.push(new CreateWorldScene({
       icons: this.icons, iconIds: this.iconIds, name: `WORLD ${n}`,
@@ -519,22 +535,19 @@ export class MainMenu extends Scene {
     }));
   }
 
-  // клик по кругляшу: боковой — повернуть к нему; центральный «+» (уже доехал до центра) — создать мир
+  // клик по кругляшу: мир в ленте — едет в центр; «+» справа — создать мир
   onMouseDown({ x, y }) {
     if (this.tab !== "play") return false;
-    const order = this.order();
-    const c = order[0], ac = c && this.anim.get(c.id);
-    if (c?.create && ac && (x - ac.x) ** 2 + (y - ac.y) ** 2 <= ac.r * ac.r) {
-      const t = this.slot(this.engine.ui, 0);
-      if (Math.abs(ac.x - t.x) < 4 && Math.abs(ac.r - t.r) < 4) { // ещё едет к центру — не считается
-        this.newWorld();
-        return true;
-      }
+    const cs = this.createSlot(this.engine.ui);
+    if ((x - cs.x) ** 2 + (y - cs.y) ** 2 <= cs.r * cs.r) {
+      this.newWorld();
+      return true;
     }
-    for (let i = 1; i < Math.min(3, order.length); i++) {
+    const order = this.order();
+    for (let i = 1; i < order.length; i++) {
       const a = this.anim.get(order[i].id);
       if (a && (x - a.x) ** 2 + (y - a.y) ** 2 <= a.r * a.r) {
-        this.turn(i); // слева — на 1 шаг, справа — на 2 (он третий в очереди)
+        this.turn(i); // на i шагов: он в центре
         return true;
       }
     }
@@ -660,7 +673,7 @@ function drawTabIcon(ui, icon, cx, cy, color) {
 
 // Раскладка вкладки ИГРАТЬ: круги миров — около середины, ИГРАТЬ — почти внизу
 const ringY = (ui) => Math.round(ui.height * 0.36);
-const ringR = (ui) => Math.min(110, ui.height * 0.12);
+const ringR = (ui) => Math.min(110, ui.height * 0.12, ui.width * 0.085);
 const playY = (ui) => ui.height - 52;
 
 // Окно настроек мира: имя (печатать), картинка (стрелки), СОХРАНИТЬ / ЗАКРЫТЬ; УДАЛИТЬ — уровень 3:

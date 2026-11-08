@@ -29,7 +29,7 @@ import { creatureToJSON } from "./creatures.js";
 // погибшие миры (dead/) и info.json — имя, картинка, когда играли в последний раз (меню «ИГРАТЬ»).
 // Какой мир сейчас — useWorld(id); пути ниже переключаются вместе с ним (export let — живые ссылки)
 const WORLDS = path.join(SAVES, "worlds");
-export const MAX_WORLDS = 9;
+export const MAX_WORLDS = 4;
 export let currentWorld = null;
 export let WORLD_ROOT = null;
 export let SAVE_DIR = null;
@@ -148,6 +148,8 @@ export function deleteWorld(id) {
 let PROFILE = "local";
 
 migrateToSlots();
+// Миров больше, чем слотов (раньше было 9): лишние (в которые давно не играли) — в saves/deleted/
+for (const w of listWorlds().slice(MAX_WORLDS)) deleteWorld(w.id);
 useWorld(listWorlds()[0]?.id || "1");
 
 // Есть ли сохранённый мир (в любом формате) — у текущего слота

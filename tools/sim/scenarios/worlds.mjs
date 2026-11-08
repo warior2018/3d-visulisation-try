@@ -24,6 +24,25 @@ export default async function (t, g) {
   t.check("картинка мира от стрелок не меняется", S.listWorlds().find((w) => w.id === first)?.icon === pic);
   menu.onButton("turn:-1");
   t.check("стрелка > : обратно", menu.center.id === first);
+  // лента «o O БОЛЬШОЙ  +»: в ленте только миры, «создать» — отдельно справа; клик по миру — он в центре
+  const ui = new Proxy({ width: 1280, height: 720, mouseX: 0, mouseY: 0, theme: { accent: [1, 1, 1], window: { border: [1, 1, 1] }, text: [1, 1, 1], muted: [1, 1, 1], warn: [1, 1, 1] } }, { get: (o, k) => (k in o ? o[k] : () => false) });
+  let pushed = null;
+  menu.engine = { ui, redraw() {}, sound: { play() {} }, push: (s) => { pushed = s; } };
+  menu.update(1 / 60);
+  menu.drawPlay(ui);
+  t.check("лента: «создать» не в ленте", !menu.ring.some((w) => w.create) && S.MAX_WORLDS === 4);
+  t.check("лента: центр крупнее, дальше влево — меньше", menu.slot(ui, 0).r > menu.slot(ui, 1).r && menu.slot(ui, 1).r > menu.slot(ui, 2).r && menu.slot(ui, 1).x < menu.slot(ui, 0).x && menu.createSlot(ui).x > menu.slot(ui, 0).x);
+  const cs = menu.createSlot(ui);
+  menu.onMouseDown({ x: cs.x, y: cs.y });
+  t.check("лента: клик по «+» справа — окно создания мира", menu.worlds.length >= 4 || pushed?.constructor?.name === "CreateWorldScene");
+  if (menu.ring.length > 1) {
+    for (let i = 0; i < 30; i++) menu.update(1 / 60);
+    const left = menu.order()[1], a1 = menu.anim.get(left.id);
+    menu.onMouseDown({ x: a1.x, y: a1.y });
+    t.check("лента: клик по миру слева — он в центре", menu.center.id === left.id);
+    for (let i = 0; i < menu.ring.length; i++) menu.turn(1);
+    t.check("лента: по кругу — полный оборот возвращает тот же мир", menu.center.id === left.id);
+  }
   S.touchWorld(was);
   S.deleteWorld(a);
   S.deleteWorld(b);
