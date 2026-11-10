@@ -27,14 +27,25 @@ export class AchievementsPart {
 
   achCheck(stat) {
     for (const a of checkAchievements(this.engine.profile, stat)) {
-      this.engine.toast(`${this.tr("ACHIEVEMENT")}: ${this.tr(a.name)} - ${this.tr("NEW SKIN UNLOCKED")}`, 4000);
-      this.engine.sound.play("levelup", { volume: 0.8 });
+      // табличка сверху экрана (hud.js → achievement) и звук награды; несколько сразу — по очереди
+      (this.achQueue ||= []).push(a);
+      this.engine.sound.play("achievement", { volume: 0.9 });
+      this.levelFlash = Math.max(this.levelFlash || 0, 0.7); // золотая вспышка по краям
       this.engine.log(`ачивка: ${a.id} → скин ${a.skin}`);
     }
   }
 
+  // Табличка ачивки: 5 с на каждую, по очереди
+  achBannerTick(dt) {
+    if (!this.achBanner && this.achQueue?.length) this.achBanner = { a: this.achQueue.shift(), left: 5 };
+    if (!this.achBanner) return;
+    this.achBanner.left -= dt;
+    if (this.achBanner.left <= 0) this.achBanner = null;
+  }
+
   // Раз в 5 с — записать профиль, если менялся
   achSave(dt) {
+    this.achBannerTick(dt);
     this.achTimer = (this.achTimer || 0) + dt;
     if (!this.achDirty || this.achTimer < 5) return;
     this.achTimer = 0;

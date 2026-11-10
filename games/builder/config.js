@@ -579,7 +579,16 @@ export const ATTACKS = {
 };
 
 // Звуки игры (синтез — в движке)
+// Звук с задержкой ms (для арпеджио: ноты одна за другой)
+const later = (ms, s) => {
+  const pad = Math.round(48 * ms), out = new Float32Array(pad + s.length);
+  out.set(s, pad);
+  return out;
+};
 export const SOUNDS = {
+  // ачивка: восходящее арпеджио до-ми-соль-до и звонкая искра сверху — «награда»
+  achievement: mix(tone(523, 523, 240, 3), later(110, tone(659, 659, 240, 3)), later(220, tone(784, 784, 260, 3)),
+    later(330, tone(1047, 1047, 650, 2.2)), later(330, tone(1568, 1568, 650, 2.6)), later(360, tone(2093, 2637, 300, 5)), later(330, noise(260, 7, 0.15))),
   place: tone(220, 110, 110, 5), //  глухой «тук» — блок поставлен
   remove: tone(520, 260, 90, 6), //  повыше — блок убран
   swing: tone(340, 90, 160, 4), //   «вжух» — удар мимо

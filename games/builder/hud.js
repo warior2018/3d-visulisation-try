@@ -12,6 +12,7 @@ import { widgets, drawMinimap, drawPortrait, Input, HudParts, translate } from "
 import { PALETTE, PORTRAIT, PORTRAIT_PALETTE, CLASSES, TRAPS, DAMAGE_DIR, ELITE } from "./config.js";
 import { TROPHY, TROPHY_TALENTS, trophyPct } from "./talents.js";
 import { itemName } from "./items.js";
+import { SKIN_TARGETS } from "./skins.js";
 
 const { TEXT, MUTED, drawDamageArc, drawCrosshair, drawBar, drawVignette, drawBadges, drawStatuses, drawCooldowns, drawSlot } = widgets;
 const CD_SIZE = 32; //      «часики» перезарядок под хотбаром
@@ -39,6 +40,26 @@ const trapCount = (g, i) => {
 };
 
 export const HUD_PARTS = [
+  {
+    // Ачивка открыта: табличка сверху по центру — выезжает, 5 с, гаснет (scene/achievements.js → achBanner)
+    id: "achievement",
+    watch: (g) => (g.achBanner ? { id: g.achBanner.a.id, k: Math.round(Math.min(1, Math.min(5 - g.achBanner.left, g.achBanner.left) * 3) * 20) } : null),
+    draw: (ui, g, d) => {
+      if (!d) return;
+      const a = g.achBanner?.a;
+      if (!a) return;
+      const th = ui.theme, k = d.k / 20;
+      const w = Math.min(560, ui.width - 40), h = 96, x = Math.round(ui.width / 2 - w / 2), y = Math.round(-h + (h + 70) * k);
+      const [target, skin] = a.skin.split("/");
+      const t = SKIN_TARGETS.find((q) => q.id === target), s = t?.skins.find((q) => q.id === skin);
+      ui.rect(x, y, w, h, [18, 16, 10], 235);
+      ui.frame(x, y, w, h, GOLD, 3);
+      ui.rect(x + 3, y + 3, w - 6, 22, [60, 46, 14], 220);
+      ui.text("ACHIEVEMENT UNLOCKED", ui.width / 2, y + 8, 1, GOLD, "center");
+      ui.text(translate(a.name), ui.width / 2, y + 34, 3, [255, 236, 170], "center", 255, w - 20);
+      ui.text(`${translate("NEW SKIN")}: ${translate(t?.name || target)} - ${translate(s?.name || skin)}`, ui.width / 2, y + 70, 1, th.text, "center", 255, w - 20);
+    },
+  },
   // ---------- У прицела ----------
   {
     // оптика винтовки — свой круг; в прицеле от 1-го лица прицел — сама мушка; оружие ближнего боя (мачете,
