@@ -735,6 +735,11 @@ export class ClientNet {
         e.onDamage = (d, dealt) => {
           shown?.(d, dealt);
           if (d.source === g.player || !d.source) this.client.send({ t: "hit", id, n: dealt, a: d.amount, p: d.part || null, k: d.kind || null, s: d.shot || null });
+          // добили копию своим ударом — ачивки и статистика у гостя (сам моб умрёт у хоста)
+          if (d.source === g.player && !e.alive && !e.achDone && e.kind === "mob") {
+            e.achDone = true;
+            g.achKill?.(e);
+          }
         };
         this.copies.set(id, e);
       }
