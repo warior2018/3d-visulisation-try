@@ -277,6 +277,9 @@ export const HERD = { radius: 5.5, alertOnSight: true, leash: 45 };
 // Какой моб появляется из спавнера: доли (в сумме — любые числа). Зомби — реже скелетов
 export const MOB_MIX = { skeleton: 7, zombie: 3, bloater: 1.3, ghoul: 1.6, mummy: 1.2, shaman: 0.8, goblin: 1 }; // РАЗДУТЫЙ — ~1 из 13
 
+// Только ночью появляются (днём их вес в MOB_MIX — 0; смена дня и ночи выключена — появляются всегда)
+export const MOB_NIGHT_ONLY = ["ghoul", "shaman"];
+
 // Новые мобы (scene/mob-kinds.js; паспорта — creatures.js):
 //  УПЫРЬ (ghoul) — быстрый и хрупкий: когти пускают кровь (bleed — доля макс. HP цели за 3 с), лечится на lifesteal
 //    от нанесённого. Стоек к стрельбе, взрыв ранит его сильнее.

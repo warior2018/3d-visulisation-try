@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, MULTIPLAYER, subclassOptions, worldgenFor, WOUND } from "../config.js";
+import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_NIGHT_ONLY, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, MULTIPLAYER, subclassOptions, worldgenFor, WOUND } from "../config.js";
 import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../save.js";
 import { Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, Hints, profiler } from "../../../engine/index.js";
 import { HINTS } from "../hints.js";
@@ -168,7 +168,9 @@ export class SessionPart {
       avoid: far,
       spawn: (x, z, index) => {
         // Кто — по долям MOB_MIX; каждый следующий крепче (config.js → SKELETON_GROWTH); в блоке — физика вытолкнет наверх
-        const type = pickWeighted(MOB_MIX);
+        // ночные (MOB_NIGHT_ONLY) — только ночью; без смены дня и ночи — всегда
+        const night = this.isNight() || this.settings.general.dayNight === false;
+        const type = pickWeighted(night ? MOB_MIX : Object.fromEntries(Object.entries(MOB_MIX).filter(([t]) => !MOB_NIGHT_ONLY.includes(t))));
         const growth = mobGrowth(index);
         // Стрелок: оружие (камень / нож / пистолет) — по весам MOB_RANGED; в дальнем нашествии — каждый второй
         const kind = this.invasion?.active ? this.invasionKind : null;

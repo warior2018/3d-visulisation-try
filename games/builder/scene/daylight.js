@@ -21,6 +21,12 @@ export class DaylightPart {
     return DAY.night + (1 - DAY.night) * k;
   }
 
+  // Ночь ли сейчас (солнце под горизонтом). Смена дня и ночи выключена — ночи нет
+  isNight() {
+    if (this.settings.general.dayNight === false) return false;
+    return Math.sin(((this.dayTime ?? DAY.start) - 0.25) * Math.PI * 2) < 0;
+  }
+
   // Каждый кадр: время суток идёт (если включено), яркость мира — от него
   updateDaylight(dt) {
     const on = this.settings.general.dayNight !== false;
