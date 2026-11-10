@@ -6,7 +6,7 @@
 // ============================================================
 
 import { Vec3, Inventory, Player, Mob, NPC, MeleeAttack, SlamAttack, ThrowAttack, HostileBrain, KamikazeBrain, WanderBrain, GuardBrain, FollowBrain, Taming, Rideable, grow, growth } from "../../engine/index.js";
-import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, HERO_SCALE, PLAYER } from "./config.js";
+import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, HERO_SCALE, PLAYER } from "./config.js";
 import { maxStack } from "./items.js";
 
 // Головы (хитбоксы хедшотов) — в осях существа: от ног вверх, +Z — куда смотрит.
@@ -17,15 +17,15 @@ const HERO_HEAD = { ...HUMAN_HEAD, min: HUMAN_HEAD.min.map((v) => v * HERO_SCALE
 export const HITBOXES = {
   player: [HERO_HEAD],
   skeleton: [HUMAN_HEAD],
-  // Зомби: голова в каске — шире и выше, но каска гасит часть урона (×1.5 вместо ×2)
-  zombie: [{ id: "head", min: [-0.19, 1.6, -0.19], max: [0.19, 1.99, 0.19], multiplier: 1.5 }],
+  // Зомби: голова шире и выше (множитель хедшота — у оружия; каска — MOB_HELMET, не у всех)
+  zombie: [{ id: "head", min: [-0.19, 1.6, -0.19], max: [0.19, 1.99, 0.19], multiplier: 2 }],
   warden: [HUMAN_HEAD],
   // Кабан: голова спереди и низко (морда с бивнями)
   boar: [{ id: "head", min: [-0.2, 0.38, 0.46], max: [0.2, 0.86, 0.96], multiplier: 2 }],
   // Тролль сутулится: голова впереди и чуть ниже макушки
   troll: [{ id: "head", min: [-0.25, 1.95, 0.15], max: [0.25, 2.45, 0.7], multiplier: 2 }],
   lich: [{ id: "head", min: [-0.2, 2.16, -0.2], max: [0.2, 2.57, 0.2], multiplier: 2 }], //    скелет ×1.35
-  bloater: [{ id: "head", min: [-0.22, 1.84, -0.22], max: [0.22, 2.29, 0.22], multiplier: 1.5 }], // зомби ×1.15
+  bloater: [{ id: "head", min: [-0.22, 1.84, -0.22], max: [0.22, 2.29, 0.22], multiplier: 2 }], // зомби ×1.15
 };
 
 export const CREATURES = {
@@ -230,6 +230,15 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
   if (def.kind === "npc") options.role = def.role;
   const e = new CLASSES[def.kind || "mob"](options);
   if (def.kindResist) e.kindResist = { ...def.kindResist }; // стойкость к виду атаки (ближний / стрельба / взрыв)
+  // Каска (MOB_HELMET): с шансом; урон в голову (уже с множителем хедшота) — меньше на headshot
+  if (MOB_HELMET.types.includes(type) && Math.random() < MOB_HELMET.chance) {
+    e.helmet = MOB_HELMET.headshot;
+    const before = e.onIncoming;
+    e.onIncoming = (d) => {
+      before?.(d);
+      if (d.tags?.has("headshot") || d.part === "head") d.amount *= 1 - e.helmet;
+    };
+  }
   e.xp = xp;
   e.bonusHp = bonusHp;
   e.damageMult = damageMult;
