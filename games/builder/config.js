@@ -855,7 +855,7 @@ export const ELITE = {
 // Чувство удара (scene/feel.js): knock — отлёт задетого моба (м/с, на time с, вверх — up) от атак с этим id (боссы — ×boss);
 // kick — встряска картинки при тяжёлом ударе (прицел не сдвигается); headSound — звук хедшота
 export const HIT_FEEL = {
-  knock: { time: 0.18, up: 2.5, max: 9, boss: 0.15, attacks: { "war-hammer": 7, "hammer-swing": 5, shotgun: 1.1, "shotgun-blast": 9, dynamite: 6 } },
+  knock: { time: 0.18, up: 2.5, max: 9, boss: 0.15, attacks: { "war-hammer": 7, "hammer-swing": 5, "shotgun-blast": 9, dynamite: 6 } },
   kick: { from: 45, amount: 0.12, head: 0.18 },
   headSound: "headshot",
 };
