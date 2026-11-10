@@ -132,6 +132,17 @@ export class BossesPart {
         for (let y = feet; y <= Math.floor(e.position.y + e.height); y++) cells.add(`${x},${y},${z}`);
       }
     }
+    // Цель ниже (закопался в яму): копает и вниз — под собой (рядом) или ступенькой впереди (далеко)
+    if (target.position.y < e.position.y - 0.9) {
+      const near = len < 6;
+      for (let i = -1; i <= 1; i++) {
+        for (let k = -1; k <= 1; k++) {
+          const x = Math.floor(e.position.x + (near ? i * e.radius : (dx / len) * (e.radius + 0.6) + i * 0.4));
+          const z = Math.floor(e.position.z + (near ? k * e.radius : (dz / len) * (e.radius + 0.6) + k * 0.4));
+          cells.add(`${x},${feet - 1},${z}`);
+        }
+      }
+    }
     this.bossBreak([...cells].map((k) => k.split(",").map(Number)));
   }
 
