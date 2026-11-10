@@ -14,7 +14,7 @@
 // ============================================================
 
 export class RandomEvent {
-  constructor({ id = "event", chance, every = 1, duration = 60, cooldown = 0, onStart = () => {}, onEnd = () => {}, random = Math.random }) {
+  constructor({ id = "event", chance, every = 1, duration = 60, cooldown = 0, onStart = () => {}, onEnd = () => {}, random = Math.random, canStart = null }) {
     this.id = id;
     this.chance = chance;
     this.every = every;
@@ -23,6 +23,7 @@ export class RandomEvent {
     this.onStart = onStart;
     this.onEnd = onEnd;
     this.random = random;
+    this.canStart = canStart; // () → false — сейчас начаться не может (бросок пропускаем)
     this.active = false;
     this.timeLeft = 0; //  сколько осталось (пока идёт)
     this.timer = 0; //     до следующего броска
@@ -43,6 +44,7 @@ export class RandomEvent {
     this.timer += dt;
     while (this.timer >= this.every && !this.active) {
       this.timer -= this.every;
+      if (this.canStart && !this.canStart()) continue;
       if (this.random() < this.chance) this.start();
     }
   }

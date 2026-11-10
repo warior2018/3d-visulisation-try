@@ -205,6 +205,8 @@ export class SessionPart {
     this.invasion = new RandomEvent({
       ...INVASION,
       id: "invasion",
+      // мобов и так много (≥ blockAt от предела спавна) — нашествия не будет
+      canStart: () => this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length < SPAWN.max * INVASION.blockAt,
       onStart: () => {
         this.spawner.interval = SPAWN.interval / INVASION.spawnSpeed / this.spawnRate;
         this.spawner.max = INVASION.max;
