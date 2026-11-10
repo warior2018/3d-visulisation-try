@@ -299,6 +299,11 @@ export class HostNet {
   }
 
   // Опыт за убитого — и гостям (общий, как в кооперативе)
+  // Гость добил моба (не матч): опыт — ему одному
+  sendKillXp(hero, n) {
+    for (const q of this.guests.values()) if (q.hero === hero) this.server.send(q.peer, { t: "kxp", n });
+  }
+
   shareXp(n) {
     if (n > 0 && this.guests.size) this.server.broadcast({ t: "xp", n });
   }
@@ -457,6 +462,8 @@ export class HostNet {
           } else for (const q of this.guests.values()) if (q.hero === target) this.server.send(q.peer, { t: "hurt", n, from: guest.name });
         } else if (target?.alive && !target.remote && target !== g.player && target.type !== "player") { // героев друг другу не ранить (вне дуэли)
           target.attackedBy = h; // злится на того, кто бил
+          target.lastHitBy = h; //  добил гость — добыча и опыт за него (interact.js → onDeath → guestKill)
+          target.lastHitKind = msg.k || null;
           target.damage(n);
         }
         break;
@@ -676,6 +683,10 @@ export class ClientNet {
         if (g.match) g.applyXp(Math.max(0, +msg.n || 0));
         else g.gainXp(Math.max(0, +msg.n || 0));
         return;
+      case "kxp":
+        // не матч: мой убитый моб (хост прислал опыт за него) — опыт мне
+        g.gainXp(Math.max(0, +msg.n || 0));
+        return;
       case "trap":
         if (msg.o !== this.myName) applyTrap(g, msg); // чужая ловушка (своя — уже стоит)
         return;
@@ -739,6 +750,7 @@ export class ClientNet {
           if (d.source === g.player && !e.alive && !e.achDone && e.kind === "mob") {
             e.achDone = true;
             g.achKill?.(e);
+            g.questKill?.(e); // задание стража — у гостя своё
           }
         };
         this.copies.set(id, e);

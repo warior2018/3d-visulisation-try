@@ -145,7 +145,7 @@ export class LootPart {
   // Страж под прицелом рядом — торговля (клавиша interact)
   tryTrade() {
     const e = this.lookTarget;
-    if (!e || e.type !== "warden" || !e.alive || e.remote) return false;
+    if (!e || e.type !== "warden" || !e.alive) return false; // гость тоже: торговля и задания — у каждого свои
     if (Math.hypot(e.position.x - this.player.position.x, e.position.z - this.player.position.z) > INTERACT_REACH + 1) return false;
     this.openWarden(e); // окно стража: задания и торговля (scene/quests.js)
     return true;

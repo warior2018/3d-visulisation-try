@@ -27,6 +27,14 @@ export class InteractPart {
     }
     const finished = e.lastHitBy === this.player;
     const helped = e.damagedBy(this.player);
+    // Сетевая игра, хост: добил гость — добыча на землю (подберут все), опыт — ему (в матче — общий)
+    if (!finished && e.lastHitBy?.type === "player" && this.role === "host") {
+      this.dropLoot(e);
+      if (this.match) this.gainXp(e.xp || 0);
+      else this.net?.sendKillXp?.(e.lastHitBy, e.xp || 0);
+      this.engine.log(`${e.name}: добил гость ${e.lastHitBy.name || "?"} — добыча на землю`);
+      return;
+    }
     if (!finished && !helped) {
       this.engine.log(`${e.name} погиб не от героя (${e.lastHitBy?.name || "?"})`);
       return;
