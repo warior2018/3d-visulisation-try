@@ -226,6 +226,20 @@ export class SessionPart {
       },
     });
 
+    // Нашествие шло, когда вышли из мира — продолжается (того же вида, сколько оставалось)
+    const inv = saved?.progression?.invasion;
+    if (inv) {
+      this.invasion.count = Math.max(0, (Number(inv.count) || 0) - (inv.active ? 1 : 0)); // start() прибавит 1
+      this.invasion.rest = Number(inv.rest) || 0;
+      if (inv.active && Number(inv.left) > 0 && !this.duel) {
+        this.invasion.start(Number(inv.left));
+        if (INVASION.types[inv.kind]) {
+          this.invasionKind = { id: inv.kind, ...INVASION.types[inv.kind] };
+          for (const e of this.entities.list) if (e.kind === "mob" && !e.boss) e.speedBonuses.invasion = this.invasionKind.speed || 0;
+        }
+      }
+    }
+
     this.abilities.select(0, this); // начинаем с руки
     this.syncEye();
     this.engine.onStats = (s) => this.showStats(s);
@@ -277,7 +291,7 @@ export class SessionPart {
     if (this.dead) return; // погибли — мир уже удалён, сохранять нечего
     if (this.match) return; // матч — мир на один раз, ничего не пишем
     const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && !e.elite && e.type !== "steed"); // элиту не сохраняем // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
-    const progression = { class: this.playerClass, subclass: this.subclass || null, upgrades: { ...(this.upgrades || {}) }, run: this.runStatsJSON(), quests: this.questsJSON(), mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers };
+    const progression = { class: this.playerClass, subclass: this.subclass || null, upgrades: { ...(this.upgrades || {}) }, run: this.runStatsJSON(), quests: this.questsJSON(), mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers, invasion: { active: this.invasion.active, left: this.invasion.timeLeft, rest: this.invasion.rest, count: this.invasion.count, kind: this.invasionKind?.id || null } };
     this.autosaveIn = AUTOSAVE.every; // только что сохранились — следующее автосохранение отсчитываем заново
     if (this.role === "client") {
       // гость: мир — хоста (его не пишем), свой прогресс и вещи — в своё сохранение

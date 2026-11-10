@@ -650,6 +650,8 @@ export class ShotgunAbility extends Ability {
     const B = SHOTGUN_BLAST;
     if (this.blastLeft > 0 || g.abilities.equipping) return;
     g.beforeMovementSkill?.(); // верхом — сначала слезть (MOUNT)
+    // перезарядку решает blastReadyAt; у самой атаки кулдаун никто не тикает — сбрасываем (иначе после 1-го раза не стреляла)
+    this.blastAttack.cooldownLeft = 0;
     const used = g.useAttack(this.blastAttack, {
       anim: "Shoot", bodyAnim: "ShootShotgun", sound: "shot",
       onHit: (hit) => hit.target.alive && hit.target.addStatus?.(stun(B.stun)()),
