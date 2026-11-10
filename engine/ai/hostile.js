@@ -51,15 +51,17 @@ export class HostileBrain extends Brain {
     this.huntRadius = huntRadius;
   }
 
-  // Ближайший враг ближе radius (only — ещё условие: например, только герои)
+  // Ближайший враг ближе radius (only — ещё условие: например, только герои).
+  // o.noticeScale — насколько заметна цель: радиус, с которого её замечают, умножается на него (присед — 0.55;
+  // игра собирает его из множителей: notice.js → setNotice)
   nearestEnemy(e, entities, radius, only = null) {
     let best = null;
-    let bestD = radius;
+    let bestD = Infinity;
     for (const o of entities) {
       if (!o.alive || !e.isHostileTo(o) || (only && !only(o))) continue;
       if (Math.abs(o.position.y - e.position.y) > this.sightHeight) continue;
       const d = dist2d(e, o);
-      if (d <= bestD) {
+      if (d <= radius * (o.noticeScale ?? 1) && d < bestD) {
         best = o;
         bestD = d;
       }

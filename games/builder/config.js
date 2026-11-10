@@ -173,7 +173,8 @@ export const HERO_SCALE = 1.6 / 1.8;
 export const STANCE = { height: 1.4, eyeHeight: 1.28 };
 // Присед (Ctrl; настройки: держать / переключать): ниже рост (коробка и хитбоксы — голова ниже) и глаза, медленнее
 // ходьба (speed), у стволов меньше отдача (recoil — множитель) и разброс дроби (spread — множитель)
-export const CROUCH = { height: 1.15, eyeHeight: 1.0, speed: -0.5, recoil: 0.5, spread: 0.6 };
+// notice — во сколько раз ближе мобы замечают присевшего (радиус агра ×0.55 — на 45 % меньше)
+export const CROUCH = { height: 1.15, eyeHeight: 1.0, speed: -0.5, recoil: 0.5, spread: 0.6, notice: 0.55 };
 // Геймпад: в движке есть (engine/input/gamepad.js), в игре пока выключен — не проверен на настоящем
 export const GAMEPAD_ENABLED = false;
 

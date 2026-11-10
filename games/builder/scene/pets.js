@@ -5,6 +5,7 @@
 // ============================================================
 
 import { SHOP, STANCE, CROUCH, PLAYER, HAMMER } from "../config.js";
+import { setNotice } from "../../../engine/index.js";
 
 // Ниже ростом: low — 0 стоя, 1 стойка катаны, 2 присед. Рост (коробка) и хитбоксы — голова опускается вместе
 // с ростом. Для своего героя и для героев других игроков (сеть: state.cr, снимок — флаги 16 / 32)
@@ -14,6 +15,7 @@ export function lowerBody(e, low, { height = true } = {}) {
   const h = lowHeight(low);
   if (height) e.height = h;
   e.netLow = low;
+  setNotice(e, "crouch", low === 2 ? CROUCH.notice : null); // присел — мобы замечают ближе
   const dy = h - PLAYER.height;
   e.hitboxes = low ? e.baseHitboxes.map((p) => ({ ...p, min: [p.min[0], p.min[1] + dy, p.min[2]], max: [p.max[0], p.max[1] + dy, p.max[2]] })) : e.baseHitboxes;
 }

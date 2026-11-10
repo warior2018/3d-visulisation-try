@@ -133,3 +133,4 @@ export { watchModule, applyLive, applyModule } from "./core/hot-reload.js";
 export { Hints } from "./progression/hints.js";
 export { patchNumber, formatNumber } from "./core/config-patch.js";
 export { ReplayRecorder, ReplayPlayer, seedRandom, seededRandomFn } from "./core/replay.js";
+export { setNotice } from "./world/notice.js";

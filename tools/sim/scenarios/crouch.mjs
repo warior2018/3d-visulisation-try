@@ -19,6 +19,12 @@ export default async function (t, g) {
   t.check("в приседе: глаза ниже", Math.abs(scene.eyeY - C.CROUCH.eyeHeight) < 0.01, `${scene.eyeY}`);
   t.check("в приседе: голова (хитбокс) ниже", p.hitboxes.find((h) => h.id === "head").max[1] < head0 - 0.3);
   t.check("в приседе: медленнее", p.speedBonuses.crouch === C.CROUCH.speed);
+  // мобы замечают ближе: радиус агра ×0.55
+  t.check("в приседе: заметность ×0.55", Math.abs((p.noticeScale ?? 1) - C.CROUCH.notice) < 1e-9);
+  const mob = scene.spawn("skeleton", { x: P.x + 1, y: P.y, z: P.z });
+  const R = mob.brain.aggroRadius;
+  mob.position.x = P.x + R * 0.8; mob.position.z = P.z; mob.position.y = P.y;
+  t.check("в приседе: моб на 0.8 радиуса не замечает", !mob.brain.nearestEnemy(mob, [p], R));
   // отдача меньше
   const kicks = [];
   const kick = scene.recoil.kick.bind(scene.recoil);
@@ -31,6 +37,8 @@ export default async function (t, g) {
   engine.input.keys.delete(code);
   await g.frames(10);
   t.check("отпустил Ctrl — встал во весь рост", !scene.crouched && p.height === C.PLAYER.height && !p.speedBonuses.crouch);
+  t.check("встал — моб на 0.8 радиуса замечает", mob.brain.nearestEnemy(mob, [p], R) === p && (p.noticeScale ?? 1) === 1);
+  scene.removeEntity(mob);
   t.check("встал — голова на месте", p.hitboxes.find((h) => h.id === "head").max[1] === head0);
   // режим «переключать»
   scene.settings.general.crouchMode = "toggle";
