@@ -39,8 +39,8 @@ export class HostileBrain extends Brain {
   // chase — с территорией: цель ушла из логова — не стоит, а идёт за ней (быстрее на chase.speed, прыгает
   // chase.jump м/с), по пути игра ломает блоки перед ним (ctx.dig); успокаивается, только если цель дальше leash
   constructor({ aggroRadius = 12, leash = 45, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5, herd = null, wander = null, huntRadius = 150, ranged = null, territory = null, sightHeight = Infinity, chase = null } = {}) {
-    this.chase = chase;
     super();
+    this.chase = chase;
     this.sightHeight = sightHeight; // замечает врага, только если тот не выше / ниже этого (тролль в пещере не видит тех, кто ходит по горе)
     this.territory = territory; // { x, z, radius } — не выходит из круга (логово босса) или null
     this.ranged = ranged; // { range, minRange } — стреляет издалека (см. выше) или null

@@ -235,7 +235,13 @@ export class Sound {
   }
 
   queuedFrames() {
-    return Math.floor((Number(this.device?.queued?.()) || 0) / 8); // 2 канала × 4 байта
+    let q = 0;
+    try {
+      q = Number(this.device?.queued?.()) || 0;
+    } catch {
+      return 0; // поток звука уже закрыт (окно закрывается / устройство пропало) — очереди нет
+    }
+    return Math.floor(q / 8); // 2 канала × 4 байта
   }
 
   // То, что лежит в очереди, но ещё не прозвучало, — «вернуть» голосам (их позиции назад), очередь — очистить
