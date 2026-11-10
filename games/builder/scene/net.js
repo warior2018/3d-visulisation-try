@@ -455,7 +455,7 @@ export class HostNet {
             hurtLocal(g, Math.max(0, Math.min(100000, +msg.a || n)), h, msg.k, msg.s, msg.p);
             g.player.lastDamageFrom = h.position;
           } else for (const q of this.guests.values()) if (q.hero === target) this.server.send(q.peer, { t: "hurt", n, from: guest.name });
-        } else if (target?.alive && !target.remote && target !== g.player) {
+        } else if (target?.alive && !target.remote && target !== g.player && target.type !== "player") { // героев друг другу не ранить (вне дуэли)
           target.attackedBy = h; // злится на того, кто бил
           target.damage(n);
         }

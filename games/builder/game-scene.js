@@ -205,6 +205,11 @@ export class GameScene extends Scene {
       this.damageNumbers.add(e, { x: e.position.x, y: e.position.y + y, z: e.position.z }, dealt, { color, big: head || d.tags.has("crit") });
     };
     this.setupMobKind(e); // пассивки особых мобов (scene/mob-kinds.js)
+    // Сетевая игра (не дуэль): герои друг друга не ранят — ни ударом, ни выстрелом, ни взрывом, ни ловушкой
+    if (type === "player") {
+      const base = e.canBeDamagedBy.bind(e);
+      e.canBeDamagedBy = (src) => base(src) && !(src && src !== e && src.type === "player" && this.role !== "solo" && !this.duel);
+    }
     this.entities.add(e);
     this.game.models.attach(e, modelFor(e));
     if (e.ranged) this.game.models.hold(e, e.ranged.held, IN_HAND); // метатель: в руке то, что бросает
