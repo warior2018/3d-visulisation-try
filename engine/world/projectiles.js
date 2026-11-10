@@ -67,6 +67,25 @@ export class Projectiles {
     this.onRemove(p);
   }
 
+  // Луч снаряда: hitRadius > 0 — «толстый» (центр + 4 луча по краям, поперёк полёта), иначе тонкий
+  thickRay(p, dir, len, skip) {
+    const ray = (o) => this.entities.raycast(o, dir, len, skip);
+    let best = ray(p.position);
+    const r = p.hitRadius || 0;
+    if (!r) return best;
+    // Две оси поперёк направления полёта
+    const up = Math.abs(dir.y) > 0.9 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
+    const a = new Vec3(dir.y * up.z - dir.z * up.y, dir.z * up.x - dir.x * up.z, dir.x * up.y - dir.y * up.x);
+    const al = Math.hypot(a.x, a.y, a.z) || 1;
+    const s = a.scale(1 / al);
+    const b = new Vec3(dir.y * s.z - dir.z * s.y, dir.z * s.x - dir.x * s.z, dir.x * s.y - dir.y * s.x);
+    for (const off of [s, s.scale(-1), b, b.scale(-1)]) {
+      const h = ray(p.position.add(off.scale(r)));
+      if (h && (!best || h.t < best.t)) best = h;
+    }
+    return best;
+  }
+
   update(dt) {
     for (const p of [...this.list]) {
       p.age += dt;
@@ -76,7 +95,7 @@ export class Projectiles {
       if (len < 1e-6) continue;
       const dir = step.scale(1 / len);
       const skip = [p.owner, p.owner?.mount, ...(p.passed || [])].filter(Boolean);
-      const hit = this.entities.raycast(p.position, dir, len, skip);
+      const hit = this.thickRay(p, dir, len, skip);
       const wall = this.world.raycast(p.position, dir, len);
       if (hit && (!wall || hit.t <= wall.t)) {
         p.position = p.position.add(dir.scale(hit.t));

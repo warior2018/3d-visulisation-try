@@ -26,7 +26,7 @@ import { InputPart } from "./scene/input.js";
 import { BuildingPart } from "./scene/building.js";
 import { WorldgenPart } from "./scene/worldgen.js";
 import { CombatPart } from "./scene/combat.js";
-import { ThrowersPart } from "./scene/throwers.js";
+import { ThrowersPart, lighter } from "./scene/throwers.js";
 import { MagicPart } from "./scene/magic.js";
 import { AmmoPart } from "./scene/ammo.js";
 import { ProgressionPart } from "./scene/progression.js";
@@ -484,6 +484,13 @@ export class GameScene extends Scene {
     profiler.end(PROF.items);
     profiler.begin(PROF.projectiles);
     this.projectiles.update(dt); // брошенное летит
+    // Светящийся след у снарядов с glow (стрелы лука): короткий луч от прошлой точки до новой — видно в полёте
+    for (const p of this.projectiles.list) {
+      if (!p.glow) continue;
+      const at = { x: p.position.x, y: p.position.y, z: p.position.z };
+      if (p.glowFrom) this.beams.add({ from: p.glowFrom, to: at, color: p.glow, core: lighter(p.glow), life: 0.15, width: 5 });
+      p.glowFrom = at;
+    }
     profiler.end(PROF.projectiles);
     profiler.begin(PROF.traps);
     this.traps.update(dt, this.combatContext()); // ловушки ловят

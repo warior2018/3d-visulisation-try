@@ -7,6 +7,7 @@
 import { Vec3, Input, abilityHelp, Damage } from "../../../engine/index.js";
 import { MELEE_STAMINA, BLOCK, CROUCH, BOW } from "../config.js";
 import { CLASS_HELP } from "../help.js";
+import { skinFx } from "../skins.js";
 
 export class CombatPart {
   // ---------- Бой (способности 1 и 2) ----------
@@ -77,6 +78,8 @@ export class CombatPart {
     this.projectiles.launch({
       owner, position: cam.position.add(dir.scale(0.6)), velocity: dir.scale(speed), gravity: BOW.gravity, spin: 0, maxLife: 5,
       item: "bolt", attack, pierce, skinned: true, skinTarget: "bow", align: true, // носом по полёту
+      scale: BOW.size, hitRadius: BOW.hitRadius, // стрела крупнее (модель ×1.4) и «толще» для попаданий
+      glow: skinFx(this.settings, "bow") || [255, 225, 160], // светящийся след — цвет скина лука (без скина — тёплый)
       onHit: (p, hit) => {
         const k = Math.pow(0.8, n++);
         attack.hit(owner, hit.entity, this.combatContext({ part: hit.part, baseDamage: damage, damageScale: k, onHit: (r) => this.onPlayerHit(r), shot: { projectile: { item: "bolt", speed, gravity: BOW.gravity } } }));
