@@ -123,7 +123,7 @@ export class ShopPart {
             ui.rect(x + s * 0.54, y + s * 0.72, s * 0.1, s * 0.18, [90, 62, 45]);
           },
         },
-        { ...supply("medkit", SHOP.medkit, 1, `ITEM SLOT. HOLD LMB ${MEDKIT.useTime} S: +${SHOP.medkitHeal} HP`), category: "utility" },
+        { ...supply("medkit", SHOP.medkit, 1, `ITEM SLOT. HOLD LMB ${MEDKIT.useTime} S: +${SHOP.medkitHeal} HP, THEN +${SHOP.medkitRegen.share * 100}% MAX HP OVER ${SHOP.medkitRegen.time} S`), category: "utility" },
         // Броня (ARMOR): каждая часть — своя ячейка, срезает долю физического урона. Рядами: шлем, нагрудник,
         // штаны, ботинки; в ряду — комплекты по тиру (столбцы вкладки). В дуэли — своя цена (duel)
         ...["helmet", "chest", "legs", "boots"].flatMap((part) => armorSets.map((setId) => {

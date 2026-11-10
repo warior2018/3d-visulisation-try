@@ -5,7 +5,19 @@
 // ============================================================
 
 import { SHOP, STANCE, CROUCH, PLAYER, HAMMER } from "../config.js";
-import { setNotice } from "../../../engine/index.js";
+import { setNotice, StatusEffect } from "../../../engine/index.js";
+
+// Баф аптечки: лечит share макс. HP за time с (каждая стопка — ещё столько же); новая аптечка — время заново
+class MedkitRegen extends StatusEffect {
+  constructor() {
+    const R = SHOP.medkitRegen;
+    super({ id: "medkit-regen", name: "HEALING", duration: R.time, interval: 0.5, stackable: true, maxStacks: R.maxStacks, positive: true, icon: "MED", color: [120, 230, 140] });
+  }
+  tick(e) {
+    const R = SHOP.medkitRegen;
+    e.heal(((e.stats.maxHp * R.share) / R.time) * this.interval * this.stacks);
+  }
+}
 
 // Ниже ростом: low — 0 стоя, 1 стойка катаны, 2 присед. Рост (коробка) и хитбоксы — голова опускается вместе
 // с ростом. Для своего героя и для героев других игроков (сеть: state.cr, снимок — флаги 16 / 32)
@@ -27,9 +39,9 @@ export class PetsPart {
   useMedkit() {
     const p = this.player;
     if (this.itemCount("medkit") <= 0) return;
-    if (p.stats.hp >= p.stats.maxHp) return this.engine.toast("HEALTH IS FULL", 800);
     this.takeItem("medkit", 1);
     p.heal(SHOP.medkitHeal);
+    p.addStatus(new MedkitRegen()); // и лечение со временем (стопками)
     this.engine.sound.play("learn");
     this.engine.toast(`+${SHOP.medkitHeal} HP`, 800);
     this.backToWeapon(); // использовал — снова оружие

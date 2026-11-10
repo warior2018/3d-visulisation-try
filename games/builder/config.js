@@ -905,7 +905,9 @@ export const SHOP = {
   pistol: tierPrice("pistol"), auto: tierPrice("auto"), shotgun: tierPrice("shotgun"), crossbow: tierPrice("crossbow"), rifle: tierPrice("rifle"), bow: tierPrice("bow"),
   "bear-trap": 25, spikes: 40, //                                       ловушки
   "pistol-clip": 4, "auto-clip": 8, "shotgun-clip": 6, "rifle-clip": 8, // обоймы (CLIPS.enabled: false — не продаются)
-  builder: 50, block: 15, medkit: 60, medkitHeal: 40, //                 прочее: молот-стройка, 16 блоков, аптечка
+  builder: 50, block: 15, medkit: 40, medkitHeal: 30, //                 прочее: молот-стройка, 16 блоков, аптечка
+  // аптечка: сразу +medkitHeal HP и баф: ещё medkitRegen.share макс. HP за medkitRegen.time с; несколько — стопками
+  medkitRegen: { share: 0.1, time: 10, maxStacks: 5 },
 };
 // Броня — цены в ARMOR. Тиры не пересекаются: любая часть следующего тира дороже любой части прошлого
 // (кожа 165–300, кость 310–560, железо 570–950). Внутри тира: нагрудник 1.0, штаны ~0.8, шлем ~0.65,

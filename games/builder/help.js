@@ -52,7 +52,7 @@ export const HELP = {
     secondary: { name: "PLACE", text: "PUT A BLOCK. ONE STONE = ONE BLOCK" },
     palette: { name: "COLOR", text: "CHOOSE THE BLOCK COLOR" },
   },
-  medkit: { primary: { name: "HEAL", text: `HOLD ${MEDKIT.useTime} S: +${SHOP.medkitHeal} HP. RELEASE EARLY - NOT USED UP` } },
+  medkit: { primary: { name: "HEAL", text: `HOLD ${MEDKIT.useTime} S: +${SHOP.medkitHeal} HP, THEN +${SHOP.medkitRegen.share * 100}% MAX HP OVER ${SHOP.medkitRegen.time} S (STACKS). RELEASE EARLY - NOT USED UP` } },
   "bear-trap": { primary: { name: "PLACE", text: "PUT THE TRAP ON THE BLOCK UNDER THE CROSSHAIR" } },
   spikes: { primary: { name: "PLACE", text: "PUT THE SPIKES ON THE BLOCK UNDER THE CROSSHAIR" } },
 };
