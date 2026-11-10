@@ -174,6 +174,7 @@ export class SessionPart {
         const kind = this.invasion?.active ? this.invasionKind : null;
         const ranged = Math.random() < (kind?.rangedShare ?? MOB_RANGED.chance);
         const e = this.spawn(type, { x, y: this.world.surfaceY(x, z), z, yaw: Math.random() * Math.PI * 2, ...growth, ranged }); // на земле (на холме — на вершине столбика)
+        if (!e) return; // такого моба нет (например, игра обновилась, а модули — старые): пропускаем
         if (kind?.speed) e.speedBonuses.invasion = kind.speed; // быстрое нашествие: +30 % скорости
         this.maybeElite(e, index); // редкая элита с аурой и добычей (scene/elites.js)
         this.maybeChampion(e, index); // редкий минибосс — ЧУМНОЙ ВОЖАК (scene/mob-kinds.js)
