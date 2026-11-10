@@ -521,7 +521,7 @@ export const ATTACKS = {
   // Лук: урон — от натяжения (BOW: min → damage), стрела — снаряд; бесконечные стрелы, после выстрела — cooldown
   bow: { id: "bow", name: "ARROW", damage: 126, range: 120, cooldown: 0.75 },
   bowBlast: { id: "bow-blast", name: "EXPLOSIVE ARROW", damage: 30, radius: 1.5, cooldown: 0, cost: 0 },
-  crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 85, range: 100, falloff: [50, 0.8], projectile: { speed: 80, gravity: 4 }, cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
+  crossbow: { id: "crossbow", name: "CROSSBOW BOLT", damage: 85, range: 160, falloff: [80, 0.8], projectile: { speed: 105, gravity: 3 }, cooldown: 0.2, magazine: 1, reloadTime: 1.3, pierce: 3, pierceFalloff: 0.8 },
   // Дробовик (СТРЕЛОК, покупной): 8 дробин с разбросом, вблизи — 72 за выстрел (~63/с, если все попали)
   shotgun: { id: "shotgun", name: "BUCKSHOT", damage: 9, range: 28, falloff: [10, 0.4], cooldown: 0.9, magazine: 6, reloadTime: 2.4, pellets: 8, spread: 0.06 },
   // Граната автомата (талант GRENADE): каждые every выстрелов — 200 % урона выстрела по площади

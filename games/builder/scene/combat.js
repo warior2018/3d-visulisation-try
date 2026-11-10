@@ -45,7 +45,7 @@ export class CombatPart {
     const from = cam.position.add(dir.scale(0.6));
     let n = 0;
     this.projectiles.launch({
-      owner, position: from, velocity: dir.scale(P.speed), gravity: P.gravity, spin: 0, maxLife: 4, skinned: true, skinTarget: "crossbow", align: true,
+      owner, position: from, velocity: dir.scale(P.speed), gravity: P.gravity, spin: 0, maxLife: 5, skinned: true, skinTarget: "crossbow", align: true,
       item: "bolt", attack, pierce: Math.max(0, (attack.pierce || 1) - 1),
       scale: BOW.size, hitRadius: BOW.hitRadius, glow: skinFx(this.settings, "crossbow") || [255, 225, 160], // как стрела лука: крупнее, «толще», со следом
       onHit: (p, hit) => {
