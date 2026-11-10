@@ -34,6 +34,7 @@ import { ShopPart } from "./scene/shop.js";
 import { PetsPart } from "./scene/pets.js";
 import { BuffsPart } from "./scene/buffs.js";
 import { BossesPart } from "./scene/bosses.js";
+import { MobKindsPart } from "./scene/mob-kinds.js";
 import { InteractPart } from "./scene/interact.js";
 import { CoopPart } from "./scene/coop.js";
 import { DuelPart } from "./scene/duel.js";
@@ -111,7 +112,10 @@ export class GameScene extends Scene {
         if (r.hits.some((h) => h.target !== this.player)) t.alertUntil = (this.trapClock || 0) + TRAPS.alert;
         this.engine.sound.play(t.type === "bear-trap" ? "snap" : "spike", { at: t.position });
         const self = r.hits.find((h) => h.target === this.player);
-        if (self) {
+        if (self && t.owner !== this.player && t.owner) {
+          this.engine.sound.play("hurt");
+          this.engine.toast(`GOBLIN TRAP! -${self.dealt} HP`, 1500);
+        } else if (self) {
           this.engine.sound.play("hurt");
           this.engine.toast(`YOUR OWN TRAP! -${self.dealt} HP`, 1500);
           this.engine.log(`герой наступил на свою ловушку ${t.type}: -${self.dealt}`);
@@ -181,6 +185,7 @@ export class GameScene extends Scene {
     // Урон от героя (удар, выстрел, горение) — цифрой над целью: хедшот — крупно и красным, огонь — оранжевым
     e.onDamage = (d, dealt) => {
       this.mountHurt(e, dealt); // ранили героя или его скакуна — маунт исчезает (scene/mount.js)
+      this.mobOnHit(e, d, dealt); // атаки особых мобов: кровь, бинты; босс «ещё дерётся» (scene/mob-kinds.js)
       this.hitFx(e, d, dealt); //  брызги «крови» (scene/effects.js)
       this.combatHit(e, d, dealt); // в бою: ранили героя или он кого-то (scene/out-of-combat.js)
       this.statDamage(e, d, dealt); // итоги забега: урон чем / кто бил (scene/run-stats.js)
@@ -197,6 +202,7 @@ export class GameScene extends Scene {
       const y = e.height + (head ? 0.45 : 0.25); // над головой — не закрывает прицел
       this.damageNumbers.add(e, { x: e.position.x, y: e.position.y + y, z: e.position.z }, dealt, { color, big: head || d.tags.has("crit") });
     };
+    this.setupMobKind(e); // пассивки особых мобов (scene/mob-kinds.js)
     this.entities.add(e);
     this.game.models.attach(e, modelFor(e));
     if (e.ranged) this.game.models.hold(e, e.ranged.held, IN_HAND); // метатель: в руке то, что бросает
@@ -431,6 +437,7 @@ export class GameScene extends Scene {
     this.updateOutOfCombat(dt); // вне боя: +скорость, ×регенерация (scene/out-of-combat.js)
     this.updateQuests(dt); // задания стража (scene/quests.js)
     this.updateElites(dt); // ауры элитных мобов (scene/elites.js)
+    this.updateMobKinds(dt); // шаман лечит, гоблин ставит капканы, вожак зовёт упырей (scene/mob-kinds.js)
     this.hints?.update(this, dt); // подсказки новичку (hints.js)
     this.tickRunStats(dt); //     итоги забега: время (scene/run-stats.js)
     this.updateDamageDirs(dt); //   дуги «откуда бьют» гаснут (scene/feel.js)
@@ -585,6 +592,7 @@ export class GameScene extends Scene {
       profiler.begin(PROF.ai);
       const { walking: going, alerted } = !e.stunned && e.brain ? e.brain.update(e, ai, dt) : { walking: false, alerted: [] };
       profiler.end(PROF.ai);
+      this.mobKindMove(e); // гоблин раненый — убегает (scene/mob-kinds.js)
       if (alerted.length > 1) engine.log(`стадо: разозлились ${alerted.length} (${e.name})`);
       if (alerted.includes(e)) engine.sound.play("growl", { at: e.position, volume: 0.8 }); // рык того, кто разозлился
       this.applyKnock(e, dt); // отбросило ударом (scene/feel.js)
@@ -781,4 +789,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);

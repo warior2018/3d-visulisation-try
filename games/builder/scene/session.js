@@ -176,6 +176,7 @@ export class SessionPart {
         const e = this.spawn(type, { x, y: this.world.surfaceY(x, z), z, yaw: Math.random() * Math.PI * 2, ...growth, ranged }); // на земле (на холме — на вершине столбика)
         if (kind?.speed) e.speedBonuses.invasion = kind.speed; // быстрое нашествие: +30 % скорости
         this.maybeElite(e, index); // редкая элита с аурой и добычей (scene/elites.js)
+        this.maybeChampion(e, index); // редкий минибосс — ЧУМНОЙ ВОЖАК (scene/mob-kinds.js)
         this.scaleWardens(); // мобы крепчают — и страж тоже
         this.scaleBoars(); //   и кабаны
         this.engine.log(`появился ${e.name} №${index + 1}: ${x.toFixed(1)}, ${z.toFixed(1)}, +${growth.bonusHp} HP, урон ×${growth.damageMult.toFixed(2)} +${growth.bonusDamage}, удар ${e.attack?.damage}${e.rangedDamage ? `, бросок ${e.rangedDamage}` : ""}`);

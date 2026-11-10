@@ -78,6 +78,6 @@ export class Traps {
   }
 
   toJSON() {
-    return this.list.map((t) => ({ type: t.type, x: t.position.x, y: t.position.y, z: t.position.z, yaw: t.yaw, tilt: t.tilt, age: t.age }));
+    return this.list.filter((t) => !t.noSave).map((t) => ({ type: t.type, x: t.position.x, y: t.position.y, z: t.position.z, yaw: t.yaw, tilt: t.tilt, age: t.age }));
   }
 }

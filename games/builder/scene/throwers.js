@@ -34,7 +34,7 @@ export class ThrowersPart {
       owner: e, position: from, velocity: dir || aimArc(from, to, r.speed, MOB_RANGED.gravity), attack, damage, item: e.ranged.item, scale: e.ranged.scale || 1, // валун тролля — крупный
       gravity: dir ? 0 : MOB_RANGED.gravity, spin: dir ? 0 : 2,
       onHit: (p, hit) => {
-        if (!e.isHostileTo(hit.entity)) return; // своих не бьёт (пролетело сквозь)
+        if (!e.isHostileTo(hit.entity) && !e.canHit?.(hit.entity)) return; // своих не бьёт (босс — бьёт и мобов)
         // shot — что летит: блок может отразить снаряд обратно (combat.js → reflectShot)
         const res = attack.hit(e, hit.entity, { part: hit.part, baseDamage: p.damage, shot: { projectile: { item: e.ranged.item, speed: r.speed, gravity: dir ? 0 : MOB_RANGED.gravity, spin: dir ? 0 : 2, scale: e.ranged.scale || 1 } } });
         this.engine.sound.play(hit.entity === this.player ? "hurt" : "hit", { at: hit.entity.position });
@@ -102,7 +102,7 @@ export class ThrowersPart {
     const hit = this.entities.raycast(from, dir, max, [e]);
     const wall = this.world.raycast(from, dir, max);
     const t = hit && (!wall || hit.t <= wall.t) ? hit.t : wall ? wall.t : max;
-    if (hit && t === hit.t && e.isHostileTo(hit.entity)) {
+    if (hit && t === hit.t && (e.isHostileTo(hit.entity) || e.canHit?.(hit.entity))) {
       const [lo, hi] = e.rangedDamage;
       const res = attack.hit(e, hit.entity, { part: hit.part, baseDamage: lo + Math.floor(Math.random() * (hi - lo + 1)), shot: { hitscan: true } });
       this.engine.sound.play(hit.entity === this.player ? "hurt" : "hit", { at: hit.entity.position });

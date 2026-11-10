@@ -131,10 +131,10 @@ export class Entity {
     }
     this.onIncoming?.(damage); // игра может поправить урон до сопротивлений (например, шлем — меньше урона в голову)
     // Стойкость к виду атаки (kindResist: { melee: 0.33 }) — урон меньше, цифра серая (damage.resisted)
-    const kr = this.kindResist?.[damage.kind];
+    const kr = damage.source?.ignoresKindResist ? 0 : this.kindResist?.[damage.kind]; // босс бьёт мобов в полную силу
     if (kr) {
       damage.amount *= 1 - kr;
-      damage.resisted = true;
+      if (kr > 0) damage.resisted = true;
     }
     const resist = resistTo(this.stats.resist, damage);
     const dealt = Math.max(0, Math.round(damage.amount * (1 - resist)));

@@ -112,6 +112,10 @@ export class HostileBrain extends Brain {
     // 1. Злость. Цель «прилипает»: ударили — злимся на обидчика, только если своей цели ещё нет
     const hurtBy = e.attackedBy;
     e.attackedBy = null;
+    // e.returning — возвращается в логово (решает игра): не замечает никого, пока не дома или пока не ранят
+    if (hurtBy) e.returning = false;
+    if (e.returning && this.territory && Math.hypot(e.position.x - this.territory.x, e.position.z - this.territory.z) <= this.territory.radius) e.returning = false;
+    if (e.returning) e.aggro = null;
     if (hurtBy?.alive && e.isHostileTo(hurtBy) && !busy(e)) alerted = this.anger(e, hurtBy, entities);
     // Силой цель меняют (по возрастанию силы): аура стража → нашествие → провокация (навык)
     const force = (t) => {
@@ -132,7 +136,7 @@ export class HostileBrain extends Brain {
       const near = this.nearestEnemy(e, entities, this.aggroRadius, (o) => o.type === "player");
       if (near && near !== e.aggro && dist2d(e, near) + SWITCH < dist2d(e, e.aggro)) e.aggro = near;
     }
-    if (!e.aggro && (!this.herd || this.herd.alertOnSight !== false)) {
+    if (!e.aggro && !e.returning && (!this.herd || this.herd.alertOnSight !== false)) {
       const seen = this.nearestEnemy(e, entities, this.aggroRadius);
       if (seen) alerted = this.anger(e, seen, entities);
     }
@@ -175,7 +179,9 @@ export class HostileBrain extends Brain {
       if (out) ctx.dig?.(e, target, dt);
       walking = pursue(e, target, dt, opts);
     } else if (T && fromHome(e) > 1) {
-      // Без цели и не дома — идём в центр логова
+      // Без цели и не дома — идём в центр логова (далеко — с погоней: ломает блоки на пути домой)
+      const home = { position: { x: T.x, y: e.position.y, z: T.z } };
+      if (this.chase && fromHome(e) > T.radius) ctx.dig?.(e, home, dt);
       walking = pursue(e, { position: { x: T.x, y: e.position.y, z: T.z } }, dt, {
         navigator: e.nav, radius: Infinity, speed: e.speed, stopDistance: 0.6, turnSpeed: this.turnSpeed, jumpSpeed: this.jumpSpeed,
       });

@@ -98,6 +98,9 @@ export class BossesPart {
     e.lair = i;
     e.summonTimer = LICH.summon.every * 0.5; // лич: первых скелетов — побыстрее
     e.blinkCd = 0;
+    // Атаки босса задевают и обычных мобов (кроме своих призванных) — в полную силу (без стойкости к виду урона)
+    e.canHit = (o) => o && o !== e && o.alive && o.kind === "mob" && !o.boss && o.raisedBy !== e;
+    e.ignoresKindResist = true;
     e.brain.territory = { x, z, radius: lair.r + BOSS.territory };
     this.scaleBoss(e);
     e.stats.hp = e.stats.maxHp;
@@ -177,6 +180,19 @@ export class BossesPart {
     this.shakeNear(c, SHAKE.bossSlam); // удар дубины — трясёт тем сильнее, чем ближе
   }
 
+  // Назад в логово (BOSS.leave): calm с не ранили И (героя нет ближе radius м ИЛИ сам calm с никого не ранил)
+  bossLeave(e, dt) {
+    const L = BOSS.leave, T = e.brain?.territory;
+    e.bossDealtCalm = (e.bossDealtCalm ?? 0) + dt;
+    if (!T || e.returning || !e.aggro || e.bossCalm < L.calm) return;
+    const near = this.heroes ? this.heroes() : [this.player];
+    const close = near.some((h) => h?.alive && Math.hypot(h.position.x - e.position.x, h.position.z - e.position.z) < L.radius);
+    if (close && e.bossDealtCalm < L.calm) return;
+    e.returning = true;
+    e.aggro = null;
+    this.engine.log(`босс ${e.name}: возвращается в логово`);
+  }
+
   // Предупреждение: тролль замахнулся — красный круг там, куда ударит (успей отойти)
   // Живой босс: без цели — лечится; ниже половины HP — ЯРОСТЬ; у лича — прыжки по залу и подъём скелетов
   bossTick(e, lair, dt) {
@@ -185,6 +201,7 @@ export class BossesPart {
     e.bossCalm = (e.bossCalm ?? 99) + dt;
     if (!e.aggro && e.bossCalm > 10 && e.stats.hp < e.stats.maxHp) e.heal(e.stats.maxHp * BOSS.regen * dt); // давно не трогали — лечится
     e.bossLastHp = e.stats.hp;
+    this.bossLeave(e, dt);
     if (!e.enraged && e.stats.hp <= e.stats.maxHp * BOSS.enrageAt) {
       e.enraged = true;
       e.speedBonuses.enrage = BOSS.enrage.speed;

@@ -50,6 +50,7 @@ export function markerFor(e) {
   }
   if (e.boss) return { icon: "skull", color: [190, 90, 255] }; // босс логова — фиолетовый
   if (e.type === "bloater") return { icon: "skull", color: [170, 220, 90] }; // раздутый — ядовито-зелёный
+  if (e.miniboss) return { icon: "skull", color: [150, 230, 60] }; // минибосс — кислотно-зелёный
   if (e.aggro) return { icon: "skull", color: [240, 80, 70] };
   if (e.ranged) return { icon: "skull", color: [240, 170, 60] }; // метатель — оранжевый
   return { icon: "skull", color: e.type === "zombie" ? [130, 200, 100] : [235, 230, 210] };

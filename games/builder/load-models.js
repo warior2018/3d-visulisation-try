@@ -19,6 +19,13 @@ export function loadModels(models) {
   // Лич (второй босс) — скелет, перекрашенный в бледно-фиолетовый (крупнее — scale у существа);
   // раздутый — зомби с багрово-зелёной кожей
   models.load("lich", path.join(ASSETS, "skeleton.glb"), { mirrorX: true, recolor: [{ from: [0.86, 0.84, 0.76], to: [0.68, 0.58, 0.86] }] });
+  // Новые мобы — перекрашенные зомби и скелет (размер — scale у существа)
+  const ZS = [0.42, 0.58, 0.32], ZD = [0.32, 0.45, 0.24], ZSH = [0.32, 0.4, 0.55], ZT = [0.24, 0.3, 0.42], ZP = [0.3, 0.24, 0.18];
+  models.load("ghoul", path.join(ASSETS, "zombie.glb"), { mirrorX: true, recolor: [{ from: ZS, to: [0.62, 0.58, 0.66] }, { from: ZD, to: [0.45, 0.4, 0.5] }, { from: ZSH, to: [0.3, 0.12, 0.16] }, { from: ZT, to: [0.22, 0.08, 0.12] }] });
+  models.load("mummy", path.join(ASSETS, "zombie.glb"), { mirrorX: true, recolor: [{ from: ZS, to: [0.86, 0.8, 0.64] }, { from: ZD, to: [0.7, 0.64, 0.5] }, { from: ZSH, to: [0.8, 0.74, 0.58] }, { from: ZT, to: [0.66, 0.6, 0.46] }, { from: ZP, to: [0.74, 0.68, 0.52] }] });
+  models.load("champion", path.join(ASSETS, "zombie.glb"), { mirrorX: true, recolor: [{ from: ZS, to: [0.4, 0.5, 0.18] }, { from: ZD, to: [0.28, 0.36, 0.12] }, { from: ZSH, to: [0.35, 0.12, 0.1] }, { from: ZT, to: [0.25, 0.08, 0.06] }] });
+  models.load("shaman", path.join(ASSETS, "skeleton.glb"), { mirrorX: true, recolor: [{ from: [0.86, 0.84, 0.76], to: [0.82, 0.62, 0.5] }, { from: [0.12, 0.1, 0.1], to: [0.9, 0.3, 0.1] }] });
+  models.load("goblin", path.join(ASSETS, "skeleton.glb"), { mirrorX: true, recolor: [{ from: [0.86, 0.84, 0.76], to: [0.38, 0.62, 0.3] }, { from: [0.12, 0.1, 0.1], to: [0.95, 0.85, 0.2] }] });
   models.load("mob-helmet", path.join(ASSETS, "mob-helmet.glb")); // каска зомби / раздутого (не у всех: MOB_HELMET)
   models.load("bloater", path.join(ASSETS, "zombie.glb"), { mirrorX: true, recolor: [{ from: [0.42, 0.58, 0.32], to: [0.62, 0.66, 0.3] }, { from: [0.32, 0.45, 0.24], to: [0.55, 0.3, 0.28] }, { from: [0.32, 0.4, 0.55], to: [0.45, 0.3, 0.32] }] });
   // Целебный гриб — турель-гриб с розовой шляпкой; сгусток лича — спора, перекрашенная в фиолетовый

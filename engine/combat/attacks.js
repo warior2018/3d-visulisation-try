@@ -199,7 +199,7 @@ export class MeleeAttack extends Attack {
   // Можно ли вообще задеть e: живой враг (мирный — только если целились прямо в него), не сам и не скакун
   mayHit(owner, e, aimedTarget) {
     if (e === owner || e === owner.mount || !e.alive || !e.canBeDamagedBy(owner)) return false;
-    return e === aimedTarget || owner.isHostileTo(e);
+    return e === aimedTarget || owner.isHostileTo(e) || !!owner.canHit?.(e); // canHit — кого ещё задевает (босс — мобов)
   }
 
   // Хитбокс в плоскости взгляда (ctx.view): тело цели — вертикальный отрезок от ног до макушки;
@@ -517,7 +517,7 @@ export class MagicAttack extends Attack {
   burst(owner, point, ctx = {}, { falloff = 0.5, include = [], radius = this.radius } = {}) {
     const inside = [];
     for (const e of ctx.entities || []) {
-      if (e === owner || !e.alive || (!include.includes(e) && owner?.isHostileTo && !owner.isHostileTo(e))) continue;
+      if (e === owner || !e.alive || (!include.includes(e) && owner?.isHostileTo && !owner.isHostileTo(e) && !owner.canHit?.(e))) continue;
       const cy = Math.max(e.position.y, Math.min(point.y, e.position.y + e.height)); // ближайшая точка тела по высоте
       const d = Math.hypot(e.position.x - point.x, cy - point.y, e.position.z - point.z) - e.radius;
       if (d <= radius) inside.push({ e, d: Math.max(0, d) });

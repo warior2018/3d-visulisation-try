@@ -26,6 +26,12 @@ export const HITBOXES = {
   troll: [{ id: "head", min: [-0.25, 1.95, 0.15], max: [0.25, 2.45, 0.7], multiplier: 2 }],
   lich: [{ id: "head", min: [-0.2, 2.16, -0.2], max: [0.2, 2.57, 0.2], multiplier: 2 }], //    скелет ×1.35
   bloater: [{ id: "head", min: [-0.22, 1.84, -0.22], max: [0.22, 2.29, 0.22], multiplier: 2 }], // зомби ×1.15
+  // Новые: упырь и мумия — модель зомби (×0.95 / ×1.05), шаман — скелет, гоблин — скелет ×0.7, вожак — зомби ×1.6
+  ghoul: [{ id: "head", min: [-0.18, 1.52, -0.18], max: [0.18, 1.89, 0.18], multiplier: 2 }],
+  mummy: [{ id: "head", min: [-0.2, 1.68, -0.2], max: [0.2, 2.09, 0.2], multiplier: 2 }],
+  shaman: [HUMAN_HEAD],
+  goblin: [{ id: "head", min: [-0.11, 1.12, -0.11], max: [0.11, 1.33, 0.11], multiplier: 2 }],
+  champion: [{ id: "head", min: [-0.3, 2.56, -0.3], max: [0.3, 3.18, 0.3], multiplier: 2 }],
 };
 
 export const CREATURES = {
@@ -148,6 +154,51 @@ CREATURES.bloater = {
     range: BLOATER.range, fuse: Infinity, trigger: BLOATER.trigger, prime: BLOATER.prime, primeSpeed: BLOATER.primeSpeed,
     onPrime: (e) => e.onPrime?.(e), onBoom: (e) => e.onBoom?.(e),
   }),
+};
+
+// УПЫРЬ (MOB_KINDS.ghoul): быстрый, хрупкий; кровотечение и вампиризм — scene/mob-kinds.js
+CREATURES.ghoul = {
+  kind: "mob", name: "GHOUL", maxHp: 45, speed: 3.3, scale: 0.95, height: 1.75, inventorySize: 4,
+  model: "ghoul", attack: "ghoulClaw", hostileTo: ["player", "town"], xp: 40,
+  kindResist: { ranged: 0.33, blast: -0.3 }, // стрелы и пули хуже, взрыв — больнее
+  loot: [["bone", [0, 2]], ["coin", 6]],
+  brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.2, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
+};
+
+// МУМИЯ (MOB_KINDS.mummy): медленная, крепкая; бинты замедляют, горение — вдвое
+CREATURES.mummy = {
+  kind: "mob", name: "MUMMY", maxHp: 130, speed: 1.35, scale: 1.05, height: 1.95, inventorySize: 4,
+  model: "mummy", attack: "mummyGrasp", hostileTo: ["player", "town"], xp: 60,
+  kindResist: { melee: 0.33 },
+  loot: [["coin", 10], ["bone", [0, 1]]],
+  brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
+};
+
+// КОСТЯНОЙ ШАМАН (MOB_KINDS.shaman): порча издалека, лечит своих
+CREATURES.shaman = {
+  kind: "mob", name: "BONE SHAMAN", maxHp: 70, speed: 2, inventorySize: 4,
+  model: "shaman", attack: "shamanStaff", hostileTo: ["player", "town"], xp: 70,
+  kindResist: { ranged: 0.33, melee: -0.25 },
+  loot: [["bone", [1, 2]], ["skull", [0, 1]], ["coin", 9]],
+  rangedWeapon: { attack: "shamanHex", item: "lichbolt", scale: 0.8, range: 15, minRange: 4, straight: true },
+  brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.3, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
+};
+
+// ГОБЛИН-ТРАППЕР (MOB_KINDS.goblin): мелкий, ставит капканы, уворачивается от выстрелов, раненый убегает
+CREATURES.goblin = {
+  kind: "mob", name: "GOBLIN TRAPPER", maxHp: 35, speed: 3.5, scale: 0.7, height: 1.35, radius: 0.25, inventorySize: 4,
+  model: "goblin", attack: "goblinStab", hostileTo: ["player", "town"], xp: 45,
+  loot: [["coin", 8], ["bear-trap", [0, 1]]],
+  brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.2, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
+};
+
+// ЧУМНОЙ ВОЖАК — минибосс (MOB_KINDS.champion): призывает упырей, чумная аура, богатая добыча
+CREATURES.champion = {
+  kind: "mob", name: "PLAGUE CHAMPION", miniboss: true, maxHp: 650, speed: 2.1, scale: 1.6, height: 3.1, radius: 0.55, inventorySize: 6,
+  model: "champion", attack: "championCleave", hostileTo: ["player", "town"], xp: 400,
+  kindResist: { melee: 0.2, ranged: 0.2 },
+  loot: [["coin", 120], ["medkit", 1], ["skull", 2]],
+  brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.5, leash: 90, stopDistance: 2, wander: MOB_WANDER }),
 };
 
 // Кто стоит в новом мире
