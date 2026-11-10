@@ -31,7 +31,7 @@ export const SKIN_TARGETS = [
   ]),
   weapon("war-hammer", "WAR HAMMER", [
     { id: "molten", fx: [255, 140, 30], name: "MOLTEN", text: "STILL GLOWING FROM THE FURNACE", paint: P.metal([0.35, 0.03, 0.01], [1, 0.72, 0.2]) },
-    { id: "glacier", fx: [140, 210, 255], name: "GLACIER", text: "CUT FROM ETERNAL ICE", paint: P.gradientMap([[0.05, 0.15, 0.3], [0.6, 0.85, 1]]) },
+    { id: "elven", fx: [120, 220, 110], name: "ELVEN", text: "GREEN WOOD, GOLDEN FITTINGS", paint: P.chain(gold, P.dye([0.22, 0.55, 0.3])) },
   ]),
   weapon("katana", "KATANA", [
     { id: "sakura", fx: [255, 130, 190], name: "SAKURA", text: "PINK STEEL, PETAL WRAP", paint: P.chain(P.metal([0.45, 0.3, 0.38], [1, 0.86, 0.93]), P.dye([0.92, 0.42, 0.62])) },
