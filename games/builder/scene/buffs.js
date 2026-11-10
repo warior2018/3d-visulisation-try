@@ -6,7 +6,7 @@
 
 import { critCooldown, dash, MagicAttack, grow } from "../../../engine/index.js";
 import { signedPct } from "./shared.js";
-import { ARMOR, BLOCK, ATTACKS, HAMMER, PLAYER, SHAKE, BOAR_SCALE, WARDEN_GROWTH, OUT_OF_COMBAT } from "../config.js";
+import { ARMOR, BLOCK, ATTACKS, HAMMER, PLAYER, SHAKE, BOAR_SCALE, WARDEN_GROWTH, OUT_OF_COMBAT, MOUNT } from "../config.js";
 import { CREATURES } from "../creatures.js";
 
 export class BuffsPart {
@@ -64,7 +64,7 @@ export class BuffsPart {
     const crit = this.talents.rank("f-crit");
     const cl = crit && this.playerClass === "melee" ? critCooldown(p, "fighter-crit") : 0;
     if (cl > 0) list.push({ icon: "CRT", color: [255, 210, 80], progress: 1 - cl / (crit > 1 ? 7 : 8), left: cl });
-    // Разбег с копьём
+    if (this.mountCast > 0) list.push({ icon: "MNT", name: "MOUNTING", positive: true, color: [200, 160, 110], progress: 1 - this.mountCast / MOUNT.castTime, left: this.mountCast }); // садимся
     if (this.mountCd > 0) list.push({ icon: "MNT", color: [200, 160, 110], progress: 1 - this.mountCd / this.mountCooldown(), left: this.mountCd }); // маунт (Z)
     return list;
   }

@@ -30,6 +30,30 @@ export class MountPart {
     if (!p.alive || p.mount) return;
     if (this.mountCd > 0) return this.engine.toast(`MOUNT READY IN ${Math.ceil(this.mountCd)} S`, 900);
     if (!p.onGround) return this.engine.toast("CAN'T CALL THE MOUNT RIGHT NOW", 900);
+    // Садимся MOUNT.castTime с (ещё раз Z — отмена); урон или прыжок сбивают (updateMountCast)
+    if (this.mountCast > 0) return this.cancelMountCast();
+    this.mountCast = MOUNT.castTime;
+    this.engine.sound.play("equip", { volume: 0.5 });
+  }
+
+  cancelMountCast(why = null) {
+    if (!(this.mountCast > 0)) return;
+    this.mountCast = 0;
+    if (why) this.engine.toast(why, 900);
+  }
+
+  // Каждый тик: идёт посадка — догорела, садимся
+  updateMountCast(dt) {
+    if (!(this.mountCast > 0)) return;
+    const p = this.player;
+    if (!p.alive || p.mount || !p.onGround) return this.cancelMountCast();
+    this.mountCast -= dt;
+    if (this.mountCast <= 0) this.mountNow();
+  }
+
+  mountNow() {
+    this.mountCast = 0;
+    const p = this.player;
     const steed = this.spawn("steed", { x: p.position.x, y: p.position.y, z: p.position.z, yaw: this.look.yaw });
     if (!steed) return;
     steed.rideable = { seat: MOUNT.seat, speed: MOUNT.speed, runMultiplier: MOUNT.runMultiplier, jumpHeight: MOUNT.jumpHeight };
@@ -61,6 +85,7 @@ export class MountPart {
   // Урон по герою или скакуну: больше порога (талант) — скакун исчезает
   mountHurt(e, dealt) {
     const p = this.player;
+    if (e === p && dealt > 0) this.cancelMountCast("MOUNTING INTERRUPTED");
     if (!p?.mount || (e !== p && e !== p.mount)) return;
     const guard = (this.talentStats?.mountGuard || 0) * p.stats.maxHp;
     if (dealt > guard) this.dismountSteed("THROWN FROM THE SADDLE");

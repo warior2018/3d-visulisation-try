@@ -759,6 +759,8 @@ export const RU = {
   "MOUNT READY IN ${Math.ceil(this.mountCd)} S": "МАУНТ ГОТОВ ЧЕРЕЗ ${Math.ceil(this.mountCd)} С",
   "MOUNT SPEED": "СКОРОСТЬ МАУНТА",
   "MOUNT: REINS / WEAPON": "МАУНТ: ПОВОДЬЯ / ОРУЖИЕ",
+  "MOUNTING": "ПОСАДКА",
+  "MOUNTING INTERRUPTED": "ПОСАДКА СОРВАНА",
   "MOUSE SENSITIVITY": "ЧУВСТВИТЕЛЬНОСТЬ МЫШИ",
   "MOVE": "ДВИЖЕНИЕ",
   "MOVE ": "ДВИЖЕНИЕ ",

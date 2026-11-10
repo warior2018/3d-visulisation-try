@@ -427,6 +427,7 @@ export class GameScene extends Scene {
     player.speedBonuses.lock = this.actionLock.moveSpeed;
     this.updateStance(dt); //  катана в руках — стойка: ниже рост и глаза
     this.mountCd = Math.max(0, (this.mountCd || 0) - dt); // перезарядка маунта (MOUNT)
+    this.updateMountCast(dt); // посадка на маунта (scene/mount.js)
     this.updateOutOfCombat(dt); // вне боя: +скорость, ×регенерация (scene/out-of-combat.js)
     this.updateQuests(dt); // задания стража (scene/quests.js)
     this.updateElites(dt); // ауры элитных мобов (scene/elites.js)
