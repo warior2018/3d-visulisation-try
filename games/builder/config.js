@@ -752,30 +752,30 @@ export const ARMOR = {
     leather: {
       name: "LEATHER", color: [150, 105, 65],
       parts: {
-        helmet: { name: "HELMET", armor: 0.03, headshot: 0.15, price: 240, duel: 90 },
-        chest: { name: "CHEST", armor: 0.15, price: 420, duel: 125 },
-        legs: { name: "LEGS", armor: 0.1, price: 300, duel: 85 },
-        boots: { name: "BOOTS", armor: 0.02, speed: 0.075, price: 180, duel: 85 },
+        helmet: { name: "HELMET", armor: 0.03, headshot: 0.15, price: 195, duel: 90 },
+        chest: { name: "CHEST", armor: 0.15, price: 300, duel: 125 },
+        legs: { name: "LEGS", armor: 0.1, price: 240, duel: 85 },
+        boots: { name: "BOOTS", armor: 0.02, speed: 0.075, price: 165, duel: 85 },
       },
       full: { speed: 0.05, text: "+5% SPEED" },
     },
     iron: {
       name: "IRON", color: [150, 156, 168],
       parts: {
-        helmet: { name: "HELMET", armor: 0.05, speed: -0.02, headshot: 0.25, price: 540, duel: 135 },
-        chest: { name: "CHEST", armor: 0.25, speed: -0.03, price: 1020, duel: 180 },
-        legs: { name: "LEGS", armor: 0.175, speed: -0.02, price: 780, duel: 135 },
-        boots: { name: "BOOTS", armor: 0.04, speed: 0.125, price: 420, duel: 140 },
+        helmet: { name: "HELMET", armor: 0.05, speed: -0.02, headshot: 0.25, price: 620, duel: 135 },
+        chest: { name: "CHEST", armor: 0.25, speed: -0.03, price: 950, duel: 180 },
+        legs: { name: "LEGS", armor: 0.175, speed: -0.02, price: 760, duel: 135 },
+        boots: { name: "BOOTS", armor: 0.04, speed: 0.125, price: 570, duel: 140 },
       },
       full: { hp: 40, text: "+40 MAX HP" },
     },
     bone: {
       name: "BONE", color: [222, 214, 190],
       parts: {
-        helmet: { name: "HELMET", armor: 0.02, speed: 0.02, headshot: 0.2, price: 360, duel: 120 },
-        chest: { name: "CHEST", armor: 0.075, speed: 0.02, price: 540, duel: 85 },
-        legs: { name: "LEGS", armor: 0.0625, speed: 0.02, price: 480, duel: 70 },
-        boots: { name: "BOOTS", armor: 0.015, speed: 0.1, price: 300, duel: 100 },
+        helmet: { name: "HELMET", armor: 0.02, speed: 0.02, headshot: 0.2, price: 365, duel: 120 },
+        chest: { name: "CHEST", armor: 0.075, speed: 0.02, price: 560, duel: 85 },
+        legs: { name: "LEGS", armor: 0.0625, speed: 0.02, price: 450, duel: 70 },
+        boots: { name: "BOOTS", armor: 0.015, speed: 0.1, price: 310, duel: 100 },
       },
       full: { attackSpeed: 0.1, text: "+10% ATTACK SPEED" },
     },
@@ -907,7 +907,9 @@ export const SHOP = {
   "pistol-clip": 4, "auto-clip": 8, "shotgun-clip": 6, "rifle-clip": 8, // обоймы (CLIPS.enabled: false — не продаются)
   builder: 50, block: 15, medkit: 60, medkitHeal: 40, //                 прочее: молот-стройка, 16 блоков, аптечка
 };
-// Броня — цены в ARMOR: кожа ~1150 за комплект, кость ~1700, железо ~2750
+// Броня — цены в ARMOR. Тиры не пересекаются: любая часть следующего тира дороже любой части прошлого
+// (кожа 165–300, кость 310–560, железо 570–950). Внутри тира: нагрудник 1.0, штаны ~0.8, шлем ~0.65,
+// ботинки ~0.55 от нагрудника. Комплект: кожа 900, кость 1685, железо 2900
 // Аптечка: держишь ЛКМ useTime секунд (вокруг прицела заполняется круг, как в PEAK) — тогда лечит SHOP.medkitHeal;
 // отпустил раньше — не потратилась. Пока лечишься — медленнее на slow
 export const MEDKIT = { useTime: 2.5, slow: -0.5 };
