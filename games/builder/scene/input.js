@@ -8,7 +8,7 @@ import { MapScene, MenuScene, parry } from "../../../engine/index.js";
 import { ProfileScene } from "../profile-view.js";
 import { DIGIT_KEYS } from "./shared.js";
 import { PALETTE, BLOCK } from "../config.js";
-import { deleteSave } from "../save.js";
+import { deleteSave, deleteWorld, currentWorld } from "../save.js";
 
 export class InputPart {
   // ---------- Ввод ----------
@@ -113,6 +113,8 @@ export class InputPart {
     this.engine.log(`игрок погиб (уровень ${this.experience.level}, ${this.talentsSummary()}) — мир начнётся заново; старое сохранение: ${archived || "не было"}`);
     this.engine.sound.play("death");
     this.showDeathSummary(); // окно итогов и рекорды мира (scene/run-stats.js); в пылу боя не прокликать — lock
+    // Погиб — мира больше нет: слот целиком убираем (в saves/deleted/, не насовсем), иначе в меню висел бы «пустой» мир
+    if (currentWorld) deleteWorld(currentWorld);
   }
 
   toggleAutoLoot() {
