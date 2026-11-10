@@ -278,7 +278,8 @@ export const MOB_MIX = { skeleton: 7, zombie: 3, bloater: 1.3 }; // РАЗДУТ
 // (растёт, как у мобов) всем в radius. Мобам взрыв не вредит. Убил до взрыва — просто лопается
 // Каска у мобов: шанс появиться в ней (types — кто может); режет только урон в голову (после множителя хедшота)
 export const MOB_HELMET = { chance: 0.35, headshot: 0.15, types: ["zombie", "bloater"] };
-export const BLOATER = { range: 14, trigger: 2.2, prime: 1.1, primeSpeed: 0.5, radius: 3, damage: [22, 32] };
+// deathBoom — шанс взорваться, когда его убили (1 — всегда; опыт и добыча — тебе)
+export const BLOATER = { range: 14, trigger: 2.2, prime: 1.1, primeSpeed: 0.5, deathBoom: 1, radius: 3, damage: [22, 32] };
 
 // Кабан — мирный (НПС), появляется редко: раз в interval секунд с шансом chance, не больше max.
 // Ранили — убегает; крепчает вместе с мобами (BOAR_SCALE)
@@ -933,7 +934,8 @@ export const KATANA_IAI = { cooldown: 6, damage: 1.5, distance: 10, dashSpeed: 4
 // так, как её чувствует игрок (1 — перекрестие бегает по экрану как без прицела, 0.5 — вдвое медленнее).
 // moveSpeed — замедление ходьбы в прицеле, offset — сдвиг модели оружия.
 // weapons — своё смещение при прицеливании (вправо, вверх, вперёд; м): лук правее и ниже центра, стрела у прицела
-export const AIM = { moveSpeed: -0.1, offset: [0, 0, 0], weapons: { bow: [0.07, -0.05, 0] } };
+export const AIM = { moveSpeed: -0.1, offset: [0, 0, 0], weapons: { bow: [0.07, -0.05, 0] },
+  tilt: { bow: [10, 15] } }; // наклон модели (градусов по часовой: у бедра, в прицеле)
 export const AIM_PISTOL = { fov: 45, sensitivity: 0.6 };
 export const AIM_RIFLE = { fov: 18, sensitivity: 0.35 }; // в оптике — заметно медленнее: точная наводка
 export const AIM_AUTO = { fov: 42, sensitivity: 0.55 };

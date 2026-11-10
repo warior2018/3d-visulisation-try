@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Particles, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
-import { LIFETIME, THROW, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
+import { LIFETIME, THROW, BLOATER, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
 import { HandAbility, IN_HAND } from "./abilities.js";
 import { helpFor } from "./help.js";
 import { talentTree } from "./talents.js";
@@ -555,6 +555,8 @@ export class GameScene extends Scene {
           e.looted = true;
           engine.sound.play("mobDeath", { at: e.position });
           this.onDeath(e);
+          // Раздутый убит (не сам взорвался) — всё равно взрывается (шанс BLOATER.deathBoom)
+          if (e.type === "bloater" && !e.selfDestructed && Math.random() < (BLOATER.deathBoom ?? 0)) this.bloaterBoom(e);
         }
         if (e.deadTime > CORPSE_TIME) this.removeEntity(e);
         continue;
@@ -654,6 +656,7 @@ export class GameScene extends Scene {
     if (vm) {
       vm.aim = this.aimT; // пистолет — к центру экрана, мушка — в прицел
       vm.aimOffset = AIM.weapons[this.abilities.current?.id] || AIM.offset; // своё смещение у оружия (лук — не по центру)
+      vm.tilt = AIM.tilt[this.abilities.current?.id] || [0, 0]; //            и наклон (лук — наискосок)
     }
     vm?.update(dt);
     profiler.end(PROF.player);

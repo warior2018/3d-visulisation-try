@@ -33,6 +33,8 @@ export class ViewModel {
     // (в осях камеры: вправо, вверх, вперёд), например пистолет к центру экрана
     this.aim = 0;
     this.aimOffset = [0, 0, 0];
+    // Наклон модели (градусы, по часовой — верх вправо): tilt[0] — у бедра, tilt[1] — в прицеле. Вокруг мушки
+    this.tilt = [0, 0];
     // Покачивание на ходу (как в Minecraft): сдвиг в осях камеры и крен — ставит игра (HeadBob.hand)
     this.sway = { x: 0, y: 0, z: 0, roll: 0 };
     this.sights = this.findSights();
@@ -118,7 +120,20 @@ export class ViewModel {
     const { R, T } = this.aimTransform(this.aim);
     const M = [0, 1, 2].flatMap((c) => mul3(C, [R[c * 3], R[c * 3 + 1], R[c * 3 + 2]]));
     const k = 1 - this.aim;
-    const p = mul3(C, [T[0] + this.sway.x * k, T[1] + this.sway.y * k, T[2] + this.sway.z * k]);
+    let Tl = [T[0] + this.sway.x * k, T[1] + this.sway.y * k, T[2] + this.sway.z * k];
+    // Наклон вокруг точки P (мушка после прицеливания, иначе — 0.5 м перед глазом): x → Rt·(x − P) + P
+    const deg = this.tilt[0] + (this.tilt[1] - this.tilt[0]) * this.aim;
+    if (deg) {
+      const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+      const Rt = [c, -s, 0, s, c, 0, 0, 0, 1];
+      const f = this.sights?.front || [0, 0, 0.5];
+      const P = mul3(R, f).map((v, i) => v + Tl[i]);
+      const R2 = [0, 1, 2].flatMap((col) => mul3(Rt, [R[col * 3], R[col * 3 + 1], R[col * 3 + 2]]));
+      const M2 = [0, 1, 2].flatMap((col) => mul3(C, [R2[col * 3], R2[col * 3 + 1], R2[col * 3 + 2]]));
+      for (let i = 0; i < 9; i++) M[i] = M2[i];
+      Tl = mul3(Rt, Tl.map((v, i) => v - P[i])).map((v, i) => v + P[i]);
+    }
+    const p = mul3(C, Tl);
     const e = camera.position;
     this.matrix.set([M[0], M[1], M[2], 0, M[3], M[4], M[5], 0, M[6], M[7], M[8], 0, e.x + p[0], e.y + p[1], e.z + p[2], 1]);
     this.tint.set([0, 0, 0, Math.max(0, Math.min(0.85, 1 - this.light))]);

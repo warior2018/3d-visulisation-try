@@ -47,7 +47,8 @@ export const HUD_PARTS = [
     watch: (g) => {
       const a = g.abilities.current;
       const melee = !!a && a !== g.hand && a.attack?.kind === "melee";
-      return [g.scoped, g.aimT > 0.5 && g.settings.general.cameraMode !== "third", melee];
+      const sightless = a?.id === "bow"; // у лука мушки нет — прицел остаётся и при прицеливании
+      return [g.scoped, g.aimT > 0.5 && g.settings.general.cameraMode !== "third" && !sightless, melee];
     },
     draw: (ui, g, [scoped, aimed, melee]) => (scoped ? drawScope(ui) : !aimed && !melee && drawCrosshair(ui)),
   },
