@@ -108,6 +108,18 @@ export class ModelLibrary {
     return !!v.held;
   }
 
+  // Надеть на сущность вещь (каска, рюкзак...): модель name на кость bone, отдельно от предмета в руке.
+  // name = null — снять. Сейчас — одна надетая вещь на сущность
+  //   models.wear(mob, "mob-helmet", { bone: "head" });
+  wear(entity, name, { bone, position = [0, 0, 0], rotation = [0, 0, 0, 1] } = {}) {
+    const v = entity.view;
+    if (!v) return false;
+    if ((v.worn?.name ?? null) === (name ?? null) && v.worn?.bone === bone) return true;
+    if (v.worn) this.release(v.worn);
+    v.worn = name ? this.mount(v, name, { bone, position, rotation }) : null;
+    return !!v.worn;
+  }
+
   // Прицепить модель name к кости bone модели v — { name, bone, node, skin, ... } или null (нет модели / кости)
   mount(v, name, { bone, position = [0, 0, 0], rotation = [0, 0, 0, 1] }) {
     const key = name && (this.resolve(name, v.owner) || name);
@@ -137,6 +149,7 @@ export class ModelLibrary {
     if (!v) return;
     if (v.held) this.release(v.held);
     if (v.extra) this.release(v.extra);
+    if (v.worn) this.release(v.worn);
     this.release(v);
     entity.view = null;
   }
@@ -202,8 +215,8 @@ export class ModelLibrary {
       const sil = e.silhouette || null, hidden = sil === "ghost" || sil === "faint"; // эти — только силуэтом
       out.push({ skin: v.skin, modelMatrix: v.modelMatrix, jointMatrices: v.animator.jointMatrices, tint: v.tint, sil, hidden });
 
-      // Предмет в руке (и второй — extra): матрица сущности × мировая матрица кости × сдвиг предмета
-      for (const h of [v.held, v.extra]) {
+      // Предмет в руке (и второй — extra, и надетая вещь — worn): матрица сущности × мировая матрица кости × сдвиг предмета
+      for (const h of [v.held, v.extra, v.worn]) {
         if (!h) continue;
         multiply(v.modelMatrix, v.animator.global[h.node], h.tmp);
         multiply(h.tmp, h.offset, h.modelMatrix);

@@ -202,6 +202,7 @@ export class GameScene extends Scene {
     this.entities.add(e);
     this.game.models.attach(e, modelFor(e));
     if (e.ranged) this.game.models.hold(e, e.ranged.held, IN_HAND); // метатель: в руке то, что бросает
+    if (e.helmet) this.game.models.wear(e, "mob-helmet", { bone: "head" }); // в каске (MOB_HELMET) — видно
     if (e.type === "bloater") {
       e.onPrime = (b) => this.engine.sound.play("growl", { at: b.position, volume: 1 }); // зашипел — сейчас рванёт
       e.onBoom = (b) => this.bloaterBoom(b);

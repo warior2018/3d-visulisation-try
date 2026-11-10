@@ -1,6 +1,6 @@
 // ============================================================
 //  Генератор модели «зомби» (.glb): человек из брусков — зелёная кожа,
-//  рваная рубаха, штаны и железная КАСКА (поэтому он крепче: броня).
+//  рваная рубаха, штаны. Каска — отдельная модель mob-helmet.glb (крепится к кости head).
 //  Скелет костей — тот же, что у скелета (tools/make-skeleton.js), так что
 //  и размеры у них одни. Руки зомби вытянуты вперёд.
 //  Запуск: node tools/make-zombie.js  ->  games/builder/assets/zombie.glb
@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { buildGLB, writeGLB, rot, move, X, Y, Z } from "./glb-builder.js";
 
 const OUT = fileURLToPath(new URL("../games/builder/assets/zombie.glb", import.meta.url));
+const OUT_HELMET = fileURLToPath(new URL("../games/builder/assets/mob-helmet.glb", import.meta.url));
 
 // Кости — как у скелета: смотрит вдоль +Z, левая сторона — +X, ступни на y = 0
 const BONES = [
@@ -42,15 +43,11 @@ const MOUTH = [0.15, 0.08, 0.08];
 const parts = [];
 const box = (bone, center, size, color) => parts.push({ bone, center, size, color });
 
-// Голова, лицо и каска
+// Голова и лицо (каска — отдельная модель mob-helmet: надета не на всех, MOB_HELMET в config.js)
 box("head", [0, 1.74, 0], [0.28, 0.28, 0.28], SKIN);
 box("head", [0.065, 1.76, 0.142], [0.06, 0.04, 0.01], EYES);
 box("head", [-0.065, 1.76, 0.142], [0.06, 0.04, 0.01], EYES);
 box("head", [0, 1.66, 0.142], [0.12, 0.03, 0.01], MOUTH);
-box("head", [0, 1.89, 0], [0.32, 0.08, 0.32], HELMET); //       купол каски
-box("head", [0, 1.95, 0], [0.24, 0.05, 0.24], HELMET); //       верх купола
-box("head", [0, 1.85, 0], [0.38, 0.025, 0.38], HELMET_DARK); // поля каски
-box("head", [0, 1.85, 0.2], [0.2, 0.025, 0.04], HELMET_DARK); // козырёк чуть вперёд
 box("neck", [0, 1.56, 0], [0.12, 0.1, 0.12], SKIN_DARK);
 
 // Туловище: рубаха (с рваными краями) и пояс
@@ -102,3 +99,15 @@ const ANIMATIONS = {
 };
 
 writeGLB(OUT, buildGLB({ name: "Zombie", generator: "VOID tools/make-zombie.js", bones: BONES, parts, animations: ANIMATIONS }));
+
+// Каска — отдельно: своя кость root в начале координат кости head (y = 1.6), поэтому всё на 1.6 ниже
+const hb = (center, size, color) => ({ bone: "root", center: [center[0], center[1] - 1.6, center[2]], size, color });
+writeGLB(OUT_HELMET, buildGLB({
+  name: "MobHelmet", generator: "VOID tools/make-zombie.js", bones: [{ name: "root", parent: null, pos: [0, 0, 0] }], animations: {},
+  parts: [
+    hb([0, 1.89, 0], [0.32, 0.08, 0.32], HELMET), //       купол каски
+    hb([0, 1.95, 0], [0.24, 0.05, 0.24], HELMET), //       верх купола
+    hb([0, 1.85, 0], [0.38, 0.025, 0.38], HELMET_DARK), // поля каски
+    hb([0, 1.85, 0.2], [0.2, 0.025, 0.04], HELMET_DARK), // козырёк чуть вперёд
+  ],
+}));

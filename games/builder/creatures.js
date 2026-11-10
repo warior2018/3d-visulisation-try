@@ -145,7 +145,7 @@ CREATURES.bloater = {
   kind: "mob", name: "BLOATER", maxHp: 45, speed: 2.6, radius: 0.36, height: 2.2, scale: 1.15, inventorySize: 4,
   model: "bloater", hostileTo: ["player", "town"], xp: 40, kindResist: { blast: 0.33 }, loot: [["bone", [0, 1]], ["coin", 6]],
   brain: () => new KamikazeBrain({
-    range: BLOATER.range, fuse: Infinity, trigger: BLOATER.trigger, prime: BLOATER.prime,
+    range: BLOATER.range, fuse: Infinity, trigger: BLOATER.trigger, prime: BLOATER.prime, primeSpeed: BLOATER.primeSpeed,
     onPrime: (e) => e.onPrime?.(e), onBoom: (e) => e.onBoom?.(e),
   }),
 };

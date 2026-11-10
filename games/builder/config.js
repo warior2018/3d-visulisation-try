@@ -271,14 +271,14 @@ export const HERD = { radius: 5.5, alertOnSight: true, leash: 45 };
 // Скелеты крепчают: каждый следующий (из спавнера) — на hpPerSpawn HP больше,
 // каждые damageEvery появлений — на damageStep урона больше
 // Какой моб появляется из спавнера: доли (в сумме — любые числа). Зомби — реже скелетов
-export const MOB_MIX = { skeleton: 7, zombie: 3, bloater: 1 }; // РАЗДУТЫЙ — ~1 из 11
+export const MOB_MIX = { skeleton: 7, zombie: 3, bloater: 1.3 }; // РАЗДУТЫЙ — ~1 из 9
 
 // РАЗДУТЫЙ (bloater): опухший зомби-смертник (движок: KamikazeBrain с запалом). Замечает ближе range, бежит;
 // подбежал ближе trigger — встаёт и шипит prime с (на земле красный круг — беги!), потом взрыв: урон damage
 // (растёт, как у мобов) всем в radius. Мобам взрыв не вредит. Убил до взрыва — просто лопается
 // Каска у мобов: шанс появиться в ней (types — кто может); режет только урон в голову (после множителя хедшота)
 export const MOB_HELMET = { chance: 0.35, headshot: 0.15, types: ["zombie", "bloater"] };
-export const BLOATER = { range: 14, trigger: 2.2, prime: 1.1, radius: 3, damage: [22, 32] };
+export const BLOATER = { range: 14, trigger: 2.2, prime: 1.1, primeSpeed: 0.5, radius: 3, damage: [22, 32] };
 
 // Кабан — мирный (НПС), появляется редко: раз в interval секунд с шансом chance, не больше max.
 // Ранили — убегает; крепчает вместе с мобами (BOAR_SCALE)

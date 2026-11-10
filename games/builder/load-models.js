@@ -19,6 +19,7 @@ export function loadModels(models) {
   // Лич (второй босс) — скелет, перекрашенный в бледно-фиолетовый (крупнее — scale у существа);
   // раздутый — зомби с багрово-зелёной кожей
   models.load("lich", path.join(ASSETS, "skeleton.glb"), { mirrorX: true, recolor: [{ from: [0.86, 0.84, 0.76], to: [0.68, 0.58, 0.86] }] });
+  models.load("mob-helmet", path.join(ASSETS, "mob-helmet.glb")); // каска зомби / раздутого (не у всех: MOB_HELMET)
   models.load("bloater", path.join(ASSETS, "zombie.glb"), { mirrorX: true, recolor: [{ from: [0.42, 0.58, 0.32], to: [0.62, 0.66, 0.3] }, { from: [0.32, 0.45, 0.24], to: [0.55, 0.3, 0.28] }, { from: [0.32, 0.4, 0.55], to: [0.45, 0.3, 0.32] }] });
   // Целебный гриб — турель-гриб с розовой шляпкой; сгусток лича — спора, перекрашенная в фиолетовый
   models.load("item-healer", path.join(ASSETS, "turret.glb"), { recolor: [{ from: [0.35, 0.78, 0.35], to: [0.92, 0.5, 0.78] }] });
