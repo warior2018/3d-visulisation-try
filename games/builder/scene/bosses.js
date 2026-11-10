@@ -115,7 +115,50 @@ export class BossesPart {
   }
 
   // Тролль ударил о землю: пыльный круг, грохот, тряска экрана, если герой рядом
+  // Босс в погоне (HostileBrain chase): блоки перед ним, от уровня ног до макушки, ломаются (раз в chase.every с).
+  // Пол под ногами и ниже — не трогаем: яму себе не выкопает. Неломаемые (арена) — стоят
+  bossDig(e, target, dt) {
+    e.digIn = (e.digIn ?? 0) - dt;
+    if (e.digIn > 0) return;
+    e.digIn = BOSS.chase.every;
+    const dx = target.position.x - e.position.x, dz = target.position.z - e.position.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const feet = Math.floor(e.position.y + 0.05);
+    const cells = new Set();
+    for (const ahead of [e.radius + 0.4, e.radius + 1]) {
+      for (const side of [-e.radius * 0.8, 0, e.radius * 0.8]) {
+        const x = Math.floor(e.position.x + (dx / len) * ahead - (dz / len) * side);
+        const z = Math.floor(e.position.z + (dz / len) * ahead + (dx / len) * side);
+        for (let y = feet; y <= Math.floor(e.position.y + e.height); y++) cells.add(`${x},${y},${z}`);
+      }
+    }
+    this.bossBreak([...cells].map((k) => k.split(",").map(Number)));
+  }
+
+  // Сломать блоки (босс): сломанные не выпадают; пыль и звук
+  bossBreak(list) {
+    let n = 0;
+    for (const [x, y, z] of list) {
+      if (!this.world.has(x, y, z)) continue;
+      if (this.world.remove(x, y, z) === false) continue; // неломаемый
+      n++;
+      if (n <= 4) this.sparkFx?.({ x: x + 0.5, y: y + 0.5, z: z + 0.5 });
+    }
+    if (n) this.engine.sound.play("remove", { at: { x: list[0][0], y: list[0][1], z: list[0][2] } });
+    return n;
+  }
+
   bossSlam(c, r) {
+    // удар дубиной ломает блоки в круге удара — от уровня земли вверх на 2 (пол не трогаем)
+    const cells = [];
+    const y0 = Math.floor(c.y + 0.05);
+    for (let x = Math.floor(c.x - r); x <= Math.floor(c.x + r); x++) {
+      for (let z = Math.floor(c.z - r); z <= Math.floor(c.z + r); z++) {
+        if (Math.hypot(x + 0.5 - c.x, z + 0.5 - c.z) > r) continue;
+        for (let y = y0; y <= y0 + 1; y++) cells.push([x, y, z]);
+      }
+    }
+    this.bossBreak(cells);
     this.beams.ring({ x: c.x, y: c.y + 0.05, z: c.z }, r, { color: [190, 170, 140], life: 0.35, width: 9 });
     this.beams.ring({ x: c.x, y: c.y + 0.05, z: c.z }, r * 0.55, { color: [150, 130, 100], life: 0.25, width: 6, segments: 14 });
     this.engine.sound.play("boom", { at: c });

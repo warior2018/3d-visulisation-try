@@ -40,7 +40,11 @@ export class ThrowersPart {
         this.engine.sound.play(hit.entity === this.player ? "hurt" : "hit", { at: hit.entity.position });
         this.engine.log(`${e.name} → ${hit.entity.name}: ${r.name} -${res?.dealt ?? 0} HP`);
       },
-      onLand: () => {},
+      // снаряд босса (валун, сгусток) ломает блок, в который попал
+      onLand: (p, wall) => {
+        const b = wall?.block;
+        if (e.boss && b) this.bossBreak?.([[b.x, b.y, b.z]]);
+      },
     });
     e.view?.animator.playOnce("Throw");
     this.engine.sound.play("swing", { at: e.position });

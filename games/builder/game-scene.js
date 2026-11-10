@@ -511,6 +511,7 @@ export class GameScene extends Scene {
       near: (e) => this.entities.near(e), //  соседи из сетки (separate)
       navWorld: this.navWorld,
       hunt: this.invasion.active ? this.heroes() : null, // нашествие: каждый моб — на ближайшего героя (свой + гости)
+      dig: (e, target, dt) => this.bossDig(e, target, dt), // босс в погоне ломает блоки перед собой (bosses.js)
       shoot: (e, target, attack) => (e.ranged.hitscan ? this.mobGunshot(e, target, attack) : this.mobThrow(e, target, attack)), // стрелок (HostileBrain ranged)
       // Контекст атак — один на существо (не новый объект каждый кадр); стена между ним и целью — луч не чаще
       // раза в 0.25 с (стрелки проверяют это каждый кадр)
@@ -518,6 +519,7 @@ export class GameScene extends Scene {
         get entities() { return scene.entities.list; }, // сплеш: кого ещё задел взмах
         blocked: (owner, target) => scene.blockedCached(owner, target),
         onUse: () => {
+          if (e.boss) this.bossDig(e, { position: { x: e.position.x + Math.sin(e.yaw), z: e.position.z + Math.cos(e.yaw) } }, 1); // удар босса ломает блоки перед ним
           e.view?.animator.playOnce("Attack"); // замах
           e.netAttack = true; // сетевая игра: гостям — сыграть замах у копии
           engine.sound.play("swing", { at: e.position }); // объёмный: слышно, откуда замахнулись

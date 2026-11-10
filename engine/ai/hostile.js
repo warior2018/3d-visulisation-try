@@ -36,7 +36,10 @@ const RETARGET = 0.5; // как часто проверять (с)
 export class HostileBrain extends Brain {
   // herd: { radius, alertOnSight } или null — без стада
   // wander: { radius, pause } — бродить без цели (null — стоять на месте); huntRadius — докуда идти на охоту
-  constructor({ aggroRadius = 12, leash = 45, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5, herd = null, wander = null, huntRadius = 150, ranged = null, territory = null, sightHeight = Infinity } = {}) {
+  // chase — с территорией: цель ушла из логова — не стоит, а идёт за ней (быстрее на chase.speed, прыгает
+  // chase.jump м/с), по пути игра ломает блоки перед ним (ctx.dig); успокаивается, только если цель дальше leash
+  constructor({ aggroRadius = 12, leash = 45, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5, herd = null, wander = null, huntRadius = 150, ranged = null, territory = null, sightHeight = Infinity, chase = null } = {}) {
+    this.chase = chase;
     super();
     this.sightHeight = sightHeight; // замечает врага, только если тот не выше / ниже этого (тролль в пещере не видит тех, кто ходит по горе)
     this.territory = territory; // { x, z, radius } — не выходит из круга (логово босса) или null
@@ -134,7 +137,7 @@ export class HostileBrain extends Brain {
       if (seen) alerted = this.anger(e, seen, entities);
     }
     // Территория: цель ушла далеко от логова (дальше, чем достанет бросок) — успокаивается
-    if (T && e.aggro && fromHome(e.aggro) > T.radius + (this.ranged?.range ?? 0)) e.aggro = null;
+    if (T && !this.chase && e.aggro && fromHome(e.aggro) > T.radius + (this.ranged?.range ?? 0)) e.aggro = null;
 
     // 2. Преследование (или стоим, если злиться не на кого)
     const target = e.aggro;
@@ -155,7 +158,7 @@ export class HostileBrain extends Brain {
       e.velocity.z = 0;
       turnTowards(e, Math.atan2(target.position.x - e.position.x, target.position.z - e.position.z), this.turnSpeed * 1.5, dt);
       if (e.rangedAttack.ready && e.rangedAttack.use(e, {})) ctx.shoot?.(e, target, e.rangedAttack);
-    } else if (target && T && fromHome(target) > T.radius) {
+    } else if (target && T && !this.chase && fromHome(target) > T.radius) {
       // Цель вне логова: не выходим — стоим и смотрим на неё (бросок — когда перезарядится)
       e.velocity.x = 0;
       e.velocity.z = 0;
@@ -165,7 +168,11 @@ export class HostileBrain extends Brain {
       const opts = (e.pursueOpts ||= { navigator: e.nav, stopDistance: this.stopDistance, turnSpeed: this.turnSpeed, jumpSpeed: this.jumpSpeed });
       opts.navigator = e.nav;
       opts.radius = target === hunt ? this.huntRadius : this.leash;
-      opts.speed = e.speed;
+      // за пределами логова — погоня: быстрее, прыжок выше, блоки на пути ломает игра (ctx.dig)
+      const out = this.chase && T && fromHome(target) > T.radius;
+      opts.speed = e.speed * (out ? 1 + (this.chase.speed || 0) : 1);
+      opts.jumpSpeed = out ? this.chase.jump || this.jumpSpeed : this.jumpSpeed;
+      if (out) ctx.dig?.(e, target, dt);
       walking = pursue(e, target, dt, opts);
     } else if (T && fromHome(e) > 1) {
       // Без цели и не дома — идём в центр логова
