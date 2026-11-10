@@ -110,6 +110,7 @@ export class MainMenu extends Scene {
   // Кругляш «создать мир» — справа от центра, на месте
   createSlot(ui) {
     const R = ringR(ui);
+    if (!this.worlds?.length) return { x: ui.width / 2, y: ringY(ui), r: R }; // миров нет — «создать» по центру и крупно
     return { x: ui.width / 2 + R * 2.6, y: ringY(ui) + 10, r: R * 0.62 };
   }
 
