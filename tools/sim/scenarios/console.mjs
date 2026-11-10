@@ -6,7 +6,7 @@ export default async function (t, g) {
   scene.cheats = true; // мир игрока мог быть без читов (копия его сохранения) — команды проверяем с читами
   await g.frames(5);
   con.exec("help");
-  t.check("help — список команд", con.lines.some((l) => /COMMANDS:.*give/.test(l.text)));
+  t.check("help — список команд", con.lines.some((l) => /^COMMANDS:/.test(l.text)) && con.lines.some((l) => /^\*give /.test(l.text)));
   const bones = scene.itemCount("bone");
   con.exec("give bone 7");
   t.check("give bone 7", scene.itemCount("bone") === bones + 7, `${bones} → ${scene.itemCount("bone")}`);
