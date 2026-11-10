@@ -1,4 +1,4 @@
-// Чувство боя: сильный удар — стоп-кадр; молот отбрасывает моба; хедшот — звук; по герою попали — дуга
+// Чувство боя: молот отбрасывает моба; хедшот — звук; по герою попали — дуга
 // в сторону того, кто бил (справа — справа), гаснет
 export default async function (t, g) {
   const { scene, C, E, engine } = g;
@@ -7,12 +7,6 @@ export default async function (t, g) {
   const at = (dx, dz) => ({ x: p.position.x + dx, y: p.position.y, z: p.position.z + dz });
   const mob = scene.spawn("skeleton", at(0, 2));
   mob.stats.maxHp = mob.stats.hp = 5000;
-  engine.hitStopLeft = 0;
-  mob.receive(new E.Damage({ amount: 10, source: p }));
-  t.check("слабый удар — без стоп-кадра", !(engine.hitStopLeft > 0));
-  scene.lastHitStop = -1;
-  mob.receive(new E.Damage({ amount: 80, source: p }));
-  t.check("сильный удар — стоп-кадр", engine.hitStopLeft > 0 && engine.hitStopScale < 0.2, engine.hitStopLeft);
   // молот: отлёт от героя
   const hammer = { id: "war-hammer", kind: "melee" };
   const z0 = mob.position.z;

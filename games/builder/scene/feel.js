@@ -1,6 +1,6 @@
 // ============================================================
 //  Чувство боя (HIT_FEEL, DAMAGE_DIR):
-//   — сильный удар героя или хедшот: стоп-кадр на 40–50 мс (engine.hitStop), встряска картинки, звук хедшота;
+//   — сильный удар героя или хедшот: встряска картинки, звук хедшота;
 //   — молот, дробовик, залп, разбег копья, динамит отбрасывают задетых мобов (knock);
 //   — по герою попали — красная дуга у прицела в сторону того, кто бил (hud.js → «damage-dir»), гаснет.
 // ============================================================
@@ -15,12 +15,6 @@ export class FeelPart {
     if (e === this.player) return this.markDamageDir(d);
     if (d.source !== this.player || d.tags?.has("dot")) return;
     const F = HIT_FEEL, head = d.part === "head";
-    const clock = this.combatClock || 0;
-    // стоп-кадр: не чаще cooldown (очередь автомата не превращается в слайдшоу)
-    if ((head || dealt >= F.stop.from) && clock - (this.lastHitStop ?? -1) >= F.stop.cooldown) {
-      this.lastHitStop = clock;
-      this.engine.hitStop?.(head ? F.stop.head : F.stop.time, F.stop.scale);
-    }
     if (head || dealt >= F.kick.from) this.shake?.add(head ? F.kick.head : F.kick.amount);
     if (head) this.engine.sound.play(F.headSound, { volume: 0.9 });
     const k = F.knock.attacks[d.attack?.id];
