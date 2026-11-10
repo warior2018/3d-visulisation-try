@@ -11,6 +11,8 @@ import { CLASSES } from "../config.js";
 import { rarityData } from "./loot.js";
 import { SKIN_TARGETS, skinTarget, skinOf } from "../skins.js";
 
+import { describeGameCommands } from "./command-guides.js";
+
 export function registerCommands(g) {
   const c = g.engine.console;
   // Читы — только в мире, где их включили при создании (info.cheats; в старых мирах — включены), и не у гостя
@@ -107,5 +109,6 @@ export function registerCommands(g) {
   } });
   c.command("net", { help: "net - network game status", run: () => g.netStatus?.() ?? "SOLO GAME" });
   c.command("say", { help: "say <text> - chat message", run: (a) => { g.chat?.send(a.join(" ")); } });
+  describeGameCommands(c); // подробная справка: help <имя> (command-guides.js)
 }
 

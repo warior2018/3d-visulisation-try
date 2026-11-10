@@ -8,6 +8,8 @@
 //    engine.console.lines                                          // что напечатано (последние maxLines)
 //
 //  run возвращает строку / массив строк (напечатать) или ничего; бросил ошибку — она печатается красным.
+//  Подробная справка (help <имя>): engine.console.describe("give", { what, args: [[имя, "required"|"optional", что]],
+//  examples: [...], notes: [...] }) — для команды или переменной. help без имени — все команды с кратким описанием
 //  cheat: true — команда меняет игру (выдать, призвать, бессмертие): игра может их запретить (allowCheats)
 // ============================================================
 
@@ -15,6 +17,7 @@ export class DevConsole {
   constructor({ maxLines = 300, log = null } = {}) {
     this.commands = new Map(); // имя -> { help, run, cheat }
     this.cvars = new Map(); //    имя -> { help, get, set, cheat }
+    this.details = new Map(); //  имя -> { what, args, examples, notes } — подробная справка (describe)
     this.lines = []; //           { text, color }
     this.history = []; //         введённые строки (стрелки вверх / вниз)
     this.maxLines = maxLines;
@@ -22,22 +25,60 @@ export class DevConsole {
     this.allowCheats = () => true; // игра решает (например, гость сетевой игры — нельзя)
     this.version = 0; //          растёт при каждой новой строке (окну — перерисоваться)
     this.command("help", {
-      help: "help [command] - list commands / describe one",
-      run: (args) => {
-        if (args[0]) {
-          const c = this.commands.get(args[0].toLowerCase()) || this.cvars.get(args[0].toLowerCase());
-          return c ? c.help || args[0] : `unknown: ${args[0]}`;
-        }
-        // * — чит: работает, только где читы разрешены (allowCheats)
-        const mark = (n, x) => (x.cheat ? "*" : "") + n;
-        const names = [...[...this.commands].map(([n, x]) => mark(n, x)), ...[...this.cvars].map(([n, x]) => mark(n, x) + " (var)")].sort((a, b) => a.replace("*", "").localeCompare(b.replace("*", "")));
-        const out = ["COMMANDS: " + names.join(", "), "HELP <NAME> - DETAILS. TAB - COMPLETE, UP/DOWN - HISTORY"];
-        if (names.some((n) => n.startsWith("*"))) out.push(`* - CHEAT${this.allowCheats() ? "" : ": " + (this.cheatsOff?.() || "NOT ALLOWED HERE")}`);
-        return out;
-      },
+      help: "help [name] - all commands with a short description / a detailed guide to one",
+      run: (args) => (args[0] ? this.guide(args[0]) : this.list()),
+    });
+    this.describe("help", {
+      what: "Shows the console commands. Without a name - every command and variable, one per line, with a short description. With a name - a detailed guide: what it does, its arguments, examples.",
+      args: [["name", "optional", "a command or variable to explain"]],
+      examples: ["help", "help give", "help timescale"],
     });
     this.command("clear", { help: "clear - clear the console", run: () => { this.lines.length = 0; this.version++; } });
     this.command("echo", { help: "echo <text>", run: (args) => args.join(" ") });
+  }
+
+  // Подробная справка к команде / переменной (help <имя>)
+  describe(name, info) {
+    this.details.set(name.toLowerCase(), info);
+  }
+
+  // help: все команды и переменные — по строке: имя и краткое описание (из help: часть после « - »)
+  list() {
+    const short = (n, x) => {
+      const h = String(x.help || "");
+      const i = h.indexOf(" - ");
+      return `${x.cheat ? "*" : " "}${n}${" ".repeat(Math.max(1, 16 - n.length))}${i >= 0 ? h.slice(i + 3) : h}`;
+    };
+    const sort = (m) => [...m].sort(([a], [b]) => a.localeCompare(b));
+    const out = ["COMMANDS:", ...sort(this.commands).map(([n, x]) => short(n, x)), "VARIABLES (NAME - SHOW, NAME VALUE - SET):", ...sort(this.cvars).map(([n, x]) => short(n, x))];
+    out.push("HELP <NAME> - DETAILED GUIDE. TAB - COMPLETE, UP/DOWN - HISTORY");
+    if ([...this.commands.values(), ...this.cvars.values()].some((x) => x.cheat)) out.push(`* - CHEAT${this.allowCheats() ? "" : ": " + (this.cheatsOff?.() || "NOT ALLOWED HERE")}`);
+    return out;
+  }
+
+  // help <имя>: что делает, как писать, аргументы (обязательные / нет), примеры
+  guide(name) {
+    const key = String(name).toLowerCase();
+    const c = this.commands.get(key), v = this.cvars.get(key);
+    if (!c && !v) {
+      const near = this.complete(key);
+      return [`unknown: ${name}`, ...(near.length ? [`maybe: ${near.slice(0, 8).join(", ")}`] : [])];
+    }
+    const x = c || v, d = this.details.get(key) || {};
+    const h = String(x.help || key);
+    const i = h.indexOf(" - ");
+    const out = [`${key.toUpperCase()}${v ? " (VARIABLE)" : ""}${x.cheat ? " - CHEAT" : ""}`];
+    out.push(`USAGE: ${i >= 0 ? h.slice(0, i) : h}`);
+    out.push(d.what || (i >= 0 ? h.slice(i + 3) : ""));
+    if (v) out.push(`NOW: ${key} = ${v.get()}${v.set ? "" : " (read-only)"}`);
+    if (d.args?.length) {
+      out.push("ARGUMENTS:");
+      for (const [a, need, text] of d.args) out.push(`  ${need === "required" ? `<${a}>` : `[${a}]`} - ${need === "required" ? "REQUIRED" : "OPTIONAL"}: ${text}`);
+    } else if (!v) out.push("ARGUMENTS: none");
+    if (d.examples?.length) out.push("EXAMPLES:", ...d.examples.map((e) => `  ${e}`));
+    for (const n of d.notes || []) out.push(`NOTE: ${n}`);
+    if (x.cheat) out.push(`CHEAT: works only where cheats are allowed${this.allowCheats() ? "" : " - " + (this.cheatsOff?.() || "not allowed here")}`);
+    return out.filter((l) => l !== "");
   }
 
   command(name, { help = "", run, cheat = false }) {

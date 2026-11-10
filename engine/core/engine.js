@@ -12,6 +12,7 @@
 // ============================================================
 
 import { Updater } from "./updates.js";
+import { describeEngineCommands } from "./console-guides.js";
 import "./env.js"; // первым: подсказки для SDL до её загрузки
 import sdl from "../platform/sdl.js";
 import { profiler } from "./profiler.js";
@@ -928,6 +929,7 @@ export class Engine {
       return lines.slice(0, 12);
     } });
     c.command("quit", { help: "quit - close the game", run: () => this.quit() });
+    describeEngineCommands(c); // подробная справка: help <имя> (core/console-guides.js)
   }
 
   // Снимок экрана (F2): следующий кадр — ещё и в PNG, в папку screenshots рядом с настройками
