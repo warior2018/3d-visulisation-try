@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Particles, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
-import { LIFETIME, THROW, BLOATER, ZOMBIE_GRENADE, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
+import { LIFETIME, THROW, BLOATER, INVASION, ZOMBIE_GRENADE, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
 import { HandAbility, IN_HAND } from "./abilities.js";
 import { helpFor } from "./help.js";
 import { talentTree } from "./talents.js";
@@ -485,6 +485,10 @@ export class GameScene extends Scene {
     profiler.begin(PROF.spawn);
     this.spawner.update(dt);
     this.boarSpawner.update(dt);
+    // Шанс нашествия растёт, пока его нет: за каждые growEvery с ожидания x++ → шанс (1 + x) × chance
+    if (!this.invasion.active) this.invasionWait = (this.invasionWait || 0) + dt;
+    else this.invasionWait = 0;
+    this.invasion.chance = INVASION.chance * (1 + Math.floor(this.invasionWait / INVASION.growEvery));
     this.invasion.update(dt);
     profiler.end(PROF.spawn);
     profiler.begin(PROF.items);

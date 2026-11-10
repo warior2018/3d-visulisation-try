@@ -252,7 +252,9 @@ export const MOB_WANDER = { radius: 8, pause: [2, 6] };
 // ДАЛЬНЕЕ — половина новых мобов стрелки (rangedShare вместо обычных MOB_RANGED.chance)
 export const INVASION = {
   blockAt: 0.6, // мобов уже ≥ 60 % от SPAWN.max — нашествие не начинается
-  // chance — в среднем раз в 10 мин: 120 с перерыва + ~480 с ожидания
+  // chance — базовый шанс в секунду (после перерыва cooldown); с ростом growEvery в среднем ~6 мин от конца нашествия
+  // growEvery — каждые 180 с без нашествия шанс растёт: (1 + x) / 480, x — сколько раз прошло по 180 с
+  growEvery: 180,
   chance: 1 / 480, every: 1, duration: 60, cooldown: 120, spawnSpeed: 2.6, max: 50,
   types: {
     normal: { weight: 1, name: "INVASION" },
