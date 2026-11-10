@@ -653,7 +653,7 @@ export class GameScene extends Scene {
     if (vm) vm.sway = this.settings.general.headBob !== false ? this.bob.hand() /* сила сама плавно гаснет, когда стоишь */ : { x: 0, y: 0, z: 0, roll: 0 };
     if (vm) {
       vm.aim = this.aimT; // пистолет — к центру экрана, мушка — в прицел
-      vm.aimOffset = AIM.offset;
+      vm.aimOffset = AIM.weapons[this.abilities.current?.id] || AIM.offset; // своё смещение у оружия (лук — не по центру)
     }
     vm?.update(dt);
     profiler.end(PROF.player);

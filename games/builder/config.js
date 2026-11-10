@@ -932,7 +932,8 @@ export const KATANA_IAI = { cooldown: 6, damage: 1.5, distance: 10, dashSpeed: 4
 // Прицеливание (движок: engine/input/aim.js). fov — угол обзора в прицеле, sensitivity — мышь в прицеле
 // так, как её чувствует игрок (1 — перекрестие бегает по экрану как без прицела, 0.5 — вдвое медленнее).
 // moveSpeed — замедление ходьбы в прицеле, offset — сдвиг модели оружия.
-export const AIM = { moveSpeed: -0.1, offset: [0, 0, 0] };
+// weapons — своё смещение при прицеливании (вправо, вверх, вперёд; м): лук правее и ниже центра, стрела у прицела
+export const AIM = { moveSpeed: -0.1, offset: [0, 0, 0], weapons: { bow: [0.07, -0.05, 0] } };
 export const AIM_PISTOL = { fov: 45, sensitivity: 0.6 };
 export const AIM_RIFLE = { fov: 18, sensitivity: 0.35 }; // в оптике — заметно медленнее: точная наводка
 export const AIM_AUTO = { fov: 42, sensitivity: 0.55 };
