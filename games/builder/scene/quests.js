@@ -5,7 +5,7 @@
 // ============================================================
 
 import { QUESTS } from "../config.js";
-import { DialogScene } from "../../../engine/index.js";
+import { WardenScene } from "../warden-scene.js";
 
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 
@@ -77,37 +77,43 @@ export class QuestsPart {
     this.questWait = Math.max(0, (this.questWait || 0) - dt);
   }
 
-  // Окно стража (вместо сразу торговли)
+  // Окно стража (F): большое, два столбца — слева продажа, справа задания (warden-scene.js)
   openWarden(npc) {
     if (!this.quest && !this.questOffer && !this.questWait) this.questOffer = this.makeQuest();
     const reward = (q) => this.tr("REWARD") + ": " + q.coins + " " + this.tr("COINS") + ", " + q.xp + " XP";
-    this.pushLive(new DialogScene({
+    this.pushLive(new WardenScene({
       title: npc.name || "WARDEN",
-      text: () => {
-        if (this.quest) {
-          const head = `${this.tr("QUEST")}: ${this.questTitle(this.quest)} (${this.questProgress()}/${this.quest.count})`;
-          return `${head}\n${reward(this.quest)}\n${this.questReady() ? this.tr("DONE! TURN IT IN.") : this.tr("COME BACK WHEN IT IS DONE.")}`;
-        }
-        if (this.questOffer) return `${this.tr("I HAVE A JOB FOR YOU")}: ${this.questTitle(this.questOffer)}\n${reward(this.questOffer)}`;
-        return this.tr("NO JOBS RIGHT NOW. COME BACK LATER.");
+      currency: "COINS",
+      money: () => this.itemCount("coin"),
+      rows: () => this.tradeRows(),
+      onSell: (i) => this.sellSlot(i),
+      quest: () => {
+        const lines = [];
+        if (this.duel) lines.push(this.tr("NO JOBS RIGHT NOW. COME BACK LATER."));
+        else if (this.quest) {
+          lines.push(`${this.tr("QUEST")}: ${this.questTitle(this.quest)}`);
+          lines.push(`${this.questProgress()} / ${this.quest.count}`);
+          lines.push(reward(this.quest));
+          lines.push(this.questReady() ? this.tr("DONE! TURN IT IN.") : this.tr("COME BACK WHEN IT IS DONE."));
+        } else if (this.questOffer) {
+          lines.push(this.tr("I HAVE A JOB FOR YOU"));
+          lines.push(this.questTitle(this.questOffer));
+          lines.push(reward(this.questOffer));
+        } else lines.push(this.tr("NO JOBS RIGHT NOW. COME BACK LATER."));
+        return {
+          lines,
+          note: this.questsDone ? `${this.tr("QUESTS DONE")}: ${this.questsDone}` : "",
+          buttons: this.duel ? [] : [
+            ...(this.quest && this.questReady() ? [{ id: "turnin", label: "TURN IN", main: true }] : []),
+            ...(!this.quest && this.questOffer ? [{ id: "accept", label: "ACCEPT", main: true }] : []),
+            ...(this.quest && !this.questReady() ? [{ id: "abandon", label: "ABANDON" }] : []),
+          ],
+        };
       },
-      note: () => (this.questsDone ? `${this.tr("QUESTS DONE")}: ${this.questsDone}` : ""),
-      buttons: () => [
-        ...(this.quest && this.questReady() ? [{ id: "turnin", label: "TURN IN", main: true }] : []),
-        ...(!this.quest && this.questOffer ? [{ id: "accept", label: "ACCEPT", main: true }] : []),
-        ...(this.quest && !this.questReady() ? [{ id: "abandon", label: "ABANDON" }] : []),
-        { id: "trade", label: "TRADE" },
-      ],
-      onButton: (id) => {
-        if (id === "accept") return this.acceptQuest(), false;
-        if (id === "turnin") return this.turnInQuest(), false;
-        if (id === "abandon") return this.abandonQuest(), false;
-        if (id === "trade") {
-          this.engine.pop();
-          this.openTrade(npc);
-          return false;
-        }
-        return false;
+      onQuest: (id) => {
+        if (id === "accept") this.acceptQuest();
+        if (id === "turnin") this.turnInQuest();
+        if (id === "abandon") this.abandonQuest();
       },
     }));
   }

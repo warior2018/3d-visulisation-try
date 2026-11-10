@@ -918,7 +918,7 @@ export const RU = {
   "QUEST": "ЗАДАНИЕ",
   "QUEST DONE - BACK TO THE WARDEN": "ЗАДАНИЕ ВЫПОЛНЕНО - ВЕРНИСЬ К СТРАЖУ",
   "QUEST REWARD PER LEVEL": "НАГРАДА ЗАДАНИЙ ЗА УРОВЕНЬ",
-  "QUESTS": "QUESTS",
+  "QUESTS": "ЗАДАНИЯ",
   "QUESTS DONE": "ВЫПОЛНЕНО ЗАДАНИЙ",
   "QUICK CALL": "БЫСТРЫЙ ЗОВ",
   "QUICK DRAW": "БЫСТРЫЙ НАТЯГ",

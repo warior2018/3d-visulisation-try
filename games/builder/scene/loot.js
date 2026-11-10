@@ -99,37 +99,46 @@ export class LootPart {
     return LOOT.resources[slot.item] || 0;
   }
 
-  // Торговля со стражем: всё из сумки, что он берёт
-  openTrade(npc) {
+  // Что из сумки купит страж: строки для окна продажи
+  tradeRows() {
     const bag = this.player.inventory;
+    return bag.slots.map((s, i) => {
+      const price = this.sellPrice(s);
+      if (!s || price <= 0 || s.item === "coin") return null;
+      const r = rarityOf(s.data?.rarity);
+      const tier = tierOf(s.item);
+      return {
+        key: i, count: s.count, price: price * s.count, drawIcon: itemInfo(s.item).drawIcon,
+        name: `${s.data?.rarity ? translate(r.name) + " " : ""}${translate(itemName(s.item))}`, color: s.data?.color || null,
+        note: [tier ? TIERS[tier].name : "", s.count > 1 ? `${price} ${translate("EACH")}` : ""].filter(Boolean).join(", "),
+      };
+    }).filter(Boolean);
+  }
+
+  // Продать стражу ячейку сумки i целиком: true — продано
+  sellSlot(i) {
+    const bag = this.player.inventory;
+    const s = bag.slots[i];
+    const price = this.sellPrice(s);
+    if (!s || price <= 0) return false;
+    const total = price * s.count;
+    bag.slots[i] = null;
+    const left = this.giveResource("coin", total);
+    if (left > 0) this.pickups.add("coin", left, { x: this.player.position.x, y: this.player.position.y + 0.5, z: this.player.position.z }); // некуда — под ноги
+    this.engine.sound.play("pickup");
+    this.engine.log(`продано стражу: ${s.item} x${s.count} за ${total}`);
+    return true;
+  }
+
+  // Торговля со стражем отдельным окном (без заданий)
+  openTrade(npc) {
     this.pushLive(new TradeScene({
       title: npc.name || "WARDEN",
       currency: "COINS",
       money: () => this.itemCount("coin"),
       hint: "THE WARDEN BUYS WEAPONS, ARMOR, BONES AND SKULLS FROM YOUR BAG",
-      rows: () => bag.slots.map((s, i) => {
-        const price = this.sellPrice(s);
-        if (!s || price <= 0 || s.item === "coin") return null;
-        const r = rarityOf(s.data?.rarity);
-        const tier = tierOf(s.item);
-        return {
-          key: i, count: s.count, price: price * s.count, drawIcon: itemInfo(s.item).drawIcon,
-          name: `${s.data?.rarity ? translate(r.name) + " " : ""}${translate(itemName(s.item))}`, color: s.data?.color || null,
-          note: [tier ? TIERS[tier].name : "", s.count > 1 ? `${price} ${translate("EACH")}` : ""].filter(Boolean).join(", "),
-        };
-      }).filter(Boolean),
-      onSell: (i) => {
-        const s = bag.slots[i];
-        const price = this.sellPrice(s);
-        if (!s || price <= 0) return false;
-        const total = price * s.count;
-        bag.slots[i] = null;
-        const left = this.giveResource("coin", total);
-        if (left > 0) this.pickups.add("coin", left, { x: this.player.position.x, y: this.player.position.y + 0.5, z: this.player.position.z }); // некуда — под ноги
-        this.engine.sound.play("pickup");
-        this.engine.log(`продано стражу: ${s.item} x${s.count} за ${total}`);
-        return true;
-      },
+      rows: () => this.tradeRows(),
+      onSell: (i) => this.sellSlot(i),
     }));
   }
 
