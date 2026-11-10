@@ -47,6 +47,7 @@ export class CombatPart {
     this.projectiles.launch({
       owner, position: from, velocity: dir.scale(P.speed), gravity: P.gravity, spin: 0, maxLife: 4, skinned: true, skinTarget: "crossbow", align: true,
       item: "bolt", attack, pierce: Math.max(0, (attack.pierce || 1) - 1),
+      scale: BOW.size, hitRadius: BOW.hitRadius, glow: skinFx(this.settings, "crossbow") || [255, 225, 160], // как стрела лука: крупнее, «толще», со следом
       onHit: (p, hit) => {
         const k = Math.pow(attack.pierceFalloff ?? 0.8, n++) * attack.falloffAt(owner, hit.entity);
         attack.hit(owner, hit.entity, this.combatContext({ part: hit.part, damageScale: k, onHit: (r) => this.onPlayerHit(r), shot: { projectile: { item: "bolt", speed: P.speed, gravity: P.gravity } } }));

@@ -949,6 +949,7 @@ export const MACHETE_LEAP = { cooldown: 5.5, damage: 1.5, distance: 4.5, speed: 
 // minDamage → ATTACKS.bow.damage и скорость стрелы minSpeed → maxSpeed растут с натяжением; gravity — дуга.
 // Q — залп: volley.count стрел веером (spread° между ними), сразу полное натяжение, перезарядка volley.cooldown.
 // Таланты (вкладка ЛУК): пробивание, урон за натяжение, взрывная стрела (ATTACKS.bowBlast), быстрее натяжение (до 2 с)
+// size / hitRadius — и у болтов арбалета
 export const BOW = { size: 1.4, hitRadius: 0.1, draw: 3, minDamage: 58, minSpeed: 29, maxSpeed: 98, gravity: 6, volley: { count: 3, spread: 6, cooldown: 8 } };
 export const KATANA_IAI = { cooldown: 6, damage: 1.5, distance: 10, dashSpeed: 40, width: 1.2, pause: 0.1, lockShare: 0.7, speed: 0, shape: { radius: 0.2, height: 0.35, anchor: "top" } };
 // Прицеливание (движок: engine/input/aim.js). fov — угол обзора в прицеле, sensitivity — мышь в прицеле
