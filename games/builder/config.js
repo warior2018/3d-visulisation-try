@@ -252,7 +252,8 @@ export const MOB_WANDER = { radius: 8, pause: [2, 6] };
 // ДАЛЬНЕЕ — половина новых мобов стрелки (rangedShare вместо обычных MOB_RANGED.chance)
 export const INVASION = {
   blockAt: 0.6, // мобов уже ≥ 60 % от SPAWN.max — нашествие не начинается
-  chance: 1 / 480, every: 1, duration: 60, cooldown: 120, // в среднем раз в 10 мин: 120 с перерыва + ~480 с ожидания spawnSpeed: 2.6, max: 50,
+  // chance — в среднем раз в 10 мин: 120 с перерыва + ~480 с ожидания
+  chance: 1 / 480, every: 1, duration: 60, cooldown: 120, spawnSpeed: 2.6, max: 50,
   types: {
     normal: { weight: 1, name: "INVASION" },
     fast: { weight: 1, name: "FAST INVASION", speed: 0.3 },
