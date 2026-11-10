@@ -457,7 +457,7 @@ export const MOUNT = {
   // (атака переделана, чтобы не ранить скакуна) — slowMelee
   slowRanged: 0.2, slowMelee: 0.08,
   twoHandedRanged: ["rifle", "auto", "shotgun", "launcher", "crossbow"],
-  twoHandedMelee: ["war-hammer", "katana", "spear"],
+  twoHandedMelee: ["war-hammer", "katana"],
 };
 
 export const ATTACKS = {
@@ -489,11 +489,6 @@ export const ATTACKS = {
   // Мачете: свои статы оружия — дальше достаёт и бьёт больнее, но медленнее кулака (раз в 1.4 с);
   // хитбокс шире кулака — задевает двоих. Таланты ближнего боя ускоряют её в процентах: 1.4 → 0.76 с
   machete: { id: "machete", name: "MACHETE SWING", damage: 42, reach: 2.9, cooldown: 1.4, arc: 80, maxTargets: 2 },
-  // Копьё (БОЕЦ): укол далеко и узко — двоих на линии; без блока. Разбег (ПКМ) — SPEAR
-  // Укол ~61 урона/с трём на линии (молот ~43/с по каждому в круге, катана — 50/с всем в секторе + ИАЙ);
-  // разбег — 60 за врага в начале, на полной скорости с MOMENTUM ×2.6 (≈157) — по 11 врагам насквозь
-  spear: { id: "spear", name: "SPEAR THRUST", damage: 52, reach: 3.8, cooldown: 0.85, arc: 24, maxTargets: 3 },
-  spearCharge: { id: "spear-charge", name: "SPEAR CHARGE", damage: 60, reach: 1 },
   // Катана: удар режет всё перед собой — сектор 110° (не весь экран: по бокам уже не задевает), до 6 врагов
   // Приручённый кабан: бьёт бивнями врагов рядом с хозяином (средний урон, ближний бой, короткий замах)
   boarTusk: { id: "tusk", name: "TUSK HIT", damage: [10, 16], reach: 1.9, windup: 0.25, cooldown: 1.2 },
@@ -631,29 +626,11 @@ export const PORTRAIT_PALETTE = {
   "+": [186, 178, 156], // кость в тени
   o: [22, 18, 24], //      глазницы, нос, зубы
 };
-
 // Оружие в руках замедляет: пистолет маленький — на 5 %. Прицеливание (ПКМ, держать) —
 // ещё на 10 % (вместе 15 %), камера приближается (fov), пистолет встаёт к центру экрана.
 export const WEAPON_SPEED = { bow: -0.03, launcher: -0.08, pistol: -0.05, rifle: -0.1, crossbow: -0.06, auto: -0.08, shotgun: -0.08, warHammer: -0.08 }; // винтовка тяжелее
 // Сколько секунд достают оружие после выбора (до этого не стреляет и не бьёт): тяжёлое — дольше
-// Копьё, разбег (ПКМ, держать): бежишь вперёд сам (движок: Charge), куда — правишь взглядом. Посмотрел в сторону
-// в пределах deadZone (20°) — без потерь (направление само доворачивает freeTurn °/с); дальше — скорость падает
-// пропорционально лишнему углу (turnStop° сверх зоны — встал). Насквозь — до maxHits врагов (каждого по разу):
-// урон ATTACKS.spearCharge × скорость / начальная. Отпустил ПКМ, упёрся в стену, набрал предел врагов
-// или duration с — конец, перезарядка cooldown с. Скорость складывается со всеми прибавками (LIGHT STEP и т. п.).
-// Талант MOMENTUM (ранг 1/2/3): разгон до +30/60/90 % скорости за rampTime с (быстрее — больнее),
-// и насквозь на +2/4/6 врагов больше
-// Разбег тратит выносливость, как бег (STAMINA.drain), и длится, пока она есть (своего предела по времени нет)
-export const SPEAR = {
-  charge: { speed: 8.5, maxSpeed: 8.5, deadZone: 20, freeTurn: 45, turnStop: 90, minSpeed: 3.5, duration: Infinity },
-  minStamina: 10, //  начать разбег — нужно хотя бы столько выносливости
-  maxHits: 5, hitRadius: 0.9, tip: 1.2, cooldown: 4,
-  maxTime: 3, //      предел разбега, когда выносливость выключена (STAMINA.enabled: false)
-  powerExp: 1.5, // урон разбега × (скорость / начальная) ^ powerExp: на разгоне бьёт заметно больнее
-  momentum: { speed: [0.3, 0.6, 0.9], hits: [2, 4, 6], rampTime: 2 },
-};
-
-export const EQUIP_TIME = { bow: 0.35, launcher: 0.45, spear: 0.3, pistol: 0.3, auto: 0.45, rifle: 0.7, crossbow: 0.5, shotgun: 0.5, machete: 0.25, warHammer: 0.45, katana: 0.25, trap: 0.2, item: 0.15 };
+export const EQUIP_TIME = { bow: 0.35, launcher: 0.45, pistol: 0.3, auto: 0.45, rifle: 0.7, crossbow: 0.5, shotgun: 0.5, machete: 0.25, warHammer: 0.45, katana: 0.25, trap: 0.2, item: 0.15 };
 
 // Ловушки: ставятся ЛКМ на любую грань блока или на землю под прицелом (не дальше reach м) — «клеятся»
 // к стенам и потолку. Стоят, пока не сработают (капкан) или пока не поставишь сверх max (самая старая исчезает).
@@ -710,13 +687,13 @@ export const BULLET = { color: [255, 215, 110], core: [255, 250, 225], life: 0.0
   },
 };
 
-// Выносливость (движок: Stamina): 100; бег (спринт) и разбег с копьём — drain в секунду (100 / 11 ≈ 9 с бега),
+// Выносливость (движок: Stamina): 100; бег (спринт) — drain в секунду (100 / 11 ≈ 9 с бега),
 // восстанавливается regen в секунду через delay с после траты; выдохся — бегать снова, когда наберётся recover.
 // Удары оружием ближнего боя стоят MELEE_STAMINA (по id атаки); не хватает — удара нет
 // enabled: false — в этой игре выносливость выключена (класс Stamina в движке остался): бег без предела, удары
-// бесплатно, шкалы нет; разбег с копьём тогда кончается через SPEAR.maxTime с
+// бесплатно, шкалы нет
 export const STAMINA = { enabled: false, max: 100, drain: 11, regen: 25, delay: 0.8, recover: 20 };
-export const MELEE_STAMINA = { punch: 3, machete: 4, "war-hammer": 12, katana: 9, spear: 6 };
+export const MELEE_STAMINA = { punch: 3, machete: 4, "war-hammer": 12, katana: 9 };
 
 // Ультимейт (X; движок: UltimateCharge): заряд за 1 HP урона по врагам, за убийство и в секунду — доли
 // полного заряда. Сейчас примерно: 3000 урона, или 66 убийств, или 4 минуты
@@ -836,7 +813,7 @@ export const ELITE = {
 // kick — встряска картинки при тяжёлом ударе (прицел не сдвигается); headSound — звук хедшота
 export const HIT_FEEL = {
   stop: { from: 45, time: 0.04, head: 0.05, scale: 0.05, cooldown: 0.12 },
-  knock: { time: 0.18, up: 2.5, max: 9, boss: 0.15, attacks: { "war-hammer": 7, "hammer-swing": 5, shotgun: 1.1, "shotgun-blast": 9, "spear-charge": 6, dynamite: 6 } },
+  knock: { time: 0.18, up: 2.5, max: 9, boss: 0.15, attacks: { "war-hammer": 7, "hammer-swing": 5, shotgun: 1.1, "shotgun-blast": 9, dynamite: 6 } },
   kick: { from: 45, amount: 0.12, head: 0.18 },
   headSound: "headshot",
 };
@@ -866,7 +843,7 @@ export const TIERS = {
 export const ITEM_TIER = {
   machete: 1, pistol: 1, grenades: 1, //                      боец: мачете ~43/с, стрелок: пистолет ~35/с, подрывник: граната ~33/с
   "war-hammer": 2, auto: 2, shotgun: 2, launcher: 2, //       молот ~28/с + оглушение, автомат ~48/с, дробовик ~49/с вблизи, гранатомёт ~40/с
-  spear: 3, crossbow: 3, dynamite: 3, bow: 3, //                      копьё — разбег, арбалет ~50/с насквозь, динамит 110 раз в 3 с
+  crossbow: 3, dynamite: 3, bow: 3, //                                арбалет ~50/с насквозь, динамит 110 раз в 3 с
   katana: 4, rifle: 4, //                                     катана 75 всем, снайперка 90
 };
 export const ARMOR_TIER = { leather: 1, bone: 2, iron: 3 };
@@ -890,7 +867,7 @@ export const LOOT = {
 };
 
 export const SHOP = {
-  machete: tierPrice("machete"), "war-hammer": tierPrice("war-hammer"), spear: tierPrice("spear"), katana: tierPrice("katana"),
+  machete: tierPrice("machete"), "war-hammer": tierPrice("war-hammer"), katana: tierPrice("katana"),
   grenades: tierPrice("grenades"), launcher: tierPrice("launcher"), dynamite: tierPrice("dynamite"),
   pistol: tierPrice("pistol"), auto: tierPrice("auto"), shotgun: tierPrice("shotgun"), crossbow: tierPrice("crossbow"), rifle: tierPrice("rifle"), bow: tierPrice("bow"),
   "bear-trap": 25, spikes: 40, //                                       ловушки

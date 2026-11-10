@@ -4,7 +4,7 @@
 //  reload, palette... Числа — из config.js, поэтому справка сама следует за балансом.
 // ============================================================
 
-import { ATTACKS as A, BLOCK, SPEAR, KATANA_IAI as IAI, MACHETE_LEAP as ML, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT, BOW } from "./config.js";
+import { ATTACKS as A, BLOCK, KATANA_IAI as IAI, MACHETE_LEAP as ML, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT, BOW } from "./config.js";
 
 const block = { name: "BLOCK", text: `FOR ${BLOCK.window} S HITS AND SHOTS FROM THE FRONT DEAL ${Math.round((1 - BLOCK.share) * 100)}% DMG. COOLDOWN ${BLOCK.cooldown} S (DUEL: X${BLOCK.duel}). TALENT REFLECT - SHOTS FLY BACK` };
 const aim = { name: "AIM", text: "HOLD TO AIM: ZOOM IN, LESS SPREAD" };
@@ -34,10 +34,6 @@ export const HELP = {
   "war-hammer": {
     primary: { name: "SLAM", text: `${A.warHammer.damage} DMG TO ALL IN A CIRCLE. IN THE AIR: FALL FAST AND HIT ON LANDING, HIGHER = MORE DMG` },
     secondary: block,
-  },
-  spear: {
-    primary: { name: "THRUST", text: `${A.spear.damage} DMG, LONG REACH, UP TO ${A.spear.maxTargets} ENEMIES IN A LINE. NO BLOCK` },
-    secondary: { name: "CHARGE", text: `HOLD: RUN WITH THE SPEAR, FASTER = MORE DMG. PIERCES UP TO ${SPEAR.maxHits} ENEMIES` },
   },
   katana: {
     primary: { name: "SLASH", text: `${A.katana.damage} DMG TO ALL AHEAD (UP TO ${A.katana.maxTargets})` },

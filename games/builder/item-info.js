@@ -15,7 +15,7 @@ import { perksText } from "./scene/loot.js";
 
 // Предмет → его основная атака (config.js → ATTACKS)
 const ATTACK_OF = {
-  machete: "machete", "war-hammer": "warHammer", katana: "katana", spear: "spear", pistol: "pistol", auto: "auto",
+  machete: "machete", "war-hammer": "warHammer", katana: "katana", pistol: "pistol", auto: "auto",
   shotgun: "shotgun", rifle: "rifle", crossbow: "crossbow", bow: "bow", grenades: "handGrenade", launcher: "launcher", dynamite: "dynamite",
 };
 const MUTED = [150, 156, 170], GOOD = [120, 230, 140], GOLD = [240, 196, 80], TEXT = [230, 234, 240];

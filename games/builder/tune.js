@@ -11,7 +11,7 @@ import * as C from "./config.js";
 import { TuneScene, patchNumber } from "../../engine/index.js";
 
 const CONFIG_FILE = fileURLToPath(new URL("./config.js", import.meta.url));
-const WEAPONS = ["punch", "machete", "pistol", "handGrenade", "spear", "katana", "warHammer", "auto", "shotgun", "rifle", "crossbow", "launcher", "dynamite"];
+const WEAPONS = ["punch", "machete", "pistol", "handGrenade", "katana", "warHammer", "auto", "shotgun", "rifle", "crossbow", "launcher", "dynamite"];
 
 // Вкладки: [путь, подпись, шаг?]. Путь — ключи в config.js; подпись — по-английски (перевод — словарь)
 export const TUNE = [

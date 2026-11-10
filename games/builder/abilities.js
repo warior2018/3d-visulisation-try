@@ -396,27 +396,6 @@ export class MacheteAbility extends Ability {
   }
 }
 
-// Копьё (БОЕЦ): ЛКМ — укол далеко вперёд (двоих на линии), блока нет; ПКМ (держать) — разбег с копьём
-// наперевес: game-scene.js → startSpearCharge / spearControl (движок: Charge)
-export class SpearAbility extends Ability {
-  constructor() {
-    super({ id: "spear", name: "SPEAR", viewModel: "fp-spear", autoRepeat: true, held: held("w-spear", "HoldMelee"), equipTime: EQUIP_TIME.spear });
-    this.attack = new MeleeAttack(ATTACKS.spear);
-  }
-  primary(g) {
-    if (g.spearRun?.active) return; // на бегу не колем — копьё и так впереди
-    g.useAttack(this.attack, { anim: "Attack", sound: "swing", hitSound: "hit" });
-  }
-  secondary(g) {
-    g.startSpearCharge(this);
-  }
-  drawIcon(ui, x, y, s) {
-    ui.rect(x + s * 0.47, y + s * 0.3, s * 0.06, s * 0.6, [140, 95, 60]); //   древко
-    ui.rect(x + s * 0.42, y + s * 0.12, s * 0.16, s * 0.2, [200, 205, 215]); // наконечник
-    ui.rect(x + s * 0.47, y + s * 0.06, s * 0.06, s * 0.08, [235, 238, 244]);
-  }
-}
-
 // Катана: в ножнах у левого бедра. Удар (ЛКМ) — выхватить и разрезать всё перед собой (хитбокс — почти
 // весь экран), стряхнуть кровь и вернуть в ножны. От 3-го лица: в ножнах — на бедре, при ударе — в руке.
 // ИАЙ — скилл на Q (skill1), как «Стремительный удар» Гэндзи: сильный рывок туда, куда смотришь (в 3D: и вверх,
@@ -897,7 +876,6 @@ export const ABILITY_FOR_ITEM = {
   shotgun: () => new ShotgunAbility(),
   machete: () => new MacheteAbility(),
   "war-hammer": () => new WarHammerAbility(),
-  spear: () => new SpearAbility(),
   katana: () => new KatanaAbility(),
   grenades: () => new GrenadesAbility(),
   launcher: () => new LauncherAbility(),

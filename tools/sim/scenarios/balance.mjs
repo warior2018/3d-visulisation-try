@@ -5,7 +5,7 @@ export default async function (t, g) {
   const gun = (a) => (a.magazine * (a.pellets || 1) * a.damage) / ((a.magazine - 1) * a.cooldown + a.reloadTime);
   const hit = (a) => a.damage / (a.cooldown + (a.windup || 0));
   const dps = { pistol: gun(A.pistol), auto: gun(A.auto), shotgun: gun(A.shotgun), rifle: gun(A.rifle), crossbow: gun(A.crossbow), bow: A.bow.damage / (3 + A.bow.cooldown), // лук: полный натяг 3 с + пауза
-    machete: hit(A.machete), "war-hammer": hit(A.warHammer), katana: hit(A.katana), spear: hit(A.spear),
+    machete: hit(A.machete), "war-hammer": hit(A.warHammer), katana: hit(A.katana),
     grenades: hit(A.handGrenade), launcher: hit(A.launcher), dynamite: hit(A.dynamite) };
   const base = { ranged: "pistol", melee: "machete", demo: "grenades" };
   const second = 1 + U.second.prices.length * U.second.bonus;

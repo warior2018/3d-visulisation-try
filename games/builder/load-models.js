@@ -37,7 +37,7 @@ export function loadModels(models) {
   models.load("fp-katana", path.join(ASSETS, "fp-katana.glb"));
   models.load("fp-auto", path.join(ASSETS, "fp-auto.glb"));
   models.load("fp-hammer", path.join(ASSETS, "fp-hammer.glb"));
-  for (const fp of ["staff", "wand", "bear-trap", "spikes", "war-hammer", "shotgun", "spear", "grenade", "dynamite", "launcher", "medkit"]) models.load(`fp-${fp}`, path.join(ASSETS, `fp-${fp}.glb`));
+  for (const fp of ["staff", "wand", "bear-trap", "spikes", "war-hammer", "shotgun", "grenade", "dynamite", "launcher", "medkit"]) models.load(`fp-${fp}`, path.join(ASSETS, `fp-${fp}.glb`));
   // Магма-камень в руке — тот же камень, только раскалённый (серое → оранжевое)
   const HOT = [{ from: [0.5, 0.5, 0.53], to: [0.85, 0.25, 0.06] }, { from: [0.64, 0.64, 0.67], to: [1, 0.6, 0.15] }];
   models.load("fp-magma", path.join(ASSETS, "fp-stone.glb"), { recolor: HOT });
@@ -46,7 +46,7 @@ export function loadModels(models) {
   models.load("item-stone", path.join(ASSETS, "stone.glb"));
   for (const m of ["magma", "spore", "grenade", "turret"]) models.load(`item-${m}`, path.join(ASSETS, `${m}.glb`));
   // Оружие «для мира» — в руке героя от 3-го лица (tools/make-weapons.js)
-  for (const w of ["pistol", "rifle", "crossbow", "bow", "auto", "shotgun", "machete", "war-hammer", "spear", "katana", "katana-sheathed", "katana-saya", "grenade", "dynamite", "launcher", "medkit", "builder", "hammer", "fire-staff", "frost-wand", "bear-trap", "spikes", "bone", "stone", "knife"]) models.load(`w-${w}`, path.join(ASSETS, `w-${w}.glb`));
+  for (const w of ["pistol", "rifle", "crossbow", "bow", "auto", "shotgun", "machete", "war-hammer", "katana", "katana-sheathed", "katana-saya", "grenade", "dynamite", "launcher", "medkit", "builder", "hammer", "fire-staff", "frost-wand", "bear-trap", "spikes", "bone", "stone", "knife"]) models.load(`w-${w}`, path.join(ASSETS, `w-${w}.glb`));
   models.load("item-knife", path.join(ASSETS, "knife.glb"));
   models.load("item-bolt", path.join(ASSETS, "bolt.glb")); // болт арбалета в полёте
   models.load("urn", path.join(ASSETS, "urn.glb")); // урна погибшего (сетевая игра)

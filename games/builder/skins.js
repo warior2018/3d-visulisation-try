@@ -37,10 +37,6 @@ export const SKIN_TARGETS = [
     { id: "sakura", fx: [255, 130, 190], name: "SAKURA", text: "PINK STEEL, PETAL WRAP", paint: P.chain(P.metal([0.45, 0.3, 0.38], [1, 0.86, 0.93]), P.dye([0.92, 0.42, 0.62])) },
     { id: "shadow", fx: [220, 20, 30], name: "SHADOW", text: "BLACK BLADE, RED EDGE", paint: P.gradientMap([[0.01, 0.01, 0.02], [0.25, 0.25, 0.3], [0.9, 0.15, 0.15]]) },
   ], ["w-katana", "w-katana-sheathed", "w-katana-saya", "fp-katana"]),
-  weapon("spear", "SPEAR", [
-    { id: "bone", fx: [235, 225, 200], name: "OSSUARY", text: "CARVED FROM ONE GIANT BONE", paint: P.gradientMap([[0.22, 0.19, 0.15], [0.95, 0.92, 0.82]]) },
-    { id: "bronze", fx: [230, 160, 80], name: "BRONZE AGE", text: "AN HEIRLOOM OF OLD WARS", paint: P.metal([0.25, 0.12, 0.04], [0.95, 0.65, 0.35]) },
-  ]),
   weapon("pistol", "PISTOL", [
     { id: "gilded", fx: [255, 210, 80], name: "GILDED", text: "SOLID GOLD. PROBABLY", paint: gold },
     { id: "neon", fx: [60, 240, 255], name: "NEON", text: "GLOWS IN THE DARK. SORT OF", paint: P.gradientMap([[0.05, 0.02, 0.1], [0.1, 0.9, 0.95], [1, 0.3, 0.9]]) },
@@ -60,6 +56,7 @@ export const SKIN_TARGETS = [
   // Огненный и ледяной: кроме свечения, за болтом / стрелой — хвост частиц (trail: "fire" / "ice", game-scene)
   weapon("crossbow", "CROSSBOW", [
     { id: "glacier", fx: [150, 225, 255], trail: "ice", name: "GLACIER", text: "BOLTS COLD AS A WINTER NIGHT", paint: P.gradientMap([[0.04, 0.12, 0.25], [0.45, 0.7, 0.9], [0.9, 0.97, 1]]) },
+    { id: "nighthunter", fx: [110, 140, 220], name: "NIGHT HUNTER", text: "DARK AS A MOONLESS FOREST", paint: P.gradientMap([[0.02, 0.03, 0.05], [0.2, 0.25, 0.35], [0.55, 0.7, 0.9]]) },
     { id: "hellfire", fx: [255, 110, 30], trail: "fire", name: "HELLFIRE", text: "EVERY BOLT LEAVES SMOKE", paint: P.gradientMap([[0.06, 0.01, 0], [0.75, 0.18, 0.03], [1, 0.8, 0.3]]) },
   ]),
   weapon("bow", "BOW", [

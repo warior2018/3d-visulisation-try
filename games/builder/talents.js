@@ -56,7 +56,7 @@ const damageTalent = (id, list, col = 2) => ({
 // таланты оружия + MASTERY (+урон этим оружием)
 export const weaponTab = (item) => `w-${item}`;
 const WEAPON_BRANCH = { // предмет → [id атаки, имя вкладки, приставка id талантов, которые туда переезжают]
-  "war-hammer": ["war-hammer", "WAR HAMMER", "hammer-"], katana: ["katana", "KATANA", "katana-"], spear: [["spear", "spear-charge"], "SPEAR", "spear-"],
+  "war-hammer": ["war-hammer", "WAR HAMMER", "hammer-"], katana: ["katana", "KATANA", "katana-"],
   auto: ["auto", "ASSAULT RIFLE", "rifle-"], shotgun: ["shotgun", "SHOTGUN", "shotgun-"], rifle: ["rifle", "SNIPER", "sniper-head"], crossbow: ["crossbow", "CROSSBOW", null],
   bow: ["bow", "BOW", null],
   launcher: ["launcher", "LAUNCHER", "launcher-"], dynamite: ["dynamite", "DYNAMITE", "dynamite-"],
@@ -120,7 +120,7 @@ function buildTree(mode) {
       // ---------- БОЕЦ ----------
       {
         id: "melee", name: "FIGHTER", kind: "melee", note: "BASE: MACHETE. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB",
-        sections: [{ name: "MACHETE", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "KATANA", col: 4.5 }, { name: "SPEAR", col: 6 }],
+        sections: [{ name: "MACHETE", col: 0.5 }, { name: "GENERAL", col: 2.5 }, { name: "KATANA", col: 4.5 }],
         talents: [
           { id: "hammer-stun", name: "STUN", maxRank: 3, cost: SIDE, col: 0, row: 0,
             describe: (r) => `HAMMER STUNS ${at([0.5, 0.75, 1], r)} S, +${pct(at([0.05, 0.1, 0.15], r))} DMG VS STUNNED`,
@@ -159,8 +159,6 @@ function buildTree(mode) {
             describe: (r) => `+${pct(at([0.1, 0.15, 0.2], r))} SPEED WHILE IAI IS CHARGED`, stats: (r) => ({ iaiSpeed: at([0.1, 0.15, 0.2], r) }) },
           { id: "katana-reset", name: "IAI RESET", maxRank: 1, cost: SIDE, col: 4.5, row: 1, requires: ["katana-iai", "katana-speed"],
             describe: () => "A KILL BY THE IAI DASH RESETS ITS COOLDOWN", stats: () => ({ iaiReset: true }) }, // abilities.js → cutAlong
-          { id: "spear-momentum", name: "MOMENTUM", maxRank: 3, cost: SIDE, col: 6, row: 0,
-            describe: (r) => `CHARGE SPEEDS UP TO +${pct(at([0.3, 0.6, 0.9], r))} (FASTER - MORE DMG), PIERCES +${at([2, 4, 6], r)} ENEMIES` }, // game-scene.js → startSpearCharge
         ],
       },
       // ---------- СТРЕЛОК ----------

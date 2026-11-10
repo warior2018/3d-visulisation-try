@@ -7,8 +7,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Particles, Charge, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
-import { LIFETIME, THROW, SPEAR, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
+import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Particles, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
+import { LIFETIME, THROW, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
 import { HandAbility, IN_HAND } from "./abilities.js";
 import { helpFor } from "./help.js";
 import { talentTree } from "./talents.js";
@@ -121,8 +121,6 @@ export class GameScene extends Scene {
     this.fuses = []; // горящие фитили лежащего динамита: { left, at, lit, boom } (updateFuses)
     this.beams = new BeamEffects(); // лучи: ледяная стрела, искры взрыва, круги посоха огня
     this.fx = new Particles(); // частицы в 3D (с глубиной): кровь, искры, дым, лучи и трассеры (через beams)
-    this.spearRun = new Charge(SPEAR.charge); // разбег с копьём (ПКМ): движок — бег вперёд и поворот взглядом
-    this.spearCd = 0;
     this.look = new Camera(); //   глаза героя: где и куда смотрит
     this.rig = new CameraRig(); // откуда показываем: из глаз или из-за плеча
 
@@ -440,12 +438,11 @@ export class GameScene extends Scene {
     if (player.mount) move = this.rideTick(dt); // верхом: ведём скакуна (scene/mount.js)
     else {
       this.hammerControl(dt); // удар молотом: медленнее ходим, быстрее падаем; JUMP SLAM — прыжок выше
-      this.spearControl(dt); //  разбег с копьём: поворот, разгон, кого насадили
       move = this.controller.update(dt, this.look.yaw);
     }
     this.move = move;
     if (player.onGround) this.groundY = player.position.y; // откуда оторвались от земли (урон от падения — от этой высоты)
-    this.stamina?.update(dt, { running: (move.running && player.onGround) || this.spearRun.active }); // в прыжке бег не тратит
+    this.stamina?.update(dt, { running: (move.running && player.onGround) }); // в прыжке бег не тратит
     this.syncEye(); // выстрел следующего тика — из глаз на новом месте
     this.blockCooldown = Math.max(0, (this.blockCooldown || 0) - dt);
     // Кулдауны атак идут, даже если способность не в руке. Каждую атаку — ОДИН раз за кадр:
@@ -645,14 +642,14 @@ export class GameScene extends Scene {
     // Клип тела — автомат состояний (hero-anim.js): верхом, разбег, в воздухе, стойка, бег, шаг, стоим
     this.airTime = player.onGround || player.mount ? 0 : (this.airTime || 0) + dt;
     (this.heroAnim ||= heroAnimStates()).update(player.view?.animator, {
-      mounted: !!player.mount, spear: this.spearRun.active, spearSpeed: this.spearRun.speed,
+      mounted: !!player.mount,
       air: !player.onGround && !player.mount, airTime: this.airTime, stance: this.lowStance, // присед — тоже стойка
       moving: move.moving, running: move.running, speed: move.speed,
     }, dt);
     const walking = move.moving && player.onGround && this.aimT < 0.5; // в прыжке и в прицеле рука не качается
     const vm = this.viewModel();
     // Рука на ходу не машет своей анимацией — её покачивает HeadBob.hand (дугой, как в Minecraft)
-    vm?.setBase(this.spearRun.active ? "Charge" : this.abilities.current?.drawing ? "Draw" : this.abilities.current?.using ? "Use" : this.aimT > 0.5 ? "Aim" : "Idle", 1);
+    vm?.setBase(this.abilities.current?.drawing ? "Draw" : this.abilities.current?.using ? "Use" : this.aimT > 0.5 ? "Aim" : "Idle", 1);
     if (vm) vm.sway = this.settings.general.headBob !== false ? this.bob.hand() /* сила сама плавно гаснет, когда стоишь */ : { x: 0, y: 0, z: 0, roll: 0 };
     if (vm) {
       vm.aim = this.aimT; // пистолет — к центру экрана, мушка — в прицел

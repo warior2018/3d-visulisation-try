@@ -5,7 +5,7 @@
 // ============================================================
 
 import {
-  PistolAbility, RifleAbility, CrossbowAbility, BowAbility, AutoAbility, ShotgunAbility, MacheteAbility, WarHammerAbility, KatanaAbility, SpearAbility,
+  PistolAbility, RifleAbility, CrossbowAbility, BowAbility, AutoAbility, ShotgunAbility, MacheteAbility, WarHammerAbility, KatanaAbility,
   GrenadesAbility, LauncherAbility, DynamiteAbility,
   drawHammer, drawBearTrap, drawSpikes, drawMedkit,
 } from "./abilities.js";
@@ -82,7 +82,6 @@ export const ITEMS = {
   machete: { name: "MACHETE", slot: "weapon", weapon: true, class: "melee", maxStack: 1, drawIcon: iconOf(MacheteAbility) },
   "war-hammer": { name: "WAR HAMMER", slot: "weapon", weapon: true, class: "melee", maxStack: 1, color: [120, 124, 134], drawIcon: iconOf(WarHammerAbility) },
   katana: { name: "KATANA", slot: "weapon", weapon: true, class: "melee", maxStack: 1, color: [200, 205, 215], drawIcon: iconOf(KatanaAbility) },
-  spear: { name: "SPEAR", slot: "weapon", weapon: true, class: "melee", maxStack: 1, color: [140, 95, 60], drawIcon: iconOf(SpearAbility) },
   pistol: { name: "PISTOL", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, drawIcon: iconOf(PistolAbility) },
   auto: { name: "ASSAULT RIFLE", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, drawIcon: iconOf(AutoAbility) },
   shotgun: { name: "SHOTGUN", slot: "weapon", weapon: true, class: "ranged", maxStack: 1, color: [120, 90, 60], drawIcon: iconOf(ShotgunAbility) },

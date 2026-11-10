@@ -4,9 +4,9 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { critCooldown, MeleeAttack, dash, MagicAttack, grow } from "../../../engine/index.js";
+import { critCooldown, dash, MagicAttack, grow } from "../../../engine/index.js";
 import { signedPct } from "./shared.js";
-import { ARMOR, BLOCK, SPEAR, ATTACKS, HAMMER, PLAYER, SHAKE, BOAR_SCALE, WARDEN_GROWTH, OUT_OF_COMBAT } from "../config.js";
+import { ARMOR, BLOCK, ATTACKS, HAMMER, PLAYER, SHAKE, BOAR_SCALE, WARDEN_GROWTH, OUT_OF_COMBAT } from "../config.js";
 import { CREATURES } from "../creatures.js";
 
 export class BuffsPart {
@@ -24,7 +24,6 @@ export class BuffsPart {
     if (up > 0.001) list.push({ icon: "SPD", name: "SPEED", positive: true, color: [110, 200, 255], label: `+${Math.round(up * 100)}%` });
     if (down < -0.001) list.push({ icon: "SLW", name: "SLOW", positive: false, color: [235, 120, 70], label: `${Math.round(down * 100)}%` });
     if (this.outOfCombat) list.push({ icon: "OOC", name: "OUT OF COMBAT", positive: true, color: [120, 220, 140], label: `X${OUT_OF_COMBAT.regenMult}` }); // вне боя: скорость и регенерация
-    if (this.spearRun.active) list.push({ icon: "CHG", name: "CHARGE", positive: true, color: [255, 200, 90], label: `X${this.spearRun.power.toFixed(1)}` });
     const crit = this.talents.rank("f-crit");
     if (crit && this.playerClass === "melee" && critCooldown(p, "fighter-crit") <= 0) list.push({ icon: "CRT", name: "CRIT", positive: true, color: [255, 210, 80], label: `X${crit > 1 ? 3 : 2}` });
     return [...list, ...this.permanentBuffs()];
@@ -67,7 +66,6 @@ export class BuffsPart {
     if (cl > 0) list.push({ icon: "CRT", color: [255, 210, 80], progress: 1 - cl / (crit > 1 ? 7 : 8), left: cl });
     // Разбег с копьём
     if (this.mountCd > 0) list.push({ icon: "MNT", color: [200, 160, 110], progress: 1 - this.mountCd / this.mountCooldown(), left: this.mountCd }); // маунт (Z)
-    if (this.spearCd > 0) list.push({ icon: "CHG", color: [255, 200, 90], progress: 1 - this.spearCd / SPEAR.cooldown, left: this.spearCd });
     return list;
   }
 
@@ -76,65 +74,6 @@ export class BuffsPart {
   pushLive(scene) {
     scene.live = this.role !== "solo";
     this.engine.push(scene);
-  }
-
-  // ПКМ с копьём: разбег (SPEAR). Перезарядка — после конца разбега
-  startSpearCharge() {
-    if (this.spearRun.active) return;
-    if (this.spearCd > 0) return this.engine.toast(`CHARGE READY IN ${Math.ceil(this.spearCd)} S`, 700);
-    this.beforeMovementSkill(); // верхом — сначала слезть (MOUNT)
-    if (this.stamina && (this.stamina.value < SPEAR.minStamina || this.stamina.exhausted)) return this.noStamina(); // выдохся — не разбежаться
-    // Талант MOMENTUM: разгон до +30/60/90 % скорости (за rampTime с), а насквозь — на +2/4/6 врагов больше
-    const r = this.talents.rank("spear-momentum");
-    const bonus = r ? SPEAR.momentum.speed[r - 1] : 0;
-    this.spearRun.maxSpeed = SPEAR.charge.speed * (1 + bonus);
-    this.spearRun.ramp = bonus ? (SPEAR.charge.speed * bonus) / SPEAR.momentum.rampTime : 0;
-    this.spearMaxHits = SPEAR.maxHits + (r ? SPEAR.momentum.hits[r - 1] : 0);
-    this.spearRun.start(this.player, this.look.yaw);
-    this.spearHits = new Set();
-    this.spearTip = null; // где был наконечник в прошлом кадре (урон — по всему пройденному отрезку)
-    this.spearAttack ||= new MeleeAttack(ATTACKS.spearCharge);
-    this.engine.sound.play("growl", { volume: 0.5 });
-  }
-
-  // Разбег идёт: держим ПКМ — бежим, тратится выносливость (как бег). Кого прошёл наконечник — урон (больше
-  // на большой скорости), насквозь до SPEAR.maxHits. Отпустил, сменил оружие, упёрся в стену, набрал предел или
-  // кончилась выносливость — конец и перезарядка.
-  // Урон — по отрезку «наконечник в прошлом кадре → сейчас»: на большой скорости никого не проскакиваем
-  spearControl(dt) {
-    this.spearCd = Math.max(0, this.spearCd - dt);
-    const run = this.spearRun;
-    if (!run.active) return;
-    const p = this.player;
-    const end = () => {
-      run.stop();
-      this.spearCd = SPEAR.cooldown;
-    };
-    if (this.background || !this.engine.input.isDown("secondary") || this.abilities.current?.id !== "spear" || !p.alive) return end();
-    if (p.blocked && run.elapsed > 0.25) return end(); // упёрлись в стену
-    if (this.stamina?.exhausted) return end(); //          выдохся
-    if (!this.stamina && run.elapsed >= SPEAR.maxTime) return end(); // без выносливости — предел по времени
-    run.update(dt, this.look.yaw);
-    if (!run.active) return end();
-    const tip = { x: p.position.x + Math.sin(run.yaw) * SPEAR.tip, z: p.position.z + Math.cos(run.yaw) * SPEAR.tip };
-    const from = this.spearTip || tip;
-    this.spearTip = tip;
-    const sx = tip.x - from.x, sz = tip.z - from.z, len2 = sx * sx + sz * sz;
-    for (const e of this.entities.list) {
-      if (this.spearHits.size >= this.spearMaxHits) break;
-      if (e === p || !e.alive || this.spearHits.has(e) || !p.isHostileTo(e)) continue;
-      // дёшево — сначала: по высоте и до отрезка; луч (стена между) — только для тех, кто рядом
-      const dy = e.position.y - p.position.y;
-      if (dy < -1.2 || dy > 1.8) continue;
-      const t = len2 > 1e-9 ? Math.max(0, Math.min(1, ((e.position.x - from.x) * sx + (e.position.z - from.z) * sz) / len2)) : 0;
-      if (Math.hypot(e.position.x - (from.x + sx * t), e.position.z - (from.z + sz * t)) > SPEAR.hitRadius + e.radius) continue;
-      if (!e.canBeDamagedBy(p) || this.blockedBetween(p, e)) continue;
-      this.spearHits.add(e);
-      const k = run.power ** SPEAR.powerExp; // быстрее бежишь — сильнее бьёшь (с MOMENTUM 3 — до ×2.6)
-      this.spearAttack.hit(p, e, this.combatContext({ baseDamage: this.spearAttack.roll() * k, onHit: (h) => this.onPlayerHit(h) }));
-      this.engine.sound.play("hit", { at: e.position });
-    }
-    if (this.spearHits.size >= this.spearMaxHits) end(); // насадили сколько могли — хватит
   }
 
   // JUMP SLAM: во сколько раз сильнее удар после падения с высоты fall (м)

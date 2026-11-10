@@ -29,7 +29,7 @@ export class MountPart {
     if (!this.hasMount) return this.engine.toast(`BUY A MOUNT IN THE SHOP FIRST (${MOUNT.price} COINS)`, 2000);
     if (!p.alive || p.mount) return;
     if (this.mountCd > 0) return this.engine.toast(`MOUNT READY IN ${Math.ceil(this.mountCd)} S`, 900);
-    if (!p.onGround || this.spearRun?.active) return this.engine.toast("CAN'T CALL THE MOUNT RIGHT NOW", 900);
+    if (!p.onGround) return this.engine.toast("CAN'T CALL THE MOUNT RIGHT NOW", 900);
     const steed = this.spawn("steed", { x: p.position.x, y: p.position.y, z: p.position.z, yaw: this.look.yaw });
     if (!steed) return;
     steed.rideable = { seat: MOUNT.seat, speed: MOUNT.speed, runMultiplier: MOUNT.runMultiplier, jumpHeight: MOUNT.jumpHeight };

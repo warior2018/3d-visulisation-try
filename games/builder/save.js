@@ -250,6 +250,19 @@ async function backup() {
 }
 
 // Загрузить: блоки — сразу в world, вернёт остальное (формат 3+) или null — нового мира ещё нет
+// Предметы, которых больше нет в игре: в старых сохранениях — убираем (ячейка становится пустой)
+const REMOVED_ITEMS = new Set(["spear"]);
+function scrubRemoved(node) {
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      if (node[i] && typeof node[i] === "object" && REMOVED_ITEMS.has(node[i].item)) node[i] = null;
+      else scrubRemoved(node[i]);
+    }
+  } else if (node && typeof node === "object") {
+    for (const v of Object.values(node)) scrubRemoved(v);
+  }
+}
+
 export function loadGame(world) {
   if (fs.existsSync(SAVE_FILE)) {
     const data = readJSON(SAVE_FILE, (d) => d && d.player && d.version >= 7);
@@ -263,6 +276,7 @@ export function loadGame(world) {
         Object.assign(data, { player: { x: any.x, y: any.y, z: any.z, yaw: any.yaw, pitch: 0 }, progression: {}, newCharacter: true });
       }
     }
+    scrubRemoved(data); // убранные из игры предметы (копьё) — из инвентаря, хотбара и с земли
     // большой мир — только куски вокруг героя (остальные подгрузит store.stream по пути)
     let files = 0;
     try { files = fs.readdirSync(path.join(SAVE_DIR, "chunks")).filter((f) => f.endsWith(".bin")).length; } catch {}
