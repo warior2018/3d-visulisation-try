@@ -193,8 +193,9 @@ export class GameScene extends Scene {
       const head = d.part === "head";
       // цвет цифры: хедшот — красный, крит — золотой, горение — оранжевый; иначе по виду урона (как в Dota):
       // физический — светлый, магический — голубой, чистый — сиреневый
-      const color = head ? [255, 70, 60] : d.tags.has("crit") ? [255, 210, 80] : d.tags.has("dot") && d.type !== "pure" ? [255, 150, 60]
+      const tint = head ? [255, 70, 60] : d.tags.has("crit") ? [255, 210, 80] : d.tags.has("dot") && d.type !== "pure" ? [255, 150, 60]
         : d.type === "magical" ? [130, 185, 255] : d.type === "pure" ? [225, 160, 255] : [255, 245, 220];
+      const color = d.resisted && !head && !d.tags.has("crit") ? [150, 150, 150] : tint; // урон срезан стойкостью моба — серая
       const y = e.height + (head ? 0.45 : 0.25); // над головой — не закрывает прицел
       this.damageNumbers.add(e, { x: e.position.x, y: e.position.y + y, z: e.position.z }, dealt, { color, big: head || d.tags.has("crit") });
     };

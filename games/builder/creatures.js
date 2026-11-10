@@ -49,11 +49,12 @@ export const CREATURES = {
     hostileTo: ["player", "town"], // охотится на героя и на стражу
     xp: 30, //                сколько опыта за победу
     resist: {}, //            сопротивления стихиям, например { fire: 0.5 }
+    kindResist: { melee: 0.33 }, // стоек к виду атаки: ближний бой −33 % (цифра урона серая)
     loot: [["bone", [0, 2]], ["skull", [0, 1]], ["coin", 5]], // с чем появляется (и что выпадет); [от, до] — случайно
     ranged: true, // может быть стрелком (MOB_RANGED: камень, нож или пистолет)
     brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
   },
-  // Зомби: крепче (75 HP) и в каске (−25 % физического урона), но медленнее; тянется дальше
+  // Зомби: крепче (75 HP), стоек к стрельбе, но медленнее; тянется дальше
   zombie: {
     kind: "mob",
     name: "ZOMBIE",
@@ -64,7 +65,7 @@ export const CREATURES = {
     attack: "zombieClaw",
     hostileTo: ["player", "town"],
     xp: 45,
-    resist: { physical: 0.25 }, // каска
+    kindResist: { ranged: 0.33 }, // стрельба −33 %
     loot: [["bone", [0, 1]], ["coin", 8]],
     ranged: true, // может быть стрелком (MOB_RANGED)
     brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
@@ -122,27 +123,27 @@ export const CREATURES = {
 // Пещерный тролль — босс логова (BOSS в config.js): своё логово ставит игра (territory мозгов — зал)
 CREATURES.troll = {
   kind: "mob", name: "CAVE TROLL", boss: true, maxHp: 1600, speed: 1.7, radius: 0.7, height: 2.5, inventorySize: 4,
-  model: "troll", attack: "trollSlam", hostileTo: ["player", "town"], xp: 900, resist: { physical: 0.25 },
+  model: "troll", attack: "trollSlam", hostileTo: ["player", "town"], xp: 900, kindResist: { blast: 0.33, melee: 0.33 },
   loot: [["coin", 160], ["troll-hide", 1]],
   // Валун: всегда (не случайный стрелок), с перезарядкой 4 с; пока перезаряжается — идёт на тебя (в пределах зала)
   rangedWeapon: { attack: "boulderThrow", item: "stone", scale: 3.5, range: 16, minRange: 5, advance: true },
-  brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius, sightHeight: 2, leash: 80, stopDistance: 2.2, turnSpeed: 3, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase }),
+  brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius, sightHeight: 2, leash: 250, stopDistance: 2.2, turnSpeed: 3, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase }),
 };
 
 // Лич — второй босс логова (LICH в config.js): высокий скелет-колдун (модель скелета ×1.35, фиолетовая)
 CREATURES.lich = {
   kind: "mob", name: "BONE LICH", boss: true, maxHp: 1200, speed: 2.2, radius: 0.4, height: 2.6, scale: 1.35, inventorySize: 4,
-  model: "lich", attack: "lichTouch", hostileTo: ["player", "town"], xp: 900, resist: { physical: 0.15, fire: 0.3 },
+  model: "lich", attack: "lichTouch", hostileTo: ["player", "town"], xp: 900, kindResist: { ranged: 0.33 },
   loot: [["coin", 160], ["bone-crown", 1]],
   // Сгусток: стоит и стреляет, пока видит (не подходит ближе); прыжки по залу и подъём скелетов — игра
   rangedWeapon: { attack: "lichBolt", item: "lichbolt", scale: 1.6, range: 18, minRange: 0, straight: true },
-  brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius + 1.5, sightHeight: 2, leash: 80, stopDistance: 1.4, turnSpeed: 4, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase }),
+  brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius + 1.5, sightHeight: 2, leash: 250, stopDistance: 1.4, turnSpeed: 4, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase }),
 };
 
 // РАЗДУТЫЙ — моб-смертник (BLOATER): опухший зомби побольше; взрыв и запал — у игры (e.onBoom / e.onPrime)
 CREATURES.bloater = {
   kind: "mob", name: "BLOATER", maxHp: 45, speed: 2.6, radius: 0.36, height: 2.2, scale: 1.15, inventorySize: 4,
-  model: "bloater", hostileTo: ["player", "town"], xp: 40, loot: [["bone", [0, 1]], ["coin", 6]],
+  model: "bloater", hostileTo: ["player", "town"], xp: 40, kindResist: { blast: 0.33 }, loot: [["bone", [0, 1]], ["coin", 6]],
   brain: () => new KamikazeBrain({
     range: BLOATER.range, fuse: Infinity, trigger: BLOATER.trigger, prime: BLOATER.prime,
     onPrime: (e) => e.onPrime?.(e), onBoom: (e) => e.onBoom?.(e),
@@ -228,6 +229,7 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
   for (const k of ["faction", "hostileTo", "protectedFrom", "invulnerable"]) if (def[k] !== undefined) options[k] = def[k];
   if (def.kind === "npc") options.role = def.role;
   const e = new CLASSES[def.kind || "mob"](options);
+  if (def.kindResist) e.kindResist = { ...def.kindResist }; // стойкость к виду атаки (ближний / стрельба / взрыв)
   e.xp = xp;
   e.bonusHp = bonusHp;
   e.damageMult = damageMult;

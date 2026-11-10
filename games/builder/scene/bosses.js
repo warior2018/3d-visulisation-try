@@ -169,7 +169,11 @@ export class BossesPart {
   // Предупреждение: тролль замахнулся — красный круг там, куда ударит (успей отойти)
   // Живой босс: без цели — лечится; ниже половины HP — ЯРОСТЬ; у лича — прыжки по залу и подъём скелетов
   bossTick(e, lair, dt) {
-    if (!e.aggro && e.stats.hp < e.stats.maxHp) e.heal(e.stats.maxHp * BOSS.regen * dt); // ушёл из логова — лечится
+    // Ранили — 10 с не лечится (даже если стреляют издалека и он не злится): иначе урон «съедала» регенерация
+    if (e.stats.hp < (e.bossLastHp ?? e.stats.hp)) e.bossCalm = 0;
+    e.bossCalm = (e.bossCalm ?? 99) + dt;
+    if (!e.aggro && e.bossCalm > 10 && e.stats.hp < e.stats.maxHp) e.heal(e.stats.maxHp * BOSS.regen * dt); // давно не трогали — лечится
+    e.bossLastHp = e.stats.hp;
     if (!e.enraged && e.stats.hp <= e.stats.maxHp * BOSS.enrageAt) {
       e.enraged = true;
       e.speedBonuses.enrage = BOSS.enrage.speed;
