@@ -18,6 +18,8 @@ import { CLASSES, WORLD_SIZES } from "./config.js";
 import { itemName, ITEMS } from "./items.js";
 import { SKIN_CATEGORIES, SKIN_TARGETS, skinOf, drawSkinIcon } from "./skins.js";
 import { ABILITY_FOR_ITEM } from "./abilities.js";
+import { ACHIEVEMENTS, achievementForSkin, isUnlocked, progressOf } from "./achievements.js";
+import { skinUnlocked } from "./skins.js";
 import { listWorlds, createWorld, deleteWorld, updateWorld, touchWorld, MAX_WORLDS } from "./save.js";
 
 const ICONS_DIR = fileURLToPath(new URL("./assets/world-icons/", import.meta.url));
@@ -278,17 +280,28 @@ export class MainMenu extends Scene {
     t.skins.forEach((s, i) => {
       const y = box.y + i * (ch + 10);
       const worn = skinOf(S, t).id === s.id;
+      const open = skinUnlocked(t.id, s.id), ach = achievementForSkin(t.id, s.id);
       const over = mx >= rx && mx < rx + rw && my >= y && my < y + ch;
-      if (over) this.skinHover = s.id;
+      if (over && open) this.skinHover = s.id;
       ui.rect(rx, y, rw, ch, th.window.fill, 240);
       ui.frame(rx, y, rw, ch, worn ? th.accent : over ? th.text : th.window.border, worn ? 3 : 2);
       if (!drawSkinIcon(ui, ITEMS, t, s, rx + 12, y + 12, ch - 24)) this.drawSwatch(ui, t, s, rx + 12, y + 12, ch - 24, ch - 24);
-      ui.text(s.name, rx + ch + 4, y + 14, 2, worn ? th.accent : th.text);
-      ui.text(s.text || "", rx + ch + 4, y + 40, 1, th.muted);
+      if (!open) ui.rect(rx + 12, y + 12, ch - 24, ch - 24, [0, 0, 0], 185); // закрыт — значок затемнён
+      ui.text(s.name, rx + ch + 4, y + 14, 2, worn ? th.accent : open ? th.text : th.muted);
+      if (open) ui.text(s.text || "", rx + ch + 4, y + 40, 1, th.muted);
+      else if (ach) {
+        // закрыт: какая ачивка нужна и сколько уже
+        const P = this.engine.profile, k = progressOf(P, ach);
+        ui.text(ach.text, rx + ch + 4, y + 38, 1, th.warn, "left", 255, rw - ch - 16);
+        ui.rect(rx + ch + 4, y + 56, rw - ch - 20, 8, [20, 22, 28], 255);
+        ui.rect(rx + ch + 4, y + 56, Math.round((rw - ch - 20) * k), 8, th.accent, 255);
+        ui.text(`${Math.min(ach.goal, P?.get?.(ach.stat) || 0)}/${ach.goal}`, rx + rw - 12, y + 14, 1, th.muted, "right");
+      }
       if (worn) ui.text("EQUIPPED", rx + rw - 12, y + 14, 1, th.accent, "right");
+      else if (!open) ui.text("LOCKED", rx + rw - 12, y + 30, 1, th.warn, "right");
       ui.buttons.push({ id: "sskin:" + s.id, x: rx, y, w: rw, h: ch });
     });
-    ui.text("ALL SKINS ARE UNLOCKED FOR NOW", rx, box.y + t.skins.length * (ch + 10) + 8, 1, th.muted);
+    ui.text("SKINS ARE UNLOCKED BY ACHIEVEMENTS (PROFILE)", rx, box.y + t.skins.length * (ch + 10) + 8, 1, th.muted);
   }
 
   // Камера так, чтобы герой (≈1.8 м) целиком стоял в окошке box: дальше — меньше, выше — герой ниже на экране
@@ -514,9 +527,13 @@ export class MainMenu extends Scene {
 
   drawProfile(ui) {
     const th = ui.theme;
+    // вкладки профиля: ИГРОК / АЧИВКИ
+    const ptab = this.profileTab || "stats";
+    [["stats", "PLAYER"], ["achievements", "ACHIEVEMENTS"]].forEach(([id, label], i) => ui.button("ptab:" + id, label, ui.width / 2 + (i - 0.5) * 230, 92, 220, 38, 2, ptab === id));
+    if (ptab === "achievements") return this.drawAchievements(ui);
     const n = this.netSettings();
     const P = this.engine.profile;
-    let y = Math.round(ui.height * 0.18);
+    let y = Math.round(ui.height * 0.18) + 30;
     ui.text("PROFILE", ui.width / 2, y, 5, th.text, "center");
     y += 90;
     const nick = n.name || "PLAYER";
@@ -531,6 +548,37 @@ export class MainMenu extends Scene {
       ui.text(String(P?.get?.(key) || 0), ui.width / 2 + 10, y, 2, th.text);
       y += 30;
     }
+  }
+
+  // Ачивки: сетка карточек; открытые — яркие, закрытые — тёмные (виден текст и прогресс). Колесо — листать
+  drawAchievements(ui) {
+    const th = ui.theme, P = this.engine.profile;
+    const done = ACHIEVEMENTS.filter((a) => isUnlocked(P, a)).length;
+    ui.text(`${done}/${ACHIEVEMENTS.length}`, ui.width / 2, 124, 2, th.accent, "center");
+    const top = 150, cw = 360, chh = 86, gap = 12;
+    const cols = Math.max(1, Math.floor((ui.width - 40) / (cw + gap)));
+    const rows = Math.ceil(ACHIEVEMENTS.length / cols);
+    const visible = Math.max(1, Math.floor((ui.height - top - 20) / (chh + gap)));
+    this.achScroll = Math.max(0, Math.min(this.achScroll || 0, rows - visible));
+    const x0 = Math.round(ui.width / 2 - (cols * (cw + gap) - gap) / 2);
+    ACHIEVEMENTS.forEach((a, i) => {
+      const r = Math.floor(i / cols) - this.achScroll;
+      if (r < 0 || r >= visible) return;
+      const x = x0 + (i % cols) * (cw + gap), y = top + r * (chh + gap);
+      const open = isUnlocked(P, a), k = progressOf(P, a);
+      const tierColor = [[170, 170, 170], [120, 200, 120], [110, 170, 255], [230, 150, 255]][a.tier] || th.text;
+      ui.rect(x, y, cw, chh, open ? th.window.fill : [14, 15, 19], open ? 245 : 235);
+      ui.frame(x, y, cw, chh, open ? tierColor : th.window.border, open ? 3 : 2);
+      ui.text(a.name, x + 12, y + 10, 2, open ? tierColor : th.muted, "left", 255, cw - 24);
+      ui.text(a.text, x + 12, y + 36, 1, open ? th.text : [90, 92, 100], "left", 255, cw - 24);
+      const [target, skin] = a.skin.split("/");
+      const t = SKIN_TARGETS.find((x) => x.id === target), s = t?.skins.find((x) => x.id === skin);
+      ui.text(`SKIN: ${t?.name || target} - ${s?.name || skin}`, x + 12, y + 52, 1, open ? th.accent : [80, 82, 90], "left", 255, cw - 24);
+      ui.rect(x + 12, y + chh - 16, cw - 24, 6, [20, 22, 28], 255);
+      ui.rect(x + 12, y + chh - 16, Math.round((cw - 24) * k), 6, open ? tierColor : [70, 72, 80], 255);
+      if (!open) ui.text(`${Math.min(a.goal, P?.get?.(a.stat) || 0)}/${a.goal}`, x + cw - 12, y + 10, 1, [110, 112, 120], "right");
+    });
+    if (rows > visible) ui.text("WHEEL - SCROLL", ui.width / 2, ui.height - 18, 1, th.muted, "center");
   }
 
   // Ник / имя друга / адрес — окно ввода (main.js → askText); сохраняется в настройках
@@ -554,8 +602,16 @@ export class MainMenu extends Scene {
     });
   }
 
+  // колесо — листать ачивки в профиле
+  onWheel({ dy }) {
+    if (this.tab !== "profile" || this.profileTab !== "achievements") return false;
+    this.achScroll = Math.max(0, (this.achScroll || 0) + (dy > 0 ? -1 : 1)); // от себя — вверх
+    return true;
+  }
+
   onButton(id) {
     const [kind, arg] = id.split(":");
+    if (kind === "ptab") return void (this.profileTab = arg, this.achScroll = 0);
     if (kind === "tab") {
       if (["play", "multiplayer", "skins", "friends", "profile"].includes(arg)) this.tab = arg;
       else this.actions[arg]?.();
@@ -585,6 +641,7 @@ export class MainMenu extends Scene {
     if (kind === "join") return this.actions.join();
     if (kind === "scat") return void (this.skinCat = arg);
     if (kind === "spick") return void (this.skinPick = arg);
+    if (kind === "sskin" && this.skinPick && !skinUnlocked(this.skinPick, arg)) return void this.actions.toast?.("LOCKED: GET THE ACHIEVEMENT FIRST");
     if (kind === "sskin" && this.skinPick) {
       this.engine.settings.data.skins[this.skinPick] = arg;
       this.engine.settings.save();

@@ -35,6 +35,7 @@ import { PetsPart } from "./scene/pets.js";
 import { BuffsPart } from "./scene/buffs.js";
 import { BossesPart } from "./scene/bosses.js";
 import { MobKindsPart } from "./scene/mob-kinds.js";
+import { AchievementsPart } from "./scene/achievements.js";
 import { InteractPart } from "./scene/interact.js";
 import { CoopPart } from "./scene/coop.js";
 import { DuelPart } from "./scene/duel.js";
@@ -185,6 +186,7 @@ export class GameScene extends Scene {
     // Урон от героя (удар, выстрел, горение) — цифрой над целью: хедшот — крупно и красным, огонь — оранжевым
     e.onDamage = (d, dealt) => {
       this.mountHurt(e, dealt); // ранили героя или его скакуна — маунт исчезает (scene/mount.js)
+      if (d.source === this.player && e !== this.player) e.lastHitHead = d.part === "head" || d.part?.id === "head" || !!d.tags?.has("headshot"); // для ачивок «хедшотом»
       this.mobOnHit(e, d, dealt); // атаки особых мобов: кровь, бинты; босс «ещё дерётся» (scene/mob-kinds.js)
       this.hitFx(e, d, dealt); //  брызги «крови» (scene/effects.js)
       this.combatHit(e, d, dealt); // в бою: ранили героя или он кого-то (scene/out-of-combat.js)
@@ -437,6 +439,7 @@ export class GameScene extends Scene {
     this.updateOutOfCombat(dt); // вне боя: +скорость, ×регенерация (scene/out-of-combat.js)
     this.updateQuests(dt); // задания стража (scene/quests.js)
     this.updateElites(dt); // ауры элитных мобов (scene/elites.js)
+    this.achSave(dt); // счётчики ачивок — в профиль раз в 5 с (scene/achievements.js)
     this.updateMobKinds(dt); // шаман лечит, гоблин ставит капканы, вожак зовёт упырей (scene/mob-kinds.js)
     this.hints?.update(this, dt); // подсказки новичку (hints.js)
     this.tickRunStats(dt); //     итоги забега: время (scene/run-stats.js)
@@ -789,4 +792,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);

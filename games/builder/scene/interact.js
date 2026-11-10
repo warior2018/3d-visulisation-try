@@ -33,6 +33,7 @@ export class InteractPart {
     }
     if (!finished) this.engine.log(`${e.name}: добил ${e.lastHitBy?.name || "?"}, герой помог (${helped.dealt} урона) — добыча герою`);
     this.dropLoot(e);
+    if (finished) this.achKill(e); // ачивки: убийства по оружию / видам / боссы (scene/achievements.js)
     this.countKill(e); // итоги забега (scene/run-stats.js)
     // Трофеи: 1 % здоровья / урона побеждённого моба — навсегда себе (каждый талант — своё)
     if (e.kind === "mob") {

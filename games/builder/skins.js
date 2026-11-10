@@ -113,11 +113,18 @@ const matches = (x, id, info) => (x.endsWith("-") ? id.startsWith(x) && isArmorI
 export const targetOfItem = (item, info) => SKIN_TARGETS.find((t) => t.items.some((x) => matches(x, item, info))) || null;
 
 // Выбранный скин цели: overrides (примерка в меню) → настройки → DEFAULT
+// Замок скинов (ачивки): (цель, скин) → true — открыт. Ставит игра (main.js); свой выбор из настроек без ачивки — обычный вид
+let unlocked = () => true;
+export const setSkinLock = (fn) => (unlocked = fn);
+export const skinUnlocked = (target, skin) => skin === "default" || unlocked(target, skin);
+
 export function skinOf(settings, target, overrides = null) {
   const t = typeof target === "string" ? BY_ID.get(target) : target;
   if (!t) return DEFAULT;
+  const own = overrides?.[t.id] === undefined;
   const id = overrides?.[t.id] ?? settings?.skins?.[t.id];
-  return t.skins.find((s) => s.id === id) || DEFAULT;
+  const s = t.skins.find((x) => x.id === id) || DEFAULT;
+  return own && !skinUnlocked(t.id, s.id) ? DEFAULT : s;
 }
 
 // Подключить скины: модели (ModelLibrary.resolve) и значки предметов (ITEMS[id].drawIcon).

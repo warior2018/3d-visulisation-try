@@ -132,6 +132,7 @@ export class QuestsPart {
     if (k.kind === "bring" && this.takeItem(k.item, q.count) < q.count) return false;
     this.quest = null;
     this.questsDone = (this.questsDone || 0) + 1;
+    this.achStat("quests");
     const left = this.giveResource("coin", q.coins);
     if (left > 0) this.pickups.add("coin", left, { x: this.player.position.x, y: this.player.position.y + 0.5, z: this.player.position.z });
     this.gainXp(q.xp);

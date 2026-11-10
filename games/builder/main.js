@@ -17,6 +17,8 @@ import { GameScene } from "./game-scene.js";
 import { loadModels } from "./load-models.js";
 import { migrateOldSaves, setProfile, store as saveStore } from "./save.js";
 import { MainMenu } from "./menu.js";
+import { setSkinLock } from "./skins.js";
+import { achievementForSkin, isUnlocked } from "./achievements.js";
 import { LobbyScene } from "./lobby.js";
 import { installSkins } from "./skins.js";
 import { loadMusic } from "./music.js";
@@ -38,6 +40,8 @@ const engine = await Engine.create({
   // и на GitHub: раз в минуту — вышла новая версия? (кнопка «ОБНОВИТЬ» скачает её: git pull)
   remoteChangelog: "https://raw.githubusercontent.com/warior2018/3d-visulisation-try/main/CHANGELOG.json",
 });
+// Скины открываются ачивками (achievements.js): без ачивки — закрыт (у скина без ачивки замка нет)
+setSkinLock((target, skin) => { const a = achievementForSkin(target, skin); return !a || isUnlocked(engine.profile, a); });
 // Q / E раньше выбирали оружие (weaponLeft / weaponRight), теперь это скиллы (skill1 / skill2):
 // в старом файле настроек скиллы пустые — ставим Q / E, старые действия убираем
 {

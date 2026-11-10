@@ -42,6 +42,7 @@ export class PetsPart {
     this.takeItem("medkit", 1);
     p.heal(SHOP.medkitHeal);
     p.addStatus(new MedkitRegen()); // и лечение со временем (стопками)
+    this.achStat("medkits");
     this.engine.sound.play("learn");
     this.engine.toast(`+${SHOP.medkitHeal} HP`, 800);
     this.backToWeapon(); // использовал — снова оружие

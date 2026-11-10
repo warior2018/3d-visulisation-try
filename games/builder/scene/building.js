@@ -61,6 +61,7 @@ export class BuildingPart {
     this.world.place(c.x, c.y, c.z, PALETTE[this.colorIndex], PALETTE_SURFACE[this.colorIndex] || null); // лёд — скользкий
     this.viewModel()?.play("Use");
     this.engine.sound.play("place", { at: { x: c.x + 0.5, y: c.y + 0.5, z: c.z + 0.5 } });
+    this.achStat("blocks");
   }
 
   removeBlock() {

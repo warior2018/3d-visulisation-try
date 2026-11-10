@@ -134,6 +134,7 @@ export class ProgressionPart {
     const key = Input.label(this.settings.controls.bindings.talents);
     this.engine.toast(`LEVEL ${this.experience.level}! +${gained} PTS (${key})`, 3000);
     this.engine.log(`новый уровень: ${this.experience.level}`);
+    if (this.playerClass && !this.duel) this.achMax("level:" + this.playerClass, this.experience.level); // ачивка класса
     if (!this.playerClass) this.askClass(); // первый новый уровень — пора выбрать класс
     else if (this.needsSubclass()) this.askSubclass(); // SUBCLASS.level — второе оружие
   }

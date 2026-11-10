@@ -26,6 +26,7 @@ import { encodeChunk, decodeChunk, Damage, Vec3 } from "../../../engine/index.js
 import { isWeapon, isArmor } from "../items.js";
 import { PICKUP_AUTO_RADIUS, SUBCLASS } from "../config.js";
 import { lowerBody } from "./pets.js";
+import { skinUnlocked } from "../skins.js";
 
 const SNAP_EVERY = 3; //   снимок раз в 3 тика (20 в секунду при 60 тиках)
 const TIMEOUT = 10000; // мс без единого сообщения — связь потеряна
@@ -109,7 +110,8 @@ const showHeld = (g, e, json) => {
 // Каждый видит чужие скины: гость шлёт свои в hello (sk), хост рассылает всем { t: "skins", list: [[netId, скины]] }
 // (при входе гостя и раз в несколько секунд). Чужой герой в скинах: skinned + skinOverride (skins.js → resolve),
 // модель надевается заново, предмет в руке — тоже
-const mySkins = (g) => ({ ...(g.settings?.skins || {}) });
+// только открытые (ачивки): закрытый скин из настроек другим не показываем
+const mySkins = (g) => Object.fromEntries(Object.entries(g.settings?.skins || {}).filter(([t, s]) => skinUnlocked(t, s)));
 const cleanSkins = (sk) => Object.fromEntries(Object.entries(sk && typeof sk === "object" ? sk : {}).filter(([k, v]) => typeof k === "string" && typeof v === "string").slice(0, 64));
 export function setSkins(g, e, sk) {
   const map = cleanSkins(sk);
