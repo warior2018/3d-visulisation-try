@@ -549,8 +549,11 @@ export class Engine {
     w.on("keyDown", (e) => {
       if (e.repeat) return; // автоповтор при удержании не считаем
       this.phase(4);
+      // onKey — той сцене, что была сверху при нажатии, и только если она всё ещё сверху: иначе одна клавиша
+      // срабатывала дважды (Esc закрыл меню поверх главного — и главное тут же открывало его снова)
+      const top = this.scene;
       this.press({ scancode: e.scancode });
-      this.scene?.onKey(e);
+      if (this.scene === top) top?.onKey(e);
       this.phase(0);
     });
 
