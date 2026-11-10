@@ -245,12 +245,9 @@ export class BossesPart {
       const a = Math.random() * Math.PI * 2;
       const x = e.position.x + Math.sin(a) * 1.5, z = e.position.z + Math.cos(a) * 1.5;
       if (this.world.has(Math.floor(x), lair.y, Math.floor(z))) continue;
-      const s = this.spawn("skeleton", { x, y: lair.y, z, yaw: a, ...growth });
+      const s = this.summonMinion("skeleton", e, { x, y: lair.y, z, yaw: a }, growth); // статы и опыт — вдвое меньше, без добычи (MINION)
       if (!s) continue;
-      s.raisedBy = e;
       s.aggro = t;
-      s.xp = 5; //                          поднятые — без добычи и почти без опыта
-      s.inventory.slots.fill(null);
       this.beams.ring({ x, y: lair.y + 0.05, z }, 0.8, { color: [180, 110, 255], life: 0.5, width: 5 });
     }
     this.engine.sound.play("growl", { at: e.position, volume: 0.8 });

@@ -29,6 +29,8 @@ import { alertHerd, tauntTarget, busy, auraTarget } from "./social.js";
 import { pursue, separate, neighbors, melee, turnTowards } from "../world/behaviors.js";
 
 const dist2d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z);
+// Настоящее расстояние между серединами тел (с высотой) — для «заметил»
+const dist3d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.y + (a.height || 1.8) / 2 - b.position.y - (b.height || 1.8) / 2, a.position.z - b.position.z);
 const NONE = Object.freeze([]); // «никто не разозлился» — один общий пустой список, а не новый каждый кадр
 const SWITCH = 3; //    другой герой ближе на столько метров — переключиться на него
 const RETARGET = 0.5; // как часто проверять (с)
@@ -63,11 +65,11 @@ export class HostileBrain extends Brain {
     for (const o of entities) {
       if (!o.alive || !e.isHostileTo(o) || (only && !only(o))) continue;
       if (Math.abs(o.position.y - e.position.y) > this.sightHeight) continue;
-      const d = dist2d(e, o);
-      if (d <= radius * (o.noticeScale ?? 1) && d < bestD) {
-        best = o;
-        bestD = d;
-      }
+      const d = dist3d(e, o); // радиус замечания — по прямой между телами (высота тоже считается)
+      if (d > radius * (o.noticeScale ?? 1) || d >= bestD) continue;
+      if (this.ctx?.combatFor?.(e)?.blocked?.(e, o)) continue; // за стеной / блоками — не видит
+      best = o;
+      bestD = d;
     }
     return best;
   }
@@ -105,6 +107,7 @@ export class HostileBrain extends Brain {
   }
 
   update(e, ctx, dt) {
+    this.ctx = ctx; // для проверки «видит ли» (nearestEnemy)
     const entities = ctx.entities;
     e.nav ||= new Navigator({ ...ctx.navWorld, height: Math.ceil(e.height - 1e-6) }); // свой «штурман» у каждого, под рост существа
     let alerted = NONE;

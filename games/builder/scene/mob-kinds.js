@@ -7,10 +7,26 @@
 // ============================================================
 
 import { Damage, Slow, TrapAttack, withStatus, bleed } from "../../../engine/index.js";
-import { MOB_KINDS, ATTACKS } from "../config.js";
+import { MOB_KINDS, ATTACKS, MINION } from "../config.js";
 import { mobGrowth } from "../creatures.js";
 
 export class MobKindsPart {
+  // Призвать миньона (босс, минибосс): статы ×MINION.stats, опыт ×MINION.xp, без добычи; злится на цель хозяина
+  summonMinion(type, owner, at, growth = {}) {
+    const m = this.spawn(type, { ...at, ...growth });
+    if (!m) return null;
+    const k = MINION.stats, half = (v) => Math.max(1, Math.round(v * k));
+    m.stats.maxHp = half(m.stats.maxHp);
+    m.stats.hp = m.stats.maxHp;
+    if (m.attack) m.attack.damage = Array.isArray(m.attack.damage) ? m.attack.damage.map(half) : half(m.attack.damage);
+    if (m.rangedDamage) m.rangedDamage = m.rangedDamage.map(half);
+    m.xp = Math.round((m.xp || 0) * MINION.xp);
+    m.inventory?.loadFrom([]); // без добычи
+    m.raisedBy = owner;
+    m.aggro = owner.aggro || null;
+    return m;
+  }
+
   // Новое существо (spawn): свои пассивки
   setupMobKind(e) {
     const K = MOB_KINDS;
@@ -135,12 +151,8 @@ export class MobKindsPart {
     for (let k = 0; k < Math.min(C.summon.count, C.summon.max - mine); k++) {
       const a = Math.random() * Math.PI * 2;
       const x = e.position.x + Math.sin(a) * 2.5, z = e.position.z + Math.cos(a) * 2.5;
-      const g = this.spawn("ghoul", { x, y: this.world.surfaceY?.(x, z) ?? e.position.y, z, yaw: a, ...mobGrowth(this.spawner?.spawned || 0) });
+      const g = this.summonMinion("ghoul", e, { x, y: this.world.surfaceY?.(x, z) ?? e.position.y, z, yaw: a }, mobGrowth(this.spawner?.spawned || 0));
       if (!g) continue;
-      g.raisedBy = e;
-      g.xp = 5; // призванные — почти без опыта и без добычи
-      g.inventory?.loadFrom([]);
-      g.aggro = e.aggro;
       this.beams?.ring({ x, y: g.position.y + 0.05, z }, 0.9, { color: [140, 200, 60], life: 0.4, width: 5 });
     }
     this.engine.sound.play("growl", { at: e.position, volume: 1 });
