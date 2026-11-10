@@ -101,8 +101,7 @@ export class CombatPart {
     const p = this.player;
     const k = this.talentStats?.reflect || 0;
     if (!d?.shot || !p.alive || !k) return;
-    const share = guard?.blockShare ?? 1;
-    const n = (share < 1 ? d.amount / (1 - share) : d.amount) * share * k; // d.amount — уже то, что прошло сквозь блок
+    const n = (d.blockedAmount ?? 0) * k; // сколько блок снял (engine: damage.blockedAmount)
     if (n < 0.5) return;
     const strike = (target, part = null) => {
       if (!target?.alive || target === p || !p.isHostileTo(target)) return false;

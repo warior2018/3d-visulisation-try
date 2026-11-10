@@ -6,7 +6,7 @@
 
 import { ATTACKS as A, BLOCK, KATANA_IAI as IAI, MACHETE_LEAP as ML, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT, BOW } from "./config.js";
 
-const block = { name: "BLOCK", text: `FOR ${BLOCK.window} S HITS AND SHOTS FROM THE FRONT DEAL ${Math.round((1 - BLOCK.share) * 100)}% DMG. COOLDOWN ${BLOCK.cooldown} S (DUEL: X${BLOCK.duel}). TALENT REFLECT - SHOTS FLY BACK` };
+const block = { name: "BLOCK", text: `FOR ${BLOCK.window} S HITS FROM THE FRONT LOSE ${Math.round(BLOCK.weapon * 100)}% OF YOUR WEAPON DMG, SHOTS AND BLASTS - ${Math.round(BLOCK.ranged * 100)}%. COOLDOWN ${BLOCK.cooldown} S (DUEL: ${BLOCK.duelCooldown} S). TALENT REFLECT - SHOTS FLY BACK` };
 const aim = { name: "AIM", text: "HOLD TO AIM: ZOOM IN, LESS SPREAD" };
 const reload = { name: "RELOAD", text: "PUT IN A NEW CLIP FROM THE BAG. THE REST OF THE OLD ONE GOES BACK AS A PARTIAL CLIP" };
 const punch = { name: "PUNCH", text: `${A.punch.damage} DMG, UP TO ${A.punch.maxTargets} ENEMIES IN FRONT` };

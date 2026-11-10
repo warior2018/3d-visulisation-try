@@ -160,7 +160,8 @@ export const debuff = (options) => new StatusEffect({ positive: false, ...option
 // пришедшие спереди — в секторе arc° от того, куда смотрит владелец (yaw). share — какую долю урона
 // срезает (1 — удар не ранит вовсе; 0.5 — проходит половина, как блок щитом в Valheim).
 // shots — отбивает и выстрелы (пули и снаряды: damage.shot), какого бы вида ни была атака
-export const parry = ({ duration = 0.4, kinds = ["melee"], arc = 160, share = 1, shots = false } = {}) =>
+// absorb(d) — вместо доли share: сколько урона снять (число), например от урона оружия, которым блокируют
+export const parry = ({ duration = 0.4, kinds = ["melee"], arc = 160, share = 1, shots = false, absorb = null } = {}) =>
   Object.assign(new StatusEffect({
     id: "parry", name: "BLOCK", icon: "BL", positive: true, color: [140, 200, 255], duration,
     guard: (d, owner) => {
@@ -171,7 +172,7 @@ export const parry = ({ duration = 0.4, kinds = ["melee"], arc = 160, share = 1,
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
       return Math.abs(diff) <= (arc * Math.PI) / 360;
     },
-  }), { blockShare: share });
+  }), { blockShare: share, blockAbsorb: absorb });
 
 // Готовые статусы
 export const burn = (source, level = source?.burnLevel || 1) => {

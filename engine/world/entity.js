@@ -106,13 +106,24 @@ export class Entity {
     // остальное проходит как обычно (с сопротивлениями)
     const guard = this.statuses.find((s) => s.guard?.(damage, this));
     let partial = false;
-    if (guard && (guard.blockShare ?? 1) < 1) {
+    // blockAbsorb(d) — блок снимает не долю, а столько урона (число); снял всё — как полный блок
+    const absorb = guard?.blockAbsorb ? Math.max(0, guard.blockAbsorb(damage)) : null;
+    if (absorb !== null && absorb < damage.amount) {
+      damage.blockedAmount = absorb;
+      damage.amount -= absorb;
+      damage.tags.add("blocked");
+      partial = true;
+      if (damage.source && damage.source !== this) this.attackedBy = damage.source;
+      this.onBlock?.(damage, guard);
+    } else if (absorb === null && guard && (guard.blockShare ?? 1) < 1) {
+      damage.blockedAmount = damage.amount * guard.blockShare;
       damage.amount *= 1 - guard.blockShare;
       damage.tags.add("blocked");
       partial = true;
       if (damage.source && damage.source !== this) this.attackedBy = damage.source;
       this.onBlock?.(damage, guard);
     } else if (guard) {
+      damage.blockedAmount = damage.amount;
       if (damage.source && damage.source !== this) this.attackedBy = damage.source;
       this.onBlock?.(damage, guard); // слушатель (звук, надпись) — игра ставит сама
       this.report(damage, 0, false, true);
