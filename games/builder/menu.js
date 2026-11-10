@@ -18,7 +18,8 @@ import { CLASSES, WORLD_SIZES } from "./config.js";
 import { itemName, ITEMS } from "./items.js";
 import { SKIN_CATEGORIES, SKIN_TARGETS, skinOf, drawSkinIcon } from "./skins.js";
 import { ABILITY_FOR_ITEM } from "./abilities.js";
-import { ACHIEVEMENTS, achievementForSkin, isUnlocked, progressOf } from "./achievements.js";
+import { achievementForSkin, progressOf } from "./achievements.js";
+import { drawAchievementGrid } from "./profile-view.js";
 import { skinUnlocked } from "./skins.js";
 import { listWorlds, createWorld, deleteWorld, updateWorld, touchWorld, MAX_WORLDS } from "./save.js";
 
@@ -550,35 +551,9 @@ export class MainMenu extends Scene {
     }
   }
 
-  // Ачивки: сетка карточек; открытые — яркие, закрытые — тёмные (виден текст и прогресс). Колесо — листать
+  // Ачивки: сетка карточек (profile-view.js — то же окно и в паузе)
   drawAchievements(ui) {
-    const th = ui.theme, P = this.engine.profile;
-    const done = ACHIEVEMENTS.filter((a) => isUnlocked(P, a)).length;
-    ui.text(`${done}/${ACHIEVEMENTS.length}`, ui.width / 2, 124, 2, th.accent, "center");
-    const top = 150, cw = 360, chh = 86, gap = 12;
-    const cols = Math.max(1, Math.floor((ui.width - 40) / (cw + gap)));
-    const rows = Math.ceil(ACHIEVEMENTS.length / cols);
-    const visible = Math.max(1, Math.floor((ui.height - top - 20) / (chh + gap)));
-    this.achScroll = Math.max(0, Math.min(this.achScroll || 0, rows - visible));
-    const x0 = Math.round(ui.width / 2 - (cols * (cw + gap) - gap) / 2);
-    ACHIEVEMENTS.forEach((a, i) => {
-      const r = Math.floor(i / cols) - this.achScroll;
-      if (r < 0 || r >= visible) return;
-      const x = x0 + (i % cols) * (cw + gap), y = top + r * (chh + gap);
-      const open = isUnlocked(P, a), k = progressOf(P, a);
-      const tierColor = [[170, 170, 170], [120, 200, 120], [110, 170, 255], [230, 150, 255]][a.tier] || th.text;
-      ui.rect(x, y, cw, chh, open ? th.window.fill : [14, 15, 19], open ? 245 : 235);
-      ui.frame(x, y, cw, chh, open ? tierColor : th.window.border, open ? 3 : 2);
-      ui.text(a.name, x + 12, y + 10, 2, open ? tierColor : th.muted, "left", 255, cw - 24);
-      ui.text(a.text, x + 12, y + 36, 1, open ? th.text : [90, 92, 100], "left", 255, cw - 24);
-      const [target, skin] = a.skin.split("/");
-      const t = SKIN_TARGETS.find((x) => x.id === target), s = t?.skins.find((x) => x.id === skin);
-      ui.text(`SKIN: ${t?.name || target} - ${s?.name || skin}`, x + 12, y + 52, 1, open ? th.accent : [80, 82, 90], "left", 255, cw - 24);
-      ui.rect(x + 12, y + chh - 16, cw - 24, 6, [20, 22, 28], 255);
-      ui.rect(x + 12, y + chh - 16, Math.round((cw - 24) * k), 6, open ? tierColor : [70, 72, 80], 255);
-      if (!open) ui.text(`${Math.min(a.goal, P?.get?.(a.stat) || 0)}/${a.goal}`, x + cw - 12, y + 10, 1, [110, 112, 120], "right");
-    });
-    if (rows > visible) ui.text("WHEEL - SCROLL", ui.width / 2, ui.height - 18, 1, th.muted, "center");
+    this.achScroll = drawAchievementGrid(ui, this.engine.profile, this.achScroll || 0, 150);
   }
 
   // Ник / имя друга / адрес — окно ввода (main.js → askText); сохраняется в настройках

@@ -808,6 +808,7 @@ export const RU = {
   "MODIFIERS": "МОДИФИКАТОРЫ",
   "MOLTEN": "РАСПЛАВЛЕННЫЙ",
   "MOMENTUM": "РАЗГОН",
+  "MONSTERS KILLED": "УБИТО МОНСТРОВ",
   "MORE BELOW - SCROLL": "НИЖЕ ЕЩЁ - ПРОКРУТИ",
   "MOSS": "МОХ",
   "MOSS ON THE STOCK, MUD ON THE BARREL": "МОХ НА ПРИКЛАДЕ, ГРЯЗЬ НА СТВОЛЕ",

@@ -5,6 +5,7 @@
 // ============================================================
 
 import { MapScene, MenuScene, parry } from "../../../engine/index.js";
+import { ProfileScene } from "../profile-view.js";
 import { DIGIT_KEYS } from "./shared.js";
 import { PALETTE, BLOCK } from "../config.js";
 import { deleteSave } from "../save.js";
@@ -76,6 +77,7 @@ export class InputPart {
         { id: "resume", label: "RESUME" },
         ...(this.match ? [] : [{ id: "save", label: "SAVE" }]), // матч не сохраняется
         { id: "settings", label: "SETTINGS" },
+        { id: "profile", label: "PROFILE" }, // ачивки и счётчики (profile-view.js)
         { id: "menu", label: this.match ? "LEAVE MATCH" : "MAIN MENU" },
       ],
       onBack: () => engine.pop(),
@@ -83,6 +85,7 @@ export class InputPart {
         if (id === "resume") engine.pop();
         if (id === "save") this.save();
         if (id === "settings") game.openSettings();
+        if (id === "profile") engine.push(new ProfileScene({ nick: this.settings.net?.name || "PLAYER" }));
         if (id === "menu") {
           this.save(false);
           game.toMenu();
