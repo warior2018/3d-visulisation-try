@@ -57,13 +57,14 @@ export const SKIN_TARGETS = [
     { id: "void", fx: [170, 90, 255], name: "VOID", text: "BLACK AS THE ABYSS UNDER THE ISLANDS", paint: P.gradientMap([[0.02, 0.01, 0.05], [0.32, 0.14, 0.58], [0.82, 0.62, 1]]) },
     { id: "jade", fx: [60, 220, 140], name: "JADE", text: "A STONE THAT NEVER MISSES", paint: P.chain(P.metal([0.02, 0.12, 0.08], [0.5, 1, 0.75]), P.dye([0.1, 0.65, 0.45])) },
   ]),
+  // Огненный и ледяной: кроме свечения, за болтом / стрелой — хвост частиц (trail: "fire" / "ice", game-scene)
   weapon("crossbow", "CROSSBOW", [
-    { id: "elven", fx: [120, 220, 110], name: "ELVEN", text: "GREEN WOOD, GOLDEN FITTINGS", paint: P.chain(gold, P.dye([0.22, 0.55, 0.3])) },
-    { id: "nighthunter", fx: [110, 140, 220], name: "NIGHT HUNTER", text: "DARK AS A MOONLESS FOREST", paint: P.gradientMap([[0.02, 0.03, 0.05], [0.2, 0.25, 0.35], [0.55, 0.7, 0.9]]) },
+    { id: "glacier", fx: [150, 225, 255], trail: "ice", name: "GLACIER", text: "BOLTS COLD AS A WINTER NIGHT", paint: P.gradientMap([[0.04, 0.12, 0.25], [0.45, 0.7, 0.9], [0.9, 0.97, 1]]) },
+    { id: "hellfire", fx: [255, 110, 30], trail: "fire", name: "HELLFIRE", text: "EVERY BOLT LEAVES SMOKE", paint: P.gradientMap([[0.06, 0.01, 0], [0.75, 0.18, 0.03], [1, 0.8, 0.3]]) },
   ]),
   weapon("bow", "BOW", [
-    { id: "yew", fx: [200, 160, 90], name: "OLD YEW", text: "DARK WOOD, WORN GRIP", paint: P.gradientMap([[0.12, 0.07, 0.03], [0.62, 0.42, 0.22]]) },
-    { id: "frost", fx: [140, 220, 255], name: "FROSTBOW", text: "ICE THAT NEVER MELTS", paint: P.gradientMap([[0.05, 0.15, 0.3], [0.7, 0.9, 1]]) },
+    { id: "phoenix", fx: [255, 140, 40], trail: "fire", name: "PHOENIX", text: "FEATHERS OF FLAME", paint: P.gradientMap([[0.15, 0.03, 0], [0.9, 0.35, 0.05], [1, 0.9, 0.45]]) },
+    { id: "frost", fx: [140, 220, 255], trail: "ice", name: "FROSTBOW", text: "ICE THAT NEVER MELTS", paint: P.gradientMap([[0.05, 0.15, 0.3], [0.7, 0.9, 1]]) },
   ]),
   weapon("grenades", "GRENADES", [
     { id: "toxic", fx: [130, 255, 60], name: "TOXIC", text: "DO NOT LICK", paint: P.chain(P.metal([0.05, 0.15, 0.02], [0.6, 1, 0.35]), P.dye([0.45, 0.95, 0.2])) },
@@ -100,6 +101,11 @@ export const skinTarget = (id) => BY_ID.get(id) || null;
 export const skinFx = (settings, item) => {
   const t = BY_ID.get(item);
   return t ? skinOf(settings, t).fx || null : null;
+};
+// Хвост частиц выбранного скина ("fire" / "ice") или null
+export const skinTrail = (settings, item) => {
+  const t = BY_ID.get(item);
+  return t ? skinOf(settings, t).trail || null : null;
 };
 // Броня — по приставке набора ("iron-" → iron-helmet, iron-boots...): только предметы брони (slot у ITEMS —
 // ячейка брони), не «bone-crown» и прочие с той же приставкой

@@ -7,7 +7,7 @@
 import { Vec3, Input, abilityHelp, Damage } from "../../../engine/index.js";
 import { MELEE_STAMINA, BLOCK, CROUCH, BOW } from "../config.js";
 import { CLASS_HELP } from "../help.js";
-import { skinFx } from "../skins.js";
+import { skinFx, skinTrail } from "../skins.js";
 
 export class CombatPart {
   // ---------- Бой (способности 1 и 2) ----------
@@ -47,7 +47,7 @@ export class CombatPart {
     this.projectiles.launch({
       owner, position: from, velocity: dir.scale(P.speed), gravity: P.gravity, spin: 0, maxLife: 5, skinned: true, skinTarget: "crossbow", align: true,
       item: "bolt", attack, pierce: Math.max(0, (attack.pierce || 1) - 1),
-      scale: BOW.size, hitRadius: BOW.hitRadius, glow: skinFx(this.settings, "crossbow") || [255, 225, 160], // как стрела лука: крупнее, «толще», со следом
+      scale: BOW.size, hitRadius: BOW.hitRadius, glow: skinFx(this.settings, "crossbow") || [255, 225, 160], trail: skinTrail(this.settings, "crossbow"), // как стрела лука: крупнее, «толще», со следом
       onHit: (p, hit) => {
         const k = Math.pow(attack.pierceFalloff ?? 0.8, n++) * attack.falloffAt(owner, hit.entity);
         attack.hit(owner, hit.entity, this.combatContext({ part: hit.part, damageScale: k, onHit: (r) => this.onPlayerHit(r), shot: { projectile: { item: "bolt", speed: P.speed, gravity: P.gravity } } }));
@@ -80,7 +80,7 @@ export class CombatPart {
       owner, position: cam.position.add(dir.scale(0.6)), velocity: dir.scale(speed), gravity: BOW.gravity, spin: 0, maxLife: 5,
       item: "bolt", attack, pierce, skinned: true, skinTarget: "bow", align: true, // носом по полёту
       scale: BOW.size, hitRadius: BOW.hitRadius, // стрела крупнее (модель ×1.4) и «толще» для попаданий
-      glow: skinFx(this.settings, "bow") || [255, 225, 160], // светящийся след — цвет скина лука (без скина — тёплый)
+      glow: skinFx(this.settings, "bow") || [255, 225, 160], trail: skinTrail(this.settings, "bow"), // светящийся след — цвет скина лука (без скина — тёплый)
       onHit: (p, hit) => {
         const k = Math.pow(0.8, n++);
         attack.hit(owner, hit.entity, this.combatContext({ part: hit.part, baseDamage: damage, damageScale: k, onHit: (r) => this.onPlayerHit(r), shot: { projectile: { item: "bolt", speed, gravity: BOW.gravity } } }));
