@@ -278,6 +278,8 @@ export const MOB_MIX = { skeleton: 7, zombie: 3, bloater: 1.3 }; // РАЗДУТ
 // (растёт, как у мобов) всем в radius. Мобам взрыв не вредит. Убил до взрыва — просто лопается
 // Каска у мобов: шанс появиться в ней (types — кто может); режет только урон в голову (после множителя хедшота)
 export const MOB_HELMET = { chance: 0.35, headshot: 0.15, types: ["zombie", "bloater"] };
+// Граната из зомби: с шансом chance после смерти остаётся граната — через fuse с взрыв, урон = damage × урон зомби
+export const ZOMBIE_GRENADE = { chance: 0.05, fuse: 2, damage: 3, radius: 2.5 };
 // deathBoom — шанс взорваться, когда его убили (1 — всегда; опыт и добыча — тебе)
 export const BLOATER = { range: 14, trigger: 2.2, prime: 1.1, primeSpeed: 0.5, deathBoom: 1, radius: 3, damage: [22, 32] };
 
@@ -575,6 +577,7 @@ export const SOUNDS = {
   step: mix(noise(45, 9, 0.88), tone(140, 90, 40, 9)), //            шаг существа
   hoof: mix(noise(35, 12, 0.8), tone(260, 170, 35, 10)), //          копыто кабана
   growl: mix(tone(115, 70, 380, 3), noise(320, 4, 0.92)), //         моб разозлился
+  hiss: noise(1900, 0.8, 0.08), //                                     шипит запал гранаты (зомби)
   mobDeath: mix(tone(240, 60, 520, 3), noise(260, 5, 0.85)), //      моб погиб
   // Магия и ловушки
   cast: mix(noise(180, 5, 0.3), tone(300, 700, 180, 4)), //           огненный шар сорвался с посоха

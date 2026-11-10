@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Particles, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
-import { LIFETIME, THROW, BLOATER, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
+import { LIFETIME, THROW, BLOATER, ZOMBIE_GRENADE, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
 import { HandAbility, IN_HAND } from "./abilities.js";
 import { helpFor } from "./help.js";
 import { talentTree } from "./talents.js";
@@ -557,6 +557,7 @@ export class GameScene extends Scene {
           this.onDeath(e);
           // Раздутый убит (не сам взорвался) — всё равно взрывается (шанс BLOATER.deathBoom)
           if (e.type === "bloater" && !e.selfDestructed && Math.random() < (BLOATER.deathBoom ?? 0)) this.bloaterBoom(e);
+          if (e.type === "zombie" && Math.random() < ZOMBIE_GRENADE.chance) this.zombieGrenade(e); // из зомби выпала граната
         }
         if (e.deadTime > CORPSE_TIME) this.removeEntity(e);
         continue;

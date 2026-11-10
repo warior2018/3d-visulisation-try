@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { BONE_CROWN, TROLL_HIDE, BOSS, WORLDGEN, LICH, ATTACKS, SHAKE, BLOATER } from "../config.js";
+import { BONE_CROWN, TROLL_HIDE, BOSS, WORLDGEN, LICH, ATTACKS, SHAKE, BLOATER, ZOMBIE_GRENADE } from "../config.js";
 import { seededRandom, flattenArea, grow, Vec3, MagicAttack } from "../../../engine/index.js";
 import { CREATURES, mobGrowth } from "../creatures.js";
 
@@ -251,6 +251,25 @@ export class BossesPart {
       this.beams.add({ from: point, to: { x: point.x + Math.sin(a) * k, y: point.y + ((i % 3) - 1) * k * 0.4, z: point.z + Math.cos(a) * k }, color: [150, 210, 90], core: [230, 255, 190], life: 0.3, width: 12 });
     }
     this.shakeNear(point, SHAKE.bloater);
+  }
+
+  // Граната из убитого зомби (ZOMBIE_GRENADE): лежит, шипит fuse с, потом взрыв ×damage урона зомби — его врагам
+  zombieGrenade(z) {
+    const G = ZOMBIE_GRENADE;
+    const a = z.attack?.damage ?? 8;
+    const base = Array.isArray(a) ? (a[0] + a[1]) / 2 : a;
+    const blast = new MagicAttack({ id: "zombie-grenade", name: "GRENADE", damage: Math.round(base * G.damage), radius: G.radius, cost: 0 });
+    const at = { x: z.position.x, y: z.position.y + 0.15, z: z.position.z };
+    const lit = this.projectiles.launch({ owner: z, position: at, velocity: { x: 0, y: 0, z: 0 }, item: "grenade", gravity: 0, spin: 0 });
+    this.engine.sound.play("hiss", { at, volume: 1 });
+    this.fuses.push({ left: G.fuse, at, lit, boom: (p) => {
+      const r = blast.burst(z, p, { entities: this.entities.list });
+      if (r.hits.some((h) => h.target === this.player)) this.engine.sound.play("hurt");
+      this.engine.sound.play("boom", { at: p });
+      this.boomFx?.(p, G.radius);
+      this.shakeNear(p, SHAKE.explosion);
+      this.engine.log(`граната зомби: задела ${r.hits.length}`);
+    } });
   }
 
   bossWarnings() {
