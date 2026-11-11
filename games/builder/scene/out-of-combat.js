@@ -3,7 +3,7 @@
 //  и сам никого не ранил — быстрее ходит и быстрее лечится. Значок «OOC» среди эффектов, пока действует.
 // ============================================================
 
-import { OUT_OF_COMBAT, WOUND } from "../config.js";
+import { OUT_OF_COMBAT } from "../config.js";
 
 export class OutOfCombatPart {
   // Урон: по герою от моба или героем по кому-то — отметка «в бою» (зовёт onDamage сущности)
@@ -26,9 +26,8 @@ export class OutOfCombatPart {
     this.outOfCombat = ooc;
     p.speedBonuses.ooc = ooc ? O.speed : 0;
     // регенерация: от талантов (REGENERATION...), вне боя — ×regenMult. Тесты выключают её (regenOff)
-    // рана (WOUND): недавно попали оружием — регенерация ×0.5
-    const wounded = now < (this.woundUntil ?? -Infinity);
+    // рана режет регенерацию в движке (Entity.WOUND) — здесь только «вне боя»
     const base = p.stats.maxHp * (this.talentStats?.regenPct || 0) + (this.talentStats?.regenFlat || 0);
-    if (!this.regenOff) p.regen = base * (ooc ? O.regenMult : 1) * (wounded ? WOUND.regen : 1);
+    if (!this.regenOff) p.regen = base * (ooc ? O.regenMult : 1);
   }
 }

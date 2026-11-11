@@ -30,6 +30,10 @@ import { combatLog } from "../combat/combat-log.js";
 let nextId = 1;
 
 export class Entity {
+  // Рана (пассивно, у всех): получил урон (не от горения / кровотечения, не от себя) — регенерация ×(1 − cut)
+  // на time секунд; новое попадание — отсчёт заново. Игра может поменять (дуэль — дольше)
+  static WOUND = { cut: 0.5, time: 3 };
+
   // hitboxes: [{ id: "head", min: [x, y, z], max: [x, y, z], multiplier: 2 }] — коробки частей тела
   //   в СВОИХ осях сущности: от ног, +Z — куда смотрит, +X — вправо. Поворачиваются вместе с ней (yaw).
   constructor({ type, name, position, yaw = 0, maxHp = 100, hp = maxHp, resist = {}, inventorySize = 0, maxStack, radius = 0.3, height = 1.8, hitboxes = [] }) {
@@ -61,6 +65,8 @@ export class Entity {
     this.hitboxes = hitboxes; // части тела: попадание в них — с множителем (голова ×2)
     this.regen = 0; //          регенерация: сколько HP в секунду восстанавливается само
     this.regenPart = 0; //      накопленная дробная часть (0.5 HP/с — +1 HP раз в 2 секунды)
+    this.regenPct = 0; //       ещё регенерация: доля макс. HP в секунду (0.01 — 1 %/с)
+    this.woundLeft = 0; //      сколько ещё длится рана (Entity.WOUND): регенерация урезана
     this.percentDamageScale = 1; // урон долей макс. HP (горение, кровотечение, капкан) — во столько раз (боссы — меньше)
     this.master = null; //      чья это сущность (турель, призванный): урон засчитывается хозяину (engine/combat/damage.js → creditOf)
     this.attackedBy = null; //  кто ударил последним (ИИ: разозлиться на обидчика); читающий сам обнуляет
@@ -138,6 +144,7 @@ export class Entity {
     }
     const resist = resistTo(this.stats.resist, damage);
     const dealt = Math.max(0, Math.round(damage.amount * (1 - resist)));
+    if (dealt > 0 && damage.source !== this && !damage.tags?.has("dot")) this.woundLeft = Entity.WOUND.time; // рана: реген урезан
     const hpBefore = this.stats.hp;
     const killed = dealt > 0 ? this.damage(dealt) : false;
     this.report(damage, Math.min(dealt, hpBefore), killed, partial, Math.max(0, dealt - hpBefore));
@@ -254,11 +261,13 @@ export class Entity {
   // Регенерация: по regen HP в секунду, целыми единицами; мана — по manaRegen в секунду (дробно)
   updateRegen(dt) {
     if (this.alive && this.manaRegen > 0 && this.stats.mana !== undefined) this.restoreMana(this.manaRegen * dt);
-    if (!this.alive || this.regen <= 0 || this.stats.hp >= this.stats.maxHp) {
+    if (this.woundLeft > 0) this.woundLeft -= dt;
+    const rate = (this.regen + this.regenPct * this.stats.maxHp) * (this.woundLeft > 0 ? 1 - Entity.WOUND.cut : 1);
+    if (!this.alive || rate <= 0 || this.stats.hp >= this.stats.maxHp) {
       this.regenPart = 0;
       return;
     }
-    this.regenPart += this.regen * dt;
+    this.regenPart += rate * dt;
     const whole = Math.floor(this.regenPart);
     if (whole > 0) {
       this.regenPart -= whole;

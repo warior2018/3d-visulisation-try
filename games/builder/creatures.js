@@ -6,7 +6,7 @@
 // ============================================================
 
 import { Vec3, Inventory, Player, Mob, NPC, MeleeAttack, SlamAttack, ThrowAttack, HostileBrain, KamikazeBrain, WanderBrain, GuardBrain, FollowBrain, Taming, Rideable, grow, growth } from "../../engine/index.js";
-import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, HERO_SCALE, PLAYER } from "./config.js";
+import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER } from "./config.js";
 import { maxStack } from "./items.js";
 
 // Головы (хитбоксы хедшотов) — в осях существа: от ног вверх, +Z — куда смотрит.
@@ -312,6 +312,7 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
   if (type === "bloater") e.blastDamage = BLOATER.damage.map((d) => Math.round(d * damageMult) + bonusDamage); // взрыв крепчает, как удары
   e.bonusXp = bonusXp; // доля: 0.05 — опыта на 5 % больше
   if (def.regen) e.regen = def.regen;
+  if ((def.kind || "mob") === "mob" && !def.boss) e.regenPct = MOB_REGEN.pct; // мобы зализывают раны: 1 % макс. HP/с (рана режет)
   if (def.tauntRadius) e.tauntRadius = def.tauntRadius;
   if (def.scale) e.scale = def.scale; // размер модели
   if (inventory) e.inventory.loadFrom(inventory);

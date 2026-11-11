@@ -715,9 +715,11 @@ export const SKY_BODIES = { distance: 260, tilt: 0.38, sun: { size: 30, color: [
 // Вне боя (scene/out-of-combat.js): рядом (radius блоков) нет моба, охотящегося на героя, и delay с героя не
 // ранили мобы и он сам никого не ранил — бонусы: скорость +speed, регенерация ×regenMult
 export const OUT_OF_COMBAT = { radius: 5, delay: 5, speed: 0.1, regenMult: 3 };
-// Рана: попадание оружием (удар, выстрел, взрыв — не горение / кровотечение) режет регенерацию до regen (×0.5)
-// на time секунд; новое попадание — отсчёт заново (не складывается)
-export const WOUND = { regen: 0.5, time: 3 };
+// Рана (движок: Entity.WOUND, у всех — героев и мобов): получил урон (удар, выстрел, взрыв — не горение /
+// кровотечение) — вся регенерация HP ×regen на time с (в дуэли — duelTime); новое попадание — отсчёт заново
+export const WOUND = { regen: 0.5, time: 3, duelTime: 5 };
+// Регенерация мобов: pct макс. HP в секунду (рана режет и её)
+export const MOB_REGEN = { pct: 0.01 };
 
 // Частицы (scene/effects.js): «кровь» по виду существа, сколько брызг (3 + урон / bloodPer, не больше bloodMax),
 // огонь и дым взрыва, искры пули, пыль
@@ -857,7 +859,7 @@ export const ELITE = {
   auras: {
     swift: { name: "SWIFT", color: [120, 220, 255], speed: 0.45 },
     thorns: { name: "THORNS", color: [230, 120, 60], share: 0.3 },
-    healer: { name: "HEALER", color: [120, 240, 140], radius: 7, heal: 0.05, every: 1 },
+    healer: { name: "HEALER", color: [120, 240, 140], radius: 7, heal: 0.005, every: 1 }, // heal — доля макс. HP ЛЕКАРЯ в секунду всем рядом (и себе)
     frenzy: { name: "FRENZY", color: [240, 70, 90], radius: 7, damage: 0.3 },
   },
 };

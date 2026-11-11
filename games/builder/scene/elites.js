@@ -56,9 +56,10 @@ export class ElitesPart {
         e.healTimer = (e.healTimer ?? A.every) - dt;
         if (e.healTimer <= 0) {
           e.healTimer = A.every;
+          // лечит всех рядом (и себя) на долю СВОЕГО макс. HP
           for (const m of this.mobsNear(e, A.radius)) {
             if (m.stats.hp >= m.stats.maxHp) continue;
-            m.stats.hp = Math.min(m.stats.maxHp, m.stats.hp + Math.round(m.stats.maxHp * A.heal));
+            m.heal(e.stats.maxHp * A.heal * A.every);
             this.fx?.burst({ x: m.position.x, y: m.position.y + m.height * 0.7, z: m.position.z }, { count: 4, speed: 0.8, up: 1, color: A.color, size: 0.06, life: 0.5, gravity: -1 });
           }
         }

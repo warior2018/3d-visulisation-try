@@ -98,7 +98,7 @@ export const MODE_TALENTS = {
     "r-first": { maxRank: 2, describe: (r) => `FIRST HIT ON A TARGET +${pct(at([0.125, 0.25], r))} DMG`, modifiers: (r) => [firstHit(1 + at([0.125, 0.25], r))] },
     "f-crit": { maxRank: 2, describe: (r) => `CRIT X${at([1.5, 2], r)} ONCE EVERY 8 S`, modifiers: (r) => [guaranteedCrit(at([1.5, 2], r), 8, "fighter-crit")] },
     // Регенерация — HP в секунду числом (не доля макс. HP); здоровье — по 25 HP за каждое потраченное очко
-    regen: { describe: (r) => `+${at([10, 15, 20, 25], r)} HP PER SECOND`, stats: (r) => ({ regenFlat: at([10, 15, 20, 25], r) }) },
+    regen: { describe: (r) => `+${at([2.5, 7.5, 12.5, 17.5], r)} HP PER SECOND`, stats: (r) => ({ regenFlat: at([2.5, 7.5, 12.5, 17.5], r) }) },
     "tough-bones": { describe: (r) => `+${25 * r} MAX HP`, stats: (r) => ({ maxHp: 25 * r }) },
     unbreakable: { describe: () => "+25 MAX HP", stats: () => ({ maxHp: 25 }) },
     veteran: { describe: (r) => `+${50 * r} MAX HP`, stats: (r) => ({ maxHp: 50 * r }) }, // 2 очка за ранг
