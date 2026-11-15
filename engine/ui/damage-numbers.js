@@ -33,7 +33,7 @@ export class DamageNumbers {
       x: at.x + Math.cos(a) * spread, y: at.y, z: at.z + Math.sin(a) * spread,
       vx: Math.cos(a) * 0.35, vz: Math.sin(a) * 0.35, // разлетаются чуть в стороны
       age: 0, life: this.life,
-      text: String(Math.round(amount)),
+      text: (() => { const r = Math.round(amount * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); })(), // дробный урон — с десятыми
       color, scale: big ? 4 : 3,
     });
     if (this.list.length > this.max) this.list.shift();

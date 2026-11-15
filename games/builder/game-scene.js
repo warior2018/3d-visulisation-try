@@ -588,7 +588,7 @@ export class GameScene extends Scene {
       const dist = this.nearestHeroDist(e); // сетевая игра: до ближайшего из героев (моб у гостя не исчезает)
       const wildBoar = e.type === "boar";
       const gone = e.boss ? false : e.kind === "mob"
-        ? (!e.aggro && (dist > SPAWN.despawnDistance || e.age > LIFETIME.mob)) || (dist > SPAWN.huntDespawn && !this.invasion.active)
+        ? (!e.aggro && (dist > SPAWN.despawnDistance || (e.age > LIFETIME.mob && dist > LIFETIME.keep))) || (dist > SPAWN.huntDespawn && !this.invasion.active)
         : wildBoar && dist > SPAWN.despawnDistance;
       if (gone) {
         this.engine.log(`${e.name} ушёл далеко (${dist.toFixed(0)} м) — исчез`);

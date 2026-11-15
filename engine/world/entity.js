@@ -143,7 +143,7 @@ export class Entity {
       if (kr > 0) damage.resisted = true;
     }
     const resist = resistTo(this.stats.resist, damage);
-    const dealt = Math.max(0, Math.round(damage.amount * (1 - resist)));
+    const dealt = Math.max(0, Math.round(damage.amount * (1 - resist) * 10) / 10); // здоровье — дробное (до 0.1)
     if (dealt > 0 && damage.source !== this && !damage.tags?.has("dot")) this.woundLeft = Entity.WOUND.time; // рана: реген урезан
     const hpBefore = this.stats.hp;
     const killed = dealt > 0 ? this.damage(dealt) : false;
@@ -258,7 +258,7 @@ export class Entity {
     return this.stats.mana - before;
   }
 
-  // Регенерация: по regen HP в секунду, целыми единицами; мана — по manaRegen в секунду (дробно)
+  // Регенерация: по regen HP в секунду (плавно, дробно); мана — по manaRegen в секунду (дробно)
   updateRegen(dt) {
     if (this.alive && this.manaRegen > 0 && this.stats.mana !== undefined) this.restoreMana(this.manaRegen * dt);
     if (this.woundLeft > 0) this.woundLeft -= dt;
@@ -267,12 +267,7 @@ export class Entity {
       this.regenPart = 0;
       return;
     }
-    this.regenPart += rate * dt;
-    const whole = Math.floor(this.regenPart);
-    if (whole > 0) {
-      this.regenPart -= whole;
-      this.heal(whole);
-    }
+    this.heal(rate * dt); // здоровье дробное — лечим плавно, без накопления до целых
   }
 
   heal(amount) {

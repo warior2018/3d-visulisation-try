@@ -236,7 +236,7 @@ export class HostNet {
       if (!x.view && !x.remote) continue;
       if (x === g.player && g.dedicated) continue; // сервер: своего героя не показываем
       const walking = x === g.player ? !!g.move?.moving : !!x.netWalk;
-      e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.round(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow)]);
+      e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.ceil(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow)]);
       x.netAttack = false;
     }
     let p, h, inv;
@@ -751,6 +751,7 @@ export class ClientNet {
             e.achDone = true;
             g.achKill?.(e);
             g.questKill?.(e); // задание стража — у гостя своё
+            g.trophyKill?.(e, d.kind); // трофеи талантов — у гостя свои
           }
         };
         this.copies.set(id, e);

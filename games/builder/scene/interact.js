@@ -43,22 +43,24 @@ export class InteractPart {
     this.dropLoot(e);
     if (finished) this.achKill(e); // ачивки: убийства по оружию / видам / боссы (scene/achievements.js)
     this.countKill(e); // итоги забега (scene/run-stats.js)
-    // Трофеи: 1 % здоровья / урона побеждённого моба — навсегда себе (каждый талант — своё)
-    if (e.kind === "mob") {
-      let changed = false;
-      if (this.talents.rank("trophies") > 0) {
-        TROPHY.hp += TROPHY.hpPerKill; // +1 HP за убийство, кто бы ни был
-        changed = true;
-      }
-      // Трофей урона — тому виду атак, которым ДОБИЛИ (горение от пули — тоже дальний), если его талант выучен
-      const kind = finished ? e.lastHitKind : helped.kind; // помог — трофей тому виду, каким бил
-      if (kind in TROPHY.pct && this.talents.rank(TROPHY_TALENTS[kind]) > 0) {
-        TROPHY.pct[kind] = +(TROPHY.pct[kind] + TROPHY.perKill).toFixed(1);
-        changed = true;
-      }
-      if (changed) this.applyTalents();
-    }
+    this.trophyKill(e, finished ? e.lastHitKind : helped.kind); // трофеи талантов (вид — каким добил / бил)
     this.gainXp(e.xp || 0); // после добычи: надпись о новом уровне важнее (матч: опыт общий — gainXp разошлёт)
+  }
+
+  // Трофеи: +HP за убийство (талант TROPHIES) и +урон тому виду атак, которым добил (свой талант-трофей вида).
+  // Гость в сетевой игре зовёт сам за свои убийства (scene/net.js)
+  trophyKill(e, kind) {
+    if (e.kind !== "mob") return;
+    let changed = false;
+    if (this.talents.rank("trophies") > 0) {
+      TROPHY.hp += TROPHY.hpPerKill;
+      changed = true;
+    }
+    if (kind in TROPHY.pct && this.talents.rank(TROPHY_TALENTS[kind]) > 0) {
+      TROPHY.pct[kind] = +(TROPHY.pct[kind] + TROPHY.perKill).toFixed(1);
+      changed = true;
+    }
+    if (changed) this.applyTalents();
   }
 
   // Добыча с павшего падает на землю под ним (чуть вразброс) — подбирай (F или автоподбор, V)

@@ -240,7 +240,8 @@ export const DUEL = {
 };
 
 // Сколько живут в мире (секунды): спокойный моб (не злой) и предмет на земле исчезают через 2 минуты
-export const LIFETIME = { mob: 120, pickup: 120 };
+// mob — спокойный моб живёт столько с, потом исчезает, если рядом (keep м) нет ни одного героя
+export const LIFETIME = { mob: 150, pickup: 120, keep: 65 };
 
 // Мобы без цели бродят вокруг места, где оказались (движок: HostileBrain → wander)
 export const MOB_WANDER = { radius: 8, pause: [2, 6] };

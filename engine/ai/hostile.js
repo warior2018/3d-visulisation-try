@@ -28,6 +28,8 @@ import { Navigator } from "./pathfinder.js";
 import { alertHerd, tauntTarget, busy, auraTarget } from "./social.js";
 import { pursue, separate, neighbors, melee, turnTowards } from "../world/behaviors.js";
 
+// Застрял: раз в every с проверяем, стал ли ближе к цели хотя бы на gain м
+const STUCK = { every: 1.5, gain: 0.6 };
 const dist2d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z);
 // Настоящее расстояние между серединами тел (с высотой) — для «заметил»
 const dist3d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.y + (a.height || 1.8) / 2 - b.position.y - (b.height || 1.8) / 2, a.position.z - b.position.z);
@@ -72,6 +74,19 @@ export class HostileBrain extends Brain {
       bestD = d;
     }
     return best;
+  }
+
+  // Застрял ли по пути к цели: каждые STUCK.every с — приблизился меньше чем на STUCK.gain м (и ещё не дошёл)
+  stuck(e, target, dt) {
+    const c = (e.stuckCheck ||= { t: 0, d: Infinity, stuck: false });
+    c.t += dt;
+    if (c.t >= STUCK.every) {
+      const d = dist3d(e, target);
+      c.stuck = d > this.stopDistance + 1 && d > c.d - STUCK.gain;
+      c.t = 0;
+      c.d = d;
+    }
+    return c.stuck;
   }
 
   // Пора ли снова выбрать цель (раз в RETARGET с — у каждого моба свои часы)
@@ -175,16 +190,17 @@ export class HostileBrain extends Brain {
       const opts = (e.pursueOpts ||= { navigator: e.nav, stopDistance: this.stopDistance, turnSpeed: this.turnSpeed, jumpSpeed: this.jumpSpeed });
       opts.navigator = e.nav;
       opts.radius = target === hunt ? this.huntRadius : this.leash;
-      // за пределами логова — погоня: быстрее, прыжок выше, блоки на пути ломает игра (ctx.dig)
+      // за пределами логова — погоня: быстрее, прыжок выше. Блоки ломает (ctx.dig) только если застрял:
+      // сначала ищет путь сам, не приближается chase-проверку — тогда пробивает себе ход
       const out = this.chase && T && fromHome(target) > T.radius;
       opts.speed = e.speed * (out ? 1 + (this.chase.speed || 0) : 1);
       opts.jumpSpeed = out ? this.chase.jump || this.jumpSpeed : this.jumpSpeed;
-      if (out) ctx.dig?.(e, target, dt);
+      if (this.chase && this.stuck(e, target, dt)) ctx.dig?.(e, target, dt);
       walking = pursue(e, target, dt, opts);
     } else if (T && fromHome(e) > 1) {
       // Без цели и не дома — идём в центр логова (далеко — с погоней: ломает блоки на пути домой)
       const home = { position: { x: T.x, y: e.position.y, z: T.z } };
-      if (this.chase && fromHome(e) > T.radius) ctx.dig?.(e, home, dt);
+      if (this.chase && this.stuck(e, home, dt)) ctx.dig?.(e, home, dt);
       walking = pursue(e, { position: { x: T.x, y: e.position.y, z: T.z } }, dt, {
         navigator: e.nav, radius: Infinity, speed: e.speed, stopDistance: 0.6, turnSpeed: this.turnSpeed, jumpSpeed: this.jumpSpeed,
       });

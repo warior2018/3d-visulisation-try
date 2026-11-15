@@ -177,7 +177,7 @@ export const HUD_PARTS = [
       const p = g.player, xp = g.experience;
       return {
         level: xp.level, xp: xp.xp, next: xp.toNext, ring: Math.round(xp.progress * 100),
-        hp: p.stats.hp, max: p.stats.maxHp, regen: +p.regen.toFixed(1), cls: g.playerClass,
+        hp: Math.ceil(p.stats.hp), max: Math.round(p.stats.maxHp), regen: +p.regen.toFixed(1), cls: g.playerClass,
       };
     },
     draw: (ui, g, d, L) => {
@@ -224,7 +224,7 @@ export const HUD_PARTS = [
       const t = g.lookTarget || far;
       if (!t) return null;
       if (t.boss && t.aggro?.type === "player") return null; // у босса уже есть своя полоса вверху (boss-bar) — вторую не рисуем
-      const d = { name: t.name, hp: t.stats.hp, max: t.stats.maxHp, npc: t.kind === "npc", elite: t.elite || null };
+      const d = { name: t.name, hp: Math.ceil(t.stats.hp), max: Math.round(t.stats.maxHp), npc: t.kind === "npc", elite: t.elite || null };
       if (!d.npc) return d;
       d.hurtable = !t.invulnerable;
       if (!t.canBeDamagedBy(p)) d.hint = "FRIENDLY: CAN'T BE HURT";
@@ -413,7 +413,7 @@ export const HUD_PARTS = [
       // злится на кого-то из героев (сеть) и не дальше BOSS_BAR_RANGE от меня
       const p = g.player.position;
       const b = g.entities.list.find((e) => e.boss && e.alive && e.aggro?.type === "player" && Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) <= BOSS_BAR_RANGE);
-      return b ? { name: b.name, hp: Math.ceil(b.stats.hp), max: b.stats.maxHp, enraged: !!b.enraged, low: !!g.invasion?.active } : null;
+      return b ? { name: b.name, hp: Math.ceil(b.stats.hp), max: Math.round(b.stats.maxHp), enraged: !!b.enraged, low: !!g.invasion?.active } : null;
     },
     draw: (ui, g, d) => {
       if (!d) return;

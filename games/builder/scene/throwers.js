@@ -13,6 +13,13 @@ export const ITEM_OF_ATTACK = { pistol: "pistol", auto: "auto", shotgun: "shotgu
 export const lighter = (c) => c.map((v) => Math.round(v + (255 - v) * 0.6));
 
 export class ThrowersPart {
+  // Над головой e близко потолок (пещера): блок в 1–4 клетках выше макушки
+  lowCeiling(e) {
+    const x = Math.floor(e.position.x), z = Math.floor(e.position.z), top = Math.floor(e.position.y + (e.height || 2));
+    for (let k = 0; k < 4; k++) if (this.world.has(x, top + k, z)) return true;
+    return false;
+  }
+
   // ---------- Метатели (мобы, которые бросают издалека) ----------
 
   // Моб бросает в цель: снаряд по дуге (движок: aimArc) с упреждением на полшага; попал — урон (только врагу),
@@ -29,7 +36,9 @@ export class ThrowersPart {
     const [lo, hi] = e.rangedDamage;
     const damage = lo + Math.floor(Math.random() * (hi - lo + 1));
     // straight — летит прямо (сгусток лича), иначе — по дуге
-    const dir = e.ranged.straight ? (() => { const v = new Vec3(to.x - from.x, to.y - from.y, to.z - from.z); return v.scale(r.speed / (Math.hypot(v.x, v.y, v.z) || 1)); })() : null;
+    // низкий потолок над боссом (пещера) — бросает прямо, а не дугой в свод
+    const straight = e.ranged.straight || (e.boss && this.lowCeiling(e));
+    const dir = straight ? (() => { const v = new Vec3(to.x - from.x, to.y - from.y, to.z - from.z); return v.scale(r.speed / (Math.hypot(v.x, v.y, v.z) || 1)); })() : null;
     this.projectiles.launch({
       owner: e, position: from, velocity: dir || aimArc(from, to, r.speed, MOB_RANGED.gravity), attack, damage, item: e.ranged.item, scale: e.ranged.scale || 1, // валун тролля — крупный
       gravity: dir ? 0 : MOB_RANGED.gravity, spin: dir ? 0 : 2,

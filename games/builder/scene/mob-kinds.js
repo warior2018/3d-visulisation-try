@@ -162,6 +162,7 @@ export class MobKindsPart {
   maybeChampion(near, index) {
     const C = MOB_KINDS.champion;
     if (!near || index < C.from || this.duel || Math.random() >= C.chance) return;
+    if (!this.isNight() && this.settings.general.dayNight !== false) return; // минибосс — только ночью
     if (this.entities.list.some((m) => m.alive && m.type === "champion")) return;
     const { x, z } = near.position;
     const e = this.spawn("champion", { x, y: near.position.y, z, yaw: near.yaw, ...mobGrowth(index) });
