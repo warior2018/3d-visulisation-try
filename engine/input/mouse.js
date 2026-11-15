@@ -73,6 +73,11 @@ export class MouseLook {
     this.last = null;
     if (this.relative) {
       this.window.setRelativeMouseMode(false);
+      // курсор — в середину окна: и виден сразу, и координаты первого клика уже правильные
+      try {
+        const w = this.window;
+        sdl.mouse.setPosition(Math.round(w.x + w.width / 2), Math.round(w.y + w.height / 2));
+      } catch {}
       return;
     }
     sdl.mouse.showCursor(true);

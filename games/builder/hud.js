@@ -9,7 +9,9 @@
 // ============================================================
 
 import { widgets, drawMinimap, drawPortrait, Input, HudParts, translate } from "../../engine/index.js";
-import { PALETTE, PORTRAIT, PORTRAIT_PALETTE, CLASSES, TRAPS, DAMAGE_DIR, ELITE } from "./config.js";
+import { PALETTE, PORTRAIT, PORTRAIT_PALETTE, CLASSES, TRAPS, DAMAGE_DIR, ELITE, DAY } from "./config.js";
+
+const BOSS_BAR_RANGE = 50; // полоса босса — только если он злится на героя и не дальше 50 блоков
 import { TROPHY, TROPHY_TALENTS, trophyPct } from "./talents.js";
 import { itemName } from "./items.js";
 import { SKIN_TARGETS } from "./skins.js";
@@ -69,9 +71,9 @@ export const HUD_PARTS = [
       const a = g.abilities.current;
       const melee = !!a && a !== g.hand && a.attack?.kind === "melee";
       const sightless = a?.id === "bow"; // у лука мушки нет — прицел остаётся и при прицеливании
-      return [g.scoped, g.aimT > 0.5 && g.settings.general.cameraMode !== "third" && !sightless, melee];
+      return [g.scoped, g.aimT > 0.5 && g.settings.general.cameraMode !== "third" && !sightless, melee, g.scoped ? scopeGlow(g) : 0];
     },
-    draw: (ui, g, [scoped, aimed, melee]) => (scoped ? drawScope(ui) : !aimed && !melee && drawCrosshair(ui)),
+    draw: (ui, g, [scoped, aimed, melee, glow]) => (scoped ? drawScope(ui, glow / 10) : !aimed && !melee && drawCrosshair(ui)),
   },
   {
     // Применение предмета (аптечка): круг вокруг прицела заполняется «часиками», как в PEAK
@@ -216,9 +218,12 @@ export const HUD_PARTS = [
   {
     id: "target", // НПС и звери — имя синим и подсказка; враг — имя и полоска
     watch: (g) => {
-      const p = g.player, t = g.lookTarget;
+      const p = g.player;
+      // под прицелом рядом — или попал издалека: полоска на HIT_SHOW с (если не добил)
+      const far = g.hitShow && g.hitShow.until > (g.combatClock || 0) && g.hitShow.e.alive ? g.hitShow.e : null;
+      const t = g.lookTarget || far;
       if (!t) return null;
-      if (t.boss && t.aggro === p) return null; // у босса уже есть своя полоса вверху (boss-bar) — вторую не рисуем
+      if (t.boss && t.aggro?.type === "player") return null; // у босса уже есть своя полоса вверху (boss-bar) — вторую не рисуем
       const d = { name: t.name, hp: t.stats.hp, max: t.stats.maxHp, npc: t.kind === "npc", elite: t.elite || null };
       if (!d.npc) return d;
       d.hurtable = !t.invulnerable;
@@ -405,7 +410,9 @@ export const HUD_PARTS = [
   {
     id: "boss-bar", // босс злится на героя — полоса его здоровья вверху по центру
     watch: (g) => {
-      const b = g.entities.list.find((e) => e.boss && e.alive && e.aggro === g.player);
+      // злится на кого-то из героев (сеть) и не дальше BOSS_BAR_RANGE от меня
+      const p = g.player.position;
+      const b = g.entities.list.find((e) => e.boss && e.alive && e.aggro?.type === "player" && Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) <= BOSS_BAR_RANGE);
       return b ? { name: b.name, hp: Math.ceil(b.stats.hp), max: b.stats.maxHp, enraged: !!b.enraged, low: !!g.invasion?.active } : null;
     },
     draw: (ui, g, d) => {
@@ -647,12 +654,21 @@ function drawPalette(ui, colorIndex, bottomY) {
 // blurInset — на сколько внутрь ободка начинается размытие (чтобы шов прятался под ободком)
 export const SCOPE = { size: 0.42, ring: 30, blurInset: 0.02 };
 
-function drawScope(ui) {
+// Насколько подсвечивать сетку прицела (0 — день, 10 — глухая ночь): по яркости мира (scene/daylight.js)
+function scopeGlow(g) {
+  if (g.settings.general.dayNight === false || !g.dayLight) return 0;
+  const k = (1 - g.dayLight()) / (1 - DAY.night); // 0 днём … 1 ночью
+  return Math.round(Math.max(0, Math.min(1, k)) * 10);
+}
+
+// glow 0..1 — ночью нити и метки светятся красным (как подсветка сетки у настоящих прицелов), ободок — тёмный
+function drawScope(ui, glow = 0) {
   const cx = Math.round(ui.width / 2);
   const cy = Math.round(ui.height / 2);
   const r = Math.round(Math.min(ui.width, ui.height) * SCOPE.size);
-  const ink = [10, 12, 16];
-  ui.ring(cx, cy, r - SCOPE.ring, r, ink, 245); //   толстый ободок
+  const dark = [10, 12, 16], lit = [255, 70, 50];
+  const ink = dark.map((v, i) => Math.round(v + (lit[i] - v) * glow));
+  ui.ring(cx, cy, r - SCOPE.ring, r, dark, 245); //  толстый ободок
   ui.rect(cx - r, cy, r * 2, 1, ink, 220); //        тонкое перекрестие
   ui.rect(cx, cy - r, 1, r * 2, ink, 220);
   ui.rect(cx - r, cy - 1, r * 0.6, 3, ink, 230); //  толстые концы нитей у края
@@ -660,4 +676,5 @@ function drawScope(ui) {
   ui.rect(cx - 1, cy + r * 0.4, 3, r * 0.6, ink, 230);
   ui.rect(cx - 1, cy - r, 3, r * 0.6, ink, 230);
   for (const k of [0.1, 0.2, 0.3]) ui.rect(cx - 5, cy + Math.round(r * k), 11, 1, ink, 220); // метки дальности
+  if (glow > 0) ui.rect(cx - 1, cy - 1, 3, 3, lit, Math.round(120 + 135 * glow)); // ночью — светящаяся точка в центре
 }

@@ -186,6 +186,7 @@ export class GameScene extends Scene {
     // Урон от героя (удар, выстрел, горение) — цифрой над целью: хедшот — крупно и красным, огонь — оранжевым
     e.onDamage = (d, dealt) => {
       this.mountHurt(e, dealt); // ранили героя или его скакуна — маунт исчезает (scene/mount.js)
+      if (d.source === this.player && e !== this.player && e.alive && dealt > 0) this.hitShow = { e, until: (this.combatClock || 0) + 0.75 }; // попал издалека — полоска здоровья 0.75 с (hud.js)
       if (d.source === this.player && e !== this.player) e.lastHitHead = d.part === "head" || d.part?.id === "head" || !!d.tags?.has("headshot"); // для ачивок «хедшотом»
       this.mobOnHit(e, d, dealt); // атаки особых мобов: кровь, бинты; босс «ещё дерётся» (scene/mob-kinds.js)
       this.hitFx(e, d, dealt); //  брызги «крови» (scene/effects.js)

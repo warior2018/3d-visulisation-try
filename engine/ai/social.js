@@ -65,7 +65,8 @@ export function alertHerd(first, target, entities, { radius = 5.5, filter = (e) 
     for (const b of entities) {
       if (b === a || b === target || !b.alive || b.aggro === target || !filter(b)) continue;
       if (busy(b)) continue; // уже дерётся со своей целью — не переключается
-      if (Math.hypot(b.position.x - a.position.x, b.position.z - a.position.z) > radius) continue;
+      if (Math.hypot(b.position.x - a.position.x, b.position.y - a.position.y, b.position.z - a.position.z) > radius) continue; // по прямой (с высотой)
+      if (b.brain?.sightHeight !== undefined && Math.abs(target.position.y - b.position.y) > b.brain.sightHeight) continue; // цель слишком высоко для него
       b.aggro = target;
       alerted.push(b);
       queue.push(b); // теперь и он поднимает своих соседей

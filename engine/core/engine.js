@@ -557,7 +557,15 @@ export class Engine {
         if (this.mouse.captured) this.press({ button: e.button });
       } else if (!scene.onRawPress({ button: e.button })) { // onRawPress — например, ждём привязку
         this.ensureUI();
-        const id = this.ui.hitTest(e.x, e.y); // курсор свободен — это нажатие на кнопку интерфейса
+        let id = this.ui.hitTest(e.x, e.y); // курсор свободен — это нажатие на кнопку интерфейса
+        // Сразу после выхода из захвата мыши (окно поверх игры) первый клик бывает со старыми координатами —
+        // берём, где курсор на самом деле (глобально минус положение окна)
+        if (!id) {
+          try {
+            const p = sdl.mouse.position, w = this.window;
+            id = this.ui.hitTest(p.x - w.x, p.y - w.y);
+          } catch {}
+        }
         if (id) {
           this.log(`кнопка «${id}» (${scene.label})`);
           this.sound.play("click");
