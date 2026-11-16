@@ -104,12 +104,15 @@ export class MagicPart {
     const strength = (R.push[attack?.id] ?? R.push.default) * this.damageScaleOf(attack);
     const dy0 = c.y / l + R.lift, dl = Math.hypot(c.x / l, c.z / l, dy0) || 1;
     const push = { x: ((c.x / l) / dl) * strength, y: (dy0 / dl) * strength, z: ((c.z / l) / dl) * strength };
-    const was = p.dash?.left > 0 ? { x: p.dash.x, y: p.dash.y ?? p.velocity.y, z: p.dash.z } : { x: p.velocity.x, y: Math.max(0, p.velocity.y), z: p.velocity.z };
-    let v = { x: was.x + push.x, y: was.y + push.y, z: was.z + push.z };
-    const s = Math.hypot(v.x, v.y, v.z);
-    if (s > R.maxSpeed) v = { x: (v.x / s) * R.maxSpeed, y: (v.y / s) * R.maxSpeed, z: (v.z / s) * R.maxSpeed };
-    dash(p, v.x, v.z, Math.hypot(v.x, v.y, v.z), R.pushTime, v.y, { slide: DASH_SLIDE });
-    this.engine.log(`ракетный прыжок: скорость ${Math.hypot(v.x, v.y, v.z).toFixed(1)} м/с (было ${Math.hypot(was.x, was.y, was.z).toFixed(1)})`);
+    // По горизонтали складывается (stack — доля прежней скорости, рывок ещё идёт / летим); вверх — НЕ складывается
+    // и не держится рывком: толчок вверх — как прыжок (тяжесть работает), берётся большее из нынешнего и толчка
+    const was = p.dash?.left > 0 ? { x: p.dash.x, z: p.dash.z } : { x: p.velocity.x, z: p.velocity.z };
+    let v = { x: was.x * R.stack + push.x, z: was.z * R.stack + push.z };
+    const s = Math.hypot(v.x, v.z);
+    if (s > R.maxSpeed) v = { x: (v.x / s) * R.maxSpeed, z: (v.z / s) * R.maxSpeed };
+    dash(p, v.x, v.z, Math.hypot(v.x, v.z), R.pushTime, null, { slide: DASH_SLIDE });
+    p.velocity.y = Math.max(p.velocity.y, push.y);
+    this.engine.log(`ракетный прыжок: ${Math.hypot(v.x, v.z).toFixed(1)} м/с вбок, ${push.y.toFixed(1)} вверх (было ${Math.hypot(was.x, was.z).toFixed(1)})`);
   }
 
   // Горящие фитили (динамит): искрит, догорел — взрыв

@@ -1040,7 +1040,9 @@ export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1, shortFuse: [0.75
 // (по id атаки), и растёт с уроном (таланты, улучшения: урон ×1.3 — толчок ×1.3). Складывается: толчок
 // прибавляется к нынешней скорости (рывок ещё идёт / летим), не больше maxSpeed м/с. Урона себе нет
 export const ROCKET_JUMP = {
-  pushTime: 0.32, lift: 0.6, reach: 1.1, maxSpeed: 20,
+  // stack — какая доля прежней скорости (по горизонтали) сохраняется и складывается с новым толчком; вверх —
+  // не складывается (толчок вверх — как прыжок, большее из нынешней скорости и толчка)
+  pushTime: 0.32, lift: 0.6, reach: 1.1, maxSpeed: 20, stack: 0.7,
   push: { "hand-grenade": 2.5, launcher: 3.25, dynamite: 3.75, cluster: 2, default: 2.5 },
 };
 export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, lift: 0.3 };
