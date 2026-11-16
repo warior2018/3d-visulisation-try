@@ -30,9 +30,9 @@ export class CavesPart {
         const lift = disc.lift || 0;
         const floor = Math.max(C.floor, lift - between(rnd, C.depth));
         const bottom = FLOATING.bottom, D = lift - bottom;
-        const k = D > 0 ? Math.max(0, 1 - Math.pow(Math.max(0, lift - floor) / D, 1 / 1.6)) : 1; // доля радиуса конуса на этой глубине
+        const cone = D > 0 ? Math.max(0, 1 - Math.pow(Math.max(0, lift - floor) / D, 1 / 1.6)) : 1; // доля радиуса конуса на этой глубине
         const room = Math.max(w, d) / 2 + 1;
-        const maxR = Math.max(0, disc.r * Math.min(0.75, k) - room);
+        const maxR = Math.max(0, disc.r * Math.min(0.75, cone) - room);
         const a = rnd() * Math.PI * 2, r = rnd() * maxR;
         const cx = Math.round(disc.x + Math.sin(a) * r), cz = Math.round(disc.z + Math.cos(a) * r);
         if (disc.main && Math.hypot(cx, cz) < C.keepClear && lift - floor < 12) continue; // не под местом появления (неглубоко)
