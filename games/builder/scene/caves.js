@@ -56,6 +56,7 @@ export class CavesPart {
       room.shape = pickWeighted(w);
     }
     this.genRooms = rooms; // туннели обходят комнаты (pathHits)
+    this.genPaths = []; //   все точки проходов (repairPaths)
     for (const room of rooms) this.carveRoom(room);
     // Туннели: каждую комнату — к ближайшей уже соединённой (дерево), острова — тоже (туннель через пустоту — дыра)
     const linked = [rooms[0]];
@@ -82,6 +83,7 @@ export class CavesPart {
       seen.add(room.disc);
       this.carveExit(room, rnd);
     }
+    this.repairPaths(rooms);
     for (const room of rooms) if (room.kind === "chest") room.chest = { x: room.x - 1, y: room.y, z: room.z, opened: false };
     this.caves = { rooms };
     this.engine.log(`пещеры: ${rooms.length} комнат — ${rooms.filter((r) => r.kind === "chest").length} с сундуком, ${rooms.filter((r) => r.kind === "boss").length} с боссом`);
@@ -221,11 +223,45 @@ export class CavesPart {
       }
       pts = paths[0];
     }
+    this.carvePath(pts);
+  }
+
+  // Вырезать проход 3 × 3 × 3 по точкам pts ([x, y, z] — где ноги). Кисть нижней точки не трогает пол соседней
+  // точки повыше (в клетке, где стоит точка пути, не убираем ниже её y) — иначе пол «проваливался» и рядом
+  // получался уступ в 2 блока. Потом — лампы и подъёмы полублоками
+  carvePath(pts) {
+    this.genPaths?.push(pts);
+    const own = new Map(); // клетка пути → самый низкий y точки в ней
+    for (const [x, y, z] of pts) {
+      const k = x + "," + z;
+      own.set(k, Math.min(own.get(k) ?? Infinity, y));
+    }
     pts.forEach(([x, y, z], i) => {
-      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (let j = 0; j < 3; j++) this.world.remove(x + dx, y + j, z + dz);
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+        const low = own.get(x + dx + "," + (z + dz)) ?? -Infinity;
+        for (let j = 0; j < 3; j++) if (y + j >= low) this.world.remove(x + dx, y + j, z + dz);
+      }
       if (i % CAVES.lampEvery === 0) this.caveLamp(x, y + 3, z);
     });
     this.halfSteps(pts);
+  }
+
+  // После всех проходов: другой проход (ниже, наискосок) мог выбить пол у точки пути — вернуть его (камень под
+  // ногами), если там не идёт чей-то проход ниже (его высоту не трогаем) и это не яма-ловушка комнаты. Потом —
+  // заново подъёмы полублоками
+  repairPaths(rooms) {
+    const all = (this.genPaths || []).flat(), at = new Map();
+    for (const [x, y, z] of all) (at.get(x + "," + z) || at.set(x + "," + z, []).get(x + "," + z)).push(y);
+    const inPit = (x, z) => rooms.some((r) => r.pit && x >= r.pit.x0 && x < r.pit.x1 && z >= r.pit.z0 && z < r.pit.z1);
+    let fixed = 0;
+    for (const [x, y, z] of all) {
+      if (this.world.has(x, y - 1, z) || inPit(x, z)) continue;
+      if (at.get(x + "," + z).some((o) => o < y && o > y - 3)) continue; // чужой проход ниже вплотную — не закрываем (2 блока над ним — оставим)
+      if (this.world.place(x, y - 1, z, [118, 112, 108])) fixed++;
+    }
+    for (const pts of this.genPaths || []) this.halfSteps(pts);
+    if (fixed) this.engine.log(`пещеры: пол проходов поправлен в ${fixed} клетках`);
+    this.genPaths = null;
   }
 
   // Подъёмы в проходе — полублоками: на полу прохода (3 × 3 вокруг каждой точки) у уступа в 1 блок
@@ -237,14 +273,23 @@ export class CavesPart {
   // поверхность. Направление — из 8 случайных то, где путь не задевает чужие комнаты
   carveExit(r, rnd) {
     const slope = CAVES.slope[0] + rnd() * (CAVES.slope[1] - CAVES.slope[0]);
+    // Путь — по клеткам сетки, без повторов и без шагов наискосок (между ними — клетка-угол на той же высоте):
+    // иначе округление давало «стоим в той же клетке, а пол выше» — уступ в 2 блока
     const plan = (a) => {
-      const ux = Math.sin(a), uz = Math.cos(a), pts = [];
-      let y = r.y;
-      for (let t = 0; t < 80; t++) {
-        const x = Math.round(r.x + ux * (Math.max(r.w, r.d) / 2 + t)), z = Math.round(r.z + uz * (Math.max(r.w, r.d) / 2 + t));
+      const ux = Math.sin(a), uz = Math.cos(a), pts = [], r0 = Math.max(r.w, r.d) / 2;
+      let y = r.y, px = null, pz = null;
+      const add = (x, z) => {
         pts.push([x, Math.floor(y), z]);
+        px = x;
+        pz = z;
+      };
+      for (let t = 0; t < 80 && pts.length < 120; t += 0.25) {
+        const x = Math.round(r.x + ux * (r0 + t)), z = Math.round(r.z + uz * (r0 + t));
+        if (x === px && z === pz) continue; // та же клетка
+        if (px !== null && x !== px && z !== pz) add(x, pz); // наискосок — через угол, на той же высоте
+        else if (px !== null) y += slope; //                     новая клетка вперёд — выше на slope
+        add(x, z);
         if (Math.floor(y) >= this.groundHeight(x, z)) break; // вышли наружу
-        y += slope;
       }
       return pts;
     };
@@ -254,11 +299,7 @@ export class CavesPart {
       if (!this.pathHits(p, [r])) pts = p;
       else if (i === 7) pts = p;
     }
-    pts.forEach(([x, y, z], t) => {
-      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (let j = 0; j < 3; j++) this.world.remove(x + dx, y + j, z + dz);
-      if (t % CAVES.lampEvery === 0) this.caveLamp(x, y + 3, z);
-    });
-    this.halfSteps(pts);
+    this.carvePath(pts);
   }
 
   // ---------- Жизнь пещер ----------
