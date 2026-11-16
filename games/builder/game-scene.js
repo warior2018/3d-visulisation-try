@@ -86,7 +86,7 @@ export class GameScene extends Scene {
     this.world = new VoxelWorld();
     this.entities = new EntityManager();
     // surfaceAt — скользкие блоки (лёд из палитры стройки): на них не устоять
-    this.physics = new Physics({ isSolid: (x, y, z) => this.world.isSolid(x, y, z), cellTop: (x, y, z) => this.world.cellTop(x, y, z), surfaceAt: (x, y, z) => this.world.surfaceAt(x, y, z), hasSurfaces: () => this.world.surfaces > 0 });
+    this.physics = new Physics({ isSolid: (x, y, z) => this.world.isSolid(x, y, z), cellTop: (x, y, z) => this.world.cellTop(x, y, z), cellBottom: (x, y, z) => this.world.cellBottom(x, y, z), surfaceAt: (x, y, z) => this.world.surfaceAt(x, y, z), hasSurfaces: () => this.world.surfaces > 0 });
     // Мир для поиска пути существ: те же твёрдые клетки + «номер версии» (поставили блок — пересчитать путь)
     // maxDrop — с какой высоты моб спрыгивает к цели (урона от падения у мобов нет): раньше 4 — герой ниже на 5+
     // блоков, и моб стоял на краю / топтался над ним

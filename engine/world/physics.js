@@ -24,9 +24,11 @@ export class Physics {
   // все обычные. slip — как съезжает тело со скользкого: accel (м/с² разгона), max (м/с), drag (как быстро
   // гаснет, когда сошли на обычную опору)
   // cellTop(x, y, z) — высота верха клетки (1 — целый блок, 0.5 — полублок); не передали — все целые
-  constructor({ isSolid, cellTop = null, surfaceAt = null, hasSurfaces = null, gravity = 22, slip = { accel: 14, max: 6, drag: 12 } }) {
+  // cellBottom(x, y, z) — низ клетки (0.5 — полублок сверху: под ним проходят); не передали — 0
+  constructor({ isSolid, cellTop = null, cellBottom = null, surfaceAt = null, hasSurfaces = null, gravity = 22, slip = { accel: 14, max: 6, drag: 12 } }) {
     this.isSolid = isSolid; // (x, y, z) -> true/false
     this.cellTop = cellTop;
+    this.cellBottom = cellBottom;
     this.surfaceAt = surfaceAt;
     this.slip = slip;
     // hasSurfaces() — есть ли в мире хоть одна особая клетка (не передали — считаем, что может быть).
@@ -49,9 +51,22 @@ export class Physics {
           if (!this.isSolid(x, y, z)) continue;
           // полублок: занята только нижняя половина — стоим на нём (ноги выше его верха) — не задеваем
           if (this.cellTop && y + this.cellTop(x, y, z) <= p.y + 1e-9) continue;
+          // полублок сверху: занята только верхняя половина — голова ниже его низа — не задеваем
+          if (this.cellBottom && y + this.cellBottom(x, y, z) >= p.y + e.height - 1e-9) continue;
           return true;
         }
     return false;
+  }
+
+  // Самый низкий низ твёрдых клеток ряда y над коробкой e (полублок сверху — y + 0.5)
+  rowBottom(e, y) {
+    if (!this.cellBottom) return y;
+    const p = e.position, r = e.radius;
+    let bottom = y + 1;
+    for (let x = Math.floor(p.x - r); x <= Math.floor(p.x + r - 1e-9); x++)
+      for (let z = Math.floor(p.z - r); z <= Math.floor(p.z + r - 1e-9); z++)
+        if (this.isSolid(x, y, z)) bottom = Math.min(bottom, y + this.cellBottom(x, y, z));
+    return bottom <= y + 0.5 ? bottom : y;
   }
 
   // Самый высокий верх твёрдых клеток ряда y под коробкой e (полублок — y + 0.5)
@@ -186,7 +201,7 @@ export class Physics {
     const behind = axis === "y" ? 0 : e.radius; // ноги — это и есть position.y
     if (d > 0) {
       const cell = Math.floor(p[axis] + ahead - 1e-9); // клетка, в которую въехали
-      p[axis] = cell - ahead - EPS;
+      p[axis] = (axis === "y" ? this.rowBottom(e, cell) : cell) - ahead - EPS; // под полублоком сверху — до его низа
     } else {
       const cell = Math.floor(p[axis] - behind); //       клетка, в которую въехали
       p[axis] = (axis === "y" ? this.rowTop(e, cell) : cell + 1) + behind + EPS; // сверху полублока — на его верх

@@ -160,9 +160,12 @@ struct CubeFxOut {
 @vertex
 fn cube_fx_vs(in: CubeFxIn) -> CubeFxOut {
   // полублок: y экземпляра с меткой +0.25 — кубик вдвое ниже (низ на месте)
-  let half = fract(in.offset.y + 0.001) > 0.1;
+  // (метка +0.75 — полублок сверху: верхняя половина клетки)
+  let fr = fract(in.offset.y + 0.001);
+  let half = fr > 0.1;
+  let topHalf = fr > 0.5;
   let base = vec3f(in.offset.x, floor(in.offset.y + 0.001), in.offset.z);
-  let world = select(in.pos, vec3f(in.pos.x, in.pos.y * 0.5, in.pos.z), half) + base;
+  let world = select(in.pos, vec3f(in.pos.x, in.pos.y * 0.5 + select(0.0, 0.5, topHalf), in.pos.z), half) + base;
   var out: CubeFxOut;
   out.pos = project(toView(world));
   out.local = in.pos;

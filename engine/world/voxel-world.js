@@ -34,6 +34,9 @@ export class Chunk {
 
 // Полублок: блок с поверхностью HALF — нижняя половина клетки (0.5 м). Хранится и передаётся как поверхность
 export const HALF = "half";
+// Полублок сверху (align — верх): верхняя половина клетки (потолок ступенькой). Снизу под ним — полклетки пусто
+export const HALF_TOP = "half-top";
+export const isHalf = (b) => !!b && (b.surface === HALF || b.surface === HALF_TOP);
 
 export class VoxelWorld {
   constructor() {
@@ -185,15 +188,33 @@ export class VoxelWorld {
     return b.surface === HALF ? 0.5 : 1;
   }
 
+  // Высота низа клетки от её низа: 0.5 — полублок сверху (HALF_TOP), иначе 0
+  cellBottom(x, y, z) {
+    return this.blocks.get(key(x, y, z))?.surface === HALF_TOP ? 0.5 : 0;
+  }
+
   // Ступенька-полублок в пустую клетку над целым блоком, если рядом (4 соседа) — уступ в 1 блок, по которому
   // можно пройти (над соседом 2 клетки пусто). Цвет — блока снизу. Вернёт, поставили ли
   halfStep(x, y, z) {
     if (this.has(x, y, z)) return false;
     const below = this.blocks.get(key(x, y - 1, z));
-    if (!below || below.surface === HALF) return false;
+    if (!below || isHalf(below)) return false;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const n = this.blocks.get(key(x + dx, y, z + dz));
-      if (n && n.surface !== HALF && !this.has(x + dx, y + 1, z + dz) && !this.has(x + dx, y + 2, z + dz)) return this.place(x, y, z, below.color, HALF);
+      if (n && !isHalf(n) && !this.has(x + dx, y + 1, z + dz) && !this.has(x + dx, y + 2, z + dz)) return this.place(x, y, z, below.color, HALF);
+    }
+    return false;
+  }
+
+  // Потолок ступенькой (зеркально halfStep): пустая клетка под целым блоком, а рядом (4 соседа) потолок на блок
+  // ниже — над проходом (под соседом 2 клетки пусто). Ставит полублок сверху; цвет — блока над ним
+  halfStepTop(x, y, z) {
+    if (this.has(x, y, z)) return false;
+    const above = this.blocks.get(key(x, y + 1, z));
+    if (!above || isHalf(above)) return false;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const n = this.blocks.get(key(x + dx, y, z + dz));
+      if (n && !isHalf(n) && !this.has(x + dx, y - 1, z + dz) && !this.has(x + dx, y - 2, z + dz)) return this.place(x, y, z, above.color, HALF_TOP);
     }
     return false;
   }

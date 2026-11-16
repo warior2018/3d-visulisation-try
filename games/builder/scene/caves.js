@@ -265,8 +265,12 @@ export class CavesPart {
   }
 
   // Подъёмы в проходе — полублоками: на полу прохода (3 × 3 вокруг каждой точки) у уступа в 1 блок
+  // и потолок — полублоками сверху (align верх): у уступа потолка в 1 блок (над верхним рядом прохода, y + 2)
   halfSteps(pts) {
-    for (const [x, y, z] of pts) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) this.world.halfStep(x + dx, y, z + dz);
+    for (const [x, y, z] of pts) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      this.world.halfStep(x + dx, y, z + dz);
+      this.world.halfStepTop?.(x + dx, y + 2, z + dz);
+    }
   }
 
   // Проход наверх: от края комнаты наружу, вверх на slope блока за шаг (1–2 на 2 клетки), пока не вышли на

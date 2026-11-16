@@ -65,7 +65,7 @@ export { Physics } from "./world/physics.js";
 export { Stamina } from "./world/stamina.js";
 export { CameraShake } from "./graphics/camera-shake.js";
 export { CharacterController, dash, streamline, unstreamline } from "./world/character-controller.js";
-export { VoxelWorld, CHUNK, Chunk, chunkOf, HALF } from "./world/voxel-world.js";
+export { VoxelWorld, CHUNK, Chunk, chunkOf, HALF, HALF_TOP, isHalf } from "./world/voxel-world.js";
 export { Pickup, Pickups } from "./world/pickups.js";
 export { Projectiles, aimArc } from "./world/projectiles.js";
 export { Traps } from "./world/traps.js";

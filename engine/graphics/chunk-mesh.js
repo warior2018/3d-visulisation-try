@@ -16,7 +16,7 @@
 //        view — viewOf(camera, aspect, maxDist): заранее посчитанное направление взгляда и угол обзора
 // ============================================================
 
-import { CHUNK, HALF } from "../world/voxel-world.js";
+import { CHUNK, HALF, HALF_TOP, isHalf } from "../world/voxel-world.js";
 
 // x, y, z, r, g, b (цвет × небо в середине грани — для простого шейдера), небо в 4 углах грани, лампы в 4 углах,
 // небо в середине (шейдер посложнее делит на него: чистый цвет). Углы — в шейдере плавно по грани
@@ -84,7 +84,7 @@ export function blockLightAt(world, x, y, z, lights) {
 //          Сквозь стену не светит (путь — по воздуху, не по прямой).
 // Полублок свет пропускает. Сетка внутри куска сохраняется в chunk.light — по ней светятся модели (lightOf).
 const isLeaf = (b) => !!LIGHT.leaves && LIGHT.leaves.includes(b.color[0] * 65536 + b.color[1] * 256 + b.color[2]);
-const opaque = (b) => !!b && b.surface !== HALF && !isLeaf(b);
+const opaque = (b) => !!b && !isHalf(b) && !isLeaf(b);
 
 export function chunkLight(world, chunk) {
   const R = LIGHT.skyReach, L = R * 4; // уровни неба: 0…L, шаг — 4 (четверть — для листвы)
@@ -220,12 +220,13 @@ export function exposedFaces(world, chunk, out = null, light = false) {
     const { x, y, z } = b;
     let mask = 0;
     // полублок (HALF) закрывает соседу только свою половину: целому блоку грань рядом с ним — видна
-    const half = b.surface === HALF;
-    const shut = (bx, by, bz) => { const n = world.get?.(bx, by, bz); return !!n && (half || n.surface !== HALF); };
+    // (полублок сверху — HALF_TOP — так же: закрывает только свою половину; одинаковые половинки закрывают друг друга)
+    const half = b.surface === HALF, top = b.surface === HALF_TOP;
+    const shut = (bx, by, bz) => { const n = world.get?.(bx, by, bz); return !!n && (!isHalf(n) || n.surface === b.surface); };
     if (!shut(x + 1, y, z)) mask |= 1;
     if (!shut(x - 1, y, z)) mask |= 2;
-    if (half || !world.has(x, y + 1, z)) mask |= 4; // верх полублока виден всегда
-    if (!world.isSolid(x, y - 1, z) || world.get?.(x, y - 1, z)?.surface === HALF) mask |= 8; // снизу — блок или пол (полублок низ не закрывает: зазор)
+    if (half || !world.has(x, y + 1, z) || world.get?.(x, y + 1, z)?.surface === HALF_TOP) mask |= 4; // верх полублока виден всегда; над нами полублок сверху — зазор
+    if (top || !world.isSolid(x, y - 1, z) || world.get?.(x, y - 1, z)?.surface === HALF) mask |= 8; // снизу — блок или пол (полублок низ не закрывает: зазор); низ полублока сверху — виден всегда
     if (!shut(x, y, z + 1)) mask |= 16;
     if (!shut(x, y, z - 1)) mask |= 32;
     if (!mask) continue;
@@ -249,7 +250,7 @@ export function exposedFaces(world, chunk, out = null, light = false) {
   const SKY = [0, 0, 0, 0], LAMP = [0, 0, 0, 0];
   for (let i = 0; i < list.length; i += 2) {
     const b = list[i], mask = list[i + 1];
-    const half = b.surface === HALF, emit = light && world.emitterOf?.(b);
+    const half = b.surface === HALF, top = b.surface === HALF_TOP, emit = light && world.emitterOf?.(b);
     let shade = 1; // тень от солнца (простые тени): на весь блок
     if (g && world.sun) {
       const up = cell(b.x, half ? b.y : b.y + 1, b.z);
@@ -259,7 +260,7 @@ export function exposedFaces(world, chunk, out = null, light = false) {
       if (!(mask & (1 << f))) continue;
       const [nx, ny, nz] = FACES[f];
       // клетка перед гранью (у полублока верх — в своей клетке)
-      const fx = b.x + nx, fy = half && f === 2 ? b.y : b.y + ny, fz = b.z + nz;
+      const fx = b.x + nx, fy = (half && f === 2) || (top && f === 3) ? b.y : b.y + ny, fz = b.z + nz; // (низ полублока сверху — тоже в своей клетке)
       let center = 1;
       if (!g) { SKY.fill(1); LAMP.fill(0); }
       else {
@@ -283,7 +284,7 @@ export function exposedFaces(world, chunk, out = null, light = false) {
       }
       const sc = Math.max(LIGHT.minSky, center * shade);
       const o = at[f]++ * FLOATS_PER_CUBE;
-      data[o] = b.x; data[o + 1] = half ? b.y + 0.25 : b.y; data[o + 2] = b.z; // +0.25 — метка полублока (шейдер)
+      data[o] = b.x; data[o + 1] = half ? b.y + 0.25 : top ? b.y + 0.75 : b.y; data[o + 2] = b.z; // +0.25 / +0.75 — метка полублока снизу / сверху (шейдер)
       data[o + 3] = (b.color[0] / 255) * sc; data[o + 4] = (b.color[1] / 255) * sc; data[o + 5] = (b.color[2] / 255) * sc;
       for (let k = 0; k < 4; k++) { data[o + 6 + k] = SKY[k] * shade; data[o + 10 + k] = LAMP[k]; }
       data[o + 14] = sc;
