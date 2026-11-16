@@ -3,7 +3,7 @@
 //  огонь и дым взрыва, искры от пули в блок, крошка сломанного блока. Цвета и силу — FX (config.js)
 // ============================================================
 
-import { FX, FLASH } from "../config.js";
+import { FX, FLASH, TORCH } from "../config.js";
 
 export class EffectsPart {
   // Попали по существу: брызги его «крови» (у скелета — костяная крошка) от удара
@@ -48,6 +48,12 @@ export class EffectsPart {
       list.push({ x: p.position.x, y: p.position.y, z: p.position.z, radius: P.radius, power: P.power, color: c.map((v) => (v > 1 ? v / 255 : v)) });
     }
     list.push(...(this.portalLights?.() || [])); // порталы светятся
+    // факелы других игроков (сеть: e.netTorch) — светят и у нас
+    const T = TORCH, tc = [1, 0.85, 0.6];
+    for (const e of this.entities?.list || []) {
+      if (!e.netTorch || e === this.player || e.alive === false) continue;
+      list.push({ x: e.position.x, y: e.position.y + T.height, z: e.position.z, radius: T.radius, power: T.power, color: tc });
+    }
     const cam = this.look?.position || this.player?.position;
     if (cam && list.length > 8) list.sort((a, b) => Math.hypot(a.x - cam.x, a.y - cam.y, a.z - cam.z) - Math.hypot(b.x - cam.x, b.y - cam.y, b.z - cam.z));
     this.activeLights = list.slice(0, 8);

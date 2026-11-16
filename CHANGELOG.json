@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.100.3",
+    "date": "2026-11-16",
+    "title": "Shared light in multiplayer",
+    "changes": [
+      "Факелы других игроков светят и у тебя",
+      "Вспышки от выстрелов и взрывов видны всем игрокам"
+    ]
+  },
+  {
     "version": "0.100.2",
     "date": "2026-11-16",
     "title": "Portals disabled for now",
