@@ -100,8 +100,8 @@ export class MagicPart {
     this.beforeMovementSkill?.(); // верхом — сначала слезть (MOUNT)
     // Сила одна во всём радиусе (не слабеет к краю). Ускорение складывается: рывок ещё идёт (или уже летим) —
     // новый толчок прибавляется к нынешней скорости (не больше R.maxSpeed)
-    // сила — своя у оружия (R.distance: м за рывок), растёт с уроном (таланты, улучшения)
-    const strength = ((R.distance[attack?.id] ?? R.distance.default) / R.pushTime) * this.damageScaleOf(attack);
+    // сила — своя у оружия (R.push: м/с), растёт с уроном (таланты, улучшения)
+    const strength = (R.push[attack?.id] ?? R.push.default) * this.damageScaleOf(attack);
     const dy0 = c.y / l + R.lift, dl = Math.hypot(c.x / l, c.z / l, dy0) || 1;
     const push = { x: ((c.x / l) / dl) * strength, y: (dy0 / dl) * strength, z: ((c.z / l) / dl) * strength };
     const was = p.dash?.left > 0 ? { x: p.dash.x, y: p.dash.y ?? p.velocity.y, z: p.dash.z } : { x: p.velocity.x, y: Math.max(0, p.velocity.y), z: p.velocity.z };
