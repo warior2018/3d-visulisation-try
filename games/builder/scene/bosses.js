@@ -128,13 +128,19 @@ export class BossesPart {
     const len = Math.hypot(dx, dz) || 1;
     const feet = Math.floor(e.position.y + 0.05);
     const cells = new Set();
+    // цель выше (стоит над ямой / на уступе): впереди оставляем ступеньку у ног, а выше — пробиваем с запасом
+    // в блок над головой, чтобы мог запрыгнуть и выбраться; иначе — ход на своём уровне
+    const up = target.position.y > e.position.y + 0.9;
+    const from = up ? feet + 1 : feet, to = Math.floor(e.position.y + e.height) + (up ? 1 : 0);
     for (const ahead of [e.radius + 0.4, e.radius + 1]) {
       for (const side of [-e.radius * 0.8, 0, e.radius * 0.8]) {
         const x = Math.floor(e.position.x + (dx / len) * ahead - (dz / len) * side);
         const z = Math.floor(e.position.z + (dz / len) * ahead + (dx / len) * side);
-        for (let y = feet; y <= Math.floor(e.position.y + e.height); y++) cells.add(`${x},${y},${z}`);
+        for (let y = from; y <= to; y++) cells.add(`${x},${y},${z}`);
       }
     }
+    // над головой — тоже, если цель выше (иначе упирается макушкой в край ямы при прыжке)
+    if (up) for (const side of [-e.radius * 0.8, 0, e.radius * 0.8]) cells.add(`${Math.floor(e.position.x - (dz / len) * side)},${to},${Math.floor(e.position.z + (dx / len) * side)}`);
     // Цель ниже (закопался в яму): копает и вниз — под собой (рядом) или ступенькой впереди (далеко)
     if (target.position.y < e.position.y - 0.9) {
       const near = len < 6;

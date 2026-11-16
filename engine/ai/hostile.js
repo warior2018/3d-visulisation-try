@@ -29,7 +29,7 @@ import { alertHerd, tauntTarget, busy, auraTarget } from "./social.js";
 import { pursue, separate, neighbors, melee, turnTowards } from "../world/behaviors.js";
 
 // Застрял: раз в every с проверяем, стал ли ближе к цели хотя бы на gain м
-const STUCK = { every: 1.5, gain: 0.6 };
+const STUCK = { every: 0.8, gain: 0.5 };
 const dist2d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z);
 // Настоящее расстояние между серединами тел (с высотой) — для «заметил»
 const dist3d = (a, b) => Math.hypot(a.position.x - b.position.x, a.position.y + (a.height || 1.8) / 2 - b.position.y - (b.height || 1.8) / 2, a.position.z - b.position.z);
