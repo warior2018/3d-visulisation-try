@@ -569,6 +569,7 @@ export class GameScene extends Scene {
       navWorld: this.navWorld,
       hunt: this.invasion.active ? this.heroes() : null, // нашествие: каждый моб — на ближайшего героя (свой + гости)
       dig: (e, target, dt) => this.bossDig(e, target, dt), // босс в погоне ломает блоки перед собой (bosses.js)
+      batDive: (e, target) => this.batDive(e, target), // пике летучей мыши (scene/mob-kinds.js)
       shoot: (e, target, attack) => (e.ranged.hitscan ? this.mobGunshot(e, target, attack) : this.mobThrow(e, target, attack)), // стрелок (HostileBrain ranged)
       // Контекст атак — один на существо (не новый объект каждый кадр); стена между ним и целью — луч не чаще
       // раза в 0.25 с (стрелки проверяют это каждый кадр)
@@ -648,7 +649,8 @@ export class GameScene extends Scene {
           engine.sound.play(e.type === "boar" ? "hoof" : "step", { at: e.position, volume: 0.6 });
         }
       }
-      e.view?.animator.setBase(going ? "Walk" : "Idle", going ? e.speed / 4 : 1);
+      if (e.type === "bat") e.view?.animator.setBase(e.diving ? "Dive" : "Walk", 1); // машет крыльями, пике — сложены
+      else e.view?.animator.setBase(going ? "Walk" : "Idle", going ? e.speed / 4 : 1);
       e.netWalk = going; // для снимка сетевой игры
     }
     this.entities.update(dt);

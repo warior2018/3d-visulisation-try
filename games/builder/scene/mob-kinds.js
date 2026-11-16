@@ -67,6 +67,7 @@ export class MobKindsPart {
       victim.addStatus?.(bleed(K.ghoul.bleed, 3)(src)); // когти — кровотечение
       if (src.alive) src.heal(dealt * K.ghoul.lifesteal); // и вампиризм
     }
+    if (src.type === "bat" && d.kind === "melee") victim.addStatus?.(bleed(K.bat.bleed, K.bat.bleedTime)(src)); // удар и пике — кровотечение
     if (src.type === "mummy" && d.kind === "melee") {
       const S = K.mummy.slow;
       victim.addStatus?.(new Slow({ id: "wrapped", name: "WRAPPED", duration: S.time, factor: S.factor, icon: "WRP", color: [220, 205, 160] }));
@@ -156,6 +157,26 @@ export class MobKindsPart {
       this.beams?.ring({ x, y: g.position.y + 0.05, z }, 0.9, { color: [140, 200, 60], life: 0.4, width: 5 });
     }
     this.engine.sound.play("growl", { at: e.position, volume: 1 });
+  }
+
+  // Пике летучей мыши (bat-brain.js → ctx.batDive): коснулась цели — откусывает долю ТЕКУЩЕГО HP (+ кровотечение — mobOnHit)
+  batDive(e, t) {
+    if (!t?.alive || !e.alive) return;
+    const amount = Math.max(1, Math.round(t.stats.hp * MOB_KINDS.bat.bite));
+    t.receive(new Damage({ amount, source: e, kind: "melee", tags: ["dive"] }));
+    this.engine.sound.play(t === this.player ? "hurt" : "hit", { at: t.position });
+    this.engine.log(`${e.name} → ${t.name}: пике -${amount} HP`);
+  }
+
+  // Со спавнера: летучая мышь рядом с новым мобом — только ночью, реже минибосса, не больше max
+  maybeBat(near, index) {
+    const B = MOB_KINDS.bat;
+    if (!near || index < B.from || this.duel || Math.random() >= B.chance) return;
+    if (!this.isNight() && this.settings.general.dayNight !== false) return;
+    if (this.entities.list.filter((m) => m.alive && m.type === "bat").length >= B.max) return;
+    const { x, z } = near.position;
+    const e = this.spawn("bat", { x, y: near.position.y + 3, z, yaw: near.yaw, ...mobGrowth(index) });
+    if (e) this.engine.log(`летучая мышь: ${e.stats.maxHp} HP`);
   }
 
   // Со спавнера: редкий минибосс рядом с новым мобом (один на мир)

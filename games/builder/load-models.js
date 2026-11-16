@@ -16,6 +16,7 @@ export function loadModels(models) {
   models.load("zombie", path.join(ASSETS, "zombie.glb"), { mirrorX: true });
   models.load("boar", path.join(ASSETS, "boar.glb"), { mirrorX: true });
   models.load("troll", path.join(ASSETS, "troll.glb"), { mirrorX: true }); // босс логова (tools/make-troll.js)
+  models.load("bat", path.join(ASSETS, "bat.glb")); // летучая мышь (tools/make-bat.js)
   // Лич (второй босс) — скелет, перекрашенный в бледно-фиолетовый (крупнее — scale у существа);
   // раздутый — зомби с багрово-зелёной кожей
   models.load("lich", path.join(ASSETS, "skeleton.glb"), { mirrorX: true, recolor: [{ from: [0.86, 0.84, 0.76], to: [0.68, 0.58, 0.86] }] });

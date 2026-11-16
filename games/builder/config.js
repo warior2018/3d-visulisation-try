@@ -312,6 +312,9 @@ export const MOB_KINDS = {
   shaman: { heal: { every: 2, radius: 7, amount: 8 } },
   goblin: { trap: { every: 9, max: 3, lifetime: 45, root: 1.5 }, dodge: 0.2, flee: 0.4, fleeSpeed: 0.35 },
   champion: { chance: 0.012, from: 25, summon: { every: 14, count: 3, max: 6 }, aura: { radius: 4, dps: 4 } },
+  // ЛЕТУЧАЯ МЫШЬ (bat) — только ночью, реже минибосса (chance на появление моба после from-го), не больше max;
+  // пике — bite доли ТЕКУЩЕГО HP цели; пике и удар — кровотечение bleed доли макс. HP за bleedTime с
+  bat: { chance: 0.008, from: 10, max: 2, bite: 0.1, bleed: 0.01, bleedTime: 3 },
 };
 
 // РАЗДУТЫЙ (bloater): опухший зомби-смертник (движок: KamikazeBrain с запалом). Замечает ближе range, бежит;
@@ -568,6 +571,8 @@ export const ATTACKS = {
   grenade: { id: "grenade", name: "GRENADE", damage: 16, radius: 2.5, every: 15, speed: 22, cooldown: 0, cost: 0 },
   // Скелет: достаёт на 30 % ближе игрока (2.5 × 0.7), урон 5–10, замах 0.35 с (успел отойти — промах)
   skeletonClaw: { id: "claw", name: "SKELETON CLAW", damage: [5, 10], reach: PUNCH_REACH * 0.7, windup: 0.35, cooldown: 1.3, arc: 90, maxTargets: 2 },
+  // Летучая мышь: урон как у скелета, замах быстрее, бьёт по кругу (вплотную — достаёт всех вокруг)
+  batClaw: { id: "bat-claw", name: "BAT CLAW", damage: [5, 10], reach: PUNCH_REACH * 0.7, windup: 0.2, cooldown: 1, arc: 360, maxTargets: 2 },
   // Страж: меч — бьёт мобов, которые подошли к нему или к его дому
   wardenSword: { id: "warden-sword", name: "WARDEN SWORD", damage: [15, 22], reach: 2.3, windup: 0.25, cooldown: 1.0, arc: 110, maxTargets: 3 },
   // Зомби: тянется дальше скелета (× 1.25), бьёт чуть сильнее, но замахивается дольше
@@ -964,7 +969,7 @@ export const LOOT = {
   mobRarity: { legendary: 0.015, epic: 0.065, rare: 0.22, bonus: 0.01, reroll: { legendary: 0.05, epic: 0.2, rare: 0.75 } },
   tiers: (n) => ({ 1: Math.max(10, 60 - n / 8), 2: 30, 3: Math.min(35, 5 + n / 20), 4: Math.min(25, n / 40) }),
   sell: 0.25,
-  resources: { bone: 1, skull: 3, block: 0, "zombie-eye": 2, "linen-roll": 3, "ghoul-fang": 3, "champion-fang": 20, "powder-gut": 4, "shaman-skull": 5 },
+  resources: { bone: 1, skull: 3, block: 0, "zombie-eye": 2, "linen-roll": 3, "ghoul-fang": 3, "champion-fang": 20, "powder-gut": 4, "shaman-skull": 5, "bat-wing": 6 },
 };
 
 export const SHOP = {

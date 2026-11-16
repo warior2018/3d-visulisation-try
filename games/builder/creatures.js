@@ -8,6 +8,7 @@
 import { Vec3, Inventory, Player, Mob, NPC, MeleeAttack, SlamAttack, ThrowAttack, HostileBrain, KamikazeBrain, WanderBrain, GuardBrain, FollowBrain, Taming, Rideable, grow, growth } from "../../engine/index.js";
 import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER, MOB_SIZE } from "./config.js";
 import { maxStack } from "./items.js";
+import { BatBrain } from "./bat-brain.js";
 
 // Головы (хитбоксы хедшотов) — в осях существа: от ног вверх, +Z — куда смотрит.
 // multiplier — во сколько раз больше урона при попадании в голову.
@@ -203,6 +204,15 @@ CREATURES.champion = {
   kindResist: { melee: 0.2, ranged: 0.2 },
   loot: [["coin", 120], ["medkit", 1], ["skull", 2], ["champion-fang", 1]],
   brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.5, leash: 90, stopDistance: 2, wander: MOB_WANDER }),
+};
+
+// ЛЕТУЧАЯ МЫШЬ (MOB_KINDS.bat): летает взмахами (bat-brain.js), кружит над целью; пике — откусывает долю
+// текущего HP, обычный удар — как у скелета; оба — кровотечение. Ночью, реже минибосса (scene/mob-kinds.js)
+CREATURES.bat = {
+  kind: "mob", name: "BAT", maxHp: 60, speed: 4.5, radius: 0.3, height: 0.6, inventorySize: 4,
+  model: "bat", attack: "batClaw", hostileTo: ["player", "town"], xp: 55,
+  loot: [["coin", 9], ["bat-wing", 1]],
+  brain: () => new BatBrain({ aggroRadius: SKELETON_AI.radius * 1.5 }),
 };
 
 // Кто стоит в новом мире

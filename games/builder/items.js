@@ -85,6 +85,7 @@ export const ITEMS = {
   "ghoul-fang": { name: "GHOUL FANG", color: [230, 226, 206], maxStack: 16 }, //       упырь
   "champion-fang": { name: "GREAT FANG", color: [240, 232, 190], maxStack: 8 }, //     чумной вожак: клык побольше
   "powder-gut": { name: "POWDER GUT", color: [150, 170, 70], maxStack: 16 }, //        раздутый: пороховой желудок
+  "bat-wing": { name: "BAT WING", color: [90, 70, 80], maxStack: 16 }, //              летучая мышь
   "shaman-skull": { name: "SHAMAN SKULL", color: [176, 196, 150], maxStack: 8 }, //    шаман: череп в цвет шамана
   coin: { name: "COIN", color: [235, 190, 60], maxStack: 999999 }, // монеты — одной стопкой (цены до тысяч)
   // Оружие по классам: базовое (стартовое) и покупное
