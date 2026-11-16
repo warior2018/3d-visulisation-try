@@ -32,7 +32,8 @@ export class GuardBrain extends Brain {
     // цель «прилипает» до победы или пока не убежит. Провокация (taunt) — сильнее
     const by = e.attackedBy;
     e.attackedBy = null;
-    if (by?.alive && e.isHostileTo(by) && !busy(e)) e.aggro = by;
+    // Кто бьёт — тому и отвечает: целей нет, или нападающий ближе нынешней цели (та далеко / не достать)
+    if (by?.alive && e.isHostileTo(by) && (!busy(e) || dist2d(e, by) + 1.5 < dist2d(e, e.aggro) || e.nav?.stuck > 1)) e.aggro = by;
     const taunted = tauntTarget(e, dt);
     if (taunted) e.aggro = taunted;
     if (e.aggro && (!e.aggro.alive || fromHome(e.aggro) > this.leash)) e.aggro = null;

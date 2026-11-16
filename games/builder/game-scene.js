@@ -88,7 +88,7 @@ export class GameScene extends Scene {
     // surfaceAt — скользкие блоки (лёд из палитры стройки): на них не устоять
     this.physics = new Physics({ isSolid: (x, y, z) => this.world.isSolid(x, y, z), cellTop: (x, y, z) => this.world.cellTop(x, y, z), surfaceAt: (x, y, z) => this.world.surfaceAt(x, y, z), hasSurfaces: () => this.world.surfaces > 0 });
     // Мир для поиска пути существ: те же твёрдые клетки + «номер версии» (поставили блок — пересчитать путь)
-    this.navWorld = { isSolid: this.physics.isSolid, version: () => this.world.version };
+    this.navWorld = { isSolid: this.physics.isSolid, cellTop: (x, y, z) => this.world.cellTop(x, y, z), version: () => this.world.version };
     // Предметы на земле (движок: Pickups) — падают на блоки, крутятся; модель — «item-<id>» (main.js)
     this.pickups = new Pickups({
       physics: this.physics,

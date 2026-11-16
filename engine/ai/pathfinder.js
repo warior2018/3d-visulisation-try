@@ -239,8 +239,11 @@ export function pathBudget(n) {
 export class Navigator {
   // version() — необязательно: число, которое меняется, когда меняется мир (поставили или убрали блок);
   // тогда путь сразу пересчитывается, а не когда существо упрётся в новый блок
-  constructor({ isSolid, version = null, height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200, repath = 0.6, reach = 0.35 } = {}) {
+  // cellTop(x, y, z) — высота верха клетки (1 / 0.5 полублок / 0): на полублок не прыгают (шагают) и не
+  // застревают у него (ноги на y − 0.5). Нет — как раньше (всё целое)
+  constructor({ isSolid, cellTop = null, version = null, height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200, repath = 0.6, reach = 0.35 } = {}) {
     this.isSolid = isSolid;
+    this.cellTop = cellTop;
     this.version = version;
     this.seenVersion = version?.();
     this.opts = { height, maxStep, maxDrop, maxNodes };
@@ -308,10 +311,12 @@ export class Navigator {
     const path = this.path;
     if (!path?.length) return null;
     // Дошли до точки — берём следующую
+    // где на самом деле стоять в клетке пути: на полублоке — на полблока ниже
+    const floorY = (x, y, z) => (this.cellTop ? y - 1 + (this.cellTop(x, y - 1, z) || 1) : y);
     while (this.index < path.length - 1) {
       const [x, y, z] = path[this.index];
       const close = Math.hypot(x + 0.5 - p.x, z + 0.5 - p.z) < this.reach;
-      if (!close || Math.floor(p.y + 0.05) < y) break;
+      if (!close || p.y + 0.05 < floorY(x, y, z) - 0.01) break;
       this.index++;
     }
     const [x, y, z] = path[this.index];
@@ -320,7 +325,8 @@ export class Navigator {
     const last = this.index === path.length - 1;
     const dist = Math.hypot(tx - p.x, tz - p.z);
     // Следующая точка выше ног и мы уже рядом — прыгаем
-    const jump = y > Math.floor(p.y + 0.05) && dist < 1.4;
+    // (полблока и меньше — шагнёт сам: физика autoStep)
+    const jump = floorY(x, y, z) > p.y + 0.55 && dist < 1.4;
     const done = last && dist < this.reach;
     if (done) this.stuck = 0; // стоим, потому что пришли, — это не «застряли»
     return { x: tx, z: tz, jump, done, complete: this.complete };
