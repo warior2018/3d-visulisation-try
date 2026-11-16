@@ -34,7 +34,8 @@ export class CavesPart {
         const a = rnd() * Math.PI * 2, r = rnd() * maxR;
         const cx = Math.round(disc.x + Math.sin(a) * r), cz = Math.round(disc.z + Math.cos(a) * r);
         if (disc.main && Math.hypot(cx, cz) < C.keepClear && lift - floor < 12) continue; // не под местом появления (неглубоко)
-        if (rooms.some((o) => Math.abs(o.x - cx) < (o.w + w) / 2 + 4 && Math.abs(o.z - cz) < (o.d + d) / 2 + 4 && Math.abs(o.y - floor) < 8)) continue;
+        // по плану пересекаются — между ними по высоте не меньше высоты комнаты + 4 блока скалы (не одна над другой)
+        if (rooms.some((o) => Math.abs(o.x - cx) < (o.w + w) / 2 + 4 && Math.abs(o.z - cz) < (o.d + d) / 2 + 4 && Math.abs(o.y - floor) < Math.max(o.h, h) + 4)) continue;
         rooms.push({ x: cx, z: cz, y: floor, w, d, h, kind: "plain", disc: T.discs.indexOf(disc), ledge: rnd() < C.ledge ? Math.floor(rnd() * 4) : -1 });
         k++;
       }
@@ -48,6 +49,13 @@ export class CavesPart {
         room.guard = rnd() < C.guard ? (rnd() < 0.5 ? "elites" : "miniboss") : null;
       }
     }
+    // форма: простые комнаты — коробка / купол / с ямой (CAVES.shapes); с сундуком и боссом — коробка или купол
+    for (const room of rooms) {
+      const w = { ...C.shapes };
+      if (room.kind !== "plain") delete w.trap;
+      room.shape = pickWeighted(w);
+    }
+    this.genRooms = rooms; // туннели обходят комнаты (pathHits)
     for (const room of rooms) this.carveRoom(room);
     // Туннели: каждую комнату — к ближайшей уже соединённой (дерево), острова — тоже (туннель через пустоту — дыра)
     const linked = [rooms[0]];
@@ -86,12 +94,22 @@ export class CavesPart {
     this.world.place(x, y, z, LIGHTS.lamp.color);
   }
 
+  // Комната: форма room.shape — "box" (коробка, бывает уступ), "dome" (купол: пол плоский, стены и свод —
+  // скруглённые), "trap" (коробка, поперёк середины — яма 2 блока шириной с шипами на дне: перепрыгнуть)
   carveRoom(r) {
     const x0 = r.x - Math.floor(r.w / 2), z0 = r.z - Math.floor(r.d / 2);
-    for (let i = 0; i < r.w; i++) for (let k = 0; k < r.d; k++) for (let j = 0; j < r.h; j++) this.world.remove(x0 + i, r.y + j, z0 + k);
+    const shape = r.shape || "box";
+    for (let i = 0; i < r.w; i++) for (let k = 0; k < r.d; k++) for (let j = 0; j < r.h; j++) {
+      if (shape === "dome") {
+        const dx = (i + 0.5 - r.w / 2) / (r.w / 2), dz = (k + 0.5 - r.d / 2) / (r.d / 2), dy = (j + 0.5) / r.h;
+        if (dx * dx + dz * dz > 1.05 || (j > 0 && dx * dx + dz * dz + dy * dy > 1.15)) continue; // пол — весь круг
+      }
+      this.world.remove(x0 + i, r.y + j, z0 + k);
+    }
+    if (shape === "trap") this.carvePit(r, x0, z0);
     // уступ: вдоль одной стены (ledge — какой) — возвышение в 2 блока шириной в треть комнаты, со ступенькой
-    // (полублок) к нему: внутри комнаты свои уровни
-    if (r.ledge >= 0 && r.h >= 5) {
+    // (полублок) к нему: внутри комнаты свои уровни. Только у коробки
+    if (shape === "box" && r.ledge >= 0 && r.h >= 5) {
       const along = r.ledge < 2; // вдоль x или z
       const depth = Math.max(2, Math.floor((along ? r.d : r.w) / 3));
       for (let i = 0; i < r.w; i++) for (let k = 0; k < r.d; k++) {
@@ -105,21 +123,107 @@ export class CavesPart {
         }
       }
     }
-    // лампы в потолке: по углам-внутри и в центре
-    for (const [i, k] of [[1, 1], [r.w - 2, 1], [1, r.d - 2], [r.w - 2, r.d - 2], [Math.floor(r.w / 2), Math.floor(r.d / 2)]]) this.caveLamp(x0 + i, r.y + r.h, z0 + k);
+    // лампы в потолке: по углам-внутри и в центре (купол — у центра: углы — в скале)
+    const lamps = shape === "dome"
+      ? [[Math.floor(r.w / 2), Math.floor(r.d / 2)], [Math.floor(r.w / 2) - 2, Math.floor(r.d / 2)], [Math.floor(r.w / 2) + 2, Math.floor(r.d / 2)]]
+      : [[1, 1], [r.w - 2, 1], [1, r.d - 2], [r.w - 2, r.d - 2], [Math.floor(r.w / 2), Math.floor(r.d / 2)]];
+    for (const [i, k] of lamps) {
+      let y = r.y + r.h; // свод над этой клеткой (у купола — ниже)
+      for (let j = r.y + 1; j <= r.y + r.h + 2; j++) if (this.world.has(x0 + i, j, z0 + k)) { y = j; break; }
+      this.caveLamp(x0 + i, y, z0 + k);
+    }
   }
 
-  // Туннель 3 × 3 от комнаты a до b: сначала по x, потом по z; высота пола плавно от одной к другой
-  carveTunnel(a, b) {
-    const pts = [];
-    const sx = Math.sign(b.x - a.x) || 1, sz = Math.sign(b.z - a.z) || 1;
-    for (let x = a.x; x !== b.x; x += sx) pts.push([x, a.z]);
-    for (let z = a.z; z !== b.z + sz; z += sz) pts.push([b.x, z]);
-    pts.forEach(([x, z], i) => {
-      const y = Math.round(a.y + ((b.y - a.y) * i) / Math.max(1, pts.length - 1));
+  // Яма с шипами поперёк середины комнаты-ловушки: 2 клетки шириной (вдоль длинной стороны), 2 вглубь, на дне —
+  // шипы (полублоки CAVES.pit.color: наступил — урон, updateCaves). С одного края — ступенька наверх
+  carvePit(r, x0, z0) {
+    const P = CAVES.pit, alongX = r.w >= r.d; // яма поперёк длинной стороны
+    const len = alongX ? r.w : r.d, cross = alongX ? r.d : r.w, mid = Math.floor(len / 2) - 1;
+    for (let a = mid; a < mid + P.width; a++) for (let c = 0; c < cross; c++) {
+      const x = alongX ? x0 + a : x0 + c, z = alongX ? z0 + c : z0 + a;
+      for (let j = 1; j <= P.depth; j++) this.world.remove(x, r.y - j, z);
+      if (c === 0) this.world.place(x, r.y - P.depth, z, [96, 92, 90]); // ступенька: выбраться
+      else this.world.place(x, r.y - P.depth, z, P.color, HALF);
+    }
+    r.pit = alongX ? { x0: x0 + mid, x1: x0 + mid + P.width, z0, z1: z0 + cross } : { x0, x1: x0 + cross, z0: z0 + mid, z1: z0 + mid + P.width };
+  }
+
+  // Шипы в ямах: герой на дне ямы — урон CAVES.pit.damage макс. HP раз в every с
+  updatePits(dt) {
+    const p = this.player, P = CAVES.pit;
+    if (!p?.alive) return;
+    this.pitTimer = Math.max(0, (this.pitTimer || 0) - dt);
+    for (const room of this.caves.rooms) {
+      const t = room.pit;
+      if (!t || p.position.x < t.x0 || p.position.x >= t.x1 || p.position.z < t.z0 || p.position.z >= t.z1) continue;
+      if (p.position.y > room.y - P.depth + 0.6 || !p.onGround || this.pitTimer > 0) continue;
+      this.pitTimer = P.every;
+      p.damage(Math.max(1, Math.round(p.stats.maxHp * P.damage)));
+      this.engine.sound.play("hurt");
+      this.engine.log(`шипы в яме: -${Math.round(p.stats.maxHp * P.damage)} HP`);
+    }
+  }
+
+  // Задевает ли путь pts ([x, y, z]) чужую комнату (не из skip): первая такая или null
+  pathHits(pts, skip) {
+    for (const [x, y, z] of pts) {
+      for (const o of this.genRooms || []) {
+        if (skip.includes(o)) continue;
+        if (Math.abs(x - o.x) <= o.w / 2 + 2 && Math.abs(z - o.z) <= o.d / 2 + 2 && y + 3 >= o.y - 1 && y <= o.y + o.h + 1) return o;
+      }
+    }
+    return null;
+  }
+
+  // Клетки ломаной от a до b (сначала по x — xFirst, иначе по z); крутой перепад — петля сбоку (набрать длину):
+  // уклон slope блока на клетку (CAVES.slope: 0.5–1 — 1–2 блока на 2 клетки). Вернёт [[x, y, z], ...]
+  tunnelPath(a, b, xFirst, slope) {
+    const cells = [];
+    const walk = (x, z, tx, tz) => {
+      const sx = Math.sign(tx - x), sz = Math.sign(tz - z);
+      while (x !== tx) { x += sx; cells.push([x, z]); }
+      while (z !== tz) { z += sz; cells.push([x, z]); }
+    };
+    cells.push([a.x, a.z]);
+    if (xFirst) { walk(a.x, a.z, b.x, a.z); walk(b.x, a.z, b.x, b.z); } else { walk(a.x, a.z, a.x, b.z); walk(a.x, b.z, b.x, b.z); }
+    const need = Math.ceil(Math.abs(b.y - a.y) / slope) + 1;
+    if (cells.length < need) {
+      // петля из середины: вбок на D, вдоль на 4 (между ходами — стенка в 1 блок), назад на D
+      const m = Math.floor(cells.length / 2), [mx, mz] = cells[m], [nx, nz] = cells[Math.min(cells.length - 1, m + 1)];
+      const ux = Math.sign(nx - mx), uz = Math.sign(nz - mz); // куда шёл ход
+      const px = uz !== 0 ? 1 : 0, pz = ux !== 0 ? 1 : 0; //     вбок
+      const D = Math.ceil((need - cells.length) / 2) + 2;
+      const loop = [];
+      let x = mx, z = mz;
+      for (let t = 0; t < D; t++) { x += px; z += pz; loop.push([x, z]); }
+      for (let t = 0; t < 4; t++) { x += ux || 0; z += uz || 0; loop.push([x, z]); }
+      for (let t = 0; t < D; t++) { x -= px; z -= pz; loop.push([x, z]); }
+      const rest = cells.slice(m + 1).filter(([cx, cz]) => Math.abs(cx - mx) * Math.abs(ux || 0) + Math.abs(cz - mz) * Math.abs(uz || 0) > 4);
+      cells.splice(m + 1, cells.length, ...loop, ...rest);
+    }
+    const n = cells.length;
+    return cells.map(([x, z], i) => [x, Math.round(a.y + ((b.y - a.y) * i) / Math.max(1, n - 1)), z]);
+  }
+
+  // Туннель 3 × 3 от a до b: из двух ломаных (x потом z / z потом x) — та, что не задевает чужие комнаты; обе
+  // задевают — ход до первой задетой комнаты и от неё дальше (комнату не прорезаем). Подъёмы — полублоками
+  carveTunnel(a, b, depth = 0) {
+    const slope = CAVES.slope[0] + Math.random() * (CAVES.slope[1] - CAVES.slope[0]);
+    const skip = [a, b];
+    const paths = [true, false].map((xf) => this.tunnelPath(a, b, xf, slope));
+    let pts = paths.find((p) => !this.pathHits(p, skip));
+    if (!pts) {
+      const via = this.pathHits(paths[0], skip);
+      if (via && depth < 3) {
+        this.carveTunnel(a, via, depth + 1);
+        this.carveTunnel(via, b, depth + 1);
+        return;
+      }
+      pts = paths[0];
+    }
+    pts.forEach(([x, y, z], i) => {
       for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (let j = 0; j < 3; j++) this.world.remove(x + dx, y + j, z + dz);
       if (i % CAVES.lampEvery === 0) this.caveLamp(x, y + 3, z);
-      pts[i] = [x, y, z];
     });
     this.halfSteps(pts);
   }
@@ -129,19 +233,31 @@ export class CavesPart {
     for (const [x, y, z] of pts) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) this.world.halfStep(x + dx, y, z + dz);
   }
 
-  // Проход наверх: от края комнаты наружу, на ступеньку выше за шаг, пока не вышли на поверхность
+  // Проход наверх: от края комнаты наружу, вверх на slope блока за шаг (1–2 на 2 клетки), пока не вышли на
+  // поверхность. Направление — из 8 случайных то, где путь не задевает чужие комнаты
   carveExit(r, rnd) {
-    const a = rnd() * Math.PI * 2, ux = Math.sin(a), uz = Math.cos(a);
-    let y = r.y;
-    const pts = [];
-    for (let t = 0; t < 60; t++) {
-      const x = Math.round(r.x + ux * (Math.max(r.w, r.d) / 2 + t)), z = Math.round(r.z + uz * (Math.max(r.w, r.d) / 2 + t));
+    const slope = CAVES.slope[0] + rnd() * (CAVES.slope[1] - CAVES.slope[0]);
+    const plan = (a) => {
+      const ux = Math.sin(a), uz = Math.cos(a), pts = [];
+      let y = r.y;
+      for (let t = 0; t < 80; t++) {
+        const x = Math.round(r.x + ux * (Math.max(r.w, r.d) / 2 + t)), z = Math.round(r.z + uz * (Math.max(r.w, r.d) / 2 + t));
+        pts.push([x, Math.floor(y), z]);
+        if (Math.floor(y) >= this.groundHeight(x, z)) break; // вышли наружу
+        y += slope;
+      }
+      return pts;
+    };
+    let pts = null;
+    for (let i = 0; i < 8 && !pts; i++) {
+      const p = plan(rnd() * Math.PI * 2);
+      if (!this.pathHits(p, [r])) pts = p;
+      else if (i === 7) pts = p;
+    }
+    pts.forEach(([x, y, z], t) => {
       for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (let j = 0; j < 3; j++) this.world.remove(x + dx, y + j, z + dz);
       if (t % CAVES.lampEvery === 0) this.caveLamp(x, y + 3, z);
-      pts.push([x, y, z]);
-      if (y >= this.groundHeight(x, z)) break; // вышли наружу
-      y++;
-    }
+    });
     this.halfSteps(pts);
   }
 
@@ -152,7 +268,9 @@ export class CavesPart {
 
   // Каждый тик (хост / одиночная игра): мобы в комнатах рядом с героями, охрана сундуков, боссы
   updateCaves(dt) {
-    if (!this.caves || this.duel || this.role === "client") return;
+    if (!this.caves || this.duel) return;
+    this.updatePits(dt); // шипы в ямах — у каждого своего героя
+    if (this.role === "client") return;
     const C = CAVES, heroes = this.heroes();
     const near = (r, d) => heroes.some((h) => Math.hypot(h.position.x - r.x, h.position.y - r.y, h.position.z - r.z) < d);
     for (const room of this.caves.rooms) {
