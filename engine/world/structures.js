@@ -12,6 +12,8 @@
 //  «зерном» мир получится одинаковым (см. seededRandom).
 // ============================================================
 
+import { HALF, HALF_TOP } from "./voxel-world.js";
+
 // Предсказуемая случайность: одно зерно — одна и та же последовательность чисел (алгоритм mulberry32)
 export function seededRandom(seed) {
   let a = seed >>> 0;
@@ -47,16 +49,25 @@ export function buildBox(world, { x, y = 0, z, w, h, d, color, hollow = false, d
 // door — сторона двери: "north" | "south" | "east" | "west" (по умолчанию — случайная).
 // trim — цвет углов (столбов), по умолчанию как стены. windows — прорубить окна.
 // decay — доля выпавших кубиков стен и крыши (заброшенный дом).
-export function buildHouse(world, { x, y = 0, z, w, d, h = 3, wall, roof = wall, trim = wall, door = null, windows = true, decay = 0, random = Math.random }) {
+// floor — цвет пола (по умолчанию trim): пол во всю площадь на y − 1 и фундамент вниз до опоры (до 8 блоков) —
+// дом не висит над ямой / обрывом и в полу нет дыр. Детали полублоками: подоконники, свес крыши (полублок сверху),
+// второй ярус крыши (полублок) — крыша ступенькой
+export function buildHouse(world, { x, y = 0, z, w, d, h = 3, wall, roof = wall, trim = wall, floor = trim, door = null, windows = true, decay = 0, random = Math.random }) {
   const sides = ["north", "south", "east", "west"];
   const doorSide = door || sides[Math.floor(random() * 4)];
   // Где дверь: посередине своей стены (±1 для разнообразия)
   const along = doorSide === "north" || doorSide === "south" ? w : d;
   const doorAt = Math.max(1, Math.min(along - 2, Math.floor(along / 2) + randomInt(random, -1, 1)));
   let placed = 0;
-  const put = (px, py, pz, color) => {
-    if (world.place(px, py, pz, color)) placed++;
+  const put = (px, py, pz, color, surface = null) => {
+    if (world.place(px, py, pz, color, surface)) placed++;
   };
+  // Пол и фундамент: на y − 1 — пол (что было — заменяем), ниже — до опоры
+  for (let i = 0; i < w; i++) for (let k = 0; k < d; k++) {
+    world.remove(x + i, y - 1, z + k);
+    put(x + i, y - 1, z + k, floor);
+    for (let j = y - 2; j >= y - 9 && !world.has(x + i, j, z + k); j--) put(x + i, j, z + k, trim);
+  }
 
   for (let j = 0; j < h; j++) {
     for (let i = 0; i < w; i++) {
@@ -72,17 +83,22 @@ export function buildHouse(world, { x, y = 0, z, w, d, h = 3, wall, roof = wall,
         // Окна: на среднем ряду, через одно, не у углов и не над дверью
         const wallLen = side === "north" || side === "south" ? w : d;
         const isWindow = windows && !corner && j === 1 && h >= 3 && pos > 1 && pos < wallLen - 2 && pos % 2 === 0 && side !== doorSide;
-        if (isWindow) continue;
+        if (isWindow) { // подоконник — полублок в низу проёма
+          put(x + i, y + j, z + k, trim, HALF);
+          continue;
+        }
         if (decay > 0 && !corner && j > 0 && random() < decay) continue;
         put(x + i, y + j, z + k, corner ? trim : wall);
       }
     }
   }
-  // Плоская крыша с небольшим свесом
+  // Крыша: над стенами — целая, свес по краю — тонкий (полублок сверху), над серединой — второй ярус полублоком
   for (let i = -1; i <= w; i++)
     for (let k = -1; k <= d; k++) {
       if (decay > 0 && random() < decay * 0.6) continue;
-      put(x + i, y + h, z + k, roof);
+      const eave = i === -1 || i === w || k === -1 || k === d;
+      put(x + i, y + h, z + k, roof, eave ? HALF_TOP : null);
+      if (!eave && i > 0 && i < w - 1 && k > 0 && k < d - 1) put(x + i, y + h + 1, z + k, roof, HALF);
     }
   return { placed, door: doorSide };
 }
