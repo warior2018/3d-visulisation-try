@@ -846,6 +846,9 @@ export const CAVES = {
 
 export const ISLANDS = {
   bridge: { chance: 0.75, width: 3, post: 4, deck: [120, 84, 52], rail: [92, 64, 40] },
+  // мост от логова на маленьком острове к главному: ниже края главного на FALL_DAMAGE.from + below блоков
+  // (спрыгнуть — с уроном), спуск / подъём — run клеток на блок
+  lairBridge: { below: 2, run: 2 },
   chest: { reach: 2.6, coins: 150, perLevel: 15, rarity: "epic", color: [196, 150, 60], band: [90, 70, 40] },
 };
 

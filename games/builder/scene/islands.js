@@ -4,7 +4,7 @@
 //  открыт ли он — в сохранении мира (worldgen.treasure). Сундук — на карте; F рядом — открыть.
 // ============================================================
 
-import { ISLANDS, LIGHTS, LOOT } from "../config.js";
+import { ISLANDS, LIGHTS, LOOT, FALL_DAMAGE } from "../config.js";
 import { rarityOf, Vec3 } from "../../../engine/index.js";
 import { rarityData, tierOf, rollRarities } from "./loot.js";
 import { ITEMS, isWeapon, isArmor } from "../items.js";
@@ -23,6 +23,11 @@ export class IslandsPart {
       if (d === far || rnd() >= ISLANDS.bridge.chance) continue;
       this.buildBridge(main, d);
       bridges++;
+    }
+    // логово на маленьком острове: проход выходит к обрыву — от выхода низкий мост на главный остров
+    for (const lair of T.lairs || []) {
+      const disc = small.find((d) => Math.hypot(d.x - lair.x, d.z - lair.z) < d.r);
+      if (disc && lair.tunnel && this.buildLairBridge(lair, main)) bridges++;
     }
     this.treasure = this.placeChest(far);
     this.engine.log(`мосты: ${bridges}, сундук на острове (${Math.round(far.x)}, ${Math.round(far.z)})`);
@@ -60,6 +65,53 @@ export class IslandsPart {
       }
     }
     for (const [x, y, z] of deck) this.world.halfStep?.(x, y, z); // ступеньки настила — полублоками
+  }
+
+  // Мост от выхода логова (маленький остров) к краю главного: низкий — спрыгнуть на него с главного острова
+  // без урона нельзя (ниже края на FALL_DAMAGE.from + ISLANDS.lairBridge.below блоков). От выхода — спуск,
+  // дальше ровно, у главного острова — подъём на край (1 блок на 2 клетки, полублоками). Пересечения со
+  // скалой — просто пропускаем (там и так твёрдо). Вернёт, построен ли
+  buildLairBridge(lair, main) {
+    const B = ISLANDS.bridge, L = ISLANDS.lairBridge, T = this.terrain;
+    const sx = lair.tunnel.x1, sz = lair.tunnel.z1, y0 = lair.y;
+    const dx = main.x - sx, dz = main.z - sz, len = Math.hypot(dx, dz) || 1;
+    const ux = dx / len, uz = dz / len, px = -uz, pz = ux;
+    let end = -1, t0 = 0; // где кончилась суша у выхода и где начинается главный остров
+    while (t0 < len && this.groundHeight(sx + ux * t0, sz + uz * t0) >= y0) t0 += 0.5;
+    for (let t = t0; t < len; t += 0.5) if (T.discHeight(main, sx + ux * t, sz + uz * t) > 0) { end = t; break; }
+    if (end < 0) return false;
+    const h1 = this.groundHeight(Math.floor(sx + ux * end), Math.floor(sz + uz * end)); // край главного
+    const low = Math.min(y0, h1 - FALL_DAMAGE.from - L.below);
+    const down = (y0 - low) * L.run, up = Math.max(0, h1 - low) * L.run; // длина спуска и подъёма (клеток)
+    const span = end - t0;
+    const yAt = (t) => {
+      t = Math.max(0, t - t0); // до обрыва — на уровне выхода
+      if (down + up > span) return Math.round(y0 + ((h1 - y0) * t) / Math.max(1, span)); // коротко — просто наклон
+      if (t < down) return Math.round(y0 - t / L.run);
+      if (t > span - up) return Math.round(low + (t - (span - up)) / L.run);
+      return low;
+    };
+    const half = (B.width - 1) / 2, deck = [];
+    let step = 0;
+    for (let t = 0; t <= end + 1; t += 0.4, step++) {
+      const cx = sx + ux * t, cz = sz + uz * t, y = yAt(Math.min(t, end));
+      for (let w = -half - 1; w <= half + 1; w += 0.5) {
+        const x = Math.floor(cx + px * w), z = Math.floor(cz + pz * w);
+        if (this.world.get?.(x, y - 1, z) || this.groundHeight(x, z) >= y) continue; // скала / суша — отсекаем
+        if (Math.abs(w) <= half) {
+          this.world.place(x, y - 1, z, B.deck);
+          for (let j = 0; j < 3; j++) this.world.remove(x, y + j, z); // над настилом — проход
+          deck.push([x, y, z]);
+        } else if (step % Math.round(B.post / 0.4) === 0) {
+          this.world.place(x, y - 1, z, B.rail);
+          this.world.place(x, y, z, B.rail);
+          if ((step / Math.round(B.post / 0.4)) % 2 === 0) this.world.place(x, y + 1, z, LIGHTS.torch.color);
+        }
+      }
+    }
+    for (const [x, y, z] of deck) this.world.halfStep?.(x, y, z);
+    this.engine.log(`мост логова (${lair.x}, ${lair.z}): ${y0} → ${low} → ${h1}, длина ${Math.round(end)}`);
+    return true;
   }
 
   // Новый мир: четыре столба с факелами вокруг места появления (ночью видно, где дом)
