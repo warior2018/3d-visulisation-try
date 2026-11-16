@@ -55,7 +55,7 @@ export const CREATURES = {
     kind: "mob",
     name: "SKELETON",
     maxHp: 50,
-    speed: SKELETON_AI.speed,
+    speed: SKELETON_AI.speed * 0.9, // на 10 % медленнее
     inventorySize: 6,
     model: "skeleton",
     attack: "skeletonClaw", // какой атакой бьёт (config.js → ATTACKS)
@@ -193,7 +193,7 @@ CREATURES.shaman = {
 
 // ГОБЛИН-ТРАППЕР (MOB_KINDS.goblin): мелкий, ставит капканы, уворачивается от выстрелов, раненый убегает
 CREATURES.goblin = {
-  kind: "mob", name: "GOBLIN TRAPPER", maxHp: 35, speed: 3.5, scale: 0.7, height: 1.35, radius: 0.25, inventorySize: 4,
+  kind: "mob", name: "GOBLIN TRAPPER", maxHp: 35, speed: 3.15, // было 3.5 (−10 %) scale: 0.7, height: 1.35, radius: 0.25, inventorySize: 4,
   model: "goblin", attack: "goblinStab", hostileTo: ["player", "town"], xp: 45,
   loot: [["coin", 8], ["bear-trap", [0, 1]]],
   brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.2, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
