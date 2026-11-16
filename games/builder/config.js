@@ -372,11 +372,13 @@ export const TROLL_HIDE = { first: 0.1, step: 0.015 };
 export const MOB_RANGED = {
   chance: 0.1, minRange: 3.5, gravity: 20,
   // прямой бросок (лич, босс под низким сводом): тяжесть = gravity × near / дальность, в пределах [min, max];
-  // разброс бросков — у каждого оружия своё spread (градусы, вбок и вверх-вниз; пистолет — свой spread, долей)
+  // разброс бросков: у каждого оружия spread — % от spreadBase градусов (30 → ±3°), вбок и вверх-вниз.
+  // У пистолета — свой spread (доля, не %)
   flat: { near: 4, min: 0.08, max: 0.35 },
+  spreadBase: 10,
   weapons: {
-    stone: { weight: 45, attack: "stoneThrow", item: "stone", held: "w-stone", range: 14, advance: true, spread: 7 },
-    knife: { weight: 45, attack: "knifeThrow", item: "knife", held: "w-knife", range: 14, advance: true, spread: 5 },
+    stone: { weight: 45, attack: "stoneThrow", item: "stone", held: "w-stone", range: 14, advance: true, spread: 20 },
+    knife: { weight: 45, attack: "knifeThrow", item: "knife", held: "w-knife", range: 14, advance: true, spread: 10 },
     pistol: { weight: 10, attack: "mobPistol", held: "w-pistol", range: 10, hitscan: true, spread: 0.02, head: 0.75, recoil: 0.035 },
   },
   names: {

@@ -38,12 +38,12 @@ export class ThrowersPart {
     // straight — летит прямо (сгусток лича), иначе — по дуге
     // низкий потолок над боссом (пещера) — бросает прямо, а не дугой в свод
     const straight = e.ranged.straight || (e.boss && this.lowCeiling(e));
-    // прямой бросок — тоже падает, но легче: тяжесть от дальности (дальше — легче, MOB_RANGED.flat); разброс — ±spread° оружия
+    // прямой бросок — тоже падает, но легче: тяжесть от дальности (дальше — легче, MOB_RANGED.flat); разброс — spread% от spreadBase°
     const F = MOB_RANGED.flat, dist = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
     const light = e.ranged.straight ? 0 : straight ? MOB_RANGED.gravity * Math.max(F.min, Math.min(F.max, F.near / Math.max(1, dist))) : MOB_RANGED.gravity;
     let vel = light ? aimArc(from, to, r.speed, light) : new Vec3(to.x - from.x, to.y - from.y, to.z - from.z).scale(r.speed / Math.max(1e-6, dist)); // сгусток лича — прямо
-    if (e.ranged.spread) { // разброс оружия (градусы): вбок и вверх-вниз
-      const rad = (e.ranged.spread * Math.PI) / 180, yaw = (Math.random() * 2 - 1) * rad, pitch = (Math.random() * 2 - 1) * rad;
+    if (e.ranged.spread) { // разброс оружия: % от MOB_RANGED.spreadBase градусов, вбок и вверх-вниз
+      const rad = (((MOB_RANGED.spreadBase * e.ranged.spread) / 100) * Math.PI) / 180, yaw = (Math.random() * 2 - 1) * rad, pitch = (Math.random() * 2 - 1) * rad;
       const h = Math.hypot(vel.x, vel.z), a = Math.atan2(vel.x, vel.z) + yaw, up = Math.atan2(vel.y, h) + pitch, sp = Math.hypot(h, vel.y);
       vel = new Vec3(Math.sin(a) * Math.cos(up) * sp, Math.sin(up) * sp, Math.cos(a) * Math.cos(up) * sp);
     }

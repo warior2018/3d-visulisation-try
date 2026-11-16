@@ -132,7 +132,7 @@ CREATURES.troll = {
   model: "troll", attack: "trollSlam", hostileTo: ["player", "town"], xp: 900, kindResist: { blast: 0.33, melee: 0.33 },
   loot: [["coin", 160], ["troll-hide", 1]],
   // Валун: всегда (не случайный стрелок), с перезарядкой 4 с; пока перезаряжается — идёт на тебя (в пределах зала)
-  rangedWeapon: { attack: "boulderThrow", item: "stone", scale: 3.5, range: 16, minRange: 5, advance: true, spread: 10 },
+  rangedWeapon: { attack: "boulderThrow", item: "stone", scale: 3.5, range: 16, minRange: 5, advance: true, spread: 30 },
   brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius, sightHeight: 2, leash: 250, stopDistance: 2.2, turnSpeed: 3, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase }),
 };
 
@@ -142,7 +142,7 @@ CREATURES.lich = {
   model: "lich", attack: "lichTouch", hostileTo: ["player", "town"], xp: 900, kindResist: { ranged: 0.33 },
   loot: [["coin", 160], ["bone-crown", 1]],
   // Сгусток: стоит и стреляет, пока видит (не подходит ближе); прыжки по залу и подъём скелетов — игра
-  rangedWeapon: { attack: "lichBolt", item: "lichbolt", scale: 1.6, range: 18, minRange: 0, straight: true, spread: 6 },
+  rangedWeapon: { attack: "lichBolt", item: "lichbolt", scale: 1.6, range: 18, minRange: 0, straight: true, spread: 15 },
   brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius + 1.5, sightHeight: 2, leash: 250, stopDistance: 1.4, turnSpeed: 4, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase }),
 };
 
@@ -180,7 +180,7 @@ CREATURES.shaman = {
   model: "shaman", attack: "shamanStaff", hostileTo: ["player", "town"], xp: 70,
   kindResist: { ranged: 0.33, melee: -0.25 },
   loot: [["bone", [1, 2]], ["skull", [0, 1]], ["coin", 9]],
-  rangedWeapon: { attack: "shamanHex", item: "lichbolt", scale: 0.8, range: 15, minRange: 4, straight: true, spread: 8 },
+  rangedWeapon: { attack: "shamanHex", item: "lichbolt", scale: 0.8, range: 15, minRange: 4, straight: true, spread: 25 },
   brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.3, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
 };
 
