@@ -82,7 +82,7 @@ export class BatBrain extends Brain {
       e.sidestep.t -= dt;
       this.steer(e, e.position.x + e.sidestep.x, e.position.z + e.sidestep.z, this.speed);
       this.fly(e, dt, Math.max(e.position.y, tp.y + th * HEAD));
-      if (e.sidestep.t <= 0 || e.blocked) e.sidestep = null;
+      if (e.sidestep.t <= 0 || (e.blocked && e.sidestep.t < 0.45)) e.sidestep = null; // и тут стена — снова на цель
       return { walking: true, alerted: [] };
     }
     if ((e.batState === "dive" || e.batState === "approach") && e.blocked && this.findSide(e, tp, ctx)) {
@@ -152,6 +152,7 @@ export class BatBrain extends Brain {
     if (!sides.length) return false;
     const s = sides.length === 2 ? (Math.random() < 0.5 ? 1 : -1) : sides[0];
     e.sidestep = { x: px * s * 3 + (dx / l) * 1, z: pz * s * 3 + (dz / l) * 1, t: 0.6 };
+    this.steer(e, e.position.x + e.sidestep.x, e.position.z + e.sidestep.z, this.speed); // сразу вбок
     return true;
   }
 
