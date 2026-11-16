@@ -3,7 +3,7 @@
 //  огонь и дым взрыва, искры от пули в блок, крошка сломанного блока. Цвета и силу — FX (config.js)
 // ============================================================
 
-import { FX } from "../config.js";
+import { FX, FLASH } from "../config.js";
 
 export class EffectsPart {
   // Попали по существу: брызги его «крови» (у скелета — костяная крошка) от удара
@@ -26,7 +26,45 @@ export class EffectsPart {
 
   // Взрыв: вспышка огня (быстро гаснет) и клубы дыма (медленно поднимаются и растут)
   // color — свой цвет огня (скин оружия), иначе обычный
+  // Вспышка света (FLASH): светит life с, гаснет к концу (renderer.setLights — updateFlashes)
+  flash(at, { radius = 4, power = 1, life = 0.1, color = [255, 200, 130] } = {}) {
+    (this.flashes ||= []).push({ x: at.x, y: at.y, z: at.z, radius, power, life, left: life, color: color.map((c) => (c > 1 ? c / 255 : c)) });
+  }
+
+  // Каждый тик: вспышки гаснут; светящиеся снаряды (стрелы, болты, сгустки — glow / FLASH.items) светят, пока летят.
+  // В рисовальщик — 8 ближайших к камере
+  updateFlashes(dt) {
+    const list = [];
+    this.flashes = (this.flashes || []).filter((f) => (f.left -= dt) > 0);
+    for (const f of this.flashes) {
+      const k = f.left / f.life;
+      list.push({ x: f.x, y: f.y, z: f.z, radius: f.radius, color: f.color, power: f.power * k * k });
+    }
+    const P = FLASH.projectile;
+    for (const p of this.projectiles?.list || []) {
+      const c = p.glow || FLASH.items[p.item];
+      if (!c) continue;
+      list.push({ x: p.position.x, y: p.position.y, z: p.position.z, radius: P.radius, power: P.power, color: c.map((v) => (v > 1 ? v / 255 : v)) });
+    }
+    const cam = this.look?.position || this.player?.position;
+    if (cam && list.length > 8) list.sort((a, b) => Math.hypot(a.x - cam.x, a.y - cam.y, a.z - cam.z) - Math.hypot(b.x - cam.x, b.y - cam.y, b.z - cam.z));
+    this.activeLights = list.slice(0, 8);
+    this.engine.renderer?.setLights?.(this.settings.graphics?.lighting === false ? [] : this.activeLights);
+  }
+
+  // Свет вспышек в точке (модели: lightHere)
+  flashLightAt(x, y, z) {
+    let k = 0;
+    for (const l of this.activeLights || []) {
+      const d = Math.hypot(x - l.x, y - l.y, z - l.z);
+      if (d < l.radius) k += l.power * (1 - d / l.radius) ** 2;
+    }
+    return k;
+  }
+
   boomFx(at, radius = 2, color = null) {
+    const F = FLASH.boom;
+    this.flash({ x: at.x, y: at.y + 0.5, z: at.z }, { radius: Math.max(F.radius, radius * F.perRadius), power: F.power, life: F.life, color: color || F.color });
     if (!this.fx) return;
     this.fx.burst(at, { count: 18 + Math.round(radius * 6), speed: radius * 3.2, color: color || FX.fire, size: 0.16, life: 0.35, drag: 3, grow: 0.3, up: 0.6 });
     this.fx.burst(at, { count: 10, speed: radius * 1.8, color: FX.fireCore, size: 0.1, life: 0.25, drag: 4, grow: 0.2 });

@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { ATTACKS, MOB_RANGED, BULLET } from "../config.js";
+import { ATTACKS, MOB_RANGED, BULLET, FLASH } from "../config.js";
 import { Vec3, aimArc } from "../../../engine/index.js";
 import { skinFx } from "../skins.js";
 
@@ -86,6 +86,8 @@ export class ThrowersPart {
   tracer(from, to, attackId) {
     const tr = BULLET.trace[attackId];
     const fx = skinFx(this.settings, ITEM_OF_ATTACK[attackId]); // скин оружия красит трассер
+    const M = FLASH.muzzle;
+    this.flash?.(from, { radius: M.radius, power: M.power, life: M.life, color: fx || M.color }); // вспышка у ствола
     if (tr) this.beams.add({ from, to, color: fx || BULLET.color, core: fx ? lighter(fx) : BULLET.core, life: tr.life, width: tr.width });
   }
 

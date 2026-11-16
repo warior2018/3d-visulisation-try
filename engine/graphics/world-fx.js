@@ -31,6 +31,7 @@ const UNIFORMS_NEW = `  voidSky: f32,
   _pad5: f32,
   torch: vec4f,       // свет у героя (факел): где (xyz) и радиус (w, 0 — нет)
   torchP: vec4f,      // x — сила
+  lights: array<vec4f, 16>, // вспышки (выстрел, взрыв, светящийся снаряд): по 2 на свет — [x, y, z, радиус], [r, g, b, сила]
 };
 @group(0) @binding(1) var shadowMap: texture_depth_2d;
 @group(0) @binding(2) var shadowSampler: sampler_comparison;`;
@@ -246,10 +247,19 @@ fn cube_fx_fs(in: CubeFxOut) -> @location(0) vec4f {
     torchL = u.torchP.x * pow(max(0.0, 1.0 - d / u.torch.w), 2.0);
   }
   let lampL = clamp(in.lamp + torchL, 0.0, 1.5);
+  // вспышки (setLights): цветной свет, быстро гаснет (игра уменьшает силу), без теней
+  var dyn = vec3f(0.0);
+  for (var i = 0; i < 8; i = i + 1) {
+    let lp = u.lights[i * 2];
+    if (lp.w <= 0.0) { continue; }
+    let lc = u.lights[i * 2 + 1];
+    let d = distance(in.worldPos + in.normal * 0.3, lp.xyz);
+    dyn = dyn + lc.rgb * lc.w * pow(max(0.0, 1.0 - d / lp.w), 2.0);
+  }
   let k = in.sky * u.brightness + lampL * 1.1 * u.base;
   let tint = mix(vec3f(1.0), LAMP, clamp(lampL / max(k, 0.001), 0.0, 1.0) * 0.7);
-  color = haze(color * tint, in.worldXZ);
-  return vec4f(toOutput(color * k), 1.0);
+  let lit = haze(color * tint, in.worldXZ) * k + haze(color, in.worldXZ) * dyn * u.base;
+  return vec4f(toOutput(lit), 1.0);
 }
 `;
 

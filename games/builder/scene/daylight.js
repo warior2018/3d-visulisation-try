@@ -19,6 +19,7 @@ export class DaylightPart {
       const d = Math.hypot(p.x - me.x, p.y + h * 0.75 - (me.y + t.height), p.z - me.z);
       lamp += t.power * Math.max(0, 1 - d / t.radius) ** 2;
     }
+    lamp += this.flashLightAt?.(p.x, p.y + h * 0.75, p.z) || 0; // вспышки (выстрел, взрыв)
     const k = l.sky + lamp; // день / ночь — шейдер умножит сам (u.brightness)
     return { k, warm: k > 0 ? lamp / k : 0 };
   }
@@ -88,6 +89,7 @@ export class DaylightPart {
   // Каждый кадр: время суток идёт (если включено), яркость мира — от него
   updateDaylight(dt) {
     this.updateTorch(dt);
+    this.updateFlashes?.(dt); // вспышки света: выстрелы, взрывы, снаряды (scene/effects.js)
     const on = this.settings.general.dayNight !== false;
     if (on) this.dayTime = ((this.dayTime ?? DAY.start) + dt / DAY.length) % 1;
     const r = this.engine.renderer;

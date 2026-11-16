@@ -134,7 +134,7 @@ export class GPURenderer {
     this.srgb = format.endsWith("-srgb"); // такой формат ждёт «линейные» цвета
 
     // Uniform-буфер: 16 чисел (64 байта), раскладку описывает struct Uniforms в шейдере
-    this.uniformData = new Float32Array(44); // + свет у героя (torch) // 16 основных + небо (world-fx.js): солнце, день, время, облака, яркость + камера карты теней
+    this.uniformData = new Float32Array(44 + 64); // + свет у героя (torch) + 8 вспышек (setLights) // 16 основных + небо (world-fx.js): солнце, день, время, облака, яркость + камера карты теней
     this.uniformBuffer = device.createBuffer({
       size: this.uniformData.byteLength,
       usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST,
@@ -669,6 +669,12 @@ export class GPURenderer {
     this.torch = t;
   }
 
+  // Вспышки света (до 8): [{ x, y, z, radius, color: [r, g, b] 0…1, power }] — выстрел, взрыв, светящийся снаряд.
+  // Каждый кадр (игра гасит их сама: power ↓). Светят на блоки (шейдер мира), без теней
+  setLights(list) {
+    this.lights = list;
+  }
+
   // Качество света (настройка графики): "low" / "medium" / "high" — проб настоящей тени (1 / 9 / 25) и лучей
   // простой тени на кубик (1 / 4 / 9). Поменялось — простые тени перезапекаются
   setLightQuality(q) {
@@ -815,6 +821,11 @@ export class GPURenderer {
     d[22] = sky.base;
     const tc = this.torch; // свет у героя (setTorch)
     d[36] = tc?.x ?? 0; d[37] = tc?.y ?? 0; d[38] = tc?.z ?? 0; d[39] = tc ? tc.radius : 0; d[40] = tc ? tc.power : 0;
+    for (let i = 0; i < 8; i++) { // вспышки
+      const l = this.lights?.[i], o = 44 + i * 8;
+      d[o] = l?.x ?? 0; d[o + 1] = l?.y ?? 0; d[o + 2] = l?.z ?? 0; d[o + 3] = l ? l.radius : 0;
+      d[o + 4] = l ? l.color[0] : 0; d[o + 5] = l ? l.color[1] : 0; d[o + 6] = l ? l.color[2] : 0; d[o + 7] = l ? l.power : 0;
+    }
     device.queue.writeBuffer(this.uniformBuffer, 0, d);
 
     t?.("мир: чанки");
