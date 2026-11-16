@@ -62,10 +62,9 @@ export const ACHIEVEMENTS = [
   { id: "lich-3", skin: "bone/cursed", name: "PHYLACTERY", text: "KILL THE BONE LICH 3 TIMES", stat: "boss:lich", goal: 3, tier: 3 },
   { id: "troll-3", skin: "iron/royal", name: "KINGSLAYER", text: "KILL THE CAVE TROLL 3 TIMES", stat: "boss:troll", goal: 3, tier: 3 },
   // ---------- полезное ----------
-  { id: "traps-40", skin: "bear-trap/rusted", name: "SNAP!", text: "KILL 40 MONSTERS WITH BEAR TRAPS", stat: "trapKills:bear-trap", goal: 40, tier: 1 },
-  { id: "spikes-150", skin: "spikes/obsidian", name: "PINCUSHION", text: "KILL 150 MONSTERS WITH SPIKES", stat: "trapKills:spikes", goal: 150, tier: 2 },
+  { id: "traps-40", skin: "bear-trap/rusted", name: "SNAP!", text: "KILL 10 MONSTERS WITH BEAR TRAPS", stat: "trapKills:bear-trap", goal: 10, tier: 1 },
+  { id: "spikes-150", skin: "spikes/obsidian", name: "PINCUSHION", text: "KILL A BOSS WITH SPIKES", stat: "bossWith:spikes", goal: 1, tier: 2 },
   { id: "medkits-30", skin: "medkit/navy", name: "FIELD MEDIC", text: "USE 30 MEDKITS", stat: "medkits", goal: 30, tier: 1 },
-  { id: "blocks-1500", skin: "builder/golden", name: "ARCHITECT", text: "PLACE 1500 BLOCKS", stat: "blocks", goal: 1500, tier: 2 },
 ];
 
 const BY_SKIN = new Map(ACHIEVEMENTS.map((a) => [a.skin, a]));
