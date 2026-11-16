@@ -32,7 +32,7 @@ export class EffectsPart {
     (this.flashes ||= []).push({ x: at.x, y: at.y, z: at.z, radius, power, life, hold: Math.min(hold, life * 0.95), left: life, color: color.map((c) => (c > 1 ? c / 255 : c)) });
   }
 
-  // Каждый тик: вспышки гаснут; светящиеся снаряды (стрелы, болты, сгустки — glow / FLASH.items) светят, пока летят.
+  // Каждый тик: вспышки гаснут; светящиеся снаряды (стрелы и болты со скином — light, сгустки — FLASH.items) светят.
   // В рисовальщик — 8 ближайших к камере
   updateFlashes(dt) {
     const list = [];
@@ -43,7 +43,7 @@ export class EffectsPart {
     }
     const P = FLASH.projectile;
     for (const p of this.projectiles?.list || []) {
-      const c = p.glow || FLASH.items[p.item];
+      const c = p.light || FLASH.items[p.item]; // светит снаряд со скином (огненный, ледяной…) или светящийся сам; простая стрела — нет
       if (!c) continue;
       list.push({ x: p.position.x, y: p.position.y, z: p.position.z, radius: P.radius, power: P.power, color: c.map((v) => (v > 1 ? v / 255 : v)) });
     }

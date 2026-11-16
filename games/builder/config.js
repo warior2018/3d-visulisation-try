@@ -164,7 +164,7 @@ export const HERO_LIGHT = { radius: 0, power: 0.35, height: 1.3 };
 // Факел (магазин, ячейка предмета): клавиша ячейки — зажечь / потушить, в руки не берётся — работает с любым
 // оружием. Горит time с всего (тушишь — время сохраняется), сгорел — пропал. Пока горит: свет radius блоков
 // силы power и slow к скорости. price — монет
-export const TORCH = { time: 71, radius: 7, power: 0.75, height: 1.3, slow: -0.03, price: 25 };
+export const TORCH = { time: 71, radius: 10.5, power: 1.125, height: 1.3, slow: -0.03, price: 25 };
 
 // Вспышки света от оружия (scene/effects.js): ярко, недалеко, быстро гаснут. muzzle — выстрел (у ствола),
 // boom — взрыв (радиус — не меньше radius, или радиус взрыва × perRadius), projectile — светящийся снаряд в полёте
@@ -173,16 +173,16 @@ export const FLASH = {
   // выстрел: у ствола (radius, power) и впереди по линии выстрела (на ahead блоков: cone — радиус, conePower) —
   // свет конусом перед героем. Время (половина — полная сила, половина — гаснет): time[0] + (урон − 10) × perDamage,
   // в пределах time (автомат 0.15, пистолет ~0.7, снайперка 0.8)
-  muzzle: { radius: 4, power: 1.3, ahead: 5, cone: 6.5, conePower: 0.7, time: [0.15, 0.8], perDamage: 0.0306, color: [255, 205, 130] },
-  boom: { radius: 6, perRadius: 2, power: 2, life: 0.45, color: [255, 150, 60] },
-  projectile: { radius: 3.5, power: 0.8 },
+  muzzle: { radius: 4, power: 3.9, ahead: 5, cone: 6.5, conePower: 2.1, time: [0.15, 0.8], perDamage: 0.0306, color: [255, 205, 130] },
+  boom: { radius: 6, perRadius: 2, power: 3, life: 0.45, color: [255, 150, 60] },
+  projectile: { radius: 3.5, power: 1.2 },
   items: { lichbolt: [170, 90, 255], magma: [255, 120, 40], fireball: [255, 130, 40], spore: [140, 240, 100] },
 };
 
 export const LIGHTS = {
-  lamp: { color: [255, 214, 130], power: 1, radius: 9 },
-  torch: { color: [255, 160, 70], power: 0.9, radius: 7 },
-  chest: { color: [196, 150, 60], power: 0.5, radius: 4 }, // крышка сундука (ISLANDS.chest.color) чуть светится
+  lamp: { color: [255, 214, 130], power: 1.5, radius: 9 }, //   (все источники ×1.5)
+  torch: { color: [255, 160, 70], power: 1.35, radius: 7 },
+  chest: { color: [196, 150, 60], power: 0.75, radius: 4 }, // крышка сундука (ISLANDS.chest.color) чуть светится
 };
 // Особые поверхности цветов палитры (номер цвета → поверхность блока): "slip" — скользкий (движок: Physics)
 export const PALETTE_SURFACE = { 5: "slip" };
