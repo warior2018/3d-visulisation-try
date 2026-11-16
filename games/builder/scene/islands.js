@@ -4,9 +4,9 @@
 //  открыт ли он — в сохранении мира (worldgen.treasure). Сундук — на карте; F рядом — открыть.
 // ============================================================
 
-import { ISLANDS, LIGHTS } from "../config.js";
-import { rarityOf, RARITIES, Vec3 } from "../../../engine/index.js";
-import { rarityData, tierOf } from "./loot.js";
+import { ISLANDS, LIGHTS, LOOT } from "../config.js";
+import { rarityOf, Vec3 } from "../../../engine/index.js";
+import { rarityData, tierOf, rollRarities } from "./loot.js";
 import { ITEMS, isWeapon, isArmor } from "../items.js";
 
 export class IslandsPart {
@@ -106,17 +106,21 @@ export class IslandsPart {
     const pool = Object.keys(ITEMS).filter((id) => isWeapon(id) || isArmor(id));
     const top = Math.max(...pool.map(tierOf));
     const list = pool.filter((id) => tierOf(id) === top);
-    const item = list[Math.floor(Math.random() * list.length)];
-    const min = RARITIES.findIndex((r) => r.id === C.rarity);
-    const rarity = RARITIES[Math.min(RARITIES.length - 1, min + (Math.random() < 0.25 ? 1 : 0))].id;
-    const data = rarityData(rarity);
-    if (item) this.pickups.add(item, 1, at, data ? { data } : {});
+    // редкость — LOOT.rarity (12.5 / 27.5 / 55, 5 % — две вещи)
+    const rarities = rollRarities(LOOT.rarity);
+    let item = null;
+    for (const r of rarities) {
+      item = list[Math.floor(Math.random() * list.length)];
+      const data = rarityData(r);
+      if (item) this.pickups.add(item, 1, at, data ? { data } : {});
+    }
+    const rarity = rarities[0] + "";
     // крышка открывается (модель) — у старого сундука из блоков верх убираем
     if (c.model) this.chestEntity()?.view?.animator.playOnce("Open");
     else for (const ox of [0, 1]) this.world.remove?.(c.x + ox, c.y + 1, c.z);
     this.engine.sound.play("levelup");
     const tr = (x) => this.engine.locale?.translate?.(x) ?? x;
-    this.engine.toast(tr("CHEST") + ": +" + coins + " " + tr("COINS") + ", " + tr(rarityOf(rarity).name) + "!", 3000);
+    this.engine.toast(tr("CHEST") + ": +" + coins + " " + tr("COINS") + ", " + tr(rarityOf(rarity).name) + (rarities.length > 1 ? " +1" : "") + "!", 3000);
     this.engine.log(`сундук открыт: ${coins} монет, ${item} (${rarity})`);
     this.fx?.burst(at, { count: 30, speed: 3, up: 2, color: C.color, size: 0.08, life: 1, gravity: 6, drag: 1 });
     this.save?.(false);

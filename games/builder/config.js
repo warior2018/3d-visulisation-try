@@ -925,8 +925,10 @@ export const WEAPON_PERKS = {
 };
 export const LOOT = {
   gear: 0.015, invasionMult: 1.5, bossGear: 1,
-  // Редкость выпавшей вещи: не ниже RARE. bonus — шанс «+1 вещь»: тогда выпадают две, обе — по таблице reroll
+  // Редкость вещи из СУНДУКА (остров, пещеры): не ниже RARE. bonus — шанс «+1 вещь»: две, обе — по reroll
   rarity: { legendary: 0.125, epic: 0.275, rare: 0.55, bonus: 0.05, reroll: { legendary: 0.125, epic: 0.275, rare: 0.6 } },
+  // Редкость вещи с МОБА (как было: 70 / 22 / 6.5 / 1.5, удача поднимает редкие) + 1 % — «+1 вещь», обе не ниже RARE
+  mobRarity: { legendary: 0.015, epic: 0.065, rare: 0.22, bonus: 0.01, reroll: { legendary: 0.05, epic: 0.2, rare: 0.75 } },
   tiers: (n) => ({ 1: Math.max(10, 60 - n / 8), 2: 30, 3: Math.min(35, 5 + n / 20), 4: Math.min(25, n / 40) }),
   sell: 0.25,
   resources: { bone: 1, skull: 3, block: 0 },

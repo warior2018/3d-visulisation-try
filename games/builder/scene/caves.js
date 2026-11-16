@@ -6,11 +6,11 @@
 //  (worldgen.caves). Сундук — та же модель, что на дальнем острове (tools/make-chest.js).
 // ============================================================
 
-import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS } from "../config.js";
-import { Vec3, RARITIES, rarityOf } from "../../../engine/index.js";
+import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS, LOOT } from "../config.js";
+import { Vec3, rarityOf } from "../../../engine/index.js";
 import { mobGrowth } from "../creatures.js";
 import { pickWeighted } from "./shared.js";
-import { rarityData, tierOf } from "./loot.js";
+import { rarityData, tierOf, rollRarities } from "./loot.js";
 import { ITEMS, isWeapon, isArmor } from "../items.js";
 
 const between = (rnd, [a, b]) => a + Math.floor(rnd() * (b - a + 1));
@@ -206,14 +206,18 @@ export class CavesPart {
     const tiers = [...new Set(pool.map(tierOf))].sort((a, b) => a - b);
     const tier = tiers[Math.min(tiers.length - 1, Math.floor(Math.random() * tiers.length))];
     const list = pool.filter((id) => tierOf(id) === tier);
-    const item = list[Math.floor(Math.random() * list.length)];
-    const min = RARITIES.findIndex((r) => r.id === C.rarity);
-    const rarity = RARITIES[Math.min(RARITIES.length - 1, min + (Math.random() < 0.25 ? 1 : 0))].id;
-    const data = rarityData(rarity);
-    if (item) this.pickups.add(item, 1, at, data ? { data } : {});
+    // редкость — LOOT.rarity (12.5 / 27.5 / 55, 5 % — две вещи)
+    const rarities = rollRarities(LOOT.rarity);
+    let item = null;
+    for (const r of rarities) {
+      item = list[Math.floor(Math.random() * list.length)];
+      const data = rarityData(r);
+      if (item) this.pickups.add(item, 1, at, data ? { data } : {});
+    }
+    const rarity = rarities[0] + "";
     this.engine.sound.play("levelup");
     const tr = (x) => this.engine.locale?.translate?.(x) ?? x;
-    this.engine.toast(tr("CHEST") + ": +" + coins + " " + tr("COINS") + ", " + tr(rarityOf(rarity).name) + "!", 3000);
+    this.engine.toast(tr("CHEST") + ": +" + coins + " " + tr("COINS") + ", " + tr(rarityOf(rarity).name) + (rarities.length > 1 ? " +1" : "") + "!", 3000);
     this.engine.log(`пещерный сундук: ${coins} монет, ${item} (${rarity})`);
   }
 

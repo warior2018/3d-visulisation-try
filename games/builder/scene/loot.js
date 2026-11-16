@@ -17,6 +17,18 @@ import { INTERACT_REACH } from "./shared.js";
 const RESIDENT_RESPAWN = 60; // секунд до возвращения погибшего стража
 const SHORT = { rare: "R", epic: "E", legendary: "L" };
 
+// Редкости по таблице t ({ legendary, epic, rare, bonus, reroll }; что осталось — common): одна, а с шансом
+// bonus — две (обе по reroll). luck — удача: шанс редкой ×(1 + luck × ступень) (rare 1, epic 2, legendary 3)
+export function rollRarities(t, luck = 0) {
+  const one = (q) => {
+    const L = Math.max(0, luck), r = Math.random();
+    const leg = q.legendary * (1 + 3 * L), ep = q.epic * (1 + 2 * L), ra = q.rare * (1 + L);
+    return r < leg ? "legendary" : r < leg + ep ? "epic" : r < leg + ep + ra ? "rare" : "common";
+  };
+  if (Math.random() < (t.bonus || 0)) return [one(t.reroll), one(t.reroll)];
+  return [one(t)];
+}
+
 // Данные экземпляра по редкости: цвет рамки и буква в углу ячейки (обычной — нет данных)
 export function rarityData(rarity) {
   if (!rarity || rarity === "common") return null;
@@ -74,15 +86,8 @@ export class LootPart {
     const pool = Object.keys(ITEMS).filter((id) => (isWeapon(id) || isArmor(id)) && tierOf(id) === tier);
     if (!pool.length) return null;
     const one = () => pool[Math.floor(Math.random() * pool.length)];
-    // Редкость (LOOT.rarity): 12.5 % легендарная, 27.5 % эпическая, 55 % синяя; 5 % — «+1 вещь»: две, по reroll
-    const R = LOOT.rarity;
-    const roll = (t) => {
-      const r = Math.random();
-      return r < t.legendary ? "legendary" : r < t.legendary + t.epic ? "epic" : "rare";
-    };
-    const r = Math.random();
-    if (r >= R.legendary + R.epic + R.rare) return [{ item: one(), rarity: roll(R.reroll) }, { item: one(), rarity: roll(R.reroll) }];
-    return [{ item: one(), rarity: r < R.legendary ? "legendary" : r < R.legendary + R.epic ? "epic" : "rare" }];
+    // Редкость — LOOT.mobRarity (удача поднимает редкие; иногда +1 вещь); с элиты — не ниже RARE
+    return rollRarities(LOOT.mobRarity, this.luck()).map((r) => ({ item: one(), rarity: e.elite && r === "common" ? "rare" : r }));
   }
 
   dropGear(e) {
