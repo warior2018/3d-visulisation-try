@@ -1042,7 +1042,7 @@ export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1, shortFuse: [0.75
 export const ROCKET_JUMP = {
   // stack — какая доля прежней скорости (и вверх тоже) складывается с новым толчком
   // selfDamage — свой взрыв ранит и себя: доля урона взрыва (0.05 — на 95 % меньше)
-  pushTime: 0.32, lift: 0.6, reach: 1.1, maxSpeed: 20, stack: 0.5, selfDamage: 0.05,
+  lift: 0.6, reach: 1.1, maxSpeed: 20, stack: 0.5, selfDamage: 0.05, // толчок — импульс: скорость сразу, дальше гаснет
   push: { "hand-grenade": 2.5, launcher: 3.25, dynamite: 3.75, cluster: 2, default: 2.5 },
 };
 export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, lift: 0.3 };

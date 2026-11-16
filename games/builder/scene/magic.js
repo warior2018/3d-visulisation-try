@@ -4,8 +4,8 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { toWorld, viewBasis, Vec3, Slow, TrapAttack, withStatus, dash } from "../../../engine/index.js";
-import { SHAKE, DEMO, FALL_DAMAGE, TRAPS, ATTACKS, ROCKET_JUMP, DASH_SLIDE } from "../config.js";
+import { toWorld, viewBasis, Vec3, Slow, TrapAttack, withStatus } from "../../../engine/index.js";
+import { SHAKE, DEMO, FALL_DAMAGE, TRAPS, ATTACKS, ROCKET_JUMP } from "../config.js";
 import { skinFx } from "../skins.js";
 import { ITEM_OF_ATTACK, lighter } from "./throwers.js";
 
@@ -104,12 +104,17 @@ export class MagicPart {
     const strength = (R.push[attack?.id] ?? R.push.default) * this.damageScaleOf(attack);
     const dy0 = c.y / l + R.lift, dl = Math.hypot(c.x / l, c.z / l, dy0) || 1;
     const push = { x: ((c.x / l) / dl) * strength, y: (dy0 / dl) * strength, z: ((c.z / l) / dl) * strength };
-    // Складывается: толчок + stack доли прежней скорости (рывок ещё идёт / летим; вверх — тоже), не больше maxSpeed
+    // Импульс (не рывок): скорость задаётся сразу, дальше её гасят тяжесть и торможение лишней скорости (как
+    // отброс от взрыва), а не держится постоянной. Складывается: толчок + stack доли нынешней скорости, не больше maxSpeed
     const was = p.dash?.left > 0 ? { x: p.dash.x, y: p.dash.y ?? p.velocity.y, z: p.dash.z } : { x: p.velocity.x, y: Math.max(0, p.velocity.y), z: p.velocity.z };
+    if (p.dash) p.dash.left = 0; // рывок, если шёл, — кончился (его скорость — в импульсе)
     let v = { x: was.x * R.stack + push.x, y: was.y * R.stack + push.y, z: was.z * R.stack + push.z };
     const s = Math.hypot(v.x, v.y, v.z);
     if (s > R.maxSpeed) v = { x: (v.x / s) * R.maxSpeed, y: (v.y / s) * R.maxSpeed, z: (v.z / s) * R.maxSpeed };
-    dash(p, v.x, v.z, Math.hypot(v.x, v.y, v.z), R.pushTime, v.y, { slide: DASH_SLIDE });
+    p.velocity.x = v.x;
+    p.velocity.y = v.y;
+    p.velocity.z = v.z;
+    if (v.y > 0) p.onGround = false;
     // свой взрыв ранит и себя — на selfDamage урона взрыва (95 % меньше)
     if (attack) {
       const avg = Array.isArray(attack.damage) ? (attack.damage[0] + attack.damage[1]) / 2 : attack.damage || 0;
