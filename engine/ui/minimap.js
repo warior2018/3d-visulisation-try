@@ -5,7 +5,7 @@
 //  (чем выше блок, тем светлее). Пусто — тёмный пол.
 //
 //  Север (+Z) — вверх карты, +X — вправо. Игрок — стрелка в центре,
-//  остальное — метки: { x, z, icon: "skull" | "dot" | "cross" | "pebble", color, label?, clamp? }.
+//  остальное — метки: { x, z, icon: "skull" | "dot" | "cross" | "pebble", color, label?, clamp?, scale? } (scale — размер значка, 1 — обычный).
 //  clamp: true — если метка за краем карты, она прижимается к краю (видно, в какой она стороне).
 //
 //  center — середина карты (обычно игрок); player — где нарисовать игрока ({ x, z }, по умолчанию center:
@@ -77,7 +77,7 @@ export function drawMinimap(ui, { world, center, player = null, yaw, markers = [
       sx = Math.max(x + 7, Math.min(x + size - 7, sx));
       sy = Math.max(y + 7, Math.min(y + size - 7, sy));
     }
-    drawIcon(ui, ICONS[m.icon] || ICONS.dot, sx, sy, m.color || [255, 255, 255]);
+    drawIcon(ui, ICONS[m.icon] || ICONS.dot, sx, sy, m.color || [255, 255, 255], m.scale ?? 1);
     if (m.label && inside) ui.text(m.label, sx, sy + 8, 1, m.color || TEXT, "center");
   }
 
@@ -103,13 +103,15 @@ function clippedRect(ui, rx, ry, w, h, color, x, y, size) {
 }
 
 // Значок N×N (обычно 5×5) крупностью 2 пикселя с тёмной обводкой — виден на любом фоне
-function drawIcon(ui, rows, cx, cy, color) {
-  const s = 2;
+// scale — размер (0.6 — мельче): пиксели значка дробные, края округляем — без щелей
+function drawIcon(ui, rows, cx, cy, color, scale = 1) {
+  const s = 2 * scale;
   const n = rows.length;
-  const ox = Math.round(cx - n);
-  const oy = Math.round(cy - n);
-  ui.rect(ox - 1, oy - 1, n * s + 2, n * s + 2, [0, 0, 0], 180);
+  const ox = cx - (n * s) / 2;
+  const oy = cy - (n * s) / 2;
+  const at = (o, i) => Math.round(o + i * s);
+  ui.rect(at(ox, 0) - 1, at(oy, 0) - 1, at(ox, n) - at(ox, 0) + 2, at(oy, n) - at(oy, 0) + 2, [0, 0, 0], 180);
   rows.forEach((row, ry) => {
-    for (let rx = 0; rx < row.length; rx++) if (row[rx] === "#") ui.rect(ox + rx * s, oy + ry * s, s, s, color);
+    for (let rx = 0; rx < row.length; rx++) if (row[rx] === "#") ui.rect(at(ox, rx), at(oy, ry), at(ox, rx + 1) - at(ox, rx), at(oy, ry + 1) - at(oy, ry), color);
   });
 }

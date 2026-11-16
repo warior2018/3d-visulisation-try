@@ -845,6 +845,10 @@ export const CAVES = {
   reward: { coins: 60, perLevel: 6, rarity: "rare" },
 };
 
+// Мобы на карте (не боссы): значок — scale от обычного; ниже героя больше чем на below блоков — не видно; выше
+// больше чем на above — видно, только если моб не глубже underground блоков под рельефом своего острова
+export const MAP_MOBS = { scale: 0.6, below: 3.5, above: 3.5, underground: 1.5 };
+
 export const ISLANDS = {
   bridge: { chance: 0.75, width: 3, post: 4, deck: [120, 84, 52], rail: [92, 64, 40] },
   // мост от логова на маленьком острове к главному: ниже края главного на FALL_DAMAGE.from + below блоков

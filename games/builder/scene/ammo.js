@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { CLIPS, ISLANDS } from "../config.js";
+import { CLIPS, ISLANDS, MAP_MOBS } from "../config.js";
 import { skinFx } from "../skins.js";
 import { lighter } from "./throwers.js";
 import { markerFor } from "./shared.js";
@@ -113,6 +113,17 @@ export class AmmoPart {
     return `X ${Math.floor(p.x)}  Y ${Math.floor(p.y + 0.01)}  Z ${Math.floor(p.z)}`;
   }
 
+  // Моб на карте (не босс): ниже героя больше чем на MAP_MOBS.below — не видно; выше больше чем на above — видно,
+  // только если он на поверхности своего острова (рельеф terrain.height уже с подъёмом острова; деревья, дома и
+  // своды пещер в нём не считаются): выше и под землёй — в пещере над героем — не видно
+  mobOnMap(e) {
+    if (e.kind !== "mob" || e.boss) return true;
+    const dy = e.position.y - this.player.position.y;
+    if (dy < -MAP_MOBS.below) return false;
+    if (dy > MAP_MOBS.above && this.terrain && e.position.y < this.groundHeight(e.position.x, e.position.z) - MAP_MOBS.underground) return false;
+    return true;
+  }
+
   mapData() {
     return {
       world: this.world,
@@ -121,8 +132,8 @@ export class AmmoPart {
       fog: this.fog, // туман войны: не разведано — темно, далеко — серым, враги видны только рядом
       markers: [
         ...this.entities.list
-          .filter((e) => e !== this.player && e.alive)
-          .map((e) => ({ x: e.position.x, z: e.position.z, ...markerFor(e) })),
+          .filter((e) => e !== this.player && e.alive && this.mobOnMap(e))
+          .map((e) => ({ x: e.position.x, z: e.position.z, ...markerFor(e), ...(e.kind === "mob" && !e.boss ? { scale: MAP_MOBS.scale } : {}) })),
         // Камни и прочее на земле — маленькие серые точки
         ...this.pickups.list.map((p) => ({ x: p.position.x, z: p.position.z, icon: "pebble", color: [150, 150, 158] })),
         // Боссы: где живут (логово / площадка) — видно всегда, за краем карты — прижато к краю;
