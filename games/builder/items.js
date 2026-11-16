@@ -79,6 +79,13 @@ export const ITEMS = {
     },
   },
   skull: { name: "SKULL", color: [190, 185, 165], maxStack: 8 },
+  // Трофеи мобов: по одному с каждого (creatures.js → loot), продаются стражу (LOOT.resources)
+  "zombie-eye": { name: "ZOMBIE EYE", color: [200, 220, 150], maxStack: 16 }, //       зомби
+  "linen-roll": { name: "LINEN ROLL", color: [214, 200, 160], maxStack: 16 }, //       мумия: моток бинтов
+  "ghoul-fang": { name: "GHOUL FANG", color: [230, 226, 206], maxStack: 16 }, //       упырь
+  "champion-fang": { name: "GREAT FANG", color: [240, 232, 190], maxStack: 8 }, //     чумной вожак: клык побольше
+  "powder-gut": { name: "POWDER GUT", color: [150, 170, 70], maxStack: 16 }, //        раздутый: пороховой желудок
+  "shaman-skull": { name: "SHAMAN SKULL", color: [176, 196, 150], maxStack: 8 }, //    шаман: череп в цвет шамана
   coin: { name: "COIN", color: [235, 190, 60], maxStack: 999999 }, // монеты — одной стопкой (цены до тысяч)
   // Оружие по классам: базовое (стартовое) и покупное
   machete: { name: "MACHETE", slot: "weapon", weapon: true, class: "melee", maxStack: 1, drawIcon: iconOf(MacheteAbility) },

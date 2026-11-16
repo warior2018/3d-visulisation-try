@@ -60,7 +60,7 @@ export const CREATURES = {
     xp: 30, //                сколько опыта за победу
     resist: {}, //            сопротивления стихиям, например { fire: 0.5 }
     kindResist: { melee: 0.33 }, // стоек к виду атаки: ближний бой −33 % (цифра урона серая)
-    loot: [["bone", [0, 2]], ["skull", [0, 1]], ["coin", 5]], // с чем появляется (и что выпадет); [от, до] — случайно
+    loot: [["bone", [0, 2]], ["coin", 5]], // с чем появляется (и что выпадет); [от, до] — случайно
     ranged: true, // может быть стрелком (MOB_RANGED: камень, нож или пистолет)
     brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
   },
@@ -76,7 +76,7 @@ export const CREATURES = {
     hostileTo: ["player", "town"],
     xp: 45,
     kindResist: { ranged: 0.33 }, // стрельба −33 %
-    loot: [["bone", [0, 1]], ["coin", 8]],
+    loot: [["bone", [0, 1]], ["zombie-eye", 1], ["coin", 8]],
     ranged: true, // может быть стрелком (MOB_RANGED)
     brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
   },
@@ -153,7 +153,7 @@ CREATURES.lich = {
 // РАЗДУТЫЙ — моб-смертник (BLOATER): опухший зомби побольше; взрыв и запал — у игры (e.onBoom / e.onPrime)
 CREATURES.bloater = {
   kind: "mob", name: "BLOATER", maxHp: 45, speed: 2.6, radius: 0.36, height: 2.2, scale: 1.15, inventorySize: 4,
-  model: "bloater", hostileTo: ["player", "town"], xp: 40, kindResist: { blast: 0.33 }, loot: [["bone", [0, 1]], ["coin", 6]],
+  model: "bloater", hostileTo: ["player", "town"], xp: 40, kindResist: { blast: 0.33 }, loot: [["bone", [0, 1]], ["powder-gut", 1], ["coin", 6]],
   brain: () => new KamikazeBrain({
     range: BLOATER.range, fuse: Infinity, trigger: BLOATER.trigger, prime: BLOATER.prime, primeSpeed: BLOATER.primeSpeed,
     onPrime: (e) => e.onPrime?.(e), onBoom: (e) => e.onBoom?.(e),
@@ -165,7 +165,7 @@ CREATURES.ghoul = {
   kind: "mob", name: "GHOUL", maxHp: 45, speed: 3.3, scale: 0.95, height: 1.75, inventorySize: 4,
   model: "ghoul", attack: "ghoulClaw", hostileTo: ["player", "town"], xp: 40,
   kindResist: { ranged: 0.33, blast: -0.3 }, // стрелы и пули хуже, взрыв — больнее
-  loot: [["bone", [0, 2]], ["coin", 6]],
+  loot: [["bone", [0, 2]], ["ghoul-fang", 1], ["coin", 6]],
   brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.2, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
 };
 
@@ -174,7 +174,7 @@ CREATURES.mummy = {
   kind: "mob", name: "MUMMY", maxHp: 130, speed: 1.35, scale: 1.05, height: 1.95, inventorySize: 4,
   model: "mummy", attack: "mummyGrasp", hostileTo: ["player", "town"], xp: 60,
   kindResist: { melee: 0.33 },
-  loot: [["coin", 10], ["bone", [0, 1]]],
+  loot: [["coin", 10], ["bone", [0, 1]], ["linen-roll", 1]],
   brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
 };
 
@@ -183,7 +183,7 @@ CREATURES.shaman = {
   kind: "mob", name: "BONE SHAMAN", maxHp: 70, speed: 2, inventorySize: 4,
   model: "shaman", attack: "shamanStaff", hostileTo: ["player", "town"], xp: 70,
   kindResist: { ranged: 0.33, melee: -0.25 },
-  loot: [["bone", [1, 2]], ["skull", [0, 1]], ["coin", 9]],
+  loot: [["bone", [1, 2]], ["shaman-skull", 1], ["coin", 9]],
   rangedWeapon: { attack: "shamanHex", item: "lichbolt", scale: 0.8, range: 15, minRange: 4, straight: true, spread: 25 },
   brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.3, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
 };
@@ -201,7 +201,7 @@ CREATURES.champion = {
   kind: "mob", name: "PLAGUE CHAMPION", miniboss: true, maxHp: 650, speed: 2.1, scale: 1.6, height: 3.1, radius: 0.55, inventorySize: 6,
   model: "champion", attack: "championCleave", hostileTo: ["player", "town"], xp: 400,
   kindResist: { melee: 0.2, ranged: 0.2 },
-  loot: [["coin", 120], ["medkit", 1], ["skull", 2]],
+  loot: [["coin", 120], ["medkit", 1], ["skull", 2], ["champion-fang", 1]],
   brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.5, leash: 90, stopDistance: 2, wander: MOB_WANDER }),
 };
 
