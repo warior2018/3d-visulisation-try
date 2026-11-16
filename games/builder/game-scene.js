@@ -653,6 +653,13 @@ export class GameScene extends Scene {
       }
       if (e.type === "bat") {
         e.view?.animator.setBase(e.diving ? "Dive" : "Walk", 1); // машет крыльями, пике — сложены
+        // голова — на цель (или на героя рядом), по горизонтали в конусе ±85° от тела, плавно
+        const look = e.aggro || player;
+        let want = Math.atan2(look.position.x - e.position.x, look.position.z - e.position.z) - e.yaw;
+        want = Math.atan2(Math.sin(want), Math.cos(want));
+        want = Math.max(-1.48, Math.min(1.48, want)); // 85°
+        e.headYaw = (e.headYaw || 0) + (want - (e.headYaw || 0)) * Math.min(1, dt * 10);
+        e.view?.animator.turnBone("head", [0, Math.sin(e.headYaw / 2), 0, Math.cos(e.headYaw / 2)]);
         if (e.flapped) { // взмах — шелест (через раз: взмахи частые)
           e.flapped = false;
           e.flapCount = (e.flapCount || 0) + 1;
