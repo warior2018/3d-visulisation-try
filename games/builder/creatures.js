@@ -209,10 +209,10 @@ CREATURES.champion = {
 // ЛЕТУЧАЯ МЫШЬ (MOB_KINDS.bat): летает взмахами (bat-brain.js), кружит над целью; пике — откусывает долю
 // текущего HP, обычный удар — как у скелета; оба — кровотечение. Ночью, реже минибосса (scene/mob-kinds.js)
 CREATURES.bat = {
-  kind: "mob", name: "BAT", maxHp: 60, speed: 4.5, radius: 0.3, height: 0.6, inventorySize: 4,
+  kind: "mob", name: "BAT", maxHp: 60, speed: 4.5, radius: 0.5, height: 1.2, scale: 2, inventorySize: 4, // модель ×2
   model: "bat", attack: "batClaw", hostileTo: ["player", "town"], xp: 55,
   loot: [["coin", 9], ["bat-wing", 1]],
-  brain: () => new BatBrain({ aggroRadius: SKELETON_AI.radius * 1.5 }),
+  brain: () => new BatBrain({ aggroRadius: SKELETON_AI.radius * 1.5, orbit: [4.5, 5.5] }), // круг — радиус ~5 м
 };
 
 // Кто стоит в новом мире

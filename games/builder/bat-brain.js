@@ -16,7 +16,7 @@ export class BatBrain extends Brain {
     super();
     Object.assign(this, {
       aggroRadius: 18, leash: 45, speed: 4.5, orbit: [2.5, 3.5], hover: [1, 1.5], wait: [4, 5], diveHeight: 2.25,
-      diveSpeed: 11, retreat: 0.9, flap: { every: 0.3, impulse: 4.4 }, maxFall: 6,
+      diveSpeed: 11, retreat: 1.2, flap: { every: 0.3, impulse: 4.4 }, maxFall: 6,
     }, o);
   }
 
