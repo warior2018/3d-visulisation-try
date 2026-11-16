@@ -10,6 +10,7 @@
 import { Brain } from "../../engine/ai/brain.js";
 
 const rnd = ([a, b]) => a + Math.random() * (b - a);
+const HEAD = 0.9; // куда бьёт: доля роста цели (голова)
 
 export class BatBrain extends Brain {
   constructor(o = {}) {
@@ -93,8 +94,8 @@ export class BatBrain extends Brain {
         }
       }
     } else if (e.batState === "dive") {
-      // крылья сложены: прямо в грудь цели (чуть доворачивает)
-      const cx = tp.x - e.position.x, cy = tp.y + th * 0.6 - e.position.y, cz = tp.z - e.position.z, l = Math.hypot(cx, cy, cz) || 1;
+      // крылья сложены: серединой тела — прямо в голову цели (доворачивает)
+      const cx = tp.x - e.position.x, cy = tp.y + th * HEAD - (e.position.y + e.height * 0.5), cz = tp.z - e.position.z, l = Math.hypot(cx, cy, cz) || 1;
       e.velocity.x = (cx / l) * this.diveSpeed;
       e.velocity.y = (cy / l) * this.diveSpeed;
       e.velocity.z = (cz / l) * this.diveSpeed;
@@ -105,7 +106,7 @@ export class BatBrain extends Brain {
       } else if (e.batTimer <= 0 || e.onGround) this.startRetreat(e, -(e.diveFrom?.x ?? 0), -(e.diveFrom?.z ?? 0));
     } else if (e.batState === "approach") {
       this.steer(e, tp.x, tp.z, this.speed * 1.2);
-      this.fly(e, dt, tp.y + th * 0.5);
+      this.fly(e, dt, tp.y + th * HEAD - e.height * 0.5); // серединой тела — на уровне головы цели
       if (e.attack && e.attack.ready && !e.attack.pending && e.attack.inRange(e, t)) {
         e.attack.use(e, { ...(ctx.combatFor?.(e) || {}), target: t });
         this.startRetreat(e, e.position.x - tp.x, e.position.z - tp.z, 0.35); // ударил — отлетает (после замаха)
