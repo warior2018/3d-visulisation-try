@@ -81,7 +81,7 @@ export class PortalsPart {
 
   // Порталы (хост / одиночная игра): появление, жизнь, вход / выход героев, затягивание при закрытии
   updatePortals(dt) {
-    if (this.duel || this.role === "client") return;
+    if (!PORTALS.enabled || this.duel || this.role === "client") return;
     const P = PORTALS, p = this.player;
     this.portals ||= [];
     this.portalCd = Math.max(0, (this.portalCd || 0) - dt);

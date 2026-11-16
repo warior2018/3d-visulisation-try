@@ -185,6 +185,8 @@ export const FLASH = {
 // Закрытие: за warn с до конца того, кто в комнате, затягивает к выходу — pull (м/с: start, ×mult в секунду, до
 // max), камера — в конусе cone (° по горизонтали / вертикали), тряска shake; light — свет портала
 export const PORTALS = {
+  // enabled — порталы появляются (false — выключены)
+  enabled: false,
   every: [90, 150], max: 3, distance: [10, 25], life: [60, 120], enterRadius: 0.9, cooldown: 2, slowEvery: 4, fade: 0.5,
   // elites — элиты в комнате (вокруг дерева, eliteRadius), chests — сундуки (x, z), тир — по chestTiers
   elites: 4, eliteRadius: [4, 6], chests: [[-9, 0], [9, 0]], chestTiers: { wood: 1, steel: 1, gold: 1 }, coins: 40, coinsPerLevel: 4,

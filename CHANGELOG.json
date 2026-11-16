@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.100.2",
+    "date": "2026-11-16",
+    "title": "Portals disabled for now",
+    "changes": [
+      "Порталы временно выключены"
+    ]
+  },
+  {
     "version": "0.100.1",
     "date": "2026-11-16",
     "title": "Portal rooms: elites and chests; troll climbs out of pits",
