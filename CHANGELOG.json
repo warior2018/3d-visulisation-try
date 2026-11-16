@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.100.5",
+    "date": "2026-11-16",
+    "title": "Guest dynamite explodes",
+    "changes": [
+      "У гостя в сетевой игре брошенный динамит догорает и взрывается"
+    ]
+  },
+  {
     "version": "0.100.4",
     "date": "2026-11-16",
     "title": "Guest projectiles fly again",
