@@ -741,6 +741,7 @@ export class GameScene extends Scene {
         this.ghost = { ...c, color: ok ? PALETTE[this.colorIndex] : [255, 60, 60] };
       }
     }
+    this.updateTrapPreview(); // ловушка в руке — где встанет (scene/magic.js)
     this.lookTarget = this.aimedEntity(REACH);
     this.lookPickup = this.aimedPickup(PICKUP_REACH)?.pickup || null;
     profiler.end(PROF.camera);
@@ -766,7 +767,7 @@ export class GameScene extends Scene {
       camera,
       world: this.world,
       ghost: this.engine.scene === this ? this.ghost : null,
-      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...this.urnList()], firstPerson ? this.player : null),
+      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...this.urnList()], firstPerson ? this.player : null),
       viewModels: vm ? [vm] : [], // рука — слой «для экрана», только от 1-го лица
       particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
       // Оптика: всё вне круга прицела размыто (круг — в hud.js → SCOPE)

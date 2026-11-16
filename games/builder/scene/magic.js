@@ -159,31 +159,56 @@ export class MagicPart {
 
   // Поставить ловушку под прицелом (не дальше TRAPS.reach) на пол или верх блока — «приклеивается» к блоку:
   // ровно в центр клетки, поворот по сетке (не по диагонали). Сверх лимита — самая старая исчезает
-  placeTrap(type) {
-    if (this.itemCount(type) <= 0) return false;
+  // Куда встанет ловушка под прицелом: { at, yaw } или { error } (почему нельзя). Для предпоказа и установки
+  trapSpot() {
     const cam = this.rig.camera;
     const dir = cam.lookDirection();
     const reach = TRAPS.reach * (1 + (this.talentStats.placeRange || 0)); // талант PLACE RANGE
     const hit = this.world.raycast(cam.position, dir, reach + this.rig.behind);
     const pos = hit && cam.position.add(dir.scale(hit.t));
     const far = !pos || Math.hypot(pos.x - this.player.position.x, pos.z - this.player.position.z) > reach;
-    if (far) {
-      this.engine.toast("AIM AT THE GROUND NEARBY", 1200);
-      return false;
-    }
+    if (far) return { error: "AIM AT THE GROUND NEARBY" };
     // Ставим только сверху (на пол или верх блока) — и ровно по сетке: в центр клетки, поворот кратен 90°
-    const onTop = !hit.block || hit.place.y === hit.block.y + 1;
-    if (!onTop) {
-      this.engine.toast("AIM AT THE TOP OF A BLOCK OR THE GROUND", 1200);
-      return false;
-    }
     const cell = hit.block ? { x: hit.block.x, z: hit.block.z } : { x: Math.floor(pos.x), z: Math.floor(pos.z) };
+    const at = { x: cell.x + 0.5, y: hit.place.y, z: cell.z + 0.5 };
+    const yaw = Math.round(this.player.yaw / (Math.PI / 2)) * (Math.PI / 2);
+    const onTop = !hit.block || hit.place.y === hit.block.y + 1;
+    if (!onTop) return { error: "AIM AT THE TOP OF A BLOCK OR THE GROUND", at, yaw };
     if (this.traps.list.some((t) => Math.floor(t.position.x) === cell.x && Math.floor(t.position.z) === cell.z && Math.abs(t.position.y - hit.place.y) < 0.5)) {
-      this.engine.toast("THIS BLOCK ALREADY HAS A TRAP", 1000);
+      return { error: "THIS BLOCK ALREADY HAS A TRAP", at, yaw };
+    }
+    return { at, yaw };
+  }
+
+  // Предпоказ ловушки в руке (как «призрак» блока): полупрозрачная модель там, где встанет; нельзя — красная обводка
+  updateTrapPreview() {
+    const a = this.abilities.current;
+    const type = a?.type && TRAPS[a.type] ? a.type : null;
+    const spot = type && this.engine.scene === this && this.itemCount(type) > 0 ? this.trapSpot() : null;
+    const show = spot?.at;
+    let p = this.trapPreview;
+    if (p && (!show || p.type !== type)) {
+      this.game.models.detach(p);
+      p = this.trapPreview = null;
+    }
+    if (!show) return;
+    if (!p) {
+      p = this.trapPreview = { type, position: new Vec3(0, 0, 0), yaw: 0, tilt: 0, roll: 0, alive: true, hurtTime: Infinity, deadTime: 0, view: null };
+      this.game.models.attach(p, "item-" + type);
+    }
+    p.position = new Vec3(spot.at.x, spot.at.y, spot.at.z);
+    p.yaw = spot.yaw;
+    p.silhouette = spot.error ? "alert" : "faint";
+  }
+
+  placeTrap(type) {
+    if (this.itemCount(type) <= 0) return false;
+    const spot = this.trapSpot();
+    if (spot.error) {
+      this.engine.toast(spot.error, 1200);
       return false;
     }
-    const at = { x: cell.x + 0.5, y: hit.place.y, z: cell.z + 0.5 };
-    const yaw = Math.round(this.player.yaw / (Math.PI / 2)) * (Math.PI / 2), tilt = 0;
+    const { at, yaw } = spot, tilt = 0;
     const def = TRAPS[type];
     while (this.traps.count(this.player, type) >= def.max) this.traps.remove(this.traps.oldest(this.player, type));
     this.placeTrapAt(type, at, { yaw, tilt });
@@ -191,7 +216,7 @@ export class MagicPart {
     this.viewModel()?.play("Use");
     this.player.view?.animator.playOnce("Attack");
     this.engine.sound.play("trapSet");
-    this.engine.log(`поставлена ловушка ${type}: ${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}`);
+    this.engine.log(`поставлена ловушка ${type}: ${at.x.toFixed(1)}, ${at.z.toFixed(1)}`);
     this.backToWeapon(); // поставил — снова оружие
     return true;
   }
