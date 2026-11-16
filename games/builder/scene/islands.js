@@ -5,7 +5,7 @@
 // ============================================================
 
 import { ISLANDS, LIGHTS } from "../config.js";
-import { rarityOf, RARITIES } from "../../../engine/index.js";
+import { rarityOf, RARITIES, Vec3 } from "../../../engine/index.js";
 import { rarityData, tierOf } from "./loot.js";
 import { ITEMS, isWeapon, isArmor } from "../items.js";
 
@@ -71,7 +71,6 @@ export class IslandsPart {
 
   // Сундук: посередине ровной части острова (не на горке). Вернёт { x, y, z, opened }
   placeChest(d) {
-    const C = ISLANDS.chest;
     let best = null;
     for (let r = 0; r <= d.r - d.edge && !best; r += 1) {
       for (let a = 0; a < 16; a++) {
@@ -82,12 +81,8 @@ export class IslandsPart {
       }
     }
     if (!best) return null;
-    // 2 × 1 блока, сверху — «крышка» другим цветом
-    for (const ox of [0, 1]) {
-      this.world.place(best.x + ox, best.y, best.z, C.band);
-      this.world.place(best.x + ox, best.y + 1, best.z, C.color);
-    }
-    return { ...best, opened: false };
+    // Модель сундука (tools/make-chest.js) на 2 × 1 клетки; блоков в мире нет (model: true — старые сундуки были блоками)
+    return { ...best, opened: false, model: true };
   }
 
   // F рядом с сундуком: награда (один раз)
@@ -116,14 +111,27 @@ export class IslandsPart {
     const rarity = RARITIES[Math.min(RARITIES.length - 1, min + (Math.random() < 0.25 ? 1 : 0))].id;
     const data = rarityData(rarity);
     if (item) this.pickups.add(item, 1, at, data ? { data } : {});
-    // крышка «открылась»: верх сундука убираем
-    for (const ox of [0, 1]) this.world.remove?.(c.x + ox, c.y + 1, c.z);
+    // крышка открывается (модель) — у старого сундука из блоков верх убираем
+    if (c.model) this.chestEntity()?.view?.animator.playOnce("Open");
+    else for (const ox of [0, 1]) this.world.remove?.(c.x + ox, c.y + 1, c.z);
     this.engine.sound.play("levelup");
     const tr = (x) => this.engine.locale?.translate?.(x) ?? x;
     this.engine.toast(tr("CHEST") + ": +" + coins + " " + tr("COINS") + ", " + tr(rarityOf(rarity).name) + "!", 3000);
     this.engine.log(`сундук открыт: ${coins} монет, ${item} (${rarity})`);
     this.fx?.burst(at, { count: 30, speed: 3, up: 2, color: C.color, size: 0.08, life: 1, gravity: 6, drag: 1 });
     this.save?.(false);
+  }
+
+  // Сундук-модель как «сущность» для рисования (game-scene → drawList); открыт — крышка откинута
+  chestEntity() {
+    const c = this.treasure;
+    if (!c?.model) return null;
+    if (!this.chestEnt) {
+      this.chestEnt = { position: new Vec3(c.x + 1, c.y, c.z + 0.5), yaw: 0, roll: 0, alive: true, hurtTime: Infinity, deadTime: 0, view: null };
+      this.game.models.attach(this.chestEnt, "chest");
+    }
+    this.chestEnt.view?.animator.setBase(c.opened ? "Opened" : "Closed");
+    return this.chestEnt;
   }
 
   // Для карты: сундук — золотой значок (открыт — серый)

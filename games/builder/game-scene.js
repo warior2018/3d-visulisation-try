@@ -712,6 +712,8 @@ export class GameScene extends Scene {
     // Анимации: дальние — реже, невидимые — не считаем (движок: models.update near / far)
     profiler.begin(PROF.animation);
     this.game.models.update(this.entities.list, dt, { center: player.position, near: 24, far: (engine.renderer?.viewDistance || 70) + 5 }); // анимировать — пока видно
+    const chest = this.treasure?.model && !this.treasure.opened ? null : this.chestEnt; // крышка сундука откидывается
+    if (chest) this.game.models.update([chest], dt, { center: player.position, near: 24, far: 200 });
     profiler.end(PROF.animation);
 
     // 4. Камера и прицел
@@ -767,7 +769,7 @@ export class GameScene extends Scene {
       camera,
       world: this.world,
       ghost: this.engine.scene === this ? this.ghost : null,
-      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...this.urnList()], firstPerson ? this.player : null),
+      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...(this.treasure?.model ? [this.chestEntity()].filter(Boolean) : []), ...this.urnList()], firstPerson ? this.player : null),
       viewModels: vm ? [vm] : [], // рука — слой «для экрана», только от 1-го лица
       particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
       // Оптика: всё вне круга прицела размыто (круг — в hud.js → SCOPE)
