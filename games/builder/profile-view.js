@@ -38,7 +38,13 @@ export function drawAchievementGrid(ui, P, scroll, top) {
     ui.rect(x + 12, y + chh - 16, Math.round((cw - 24) * k), 6, open ? tc : [70, 72, 80], 255);
     if (!open) ui.text(`${Math.min(a.goal, P?.get?.(a.stat) || 0)}/${a.goal}`, x + cw - 12, y + 10, 1, [110, 112, 120], "right");
   });
-  if (rows > visible) ui.text("WHEEL - SCROLL", ui.width / 2, ui.height - 18, 1, th.muted, "center");
+  // полоска прокрутки справа (колесо — листать)
+  if (rows > visible) {
+    const tx = x0 + cols * (cw + gap) + 6, th2 = visible * (chh + gap) - gap;
+    const h = Math.max(24, Math.round((th2 * visible) / rows)), y = top + Math.round(((th2 - h) * scroll) / (rows - visible));
+    ui.rect(tx, top, 6, th2, [20, 22, 28], 220);
+    ui.rect(tx, y, 6, h, th.accent, 255);
+  }
   return scroll;
 }
 
