@@ -614,7 +614,8 @@ export class GameScene extends Scene {
       // despawnDistance, злой моб — дальше huntDespawn (отстал от героя). Злых нашествия не трогаем
       const dist = this.nearestHeroDist(e); // сетевая игра: до ближайшего из героев (моб у гостя не исчезает)
       const wildBoar = e.type === "boar";
-      const gone = e.boss ? false : e.kind === "mob"
+      const gone = e.boss || e.guardOf ? false : // босс и охрана сундука не пропадают
+        e.kind === "mob"
         ? (!e.aggro && (dist > SPAWN.despawnDistance || (e.age > LIFETIME.mob && dist > LIFETIME.keep))) || (dist > SPAWN.huntDespawn && !this.invasion.active)
         : wildBoar && dist > SPAWN.despawnDistance;
       if (gone) {

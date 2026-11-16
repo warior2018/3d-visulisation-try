@@ -164,13 +164,31 @@ export class CavesPart {
       const inside = this.entities.list.filter((e) => e.kind === "mob" && e.alive && this.roomOf(e.position) === room).length;
       const all = this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length;
       if (inside >= C.spawn.max || all >= SPAWN.max) continue;
-      this.caveMob(room, pickWeighted(MOB_MIX));
+      this.caveMob(room, pickWeighted(MOB_MIX), {}, { minDist: C.spawn.minDist }); // не вплотную к герою
     }
   }
 
+  // Клетка пола комнаты для моба: tries случайных; не ближе minDist к любому герою (нет такой — null).
+  // near — из подходящих взять ближайшую к этой точке (охрана — у сундука)
+  caveSpot(room, { minDist = 0, near = null, tries = 10 } = {}) {
+    const heroes = this.heroes();
+    let best = null, bestD = Infinity;
+    for (let i = 0; i < tries; i++) {
+      const x = room.x + (Math.random() - 0.5) * (room.w - 2), z = room.z + (Math.random() - 0.5) * (room.d - 2);
+      if (heroes.some((h) => Math.hypot(h.position.x - x, h.position.y - room.y, h.position.z - z) < minDist)) continue;
+      if (!near) return { x, z };
+      const d = Math.hypot(x - near.x, z - near.z);
+      if (d < bestD) { best = { x, z }; bestD = d; }
+    }
+    return best;
+  }
+
   // Моб в комнате room: на полу, в случайной клетке
-  caveMob(room, type, extra = {}) {
-    const x = room.x + (Math.random() - 0.5) * (room.w - 2), z = room.z + (Math.random() - 0.5) * (room.d - 2);
+  // spot — { minDist, near, tries } для caveSpot; места нет — моб не появляется (null)
+  caveMob(room, type, extra = {}, spot = {}) {
+    const at = this.caveSpot(room, spot);
+    if (!at) return null;
+    const { x, z } = at;
     const growth = mobGrowth(this.spawner.spawned++);
     const e = this.spawn(type, { x, y: room.y, z, yaw: Math.random() * Math.PI * 2, ...growth, ...extra });
     if (e) e.cave = true;
@@ -178,16 +196,25 @@ export class CavesPart {
   }
 
   // Охрана сундука: «elites» — 1–2 элиты + обычные (всего 4); «miniboss» — минибосс и обычный стрелок
+  // Появляются у сундука, не ближе CAVES.guardMinDist к героям (нет места — у сундука как получится); не пропадают
+  // (guardOf), сундук не открыть, пока охрана жива. Упали в бездну — погибли, тоже считается
   spawnGuard(room) {
     room.guardDone = true;
+    const c = room.chest, near = c ? { x: c.x + 1, z: c.z + 0.5 } : null;
+    const id = this.caves.rooms.indexOf(room) + 1; // номер комнаты (с 1): охрана помнит, чей сундук
+    const put = (type, extra = {}) => {
+      const e = this.caveMob(room, type, extra, { minDist: CAVES.guardMinDist, near, tries: 24 }) || this.caveMob(room, type, extra, { near, tries: 24 });
+      if (e) e.guardOf = id;
+      return e;
+    };
     if (room.guard === "miniboss") {
-      this.caveMob(room, "champion");
-      this.caveMob(room, "skeleton", { ranged: true });
+      put("champion");
+      put("skeleton", { ranged: true });
     } else {
       const strong = 1 + Math.floor(Math.random() * 2);
       const auras = Object.keys(ELITE.auras);
       for (let i = 0; i < 4; i++) {
-        const e = this.caveMob(room, pickWeighted(MOB_MIX));
+        const e = put(pickWeighted(MOB_MIX));
         if (e && i < strong) this.makeElite(e, auras[Math.floor(Math.random() * auras.length)]);
       }
     }
@@ -231,6 +258,13 @@ export class CavesPart {
       const c = room.chest;
       if (!c || c.gone) continue;
       if (Math.hypot(c.x + 1 - p.x, c.z + 0.5 - p.z) > ISLANDS.chest.reach + 0.5 || Math.abs(p.y - c.y) > 3) continue;
+      // охрана жива — не открыть (охрану ещё не звали — позвать)
+      if (room.guard && !room.guardDone) this.spawnGuard(room);
+      const id = this.caves.rooms.indexOf(room) + 1;
+      if (this.entities.list.some((e) => e.alive && e.guardOf === id)) {
+        this.engine.toast(this.tr("KILL THE GUARDS FIRST"), 2000);
+        return true;
+      }
       // вещь: случайного тира из тех, что есть (scene/islands.js → openChestStore)
       this.openChestStore(c, { coins: CAVES.reward.coins + CAVES.reward.perLevel * this.experience.level, tier: (tiers) => tiers[Math.floor(Math.random() * tiers.length)], view: () => c.ent?.view });
       return true;

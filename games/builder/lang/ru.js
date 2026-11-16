@@ -701,6 +701,7 @@ export const RU = {
   "KILL SKELETONS FOR XP - AT LEVEL 2 YOU CHOOSE A CLASS": "УБИВАЙ СКЕЛЕТОВ РАДИ ОПЫТА - НА 2 УРОВНЕ ВЫБЕРЕШЬ КЛАСС",
   "KILL THE BONE LICH 3 TIMES": "УБЕЙ КОСТЯНОГО ЛИЧА 3 РАЗА",
   "KILL THE CAVE TROLL 3 TIMES": "УБЕЙ ПЕЩЕРНОГО ТРОЛЛЯ 3 РАЗА",
+  "KILL THE GUARDS FIRST": "СНАЧАЛА УБЕЙ ОХРАНУ",
   "KILL THE PLAGUE CHAMPION": "УБЕЙ ЧУМНОГО ВОЖАКА",
   "KILL {n} GHOULS": "УБЕЙ {n} УПЫРЕЙ",
   "KILL {n} MONSTERS": "УБЕЙ {n} МОНСТРОВ",

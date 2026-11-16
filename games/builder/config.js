@@ -840,7 +840,8 @@ export const CAVES = {
   size: { w: [7, 11], d: [7, 11], h: [4, 6] }, depth: [6, 30], floor: -25, ledge: 0.4, // floor — ниже этого пол комнат не опускается (там конус узкий) // ledge — шанс уступа внутри комнаты (свой уровень)
   bridgeIslands: 0.3, lampEvery: 7, exitChance: 0.15, //                 exitChance — шанс лишнего прохода наверх у комнаты
   boss: 0.05, chest: 0.35, guard: 0.15, trigger: 18,
-  spawn: { radius: 40, every: 14, max: 3 },
+  // minDist — обычный спавн в комнате не ближе стольких м к любому герою; guardMinDist — то же для охраны сундука
+  spawn: { radius: 40, every: 14, max: 3, minDist: 11 }, guardMinDist: 8,
   reward: { coins: 60, perLevel: 6, rarity: "rare" },
 };
 
