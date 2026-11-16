@@ -96,6 +96,12 @@ export class Projectiles {
       const dir = step.scale(1 / len);
       const skip = [p.owner, p.owner?.mount, ...(p.passed || [])].filter(Boolean);
       const hit = this.thickRay(p, dir, len, skip);
+      // Прощение для головы: засчиталось тело, а линия полёта (центр снаряда) прошла бы через голову того же
+      // в пределах headForgive м дальше — хедшот. Иначе толстый луч «перехватывал» точные попадания плечом
+      if (hit && hit.part?.id !== "head" && p.headForgive > 0) {
+        const head = hit.entity.rayHitPart?.(p.position, dir, hit.t + p.headForgive);
+        if (head?.part?.id === "head") hit.part = head.part;
+      }
       const wall = this.world.raycast(p.position, dir, len);
       if (hit && (!wall || hit.t <= wall.t)) {
         p.position = p.position.add(dir.scale(hit.t));
