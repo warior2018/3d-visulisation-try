@@ -26,7 +26,7 @@ export function loadModels(models) {
   models.load("mummy", path.join(ASSETS, "zombie.glb"), { mirrorX: true, recolor: [{ from: ZS, to: [0.86, 0.8, 0.64] }, { from: ZD, to: [0.7, 0.64, 0.5] }, { from: ZSH, to: [0.8, 0.74, 0.58] }, { from: ZT, to: [0.66, 0.6, 0.46] }, { from: ZP, to: [0.74, 0.68, 0.52] }] });
   models.load("champion", path.join(ASSETS, "zombie.glb"), { mirrorX: true, recolor: [{ from: ZS, to: [0.4, 0.5, 0.18] }, { from: ZD, to: [0.28, 0.36, 0.12] }, { from: ZSH, to: [0.35, 0.12, 0.1] }, { from: ZT, to: [0.25, 0.08, 0.06] }] });
   models.load("shaman", path.join(ASSETS, "skeleton.glb"), { mirrorX: true, recolor: [{ from: [0.86, 0.84, 0.76], to: [0.82, 0.62, 0.5] }, { from: [0.12, 0.1, 0.1], to: [0.9, 0.3, 0.1] }] });
-  models.load("goblin", path.join(ASSETS, "skeleton.glb"), { mirrorX: true, recolor: [{ from: [0.86, 0.84, 0.76], to: [0.38, 0.62, 0.3] }, { from: [0.12, 0.1, 0.1], to: [0.95, 0.85, 0.2] }] });
+  models.load("goblin", path.join(ASSETS, "skeleton.glb"), { mirrorX: true, recolor: [{ from: [0.86, 0.84, 0.76], to: [0.4, 0.44, 0.24] }, { from: [0.12, 0.1, 0.1], to: [0.95, 0.85, 0.2] }] }); // болотный
   // снаряжение мобов (tools/make-mob-gear.js): надевается поверх перекрашенных моделей — свой силуэт
   for (const g of ["mob-bandage", "mob-shaman-mask", "mob-goblin-ears", "mob-pauldrons", "mob-crown", "w-shaman-staff", "w-cleaver"]) models.load(g, path.join(ASSETS, `${g}.glb`));
   models.load("mob-helmet", path.join(ASSETS, "mob-helmet.glb")); // каска зомби / раздутого (не у всех: MOB_HELMET)
