@@ -44,6 +44,7 @@ export function pickWeighted(weights) {
 // Как существо выглядит на карте: НПС — точки (сторож синий, кабан бурый, приручённый — золотой),
 // мобы — черепки (скелет белый, зомби зелёный, злые — красные)
 export function markerFor(e) {
+  if (e.type === "player") return { icon: "ally", color: [90, 230, 120] }; // другой игрок — зелёный человечек (тёмная обводка — у значка)
   if (e.kind === "npc") {
     if (e.type === "boar") return { icon: "dot", color: [170, 110, 70] };
     return { icon: "dot", color: [110, 200, 255] };
