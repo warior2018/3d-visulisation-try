@@ -74,6 +74,10 @@ export class Ability {
   drawIcon(ui, x, y, size, ctx) {} //    значок в ячейке панели
 }
 
+// Буфер нажатий: нажал, когда ещё нельзя (перезарядка, достаём оружие, стан) — сработает, как только станет
+// можно, если это случится за BUFFER_TIME с (как буфер прыжка у героя: 0.15 с)
+export const BUFFER_TIME = 0.15;
+
 export class AbilityBar {
   constructor(size = 5) {
     this.slots = new Array(size).fill(null);
@@ -107,6 +111,7 @@ export class AbilityBar {
 
   // Выбрать ячейку. Пустую выбрать нельзя. Вернёт true, если выбор поменялся.
   select(i, ctx) {
+    this.buffer = null; // сменили оружие — запомненное нажатие не переносим
     if (i === this.index || !this.slots[i]) return false;
     this.current?.unequip(ctx);
     this.index = i;
@@ -125,15 +130,40 @@ export class AbilityBar {
     const a = this.current;
     if (!a) return handled;
     for (const name of actions) {
-      if ((name === "primary" || name === "secondary") && this.equipping) handled = true; // ещё достаём — ждём
-      else if (name === "primary") { a.primary(ctx); handled = true; }
-      else if (name === "secondary") { a.secondary(ctx); handled = true; }
-      else if (a.skill(name)) {
-        a.skill(name).press?.(ctx, a); // навык оружия (Q/E...)
-        handled = true;
-      } else if (!name.startsWith("ability")) handled = a.action(name, ctx) || handled;
+      if (name.startsWith("ability")) continue;
+      // Ещё нельзя (достаём оружие, перезарядка удара / навыка, оглушён) — нажатие запоминаем на BUFFER_TIME с:
+      // станет можно — сработает само (как буфер прыжка). Помним только последнее
+      if (this.blocked(a, name, ctx)) {
+        if (name === "primary" || name === "secondary" || a.skill(name)) {
+          this.buffer = { name, left: BUFFER_TIME };
+          handled = true;
+          continue;
+        }
+      }
+      handled = this.run(a, name, ctx) || handled;
     }
     return handled;
+  }
+
+  // Выполнить действие name способности a; true — обработали
+  run(a, name, ctx) {
+    if (name === "primary") { a.primary(ctx); return true; }
+    if (name === "secondary") { a.secondary(ctx); return true; }
+    if (a.skill(name)) {
+      a.skill(name).press?.(ctx, a); // навык оружия (Q/E...)
+      return true;
+    }
+    return a.action(name, ctx);
+  }
+
+  // Нельзя ли сейчас: достаём оружие, оглушён, удар / навык на перезарядке
+  blocked(a, name, ctx) {
+    if (this.equipping || ctx?.player?.stunned) return true;
+    if (name === "primary") return !a.ready(ctx);
+    if (name === "secondary") return a.secondaryReady ? !a.secondaryReady(ctx) : false;
+    const s = a.skill(name);
+    if (s?.cooldown) return (s.cooldown(a)?.left || 0) > 0;
+    return false;
   }
 
   // input — необязательно: с ним работает autoRepeat (зажатая основная кнопка повторяет действие)
@@ -152,6 +182,16 @@ export class AbilityBar {
     if (!a) return;
     this.equipLeft = Math.max(0, this.equipLeft - dt);
     a.update(dt, ctx);
+    // Запомненное нажатие: стало можно — выполняем; не дождались за BUFFER_TIME — забываем
+    if (this.buffer) {
+      this.buffer.left -= dt;
+      if (this.buffer.left <= 0) this.buffer = null;
+      else if (!this.blocked(a, this.buffer.name, ctx)) {
+        const name = this.buffer.name;
+        this.buffer = null;
+        this.run(a, name, ctx);
+      }
+    }
     for (const [name, s] of Object.entries(a.skills)) s.hold?.(dt, ctx, !!input?.isDown(name), a);
     if (input && a.autoRepeat && !this.equipping && input.isDown("primary") && a.ready(ctx)) a.primary(ctx);
   }

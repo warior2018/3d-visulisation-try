@@ -887,3 +887,6 @@ export const ABILITY_FOR_ITEM = {
   "bear-trap": () => new TrapAbility("bear-trap", "BEAR TRAP", "bear-trap", drawBearTrap),
   spikes: () => new TrapAbility("spikes", "SPIKES", "spikes", drawSpikes),
 };
+
+// Буфер нажатий (движок: AbilityBar.blocked): блок на перезарядке — ПКМ «ждёт» и сработает, как только можно
+for (const C of [HandAbility, MacheteAbility, KatanaAbility, WarHammerAbility]) C.prototype.secondaryReady = (g) => !(g.blockCooldown > 0);
