@@ -534,6 +534,21 @@ export class GameScene extends Scene {
   // логова, нашествие. Это и есть то, что в сетевой игре считает хост
   // room — комната портала (без спавна, нашествия, логов...); slow — главный мир, пока герой в комнате (редкий тик)
   // other — мир, где только гости (не свой): свой герой тут не подбирает, не открывает карту и т. п.
+  // Снаряды летят (и у гостя сетевой игры: свои брошенные считает сам — попадание шлёт хосту)
+  tickProjectiles(dt) {
+    this.projectiles.update(dt); // брошенное летит
+    // Светящийся след у снарядов с glow (стрелы лука): короткий луч от прошлой точки до новой — видно в полёте
+    for (const p of this.projectiles.list) {
+      if (!p.glow) continue;
+      const at = { x: p.position.x, y: p.position.y, z: p.position.z };
+      if (p.glowFrom) this.beams.add({ from: p.glowFrom, to: at, color: p.glow, core: lighter(p.glow), life: 0.15, width: 5 });
+      p.glowFrom = at;
+      // Огненный / ледяной скин — ещё и хвост частиц: искры вверх или снежинки вниз
+      if (p.trail === "fire") this.fx?.burst(at, { count: 2, speed: 0.6, color: Math.random() < 0.5 ? [255, 120, 30] : [255, 210, 90], size: 0.06, life: 0.35, gravity: -2.5, drag: 2, grow: 0.3 });
+      else if (p.trail === "ice") this.fx?.burst(at, { count: 2, speed: 0.5, color: Math.random() < 0.5 ? [170, 225, 255] : [240, 250, 255], size: 0.05, life: 0.5, gravity: 2, drag: 2 });
+    }
+  }
+
   tickWorld(dt, { room = false, slow = false, other = false } = {}) {
     const full = !room && !slow;
     const mine = !other && !slow && (this.player.worldId ?? "main") === this.activeWorld.id;
@@ -563,17 +578,7 @@ export class GameScene extends Scene {
     this.pickups.update(dt); // предметы на земле падают и крутятся
     profiler.end(PROF.items);
     profiler.begin(PROF.projectiles);
-    this.projectiles.update(dt); // брошенное летит
-    // Светящийся след у снарядов с glow (стрелы лука): короткий луч от прошлой точки до новой — видно в полёте
-    for (const p of this.projectiles.list) {
-      if (!p.glow) continue;
-      const at = { x: p.position.x, y: p.position.y, z: p.position.z };
-      if (p.glowFrom) this.beams.add({ from: p.glowFrom, to: at, color: p.glow, core: lighter(p.glow), life: 0.15, width: 5 });
-      p.glowFrom = at;
-      // Огненный / ледяной скин — ещё и хвост частиц: искры вверх или снежинки вниз
-      if (p.trail === "fire") this.fx?.burst(at, { count: 2, speed: 0.6, color: Math.random() < 0.5 ? [255, 120, 30] : [255, 210, 90], size: 0.06, life: 0.35, gravity: -2.5, drag: 2, grow: 0.3 });
-      else if (p.trail === "ice") this.fx?.burst(at, { count: 2, speed: 0.5, color: Math.random() < 0.5 ? [170, 225, 255] : [240, 250, 255], size: 0.05, life: 0.5, gravity: 2, drag: 2 });
-    }
+    this.tickProjectiles(dt);
     profiler.end(PROF.projectiles);
     profiler.begin(PROF.traps);
     this.traps.update(dt, this.combatContext()); // ловушки ловят

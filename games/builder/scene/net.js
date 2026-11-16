@@ -614,6 +614,7 @@ export class ClientNet {
       else e.view?.animator.setBase(baseClip(e.net.walk, e.netLow), 1);
     }
     g.entities.update(dt); // часы: вспышка от удара, падение павших
+    g.tickProjectiles(dt); // свои брошенные снаряды летят (мир считает хост, а их — мы)
     // автоподбор: попросить хоста (предмет — тому, кто первый)
     if (g.settings.general.autoLoot !== false && g.player.alive) g.pickups.autoCollect(g.player, PICKUP_AUTO_RADIUS, (p) => this.take(p));
     g.fog.reveal(g.player.position);

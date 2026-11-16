@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.100.4",
+    "date": "2026-11-16",
+    "title": "Guest projectiles fly again",
+    "changes": [
+      "У гостя в сетевой игре брошенные снаряды снова летят, а не висят на месте"
+    ]
+  },
+  {
     "version": "0.100.3",
     "date": "2026-11-16",
     "title": "Shared light in multiplayer",
