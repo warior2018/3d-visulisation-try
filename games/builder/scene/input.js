@@ -168,6 +168,7 @@ export class InputPart {
 
   // Взять предмет из ячейки i (1 или 2); он уже в руках — обратно оружие. Пустую ячейку не берём
   toggleItem(i) {
+    if (this.player.hotbar.slots[i]?.item === "torch") return this.toggleTorch(); // факел — в руки не берём
     if (this.abilities.index === i) return this.backToWeapon();
     if (!this.abilities.slots[i]) return;
     this.abilities.select(i, this);

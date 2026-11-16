@@ -27,6 +27,15 @@ function fallRotation(e) {
   return fx ? quatX(fx * -angle) : [0, 0, Math.sin((fz * angle) / 2), Math.cos((fz * angle) / 2)];
 }
 
+// Свет места на модели: k — сколько света (0…1+), warm — доля тёплого (лампы, факел) 0…1. В tint (рисовальщик:
+// a < 0 — умножить цвет на rgb): темнее в пещере (до 5 %), у лампы — теплее
+const LAMP_TINT = [1, 0.8, 0.52];
+export function lightTint(out, k, warm = 0) {
+  const b = Math.max(0.05, Math.min(1.2, k)), w = Math.max(0, Math.min(1, warm)) * 0.7;
+  out.set([b * (1 + (LAMP_TINT[0] - 1) * w), b * (1 + (LAMP_TINT[1] - 1) * w), b * (1 + (LAMP_TINT[2] - 1) * w), -1]);
+  return out;
+}
+
 export class ModelLibrary {
   constructor(renderer) {
     this.renderer = renderer;
@@ -205,9 +214,11 @@ export class ModelLibrary {
       if (flash > 0) v.tint.set([1, 0.12, 0.12, flash]);
       else {
         // свет места: плавно (за ~0.3 с) к тому, что вокруг, — вошёл под крышу, и модель потемнела
-        const want = this.lightAt ? this.lightAt(p, e) : 1;
+        // lightAt → число (свет) или { k, warm } (warm — доля тёплого: лампы, факел)
+        const L = this.lightAt ? this.lightAt(p, e) : 1, want = typeof L === "number" ? L : L.k, warm = typeof L === "number" ? 0 : L.warm || 0;
         v.light = v.light === undefined ? want : v.light + (want - v.light) * 0.15;
-        v.tint.set([0, 0, 0, Math.max(0, Math.min(0.95, 1 - v.light))]); // до 95 %: в глубине пещеры — почти не видно
+        v.warm = v.warm === undefined ? warm : v.warm + (warm - v.warm) * 0.15;
+        lightTint(v.tint, v.light, v.warm); // до 5 % в глубине пещеры, у лампы — тёплый
       }
 
       // e.silhouette — "ally" (союзник: виден сквозь стены), "ghost" (призрак: только полупрозрачный силуэт),

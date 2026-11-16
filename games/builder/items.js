@@ -7,7 +7,7 @@
 import {
   PistolAbility, RifleAbility, CrossbowAbility, BowAbility, AutoAbility, ShotgunAbility, MacheteAbility, WarHammerAbility, KatanaAbility,
   GrenadesAbility, LauncherAbility, DynamiteAbility,
-  drawHammer, drawBearTrap, drawSpikes, drawMedkit,
+  drawHammer, drawBearTrap, drawSpikes, drawMedkit, drawTorch,
 } from "./abilities.js";
 import { PALETTE, ARMOR } from "./config.js";
 
@@ -55,6 +55,8 @@ export const ITEMS = {
   "rifle-clip": clipItem("SNIPER CLIP", [90, 100, 80], 0.42),
   // Аптечка: ячейка предмета, взять (клавиша ячейки) и держать ЛКМ — лечит (круг у прицела, MEDKIT)
   medkit: { name: "MEDKIT", slot: "item", color: [220, 60, 60], maxStack: 5, model: "medkit", drawIcon: drawMedkit },
+  // Факел: ячейка предмета; клавиша ячейки — зажечь / потушить (в руки не берётся). data.burn — сколько с осталось
+  torch: { name: "TORCH", slot: "item", color: [255, 150, 50], maxStack: 1, drawIcon: drawTorch },
   // Шкура тролля: трофей босса логова; подобрал — сразу броня навсегда (TROLL_HIDE), в сумку не идёт
   "troll-hide": {
     name: "TROLL HIDE", color: [110, 120, 90], maxStack: 1, instant: true, model: "hide",

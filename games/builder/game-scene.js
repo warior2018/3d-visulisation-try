@@ -774,7 +774,11 @@ export class GameScene extends Scene {
     // Рука «для экрана» — только пока играем: под паузой и окнами она лишь мешала бы
     const playing = this.engine.scene === this;
     const arm = this.viewModel();
-    if (arm) arm.light = this.lightHere(this.player.position, this.player); // под крышей рука темнее
+    if (arm) { // под крышей рука темнее, у лампы / с факелом — теплее
+      const L = this.lightHere(this.player.position, this.player);
+      arm.light = typeof L === "number" ? L : L.k;
+      arm.warm = typeof L === "number" ? 0 : L.warm;
+    }
     const vm = firstPerson && playing && !this.scoped && !this.onReins ? arm?.draw(camera) : null; // на поводьях — рук с оружием нет
     this.updateSkyBodies(camera); // солнце и луна на небе (scene/daylight.js)
     return {

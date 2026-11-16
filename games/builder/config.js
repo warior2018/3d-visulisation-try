@@ -159,8 +159,12 @@ export const PALETTE = [
 ];
 // Светящиеся блоки (движок: world.setEmitters → chunk-mesh.js blockLightAt): цвет, яркость 0…1, радиус (блоков, ≤ 16).
 // Лампа — из палитры стройки; факел — на столбиках мостов и у места появления (scene/islands.js)
-// Свет у героя (как факел в руке): радиус (блоков), сила (лампа — 1), высота от ног. radius 0 — нет
-export const HERO_LIGHT = { radius: 4, power: 0.35, height: 1.3 };
+// Свет у героя без факела: радиус (блоков), сила (лампа — 1), высота от ног. radius 0 — нет (свет — от факела)
+export const HERO_LIGHT = { radius: 0, power: 0.35, height: 1.3 };
+// Факел (магазин, ячейка предмета): клавиша ячейки — зажечь / потушить, в руки не берётся — работает с любым
+// оружием. Горит time с всего (тушишь — время сохраняется), сгорел — пропал. Пока горит: свет radius блоков
+// силы power и slow к скорости. price — монет
+export const TORCH = { time: 71, radius: 7, power: 0.75, height: 1.3, slow: -0.03, price: 25 };
 
 export const LIGHTS = {
   lamp: { color: [255, 214, 130], power: 1, radius: 9 },

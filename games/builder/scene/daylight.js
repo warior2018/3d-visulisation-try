@@ -3,22 +3,73 @@
 //  (DAY: ночью вся картинка мира темнее — интерфейс нет). Время суток — у героя в сохранении.
 // ============================================================
 
-import { lightOf } from "../../../engine/index.js";
-import { DAY, LIGHTS, SKY_BODIES, HERO_LIGHT } from "../config.js";
+import { lightAt } from "../../../engine/index.js";
+import { DAY, LIGHTS, SKY_BODIES, HERO_LIGHT, TORCH } from "../config.js";
 
 export class DaylightPart {
-  // Свет в точке p (у головы): 0..1; освещение выключено в настройках — 1
+  // Свет в точке p (у головы): { k — сколько (0…1+), warm — доля тёплого (лампы, факел) }; освещение выключено — 1
   lightHere(p, e = null) {
     if (this.settings.graphics?.lighting === false) return 1;
     const h = e?.height ?? 1.6;
-    let k = lightOf(this.world, Math.floor(p.x), Math.floor(p.y + h * 0.75), Math.floor(p.z));
-    // свет у героя (HERO_LIGHT) — и на модели рядом
-    const me = this.player?.position;
-    if (me && HERO_LIGHT.radius > 0) {
-      const d = Math.hypot(p.x - me.x, p.y + h * 0.75 - (me.y + HERO_LIGHT.height), p.z - me.z);
-      k += HERO_LIGHT.power * Math.max(0, 1 - d / HERO_LIGHT.radius) ** 2;
+    const l = lightAt(this.world, Math.floor(p.x), Math.floor(p.y + h * 0.75), Math.floor(p.z));
+    let lamp = l.lamp;
+    // свет у героя (горящий факел — heroLight) — и на модели рядом
+    const me = this.player?.position, t = this.heroLight();
+    if (me && t) {
+      const d = Math.hypot(p.x - me.x, p.y + h * 0.75 - (me.y + t.height), p.z - me.z);
+      lamp += t.power * Math.max(0, 1 - d / t.radius) ** 2;
     }
-    return k;
+    const k = l.sky + lamp; // день / ночь — шейдер умножит сам (u.brightness)
+    return { k, warm: k > 0 ? lamp / k : 0 };
+  }
+
+  // Факел (TORCH): зажечь / потушить
+  toggleTorch() {
+    const s = this.player.hotbar.slots.find((x) => x?.item === "torch");
+    if (!s) return;
+    this.torchLit = !this.torchLit;
+    if (!this.torchLit) delete this.player.speedBonuses.torch;
+    this.engine.sound.play("equip");
+    this.engine.toast(this.tr(this.torchLit ? "TORCH LIT" : "TORCH PUT OUT"), 900);
+    this.engine.redraw();
+  }
+
+  // Каждый кадр: горящий факел сгорает (data.burn), пока горит — медленнее (TORCH.slow); сгорел — пропал
+  updateTorch(dt) {
+    const p = this.player;
+    if (!this.torchLit || !p?.alive) {
+      if (p?.speedBonuses) delete p.speedBonuses.torch;
+      if (!p?.alive) this.torchLit = false;
+      return;
+    }
+    const hb = p.hotbar, i = hb.slots.findIndex((x) => x?.item === "torch");
+    if (i < 0) { // убрали из ячейки — погас
+      this.torchLit = false;
+      delete p.speedBonuses.torch;
+      return;
+    }
+    const s = hb.slots[i];
+    s.data = s.data || { burn: TORCH.time };
+    s.data.burn = Math.max(0, (s.data.burn ?? TORCH.time) - dt);
+    const label = String(Math.ceil(s.data.burn));
+    if (label !== s.data.label) {
+      s.data.label = label;
+      this.engine.redraw();
+    }
+    p.speedBonuses.torch = TORCH.slow;
+    if (s.data.burn <= 0) {
+      hb.slots[i] = null;
+      this.torchLit = false;
+      delete p.speedBonuses.torch;
+      this.syncAbilities?.();
+      this.engine.toast(this.tr("TORCH BURNED OUT"), 1500);
+    }
+  }
+
+  // Свет у героя сейчас: горит факел — его; иначе HERO_LIGHT (radius 0 — нет)
+  heroLight() {
+    if (this.torchLit) return TORCH;
+    return HERO_LIGHT.radius > 0 ? HERO_LIGHT : null;
   }
 
   // Доля дня: 0 — полночь, 0.25 — рассвет, 0.5 — полдень, 0.75 — закат
@@ -36,6 +87,7 @@ export class DaylightPart {
 
   // Каждый кадр: время суток идёт (если включено), яркость мира — от него
   updateDaylight(dt) {
+    this.updateTorch(dt);
     const on = this.settings.general.dayNight !== false;
     if (on) this.dayTime = ((this.dayTime ?? DAY.start) + dt / DAY.length) % 1;
     const r = this.engine.renderer;
@@ -44,7 +96,8 @@ export class DaylightPart {
     r.brightness = base * (on ? this.dayLight() : 1);
     // свет у героя (факел): мягкий, небольшой — в пещере без ламп видно вокруг себя (HERO_LIGHT)
     const me = this.player?.alive !== false ? this.player?.position : null;
-    r.setTorch?.(me && HERO_LIGHT.radius > 0 && this.settings.graphics?.lighting !== false ? { x: me.x, y: me.y + HERO_LIGHT.height, z: me.z, radius: HERO_LIGHT.radius, power: HERO_LIGHT.power } : null);
+    const t = this.heroLight();
+    r.setTorch?.(me && t && this.settings.graphics?.lighting !== false ? { x: me.x, y: me.y + t.height, z: me.z, radius: t.radius, power: t.power } : null);
     // солнце по небу: встаёт на востоке (+X), в полдень — почти над головой, садится на западе
     const sun = this.sunDir(on ? this.dayTime ?? DAY.start : 0.5);
     const day = Math.max(0, Math.min(1, (sun[1] + 0.12) / 0.3));

@@ -6,7 +6,7 @@
 
 import { itemName, ITEMS, isArmor, isWeapon, HOTBAR_SLOTS, itemInfo, ARMOR_SLOT_NAMES } from "../items.js";
 import { describeSlot } from "../item-info.js";
-import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR, ARMOR_TIER, DUEL } from "../config.js";
+import { ATTACKS, CLASSES, SUBCLASS_WEAPONS, WEAPON_UPGRADES, MOUNT, PLAYER, SHOP, KATANA_IAI, DEMO, CLIPS, TRAPS, BUILD, MEDKIT, ARMOR, ARMOR_TIER, DUEL, TORCH } from "../config.js";
 import { signedPct } from "./shared.js";
 import { Shop, ShopScene, InventoryScene, Input, Vec3, rarityOf } from "../../../engine/index.js";
 import { openTuneScene } from "../tune.js";
@@ -122,6 +122,11 @@ export class ShopPart {
             ui.rect(x + s * 0.18, y + s * 0.72, s * 0.1, s * 0.18, [90, 62, 45]);
             ui.rect(x + s * 0.54, y + s * 0.72, s * 0.1, s * 0.18, [90, 62, 45]);
           },
+        },
+        {
+          ...supply("torch", TORCH.price, 1, `ITEM SLOT. ITS KEY - LIGHT / PUT OUT, WORKS WITH ANY WEAPON. BURNS ${TORCH.time} S IN TOTAL. LIGHT ${TORCH.radius} BLOCKS, ${Math.round(TORCH.slow * 100)}% SPEED WHILE LIT`),
+          give: () => this.giveResource("torch", 1, { burn: TORCH.time, label: String(TORCH.time) }),
+          category: "utility",
         },
         { ...supply("medkit", SHOP.medkit, 1, `ITEM SLOT. HOLD LMB ${MEDKIT.useTime} S: +${SHOP.medkitHeal} HP, THEN +${SHOP.medkitRegen.share * 100}% MAX HP OVER ${SHOP.medkitRegen.time} S`), category: "utility" },
         // Броня (ARMOR): каждая часть — своя ячейка, срезает долю физического урона. Рядами: шлем, нагрудник,

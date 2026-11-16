@@ -832,6 +832,12 @@ export class MedkitAbility extends Ability {
   }
 }
 
+export const drawTorch = (ui, x, y, s) => {
+  ui.rect(x + s * 0.44, y + s * 0.38, s * 0.14, s * 0.56, [120, 82, 46]); // ручка
+  ui.rect(x + s * 0.38, y + s * 0.3, s * 0.26, s * 0.12, [70, 60, 52]); //  обмотка
+  ui.rect(x + s * 0.38, y + s * 0.08, s * 0.26, s * 0.22, [255, 150, 50]); // пламя
+  ui.rect(x + s * 0.45, y + s * 0.02, s * 0.12, s * 0.14, [255, 220, 120]);
+};
 export const drawMedkit = (ui, x, y, s) => {
   ui.rect(x + s * 0.1, y + s * 0.2, s * 0.8, s * 0.64, [235, 235, 235]);
   ui.rect(x + s * 0.42, y + s * 0.3, s * 0.16, s * 0.44, [220, 50, 50]); // крест
@@ -865,6 +871,10 @@ export class HeldItemAbility extends HandAbility {
     else ui.rect(ix, iy, icon, icon, this.info.color || [255, 0, 255]);
     const n = g?.player?.hotbar?.count(this.item);
     if (n > 1) ui.text(String(n), x + s - 5, y + s - 18, 2, [255, 255, 255], "right");
+    // факел: сколько секунд осталось гореть; горит — рамка
+    const slot = g?.player?.hotbar?.slots.find((sl) => sl?.item === this.item && sl.data?.label);
+    if (slot) ui.text(slot.data.label, x + s - 5, y + s - 18, 2, [255, 255, 255], "right");
+    if (this.item === "torch" && g?.torchLit) ui.frame(x + 2, y + 2, s - 4, s - 4, [255, 160, 60], 2);
   }
 }
 

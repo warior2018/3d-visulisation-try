@@ -243,7 +243,8 @@ fn skin_vs(in: SkinIn) -> SkinOut {
 fn skin_fs(in: SkinOut) -> @location(0) vec4f {
   let n = normalize(in.normal);
   let light = 0.45 + 0.55 * max(dot(n, LIGHT_DIR), 0.0);
-  let lit = mix(in.color * light, skin.tint.rgb, skin.tint.a);
+  // tint.a < 0 — свет места: цвет × tint.rgb (темнее в пещере, теплее у лампы); иначе — смешать (вспышка)
+  let lit = select(mix(in.color * light, skin.tint.rgb, skin.tint.a), in.color * light * skin.tint.rgb, skin.tint.a < 0.0);
   let color = haze(lit, in.worldXZ);
   return vec4f(toOutput(color * u.brightness), 1.0);
 }
