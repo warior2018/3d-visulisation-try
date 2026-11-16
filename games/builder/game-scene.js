@@ -663,6 +663,20 @@ export class GameScene extends Scene {
     profiler.begin(PROF.player);
     // Сглаживание: рисуем между прошлым и последним тиком (герой, мобы, предметы, снаряды)
     for (const list of this.drawnLists()) Interpolation.blend(list, alpha);
+    // Мобы на ступеньках / полублоках (физика: e.stepped): модель плавно догоняет высоту тела, а не прыгает
+    // на полблока за тик (как камера героя ниже). Прыжки и падения — без сглаживания
+    for (const e of this.entities.list) {
+      if (e === player || !e.renderPosition) continue;
+      if (e.stepped) {
+        e.stepTime = 0.3;
+        e.stepped = 0;
+      }
+      e.stepTime = Math.max(0, (e.stepTime || 0) - dt);
+      const ry = e.renderPosition.y;
+      if (e.visY === undefined || e.stepTime <= 0 || Math.abs(ry - e.visY) > 1.2) e.visY = ry;
+      else e.visY += (ry - e.visY) * (1 - Math.exp(-dt * 14));
+      e.renderPosition.y = e.visY;
+    }
     player.renderYaw = this.look.yaw; // герой смотрит туда же, куда камера (мышь — каждый кадр)
     // Покачивание головы: скорость по земле, на земле ли, бежим ли
     this.bob.update(dt, Math.hypot(player.velocity.x, player.velocity.z), player.onGround, !background && engine.input.isDown("run"));
