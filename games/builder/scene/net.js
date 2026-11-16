@@ -236,7 +236,7 @@ export class HostNet {
       if (!x.view && !x.remote) continue;
       if (x === g.player && g.dedicated) continue; // сервер: своего героя не показываем
       const walking = x === g.player ? !!g.move?.moving : !!x.netWalk;
-      e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.ceil(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow)]);
+      e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.ceil(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow) | (x.diving ? 64 : 0)]);
       x.netAttack = false;
     }
     let p, h, inv;
@@ -569,7 +569,8 @@ export class ClientNet {
       if (d > Math.PI) d -= Math.PI * 2;
       else if (d < -Math.PI) d += Math.PI * 2;
       e.yaw = a.yaw + d * t;
-      e.view?.animator.setBase(baseClip(e.net.walk, e.netLow), 1);
+      if (e.type === "bat") e.view?.animator.setBase(e.diving ? "Dive" : "Walk", 1); // мышь: машет / пике
+      else e.view?.animator.setBase(baseClip(e.net.walk, e.netLow), 1);
     }
     g.entities.update(dt); // часы: вспышка от удара, падение павших
     // автоподбор: попросить хоста (предмет — тому, кто первый)
@@ -761,6 +762,7 @@ export class ClientNet {
       if (n.samples.length > 6) n.samples.shift();
       n.walk = !!(flags & 2);
       e.downed = !!(flags & 8); // погиб в матче: урна и призрак (scene/coop.js)
+      e.diving = !!(flags & 64); //  летучая мышь в пике (крылья сложены)
       const low = flags & 32 ? 2 : flags & 16 ? 1 : 0; // присед / стойка: ниже рост и голова
       if (low !== (e.netLow || 0)) lowerBody(e, low);
       if (flags & 4) e.view?.animator.playOnce("Attack"); // замахнулся на хосте

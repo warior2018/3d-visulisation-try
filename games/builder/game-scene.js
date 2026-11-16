@@ -649,8 +649,14 @@ export class GameScene extends Scene {
           engine.sound.play(e.type === "boar" ? "hoof" : "step", { at: e.position, volume: 0.6 });
         }
       }
-      if (e.type === "bat") e.view?.animator.setBase(e.diving ? "Dive" : "Walk", 1); // машет крыльями, пике — сложены
-      else e.view?.animator.setBase(going ? "Walk" : "Idle", going ? e.speed / 4 : 1);
+      if (e.type === "bat") {
+        e.view?.animator.setBase(e.diving ? "Dive" : "Walk", 1); // машет крыльями, пике — сложены
+        if (e.flapped) { // взмах — шелест (через раз: взмахи частые)
+          e.flapped = false;
+          e.flapCount = (e.flapCount || 0) + 1;
+          if (e.flapCount % 2 === 0) engine.sound.play("flap", { at: e.position, volume: 0.55 });
+        }
+      } else e.view?.animator.setBase(going ? "Walk" : "Idle", going ? e.speed / 4 : 1);
       e.netWalk = going; // для снимка сетевой игры
     }
     this.entities.update(dt);

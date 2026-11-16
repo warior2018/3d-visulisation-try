@@ -33,9 +33,11 @@ export const HITBOXES = {
   shaman: [HUMAN_HEAD],
   goblin: [{ id: "head", min: [-0.11, 1.12, -0.11], max: [0.11, 1.33, 0.11], multiplier: 2 }],
   champion: [{ id: "head", min: [-0.3, 2.56, -0.3], max: [0.3, 3.18, 0.3], multiplier: 2 }],
+  // Летучая мышь (модель ×2, тело под 47°): голова впереди и вверху
+  bat: [{ id: "head", min: [-0.17, 0.85, -0.01], max: [0.17, 1.17, 0.33], multiplier: 2 }],
 };
 // Мобы мельче на MOB_SIZE — и головы (хитбоксы) тоже (координаты выше — для полного размера)
-for (const type of ["skeleton", "zombie", "troll", "lich", "bloater", "ghoul", "mummy", "shaman", "goblin", "champion"]) {
+for (const type of ["skeleton", "zombie", "troll", "lich", "bloater", "ghoul", "mummy", "shaman", "goblin", "champion", "bat"]) {
   HITBOXES[type] = HITBOXES[type].map((h) => ({ ...h, min: h.min.map((v) => v * MOB_SIZE), max: h.max.map((v) => v * MOB_SIZE) }));
 }
 
