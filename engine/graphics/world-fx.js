@@ -29,6 +29,8 @@ const UNIFORMS_NEW = `  voidSky: f32,
   sTexel: f32,        // размер точки карты теней (1 / её ширина)
   sPcf: f32,          // проб вокруг: 1 — 3×3, 2 — 5×5 (мягче край; качество графики)
   _pad5: f32,
+  torch: vec4f,       // свет у героя (факел): где (xyz) и радиус (w, 0 — нет)
+  torchP: vec4f,      // x — сила
 };
 @group(0) @binding(1) var shadowMap: texture_depth_2d;
 @group(0) @binding(2) var shadowSampler: sampler_comparison;`;
@@ -137,7 +139,9 @@ struct CubeFxIn {
   @location(1) normal: vec3f,
   @location(2) offset: vec3f,
   @location(3) color: vec3f,
-  @location(4) glow: f32,
+  @location(4) sky: vec4f,     // небо в 4 углах грани (chunk-mesh.js)
+  @location(5) lamp: vec4f,    // лампы в 4 углах
+  @location(6) center: f32,    // небо в середине: цвет в данных — × на него (делим — чистый цвет)
 };
 
 struct CubeFxOut {
@@ -146,8 +150,10 @@ struct CubeFxOut {
   @location(1) normal: vec3f,
   @location(2) color: vec3f,
   @location(3) worldXZ: vec2f,
-  @location(4) glow: f32,
+  @location(4) sky: f32,
   @location(5) worldPos: vec3f,
+  @location(6) lamp: f32,
+  @location(7) center: f32,
 };
 
 @vertex
@@ -162,7 +168,13 @@ fn cube_fx_vs(in: CubeFxIn) -> CubeFxOut {
   out.normal = in.normal;
   out.color = in.color;
   out.worldXZ = world.xz;
-  out.glow = in.glow;
+  // угол грани (0…1 по двум осям) — свет плавно между 4 углами
+  let an = abs(in.normal);
+  var uv = in.pos.xy;
+  if (an.x > 0.5) { uv = vec2f(in.pos.z, in.pos.y); } else if (an.y > 0.5) { uv = in.pos.xz; }
+  out.sky = mix(mix(in.sky.x, in.sky.y, uv.x), mix(in.sky.z, in.sky.w, uv.x), uv.y);
+  out.lamp = mix(mix(in.lamp.x, in.lamp.y, uv.x), mix(in.lamp.z, in.lamp.w, uv.x), uv.y);
+  out.center = in.center;
   out.worldPos = world;
   return out;
 }
@@ -216,7 +228,7 @@ fn cube_fx_fs(in: CubeFxOut) -> @location(0) vec4f {
   let sun = normalize(u.sunDir);
   let lightDir = select(-sun, sun, sun.y > 0.0); // днём — солнце, ночью — луна
   let light = 0.45 + 0.55 * max(dot(in.normal, lightDir), 0.0);
-  var color = in.color * light;
+  var color = (in.color / max(in.center, 0.01)) * light; // чистый цвет (в данных — × небо в середине)
   // тень: только на гранях к солнцу (обратные и так темнее), мягко к краю; ночью — нет
   let vis = shadowVis(in.worldPos, in.normal);
   let facing = smoothstep(0.0, 0.25, dot(in.normal, sun));
@@ -227,10 +239,15 @@ fn cube_fx_fs(in: CubeFxOut) -> @location(0) vec4f {
   let lit = facing * vis * clamp(u.day, 0.0, 1.0);
   color = color * mix(vec3f(0.96, 0.98, 1.04), sunTint, lit);
   color = color * (1.0 - 0.35 * edgeness(in.local));
-  // ночь темнит всё (u.brightness), кроме света ламп: он тёплый и не темнеет
-  let night = clamp(1.0 - u.brightness, 0.0, 1.0);
-  let k = max(u.brightness, in.glow * 1.1 * u.base);
-  let tint = mix(vec3f(1.0), LAMP, clamp(in.glow * (0.4 + night), 0.0, 1.0));
+  // свет = небо (с днём / ночью: u.brightness) + лампы и факел героя (тёплые, не темнеют ночью)
+  var torchL = 0.0;
+  if (u.torch.w > 0.0) {
+    let d = distance(in.worldPos + in.normal * 0.3, u.torch.xyz);
+    torchL = u.torchP.x * pow(max(0.0, 1.0 - d / u.torch.w), 2.0);
+  }
+  let lampL = clamp(in.lamp + torchL, 0.0, 1.5);
+  let k = in.sky * u.brightness + lampL * 1.1 * u.base;
+  let tint = mix(vec3f(1.0), LAMP, clamp(lampL / max(k, 0.001), 0.0, 1.0) * 0.7);
   color = haze(color * tint, in.worldXZ);
   return vec4f(toOutput(color * k), 1.0);
 }

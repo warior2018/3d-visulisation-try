@@ -136,7 +136,7 @@ export class ViewModel {
     const p = mul3(C, Tl);
     const e = camera.position;
     this.matrix.set([M[0], M[1], M[2], 0, M[3], M[4], M[5], 0, M[6], M[7], M[8], 0, e.x + p[0], e.y + p[1], e.z + p[2], 1]);
-    this.tint.set([0, 0, 0, Math.max(0, Math.min(0.85, 1 - this.light))]);
+    this.tint.set([0, 0, 0, Math.max(0, Math.min(0.95, 1 - this.light))]);
     return { skin: v.skin, modelMatrix: this.matrix, jointMatrices: v.animator.jointMatrices, tint: this.light < 1 ? this.tint : null };
   }
 

@@ -207,7 +207,7 @@ export class ModelLibrary {
         // свет места: плавно (за ~0.3 с) к тому, что вокруг, — вошёл под крышу, и модель потемнела
         const want = this.lightAt ? this.lightAt(p, e) : 1;
         v.light = v.light === undefined ? want : v.light + (want - v.light) * 0.15;
-        v.tint.set([0, 0, 0, Math.max(0, Math.min(0.85, 1 - v.light))]);
+        v.tint.set([0, 0, 0, Math.max(0, Math.min(0.95, 1 - v.light))]); // до 95 %: в глубине пещеры — почти не видно
       }
 
       // e.silhouette — "ally" (союзник: виден сквозь стены), "ghost" (призрак: только полупрозрачный силуэт),

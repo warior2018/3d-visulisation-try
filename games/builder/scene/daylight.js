@@ -4,14 +4,21 @@
 // ============================================================
 
 import { lightOf } from "../../../engine/index.js";
-import { DAY, LIGHTS, SKY_BODIES } from "../config.js";
+import { DAY, LIGHTS, SKY_BODIES, HERO_LIGHT } from "../config.js";
 
 export class DaylightPart {
   // Свет в точке p (у головы): 0..1; освещение выключено в настройках — 1
   lightHere(p, e = null) {
     if (this.settings.graphics?.lighting === false) return 1;
     const h = e?.height ?? 1.6;
-    return lightOf(this.world, Math.floor(p.x), Math.floor(p.y + h * 0.75), Math.floor(p.z));
+    let k = lightOf(this.world, Math.floor(p.x), Math.floor(p.y + h * 0.75), Math.floor(p.z));
+    // свет у героя (HERO_LIGHT) — и на модели рядом
+    const me = this.player?.position;
+    if (me && HERO_LIGHT.radius > 0) {
+      const d = Math.hypot(p.x - me.x, p.y + h * 0.75 - (me.y + HERO_LIGHT.height), p.z - me.z);
+      k += HERO_LIGHT.power * Math.max(0, 1 - d / HERO_LIGHT.radius) ** 2;
+    }
+    return k;
   }
 
   // Доля дня: 0 — полночь, 0.25 — рассвет, 0.5 — полдень, 0.75 — закат
@@ -35,6 +42,9 @@ export class DaylightPart {
     if (!r) return;
     const base = (this.settings.video?.brightness ?? 100) / 100;
     r.brightness = base * (on ? this.dayLight() : 1);
+    // свет у героя (факел): мягкий, небольшой — в пещере без ламп видно вокруг себя (HERO_LIGHT)
+    const me = this.player?.alive !== false ? this.player?.position : null;
+    r.setTorch?.(me && HERO_LIGHT.radius > 0 && this.settings.graphics?.lighting !== false ? { x: me.x, y: me.y + HERO_LIGHT.height, z: me.z, radius: HERO_LIGHT.radius, power: HERO_LIGHT.power } : null);
     // солнце по небу: встаёт на востоке (+X), в полдень — почти над головой, садится на западе
     const sun = this.sunDir(on ? this.dayTime ?? DAY.start : 0.5);
     const day = Math.max(0, Math.min(1, (sun[1] + 0.12) / 0.3));

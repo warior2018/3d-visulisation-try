@@ -134,7 +134,7 @@ export class GPURenderer {
     this.srgb = format.endsWith("-srgb"); // такой формат ждёт «линейные» цвета
 
     // Uniform-буфер: 16 чисел (64 байта), раскладку описывает struct Uniforms в шейдере
-    this.uniformData = new Float32Array(36); // 16 основных + небо (world-fx.js): солнце, день, время, облака, яркость + камера карты теней
+    this.uniformData = new Float32Array(44); // + свет у героя (torch) // 16 основных + небо (world-fx.js): солнце, день, время, облака, яркость + камера карты теней
     this.uniformBuffer = device.createBuffer({
       size: this.uniformData.byteLength,
       usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST,
@@ -574,7 +574,9 @@ export class GPURenderer {
               attributes: [
                 { shaderLocation: 2, offset: 0, format: "float32x3" },
                 { shaderLocation: 3, offset: 12, format: "float32x3" },
-                { shaderLocation: 4, offset: 24, format: "float32" }, // glow — свет ламп
+                { shaderLocation: 4, offset: 24, format: "float32x4" }, // небо в углах грани
+                { shaderLocation: 5, offset: 40, format: "float32x4" }, // лампы в углах
+                { shaderLocation: 6, offset: 56, format: "float32" }, //   небо в середине
               ],
             },
           ],
@@ -662,11 +664,21 @@ export class GPURenderer {
     if (clouds !== undefined) s.clouds = clouds;
   }
 
+  // Свет у героя (факел): { x, y, z, radius, power } или null — нет. Каждый кадр (шейдер мира, world-fx.js)
+  setTorch(t) {
+    this.torch = t;
+  }
+
   // Качество света (настройка графики): "low" / "medium" / "high" — проб настоящей тени (1 / 9 / 25) и лучей
   // простой тени на кубик (1 / 4 / 9). Поменялось — простые тени перезапекаются
   setLightQuality(q) {
     const i = { low: 0, medium: 1, high: 2 }[q] ?? 1;
     this.shadowPcf = i;
+    if (LIGHT.smooth !== i > 0) { // плавный свет (4 угла грани) — со средних; поменялся — пересобрать куски
+      LIGHT.smooth = i > 0;
+      for (const m of this.chunkMeshes.values()) m.version = -1;
+      this.worldVersion = -1;
+    }
     if (LIGHT.rays !== i + 1) {
       LIGHT.rays = i + 1;
       this.shadowKey = null; // перезапечь
@@ -801,6 +813,8 @@ export class GPURenderer {
     d[20] = (performance.now() / 1000) % 100000;
     d[21] = sky.clouds;
     d[22] = sky.base;
+    const tc = this.torch; // свет у героя (setTorch)
+    d[36] = tc?.x ?? 0; d[37] = tc?.y ?? 0; d[38] = tc?.z ?? 0; d[39] = tc ? tc.radius : 0; d[40] = tc ? tc.power : 0;
     device.queue.writeBuffer(this.uniformBuffer, 0, d);
 
     t?.("мир: чанки");
