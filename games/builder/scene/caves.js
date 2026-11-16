@@ -7,7 +7,7 @@
 // ============================================================
 
 import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS, LOOT } from "../config.js";
-import { Vec3, rarityOf } from "../../../engine/index.js";
+import { Vec3, rarityOf, HALF } from "../../../engine/index.js";
 import { mobGrowth } from "../creatures.js";
 import { pickWeighted } from "./shared.js";
 import { rarityData, tierOf, rollRarities } from "./loot.js";
@@ -29,8 +29,8 @@ export class CavesPart {
         const cx = Math.round(disc.x + Math.sin(a) * r), cz = Math.round(disc.z + Math.cos(a) * r);
         if (disc.main && Math.hypot(cx, cz) < C.keepClear) continue; // не под местом появления
         if (rooms.some((o) => Math.abs(o.x - cx) < (o.w + w) / 2 + 4 && Math.abs(o.z - cz) < (o.d + d) / 2 + 4)) continue;
-        const floor = (disc.lift || 0) - between(rnd, C.depth); // пол комнаты: на столько ниже травы острова
-        rooms.push({ x: cx, z: cz, y: floor, w, d, h, kind: "plain", disc: T.discs.indexOf(disc) });
+        const floor = (disc.lift || 0) - between(rnd, C.depth); // пол комнаты: на столько ниже травы острова (разные уровни)
+        rooms.push({ x: cx, z: cz, y: floor, w, d, h, kind: "plain", disc: T.discs.indexOf(disc), ledge: rnd() < C.ledge ? Math.floor(rnd() * 4) : -1 });
         k++;
       }
     }
@@ -51,10 +51,21 @@ export class CavesPart {
       if (room.disc === near.disc || rnd() < C.bridgeIslands) this.carveTunnel(near, room);
       linked.push(room);
     }
-    // Проходы наверх: из первой комнаты каждого острова (и ещё из случайных)
-    const seen = new Set();
+    // Логово тролля — всегда соединено с пещерами: ход из задней стены зала (напротив входа-коридора) к ближайшей комнате
+    const reached = new Set();
+    for (const lair of T.lairs) {
+      const t = lair.tunnel;
+      const bx = t ? t.x0 - t.x1 : 1, bz = t ? t.z0 - t.z1 : 0, bl = Math.hypot(bx, bz) || 1;
+      const back = { x: Math.round(lair.x + (bx / bl) * (lair.r - 1)), z: Math.round(lair.z + (bz / bl) * (lair.r - 1)), y: lair.y };
+      const near = rooms.reduce((a, b) => (Math.hypot(b.x - back.x, b.z - back.z) < Math.hypot(a.x - back.x, a.z - back.z) ? b : a));
+      this.carveTunnel(back, near);
+      reached.add(near.disc);
+    }
+    // Проходы наверх — нечасто: у острова, куда нет хода из логова, — один обязательный; дальше — с шансом exitChance
+    const seen = new Set(reached);
     for (const room of rooms) {
-      if (seen.has(room.disc) && rnd() >= C.extraExit) continue;
+      const need = !seen.has(room.disc);
+      if (!need && rnd() >= C.exitChance) continue;
       seen.add(room.disc);
       this.carveExit(room, rnd);
     }
@@ -72,6 +83,22 @@ export class CavesPart {
   carveRoom(r) {
     const x0 = r.x - Math.floor(r.w / 2), z0 = r.z - Math.floor(r.d / 2);
     for (let i = 0; i < r.w; i++) for (let k = 0; k < r.d; k++) for (let j = 0; j < r.h; j++) this.world.remove(x0 + i, r.y + j, z0 + k);
+    // уступ: вдоль одной стены (ledge — какой) — возвышение в 2 блока шириной в треть комнаты, со ступенькой
+    // (полублок) к нему: внутри комнаты свои уровни
+    if (r.ledge >= 0 && r.h >= 5) {
+      const along = r.ledge < 2; // вдоль x или z
+      const depth = Math.max(2, Math.floor((along ? r.d : r.w) / 3));
+      for (let i = 0; i < r.w; i++) for (let k = 0; k < r.d; k++) {
+        const t = r.ledge === 0 ? k : r.ledge === 1 ? r.d - 1 - k : r.ledge === 2 ? i : r.w - 1 - i; // от стены уступа
+        if (t >= depth + 1) continue;
+        const stone = [128, 124, 120];
+        if (t < depth) for (let j = 0; j < 2; j++) this.world.place(x0 + i, r.y + j, z0 + k, stone);
+        else if ((along ? i : k) % 3 === 1) { // ступеньки к уступу: блок + полублок
+          this.world.place(x0 + i, r.y, z0 + k, stone);
+          this.world.place(x0 + i, r.y + 1, z0 + k, stone, HALF);
+        }
+      }
+    }
     // лампы в потолке: по углам-внутри и в центре
     for (const [i, k] of [[1, 1], [r.w - 2, 1], [1, r.d - 2], [r.w - 2, r.d - 2], [Math.floor(r.w / 2), Math.floor(r.d / 2)]]) this.caveLamp(x0 + i, r.y + r.h, z0 + k);
   }
