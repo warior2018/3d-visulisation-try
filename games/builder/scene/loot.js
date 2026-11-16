@@ -1,13 +1,13 @@
 // ============================================================
 //  Сцена «мир», часть: добыча вещей (удача, редкость, тиры), продажа стражу и его возвращение.
 //   - моб может уронить вещь: оружие или часть брони (LOOT.gear; босс — всегда; в нашествие — чаще);
-//     тир — по тому, сколько мобов уже было (LOOT.tiers), редкость — rollRarity с удачей героя;
+//     тир — по тому, сколько мобов уже было (LOOT.tiers), редкость — LOOT.rarity (не ниже RARE, иногда +1 вещь);
 //   - удача: талант FORTUNE (+20 % за ранг) и консоль (luck);
 //   - страж (дружелюбный скелет) покупает вещи из сумки: F — открыть торговлю;
 //   - погиб страж — через RESIDENT_RESPAWN секунд возвращается на своё место.
 // ============================================================
 
-import { rarityOf, rollRarity, chance, pickWeightedKey, TradeScene, translate } from "../../../engine/index.js";
+import { rarityOf, chance, pickWeightedKey, TradeScene, translate } from "../../../engine/index.js";
 import { LOOT, ITEM_TIER, ARMOR_TIER, ARMOR, SHOP, TIERS, WEAPON_PERKS } from "../config.js";
 import { TALENT_TREE, weaponTab } from "../talents.js";
 import { ITEMS, itemName, isWeapon, isArmor, itemInfo } from "../items.js";
@@ -73,14 +73,23 @@ export class LootPart {
     const tier = Number(pickWeightedKey(LOOT.tiers(this.spawner?.spawned || 0)));
     const pool = Object.keys(ITEMS).filter((id) => (isWeapon(id) || isArmor(id)) && tierOf(id) === tier);
     if (!pool.length) return null;
-    const item = pool[Math.floor(Math.random() * pool.length)];
-    const rarity = rollRarity(this.luck());
-    return { item, rarity: e.elite && rarity === "common" ? "rare" : rarity }; // с элиты — не ниже RARE
+    const one = () => pool[Math.floor(Math.random() * pool.length)];
+    // Редкость (LOOT.rarity): 12.5 % легендарная, 27.5 % эпическая, 55 % синяя; 5 % — «+1 вещь»: две, по reroll
+    const R = LOOT.rarity;
+    const roll = (t) => {
+      const r = Math.random();
+      return r < t.legendary ? "legendary" : r < t.legendary + t.epic ? "epic" : "rare";
+    };
+    const r = Math.random();
+    if (r >= R.legendary + R.epic + R.rare) return [{ item: one(), rarity: roll(R.reroll) }, { item: one(), rarity: roll(R.reroll) }];
+    return [{ item: one(), rarity: r < R.legendary ? "legendary" : r < R.legendary + R.epic ? "epic" : "rare" }];
   }
 
   dropGear(e) {
-    const g = this.rollGear(e);
-    if (!g) return;
+    for (const g of this.rollGear(e) || []) this.dropOneGear(e, g);
+  }
+
+  dropOneGear(e, g) {
     let data = rarityData(g.rarity);
     const perks = isWeapon(g.item) ? rollPerks(g.item, g.rarity) : null; // прокачанные таланты на оружии
     if (perks) data = { ...(data || {}), perks, label: (data?.label || "") + "+" };

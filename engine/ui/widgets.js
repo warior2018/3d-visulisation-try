@@ -108,6 +108,42 @@ export function drawInventoryGrid(ui, inventory, itemInfo, { cols = 5, size = 10
   return rects;
 }
 
+// Перелив редких вещей: раз в period с по ячейке пробегает светлая полоса (цвет редкости) за SHIMMER_TIME с.
+// period по редкости (data.rarity): синяя — 10 с, каждая следующая — на 2.5 с чаще. Пока идёт — просим кадры
+const SHIMMER_PERIOD = { rare: 10, epic: 7.5, legendary: 5 };
+const SHIMMER_TIME = 0.7;
+function drawShimmer(ui, slot, x, y, size) {
+  const period = SHIMMER_PERIOD[slot.data?.rarity];
+  if (!period) return;
+  const now = performance.now() / 1000;
+  const t = now % period;
+  if (t >= SHIMMER_TIME) {
+    ui.animateIn = Math.min(ui.animateIn ?? Infinity, period - t); // когда начнётся следующий
+    return;
+  }
+  ui.animateIn = 0; // идёт — нужен следующий кадр
+  const k = t / SHIMMER_TIME, fade = Math.sin(k * Math.PI);
+  const c = slot.data.color || [255, 255, 255];
+  const px = ui.fb?.pixels, W = ui.fb?.width;
+  if (!px) return;
+  const scale = ui.scale || 1; // интерфейс в логических точках, буфер — в пикселях
+  const x0 = Math.round(x * scale), y0 = Math.round(y * scale), S = Math.round(size * scale);
+  const band = Math.max(6, Math.round(S * 0.28));
+  const bx = x0 - band + k * (S + band * 2);
+  for (let i = 2; i < S - 2; i++) {
+    const sx = Math.round(bx - i * 0.5);
+    for (let qx = Math.max(x0 + 2, sx); qx < Math.min(x0 + S - 2, sx + band); qx++) {
+      const j = (y0 + i) * W + qx, v = px[j];
+      if (v === undefined) continue;
+      const d = 1 - Math.abs(qx - sx - band / 2) / (band / 2);
+      const a = 0.55 * fade * Math.max(0, d);
+      const r = (v & 255) + ((c[0] + 255) / 2 - (v & 255)) * a, g = ((v >>> 8) & 255) + ((c[1] + 255) / 2 - ((v >>> 8) & 255)) * a, b = ((v >>> 16) & 255) + ((c[2] + 255) / 2 - ((v >>> 16) & 255)) * a;
+      px[j] = ((v & 0xff000000) | (Math.round(b) << 16) | (Math.round(g) << 8) | Math.round(r)) >>> 0;
+    }
+  }
+  ui.dirty = true;
+}
+
 // Предмет в ячейке: значок (свой или цветной квадрат), название, количество
 export function drawItem(ui, itemInfo, slot, x, y, size, { name = true } = {}) {
   const info = itemInfo(slot.item);
@@ -118,6 +154,7 @@ export function drawItem(ui, itemInfo, slot, x, y, size, { name = true } = {}) {
   const iy = y + size * 0.14;
   if (info.drawIcon) info.drawIcon(ui, ix, iy, icon);
   else ui.rect(ix, iy, icon, icon, info.color || [255, 0, 255], 255); // неизвестный — ярко-розовый
+  drawShimmer(ui, slot, x, y, size); // редкие (от синей) — перелив
   // Название: не влезает крупно — пишем мелко
   if (name) {
     const big = measureText(info.name, 2) <= size - 8;

@@ -925,6 +925,8 @@ export const WEAPON_PERKS = {
 };
 export const LOOT = {
   gear: 0.015, invasionMult: 1.5, bossGear: 1,
+  // Редкость выпавшей вещи: не ниже RARE. bonus — шанс «+1 вещь»: тогда выпадают две, обе — по таблице reroll
+  rarity: { legendary: 0.125, epic: 0.275, rare: 0.55, bonus: 0.05, reroll: { legendary: 0.125, epic: 0.275, rare: 0.6 } },
   tiers: (n) => ({ 1: Math.max(10, 60 - n / 8), 2: 30, 3: Math.min(35, 5 + n / 20), 4: Math.min(25, n / 40) }),
   sell: 0.25,
   resources: { bone: 1, skull: 3, block: 0 },

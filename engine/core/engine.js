@@ -410,7 +410,13 @@ export class Engine {
   drawUI() {
     this.needsRedraw = false;
     this.ui.begin();
+    this.ui.animateIn = undefined; // виджеты с анимацией (перелив вещей) скажут, когда перерисовать
     this.scene?.drawUI(this.ui);
+    const wait = this.ui.animateIn;
+    if (wait !== undefined && wait !== Infinity) {
+      clearTimeout(this.animTimer);
+      this.animTimer = setTimeout(() => this.redraw(), Math.max(16, wait * 1000));
+    }
     // Счётчик кадров слева сверху (настройки → INTERFACE → SHOW FPS) — только в живой сцене
     if (this.settings.data.interface?.showFps && this.scene?.realtime && this.fps) {
       this.ui.rect(6, 6, 96, 22, [10, 12, 18], 170);
