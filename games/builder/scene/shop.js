@@ -141,6 +141,9 @@ export class ShopPart {
       ].map((slot) => {
         // Дуэль: продаётся броня и полезное из DUEL.shop (по своей цене); остальное — нет
         if (slot.category === "armor") return slot;
+        // Молот и блоки для стройки — только в дуэли (в обычной игре, соло и по сети, не продаются)
+        if (slot.id === "builder") return { ...slot, category: "utility", price: () => DUEL.shop.builder, when: () => !!this.duel };
+        if (slot.id === BUILD.item) return { ...slot, when: () => false };
         if (DUEL.shop[slot.id] !== undefined) return { ...slot, category: "utility", price: () => (this.duel ? DUEL.shop[slot.id] : slot.price) };
         return { ...slot, when: () => !this.duel && (slot.when ? slot.when() : true) };
       }),
