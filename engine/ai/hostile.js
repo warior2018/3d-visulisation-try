@@ -115,7 +115,7 @@ export class HostileBrain extends Brain {
 
   // Разозлиться на target (со стадом — и соседи)
   anger(e, target, entities) {
-    if (this.herd) return alertHerd(e, target, entities, this.herd);
+    if (this.herd) return alertHerd(e, target, entities, { ...this.herd, sees: (a, b) => !this.ctx?.combatFor?.(a)?.blocked?.(a, b) });
     if (e.aggro === target) return [];
     e.aggro = target;
     return [e];
