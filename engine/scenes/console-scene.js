@@ -51,6 +51,11 @@ export class ConsoleScene extends Scene {
     if (actions.includes("console")) this.engine.pop();
   }
 
+  // Набранный текст (engine → textInput): любые печатные символы, кроме ` (клавиша консоли)
+  onText(t) {
+    for (const ch of t) if (ch >= " " && ch !== "`" && ch !== "~" && this.input.length < 120) this.input += ch;
+  }
+
   onKey(e) {
     const con = this.con;
     switch (e.scancode) {
@@ -90,6 +95,7 @@ export class ConsoleScene extends Scene {
       default:
         // ` (сама клавиша консоли) не печатаем
         if (e.scancode === SC.GRAVE) return;
+        if (this.engine.hasTextInput) return; // символы — из onText (с Shift)
         if (typeof e.key === "string" && e.key.length === 1 && this.input.length < 120) this.input += e.key;
         else return;
     }

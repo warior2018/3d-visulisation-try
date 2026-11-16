@@ -748,11 +748,16 @@ export class CreateWorldScene extends Scene {
     ui.button("cancel", "CANCEL", ui.width / 2 + 110, y + H - 40, 200, 48, 3);
   }
 
+  // Набранный текст (с Shift / раскладкой): буквы, цифры, пробел, _ и -
+  onText(t) {
+    for (const ch of t) if (/[0-9a-zа-яё _-]/i.test(ch) && this.name.length < 20) this.name += ch.toUpperCase();
+  }
+
   onKey(e) {
     if (e.scancode === KEYS.BACKSPACE) this.name = this.name.slice(0, -1);
     else if (e.scancode === KEYS.RETURN) return this.onButton("create");
     else if (e.scancode === KEYS.ESCAPE) return this.engine.pop();
-    else if (typeof e.key === "string" && e.key.length === 1 && /[0-9a-zа-яё _-]/i.test(e.key) && this.name.length < 20) this.name += e.key.toUpperCase();
+    else if (!this.engine.hasTextInput && typeof e.key === "string" && e.key.length === 1 && /[0-9a-zа-яё _-]/i.test(e.key) && this.name.length < 20) this.name += e.key.toUpperCase();
     else return;
     this.engine.redraw();
   }
@@ -856,11 +861,16 @@ export class WorldSettingsScene extends Scene {
     ui.button("close", "CLOSE", ui.width / 2 + 220, y + H - 40, 150, 48, 3);
   }
 
+  // Набранный текст (с Shift / раскладкой): буквы, цифры, пробел, _ и -
+  onText(t) {
+    for (const ch of t) if (/[0-9a-zа-яё _-]/i.test(ch) && this.name.length < 20) this.name += ch.toUpperCase();
+  }
+
   onKey(e) {
     if (e.scancode === KEYS.BACKSPACE) this.name = this.name.slice(0, -1);
     else if (e.scancode === KEYS.RETURN) return this.onButton("save");
     else if (e.scancode === KEYS.ESCAPE) return this.engine.pop();
-    else if (typeof e.key === "string" && e.key.length === 1 && /[0-9a-zа-яё _-]/i.test(e.key) && this.name.length < 20) this.name += e.key.toUpperCase();
+    else if (!this.engine.hasTextInput && typeof e.key === "string" && e.key.length === 1 && /[0-9a-zа-яё _-]/i.test(e.key) && this.name.length < 20) this.name += e.key.toUpperCase();
     else return;
     this.engine.redraw();
   }

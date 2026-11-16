@@ -555,6 +555,19 @@ export class Engine {
       this.phase(0);
     });
 
+    // Набранный текст (с Shift, раскладкой: * ? : " и т. п.) — системное событие textInput. Пришло хоть раз —
+    // поля ввода берут символы отсюда (onText), а не из клавиш (e.key — без Shift)
+    w.on("textInput", (e) => {
+      this.hasTextInput = true;
+      const top = this.scene;
+      if (top?.onText && typeof e.text === "string") {
+        this.phase(4);
+        top.onText(e.text);
+        this.redraw();
+        this.phase(0);
+      }
+    });
+
     w.on("mouseButtonDown", (e) => {
       const scene = this.scene;
       if (!scene) return;

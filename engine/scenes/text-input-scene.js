@@ -4,7 +4,7 @@
 //    engine.push(new TextInputScene({ title: "JOIN GAME", value: "192.168.1.5", allowed: /[0-9a-z.:-]/i,
 //      hint: "HOST ADDRESS", onDone: (text) => {...}, onCancel: () => engine.pop() }));
 //
-//  Буквы — из события клавиши (e.key); Backspace стирает, Enter — готово, Esc — отмена.
+//  Буквы — из набранного текста (onText: с Shift), а нет его — из клавиши (e.key); Backspace стирает, Enter — готово.
 // ============================================================
 
 import sdl from "../platform/sdl.js";
@@ -44,11 +44,16 @@ export class TextInputScene extends Scene {
     ui.button("cancel", "CANCEL", box.x + 20 + bw * 1.5, box.y + 130, bw, 50, 3);
   }
 
+  // Набранный текст (с Shift): по символу, что разрешено (allowed)
+  onText(t) {
+    for (const ch of t) if (this.allowed.test(ch) && this.value.length < this.maxLength) this.value += ch;
+  }
+
   onKey(e) {
     if (e.scancode === SC.BACKSPACE) this.value = this.value.slice(0, -1);
     else if (e.scancode === SC.RETURN || e.scancode === SC.KP_ENTER) return this.onDone(this.value.trim());
     else if (e.scancode === SC.ESCAPE) return this.cancel();
-    else if (typeof e.key === "string" && e.key.length === 1 && this.allowed.test(e.key) && this.value.length < this.maxLength) this.value += e.key;
+    else if (!this.engine.hasTextInput && typeof e.key === "string" && e.key.length === 1 && this.allowed.test(e.key) && this.value.length < this.maxLength) this.value += e.key;
     else return;
     this.engine.redraw();
   }

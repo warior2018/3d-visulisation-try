@@ -36,6 +36,11 @@ export class LineInputScene extends Scene {
     ui.text(`${this.prompt} ${this.text}_`, 30, y + 10, 2, [255, 240, 200]);
   }
 
+  onText(t) {
+    if (performance.now() - this.opened < 60) return; // символ клавиши, которой окно открыли
+    for (const ch of t) if (ch >= " " && this.text.length < this.maxLength) this.text += ch;
+  }
+
   onKey(e) {
     // нажатие, которым окно открыли (Enter), сюда же приходит — его пропускаем
     if (performance.now() - this.opened < 60) return;
@@ -64,6 +69,7 @@ export class LineInputScene extends Scene {
         break;
       }
       default:
+        if (this.engine.hasTextInput) return; // символы — из onText (с Shift)
         if (typeof e.key === "string" && e.key.length === 1 && this.text.length < this.maxLength) this.text += e.key;
         else return;
     }
