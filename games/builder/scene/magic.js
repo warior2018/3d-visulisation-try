@@ -57,7 +57,7 @@ export class MagicPart {
     const radius = attack.radius * (1 + (this.talentStats.blastRadius || 0));
     const boom = (at) => {
       this.explode(attack, at, [], { radius });
-      this.rocketJump(at, radius); // свой взрыв подкидывает (урона себе нет)
+      this.rocketJump(at, radius, attack); // свой взрыв подкидывает (урона себе нет)
       then?.(at);
     };
     const lie = (p) => {
@@ -77,7 +77,20 @@ export class MagicPart {
   }
 
   // Ракетный прыжок (ROCKET_JUMP): взрыв рядом отбрасывает героя от своего центра — рывок, как отдача дробовика
-  rocketJump(at, radius) {
+  // Во сколько раз урон атаки сейчас больше базового (ATTACKS): улучшения из магазина, таланты, редкость
+  damageScaleOf(attack) {
+    const avg = (d) => (Array.isArray(d) ? (d[0] + d[1]) / 2 : d || 0);
+    const base = avg(Object.values(ATTACKS).find((a) => a.id === attack?.id)?.damage);
+    if (!attack || !base) return 1;
+    try {
+      const d = attack.makeDamage(this.player, null, { baseDamage: avg(attack.damage), noElementStatus: true, random: () => 0.5 });
+      return Math.max(0.1, d.amount / base);
+    } catch {
+      return Math.max(0.1, avg(attack.damage) / base);
+    }
+  }
+
+  rocketJump(at, radius, attack = null) {
     const R = ROCKET_JUMP, p = this.player;
     if (!p.alive || this.downed) return;
     const c = { x: p.position.x - at.x, y: p.position.y + p.height / 2 - at.y, z: p.position.z - at.z };
@@ -87,8 +100,10 @@ export class MagicPart {
     this.beforeMovementSkill?.(); // верхом — сначала слезть (MOUNT)
     // Сила одна во всём радиусе (не слабеет к краю). Ускорение складывается: рывок ещё идёт (или уже летим) —
     // новый толчок прибавляется к нынешней скорости (не больше R.maxSpeed)
+    // сила — своя у оружия (R.distance: м за рывок), растёт с уроном (таланты, улучшения)
+    const strength = ((R.distance[attack?.id] ?? R.distance.default) / R.pushTime) * this.damageScaleOf(attack);
     const dy0 = c.y / l + R.lift, dl = Math.hypot(c.x / l, c.z / l, dy0) || 1;
-    const push = { x: ((c.x / l) / dl) * R.push, y: (dy0 / dl) * R.push, z: ((c.z / l) / dl) * R.push };
+    const push = { x: ((c.x / l) / dl) * strength, y: (dy0 / dl) * strength, z: ((c.z / l) / dl) * strength };
     const was = p.dash?.left > 0 ? { x: p.dash.x, y: p.dash.y ?? p.velocity.y, z: p.dash.z } : { x: p.velocity.x, y: Math.max(0, p.velocity.y), z: p.velocity.z };
     let v = { x: was.x + push.x, y: was.y + push.y, z: was.z + push.z };
     const s = Math.hypot(v.x, v.y, v.z);
