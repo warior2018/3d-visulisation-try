@@ -7,7 +7,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { Scene, VoxelWorld, EntityManager, Physics, Pickups, Projectiles, Traps, BeamEffects, Particles, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
+import { Scene, World, BeamEffects, Particles, Camera, CameraRig, AbilityBar, Experience, Talents, Aim, Recoil, CameraShake, ActionLock, DamageNumbers, SlashEffects, CrescentSlash, HeadBob, Vec3, ViewModel, Interpolation, profiler, pathBudget, Input } from "../../engine/index.js";
 import { LIFETIME, THROW, BLOATER, INVASION, ZOMBIE_GRENADE, PROGRESSION, PLAYER, AUTOSAVE, STREAM, FLOATING, AIM, PICKUP_AUTO_RADIUS, SPAWN, SHAKE, REACH, BUILD, PALETTE, PICKUP_REACH, TRAPS } from "./config.js";
 import { HandAbility, IN_HAND } from "./abilities.js";
 import { helpFor } from "./help.js";
@@ -83,61 +83,11 @@ export class GameScene extends Scene {
     this.chat = new Chat(this); // чат (Enter) — scene/chat.js
     this.god = false; //          консоль: god — бессмертие
 
-    this.world = new VoxelWorld();
-    this.entities = new EntityManager();
-    // surfaceAt — скользкие блоки (лёд из палитры стройки): на них не устоять
-    this.physics = new Physics({ isSolid: (x, y, z) => this.world.isSolid(x, y, z), cellTop: (x, y, z) => this.world.cellTop(x, y, z), cellBottom: (x, y, z) => this.world.cellBottom(x, y, z), surfaceAt: (x, y, z) => this.world.surfaceAt(x, y, z), hasSurfaces: () => this.world.surfaces > 0 });
-    // Мир для поиска пути существ: те же твёрдые клетки + «номер версии» (поставили блок — пересчитать путь)
-    // maxDrop — с какой высоты моб спрыгивает к цели (урона от падения у мобов нет): раньше 4 — герой ниже на 5+
-    // блоков, и моб стоял на краю / топтался над ним
-    this.navWorld = { isSolid: this.physics.isSolid, cellTop: (x, y, z) => this.world.cellTop(x, y, z), version: () => this.world.version, maxDrop: 12 };
-    // Предметы на земле (движок: Pickups) — падают на блоки, крутятся; модель — «item-<id>» (main.js)
-    this.pickups = new Pickups({
-      physics: this.physics,
-      lifetime: LIFETIME.pickup, // пролежал 2 минуты — исчезает
-      onAdd: (p) => game.models.attach(p, "item-" + p.item),
-      onRemove: (p) => game.models.detach(p),
-    });
-    this.lookPickup = null; // предмет на земле под прицелом
-    // Снаряды (броски мобов-метателей, магма, споры, граната): летят по дуге или прямо, попал — урон.
-    // У своих снарядов — свои onHit / onLand (game-scene: магма, турель, граната)
-    this.projectiles = new Projectiles({
-      world: this.world, entities: this.entities, gravity: THROW.gravity,
-      onAdd: (p) => game.models.attach(p, "item-" + p.item),
-      onRemove: (p) => game.models.detach(p),
-      onHit: (p, hit) => {
-        p.attack.hit(p.owner, hit.entity, this.combatContext({ part: hit.part, baseDamage: p.damage, onHit: (r) => this.onPlayerHit(r) }));
-        this.engine.sound.play("hit", { at: hit.entity.position });
-      },
-      onLand: (p) => this.engine.sound.play("pickup", { at: p.position, volume: 0.5 }),
-    });
-    // Ловушки героя (движок: Traps): стоят на земле, бьют врагов, которые в них зашли
-    // Сетевая игра: свои ловушки — видны другим (net.js → trapAdded / trapRemoved; у врага — почти прозрачные)
-    this.traps = new Traps({
-      onAdd: (t) => {
-        game.models.attach(t, "item-" + t.type);
-        if (t.owner === this.player) this.net?.trapAdded?.(t);
-      },
-      onRemove: (t) => {
-        game.models.detach(t);
-        if (t.owner === this.player) this.net?.trapRemoved?.(t);
-      },
-      onTrigger: (t, r) => {
-        // попался враг — у хозяина ловушка светится красной обводкой (TRAPS.alert с)
-        if (r.hits.some((h) => h.target !== this.player)) t.alertUntil = (this.trapClock || 0) + TRAPS.alert;
-        this.engine.sound.play(t.type === "bear-trap" ? "snap" : "spike", { at: t.position });
-        const self = r.hits.find((h) => h.target === this.player);
-        if (self && t.owner !== this.player && t.owner) {
-          this.engine.sound.play("hurt");
-          this.engine.toast(`GOBLIN TRAP! -${self.dealt} HP`, 1500);
-        } else if (self) {
-          this.engine.sound.play("hurt");
-          this.engine.toast(`YOUR OWN TRAP! -${self.dealt} HP`, 1500);
-          this.engine.log(`герой наступил на свою ловушку ${t.type}: -${self.dealt}`);
-        }
-      },
-    });
-    this.fuses = []; // горящие фитили лежащего динамита: { left, at, lit, boom } (updateFuses)
+    // Миры (движок: World): у каждого свои блоки, сущности, физика, предметы, снаряды и ловушки.
+    // Пока мир один — "main"; дальше появятся комнаты за порталами. Вся сцена работает с АКТИВНЫМ
+    // миром через старые имена: this.world, this.entities, this.physics ... (геттеры после конструктора)
+    this.worlds = new Map(); // id → World
+    this.activeWorld = this.makeWorld("main");
     this.beams = new BeamEffects(); // лучи: ледяная стрела, искры взрыва, круги посоха огня
     this.fx = new Particles(); // частицы в 3D (с глубиной): кровь, искры, дым, лучи и трассеры (через beams)
     this.look = new Camera(); //   глаза героя: где и куда смотрит
@@ -183,6 +133,76 @@ export class GameScene extends Scene {
     this.hitMarker = 0; //     секунд показывать отметку попадания
     this.dead = false;
   }
+
+  // ---------- Миры ----------
+
+  // Создать мир с правилами этой игры (что показывать, что делает снаряд, ловушка ...) и запомнить в this.worlds
+  makeWorld(id) {
+    const game = this.game;
+    const w = new World({
+      id,
+      // Предметы на земле (движок: Pickups) — падают на блоки, крутятся; модель — «item-<id>» (main.js)
+      pickups: {
+        lifetime: LIFETIME.pickup, // пролежал 2 минуты — исчезает
+        onAdd: (p) => game.models.attach(p, "item-" + p.item),
+        onRemove: (p) => game.models.detach(p),
+      },
+      // Снаряды (броски мобов-метателей, магма, споры, граната): летят по дуге или прямо, попал — урон.
+      // У своих снарядов — свои onHit / onLand (game-scene: магма, турель, граната)
+      projectiles: {
+        gravity: THROW.gravity,
+        onAdd: (p) => game.models.attach(p, "item-" + p.item),
+        onRemove: (p) => game.models.detach(p),
+        onHit: (p, hit) => {
+          p.attack.hit(p.owner, hit.entity, this.combatContext({ part: hit.part, baseDamage: p.damage, onHit: (r) => this.onPlayerHit(r) }));
+          this.engine.sound.play("hit", { at: hit.entity.position });
+        },
+        onLand: (p) => this.engine.sound.play("pickup", { at: p.position, volume: 0.5 }),
+      },
+      // Ловушки героя (движок: Traps): стоят на земле, бьют врагов, которые в них зашли
+      // Сетевая игра: свои ловушки — видны другим (net.js → trapAdded / trapRemoved; у врага — почти прозрачные)
+      traps: {
+        onAdd: (t) => {
+          game.models.attach(t, "item-" + t.type);
+          if (t.owner === this.player) this.net?.trapAdded?.(t);
+        },
+        onRemove: (t) => {
+          game.models.detach(t);
+          if (t.owner === this.player) this.net?.trapRemoved?.(t);
+        },
+        onTrigger: (t, r) => {
+          // попался враг — у хозяина ловушка светится красной обводкой (TRAPS.alert с)
+          if (r.hits.some((h) => h.target !== this.player)) t.alertUntil = (this.trapClock || 0) + TRAPS.alert;
+          this.engine.sound.play(t.type === "bear-trap" ? "snap" : "spike", { at: t.position });
+          const self = r.hits.find((h) => h.target === this.player);
+          if (self && t.owner !== this.player && t.owner) {
+            this.engine.sound.play("hurt");
+            this.engine.toast(`GOBLIN TRAP! -${self.dealt} HP`, 1500);
+          } else if (self) {
+            this.engine.sound.play("hurt");
+            this.engine.toast(`YOUR OWN TRAP! -${self.dealt} HP`, 1500);
+            this.engine.log(`герой наступил на свою ловушку ${t.type}: -${self.dealt}`);
+          }
+        },
+      },
+      // Мобы спрыгивают к цели с высоты до 12 блоков (урона от падения у них нет): раньше 4 — герой ниже
+      // на 5+ блоков, и моб стоял на краю / топтался над ним
+      maxDrop: 12,
+    });
+    w.fuses = []; // горящие фитили лежащего динамита: { left, at, lit, boom } (updateFuses) — у каждого мира свои
+    this.worlds.set(id, w);
+    return w;
+  }
+
+  // Старые имена → части активного мира (чтобы не переписывать сотню мест в сцене)
+  get world() { return this.activeWorld.voxels; } //          блоки
+  get entities() { return this.activeWorld.entities; } //     существа и герои
+  get physics() { return this.activeWorld.physics; }
+  get navWorld() { return this.activeWorld.nav; } //          для поиска пути
+  get pickups() { return this.activeWorld.pickups; } //       предметы на земле
+  get projectiles() { return this.activeWorld.projectiles; }
+  get traps() { return this.activeWorld.traps; }
+  get fuses() { return this.activeWorld.fuses; }
 
   get settings() {
     return this.engine.settings.data;
