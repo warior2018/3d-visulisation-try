@@ -40,14 +40,17 @@ export class IslandsPart {
     const h1 = this.groundHeight(Math.floor(at(t1).x), Math.floor(at(t1).z));
     const half = (B.width - 1) / 2;
     let step = 0;
+    const deck = []; // клетки над настилом — потом подъёмы полублоками
     for (let t = t0; t <= t1; t += 0.4, step++) {
       const c = at(t), k = (t - t0) / Math.max(1, t1 - t0);
-      const y = Math.max(1, Math.round(h0 + (h1 - h0) * k)); // верх настила
+      const v = Math.round(h0 + (h1 - h0) * k);
+      const y = this.world.floor ? Math.max(1, v) : v; // верх настила (летающие острова — бывает и ниже 0)
       for (let w = -half - 1; w <= half + 1; w += 0.5) {
         const x = Math.floor(c.x + px * w), z = Math.floor(c.z + pz * w);
         if (this.groundHeight(x, z) >= y) continue; // там уже суша
         if (Math.abs(w) <= half) {
           if (!this.world.get?.(x, y - 1, z)) this.world.place(x, y - 1, z, B.deck);
+          deck.push([x, y, z]);
         } else if (step % Math.round(B.post / 0.4) === 0) {
           this.world.place(x, y - 1, z, B.rail);
           this.world.place(x, y, z, B.rail); // перила — столбик в блок над настилом
@@ -56,13 +59,14 @@ export class IslandsPart {
         }
       }
     }
+    for (const [x, y, z] of deck) this.world.halfStep?.(x, y, z); // ступеньки настила — полублоками
   }
 
   // Новый мир: четыре столба с факелами вокруг места появления (ночью видно, где дом)
   buildSpawnLights(r = 6) {
     for (const [dx, dz] of [[r, r], [-r, r], [r, -r], [-r, -r]]) {
       if (this.onStructure(dx, dz)) continue;
-      const y = this.world.surfaceY(dx, dz);
+      const y = Math.ceil(this.world.surfaceY(dx, dz)); // на полублоке — над ним
       this.world.place(dx, y, dz, ISLANDS.bridge.rail);
       this.world.place(dx, y + 1, dz, ISLANDS.bridge.rail);
       this.world.place(dx, y + 2, dz, LIGHTS.torch.color);

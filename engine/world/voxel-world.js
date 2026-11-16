@@ -185,6 +185,19 @@ export class VoxelWorld {
     return b.surface === HALF ? 0.5 : 1;
   }
 
+  // Ступенька-полублок в пустую клетку над целым блоком, если рядом (4 соседа) — уступ в 1 блок, по которому
+  // можно пройти (над соседом 2 клетки пусто). Цвет — блока снизу. Вернёт, поставили ли
+  halfStep(x, y, z) {
+    if (this.has(x, y, z)) return false;
+    const below = this.blocks.get(key(x, y - 1, z));
+    if (!below || below.surface === HALF) return false;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const n = this.blocks.get(key(x + dx, y, z + dz));
+      if (n && n.surface !== HALF && !this.has(x + dx, y + 1, z + dz) && !this.has(x + dx, y + 2, z + dz)) return this.place(x, y, z, below.color, HALF);
+    }
+    return false;
+  }
+
   isSolid(x, y, z) {
     return (y < 0 && this.floor) || this.blocks.has(key(x, y, z));
   }

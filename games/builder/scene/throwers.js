@@ -38,14 +38,23 @@ export class ThrowersPart {
     // straight — летит прямо (сгусток лича), иначе — по дуге
     // низкий потолок над боссом (пещера) — бросает прямо, а не дугой в свод
     const straight = e.ranged.straight || (e.boss && this.lowCeiling(e));
-    const dir = straight ? (() => { const v = new Vec3(to.x - from.x, to.y - from.y, to.z - from.z); return v.scale(r.speed / (Math.hypot(v.x, v.y, v.z) || 1)); })() : null;
+    // прямой бросок — тоже падает, но легче: тяжесть от дальности (дальше — легче, MOB_RANGED.flat), и разброс ±spread°
+    const F = MOB_RANGED.flat, dist = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
+    const light = e.ranged.straight ? 0 : straight ? MOB_RANGED.gravity * Math.max(F.min, Math.min(F.max, F.near / Math.max(1, dist))) : MOB_RANGED.gravity;
+    let vel = light ? aimArc(from, to, r.speed, light) : new Vec3(to.x - from.x, to.y - from.y, to.z - from.z).scale(r.speed / Math.max(1e-6, dist)); // сгусток лича — прямо, без разброса
+    if (straight && light) {
+      const rad = (F.spread * Math.PI) / 180, yaw = (Math.random() * 2 - 1) * rad, pitch = (Math.random() * 2 - 1) * rad;
+      const h = Math.hypot(vel.x, vel.z), a = Math.atan2(vel.x, vel.z) + yaw, up = Math.atan2(vel.y, h) + pitch, sp = Math.hypot(h, vel.y);
+      vel = new Vec3(Math.sin(a) * Math.cos(up) * sp, Math.sin(up) * sp, Math.cos(a) * Math.cos(up) * sp);
+    }
+    const dir = straight ? vel : null;
     this.projectiles.launch({
-      owner: e, position: from, velocity: dir || aimArc(from, to, r.speed, MOB_RANGED.gravity), attack, damage, item: e.ranged.item, scale: e.ranged.scale || 1, // валун тролля — крупный
-      gravity: dir ? 0 : MOB_RANGED.gravity, spin: dir ? 0 : 2,
+      owner: e, position: from, velocity: vel, attack, damage, item: e.ranged.item, scale: e.ranged.scale || 1, // валун тролля — крупный
+      gravity: light, spin: dir ? 1 : 2,
       onHit: (p, hit) => {
         if (!e.isHostileTo(hit.entity) && !e.canHit?.(hit.entity)) return; // своих не бьёт (босс — бьёт и мобов)
         // shot — что летит: блок может отразить снаряд обратно (combat.js → reflectShot)
-        const res = attack.hit(e, hit.entity, { part: hit.part, baseDamage: p.damage, shot: { projectile: { item: e.ranged.item, speed: r.speed, gravity: dir ? 0 : MOB_RANGED.gravity, spin: dir ? 0 : 2, scale: e.ranged.scale || 1 } } });
+        const res = attack.hit(e, hit.entity, { part: hit.part, baseDamage: p.damage, shot: { projectile: { item: e.ranged.item, speed: r.speed, gravity: light, spin: dir ? 1 : 2, scale: e.ranged.scale || 1 } } });
         this.engine.sound.play(hit.entity === this.player ? "hurt" : "hit", { at: hit.entity.position });
         this.engine.log(`${e.name} → ${hit.entity.name}: ${r.name} -${res?.dealt ?? 0} HP`);
       },

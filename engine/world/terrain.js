@@ -132,6 +132,7 @@ export class Terrain {
   // undersideBottom — конус до этой высоты (y) у каждого острова, сужается к низу (острый); null — как раньше (× радиус)
   build(world, { grass = [96, 160, 72], dirt = [130, 96, 62], stone = [140, 140, 146], snow = [236, 240, 246], rockLine = 10, snowLine = 14, underside = 0, rock = [112, 104, 100], undersideBottom = null } = {}) {
     let placed = 0;
+    const tops = []; // верх каждого столбика — потом сгладить уступы в 1 блок полублоками
     const done = new Set(); // столбики, уже уложенные (острова не перекрываются, но на всякий случай)
     for (const disc of this.discs) {
       const r = Math.ceil(disc.r);
@@ -143,6 +144,7 @@ export class Terrain {
         if (h <= 0) continue;
         done.add(key);
         const lift = disc.lift || 0;
+        tops.push([x, lift + h, z]);
         for (let y = 0; y < h; y++) {
           const top = y === h - 1;
           let color = y >= h - 3 ? dirt : stone;
@@ -160,6 +162,8 @@ export class Terrain {
         }
       }
     }
+    // трава ступеньками: у подножья уступа в 1 блок — полублок (по склону идёшь, а не прыгаешь)
+    if (world.halfStep) for (const [x, y, z] of tops) if (world.halfStep(x, y, z)) placed++;
     for (const lair of this.lairs) this.carveLair(world, lair);
     return placed;
   }

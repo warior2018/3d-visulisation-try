@@ -129,7 +129,7 @@ export class WorldgenPart {
       if (this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue; // не на скалах и не за краем острова
       if ([-1, 1].some((dx) => this.onStructure(x + dx, z) || this.onStructure(x, z + dx))) continue; // не вплотную к стенам
       if (this.nearLairTunnel(x, z)) continue; // не загораживать проход к логову
-      buildTree(this.world, { x, y: this.world.surfaceY(x, z), z, height: range(W.tree.height), crown: range(W.tree.crown), random: rnd });
+      buildTree(this.world, { x, y: Math.ceil(this.world.surfaceY(x, z)), z, height: range(W.tree.height), crown: range(W.tree.crown), random: rnd });
       trees++;
     }
     // Деревья на маленьких островах — тоже на свободной земле, не у края и не на скалах горки
@@ -143,7 +143,7 @@ export class WorldgenPart {
         if (this.terrain.lairs.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + 2)) continue; // не над логовом
         if (this.nearLairTunnel(x, z)) continue; //                                               не у прохода к логову
         if (arenaAvoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue; //              не на площадке лича
-        buildTree(this.world, { x, y: this.world.surfaceY(x, z), z, height: range(W.tree.height), crown: range(W.tree.crown), random: rnd });
+        buildTree(this.world, { x, y: Math.ceil(this.world.surfaceY(x, z)), z, height: range(W.tree.height), crown: range(W.tree.crown), random: rnd });
         trees++;
         n++;
       }

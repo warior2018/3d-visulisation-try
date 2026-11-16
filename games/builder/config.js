@@ -371,6 +371,9 @@ export const TROLL_HIDE = { first: 0.1, step: 0.015 };
 // Вплотную (ближе minRange) — бьёт рукой, как обычный моб. names — как зовут стрелка (по типу моба)
 export const MOB_RANGED = {
   chance: 0.1, minRange: 3.5, gravity: 20,
+  // прямой бросок (лич, босс под низким сводом): тяжесть = gravity × near / дальность, в пределах [min, max];
+  // spread — разброс в градусах (вбок и вверх-вниз)
+  flat: { near: 4, min: 0.08, max: 0.35, spread: 10 },
   weapons: {
     stone: { weight: 45, attack: "stoneThrow", item: "stone", held: "w-stone", range: 14, advance: true },
     knife: { weight: 45, attack: "knifeThrow", item: "knife", held: "w-knife", range: 14, advance: true },

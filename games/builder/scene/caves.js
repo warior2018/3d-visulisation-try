@@ -120,20 +120,30 @@ export class CavesPart {
       const y = Math.round(a.y + ((b.y - a.y) * i) / Math.max(1, pts.length - 1));
       for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (let j = 0; j < 3; j++) this.world.remove(x + dx, y + j, z + dz);
       if (i % CAVES.lampEvery === 0) this.caveLamp(x, y + 3, z);
+      pts[i] = [x, y, z];
     });
+    this.halfSteps(pts);
+  }
+
+  // Подъёмы в проходе — полублоками: на полу прохода (3 × 3 вокруг каждой точки) у уступа в 1 блок
+  halfSteps(pts) {
+    for (const [x, y, z] of pts) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) this.world.halfStep(x + dx, y, z + dz);
   }
 
   // Проход наверх: от края комнаты наружу, на ступеньку выше за шаг, пока не вышли на поверхность
   carveExit(r, rnd) {
     const a = rnd() * Math.PI * 2, ux = Math.sin(a), uz = Math.cos(a);
     let y = r.y;
+    const pts = [];
     for (let t = 0; t < 60; t++) {
       const x = Math.round(r.x + ux * (Math.max(r.w, r.d) / 2 + t)), z = Math.round(r.z + uz * (Math.max(r.w, r.d) / 2 + t));
       for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (let j = 0; j < 3; j++) this.world.remove(x + dx, y + j, z + dz);
       if (t % CAVES.lampEvery === 0) this.caveLamp(x, y + 3, z);
+      pts.push([x, y, z]);
       if (y >= this.groundHeight(x, z)) break; // вышли наружу
       y++;
     }
+    this.halfSteps(pts);
   }
 
   // ---------- Жизнь пещер ----------
