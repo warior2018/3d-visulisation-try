@@ -82,12 +82,19 @@ export class MagicPart {
     if (!p.alive || this.downed) return;
     const c = { x: p.position.x - at.x, y: p.position.y + p.height / 2 - at.y, z: p.position.z - at.z };
     const d = Math.hypot(c.x, c.y, c.z);
-    const k = 1 - d / (radius * R.reach);
-    if (k < R.min) return;
+    if (d > radius * R.reach) return; // радиус — взрыва (растёт с талантом на радиус)
     const l = d || 1;
     this.beforeMovementSkill?.(); // верхом — сначала слезть (MOUNT)
-    dash(p, c.x / l, c.z / l, R.push * k, R.pushTime, c.y / l + R.lift, { slide: DASH_SLIDE });
-    this.engine.log(`ракетный прыжок: сила ${Math.round(k * 100)}%`);
+    // Сила одна во всём радиусе (не слабеет к краю). Ускорение складывается: рывок ещё идёт (или уже летим) —
+    // новый толчок прибавляется к нынешней скорости (не больше R.maxSpeed)
+    const dy0 = c.y / l + R.lift, dl = Math.hypot(c.x / l, c.z / l, dy0) || 1;
+    const push = { x: ((c.x / l) / dl) * R.push, y: (dy0 / dl) * R.push, z: ((c.z / l) / dl) * R.push };
+    const was = p.dash?.left > 0 ? { x: p.dash.x, y: p.dash.y ?? p.velocity.y, z: p.dash.z } : { x: p.velocity.x, y: Math.max(0, p.velocity.y), z: p.velocity.z };
+    let v = { x: was.x + push.x, y: was.y + push.y, z: was.z + push.z };
+    const s = Math.hypot(v.x, v.y, v.z);
+    if (s > R.maxSpeed) v = { x: (v.x / s) * R.maxSpeed, y: (v.y / s) * R.maxSpeed, z: (v.z / s) * R.maxSpeed };
+    dash(p, v.x, v.z, Math.hypot(v.x, v.y, v.z), R.pushTime, v.y, { slide: DASH_SLIDE });
+    this.engine.log(`ракетный прыжок: скорость ${Math.hypot(v.x, v.y, v.z).toFixed(1)} м/с (было ${Math.hypot(was.x, was.y, was.z).toFixed(1)})`);
   }
 
   // Горящие фитили (динамит): искрит, догорел — взрыв
