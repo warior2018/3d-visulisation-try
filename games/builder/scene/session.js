@@ -286,7 +286,17 @@ export class SessionPart {
     return Math.max(0.5, t / (this.spawnRate || 1));
   }
 
+  // Выйти в главный мир сразу (выход из игры, сохранение из меню): из комнаты — к порталу
+  leavePortalNow() {
+    if (!this.activeWorld || this.inMain?.() !== false) return;
+    const portal = (this.portals || []).find((o) => o.room === this.activeWorld);
+    this.pull = null;
+    this.player.invulnerable = false;
+    if (portal) this.leaveRoom(portal);
+  }
+
   exit() {
+    this.leavePortalNow();
     this.engine.sound.environment = null;
     this.game.models.lightAt = null;
     this.resetDaylight();
@@ -305,6 +315,7 @@ export class SessionPart {
   }
 
   onQuit() {
+    this.leavePortalNow(); // в комнате портала — сначала обратно в главный мир
     this.save(false); // закрыли окно посреди игры — ничего не теряем
   }
 
@@ -317,6 +328,12 @@ export class SessionPart {
   // Сохранение — с замером (профайлер F3: SAVE): самое тяжёлое из редкого.
   // background — в фоне (автосохранение: игра не ждёт диска); иначе — сразу до конца (выход, кнопка SAVE)
   save(toast = true, { background = false } = {}) {
+    // в комнате портала: автосохранение (фоном) — пропускаем; сохранение из меню / выход — сначала обратно в
+    // главный мир (сохраняется главный мир)
+    if (this.activeWorld && this.activeWorld !== this.worlds.get("main")) {
+      if (background) return false;
+      this.leavePortalNow();
+    }
     return profiler.measure(PROF.save, () => this.saveNow(toast, { background }));
   }
 

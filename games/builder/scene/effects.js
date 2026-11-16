@@ -47,6 +47,7 @@ export class EffectsPart {
       if (!c) continue;
       list.push({ x: p.position.x, y: p.position.y, z: p.position.z, radius: P.radius, power: P.power, color: c.map((v) => (v > 1 ? v / 255 : v)) });
     }
+    list.push(...(this.portalLights?.() || [])); // порталы светятся
     const cam = this.look?.position || this.player?.position;
     if (cam && list.length > 8) list.sort((a, b) => Math.hypot(a.x - cam.x, a.y - cam.y, a.z - cam.z) - Math.hypot(b.x - cam.x, b.y - cam.y, b.z - cam.z));
     this.activeLights = list.slice(0, 8);

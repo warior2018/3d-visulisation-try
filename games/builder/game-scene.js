@@ -37,6 +37,7 @@ import { BossesPart } from "./scene/bosses.js";
 import { MobKindsPart } from "./scene/mob-kinds.js";
 import { AchievementsPart } from "./scene/achievements.js";
 import { CavesPart } from "./scene/caves.js";
+import { PortalsPart } from "./scene/portals.js";
 import { InteractPart } from "./scene/interact.js";
 import { CoopPart } from "./scene/coop.js";
 import { DuelPart } from "./scene/duel.js";
@@ -352,6 +353,7 @@ export class GameScene extends Scene {
     // Отдача: бросок ствола после выстрела и плавный возврат (rotate: dy > 0 — вниз, поэтому минус)
     const kick = this.recoil.update(dt);
     if (kick.pitch || kick.yaw) this.look.rotate(kick.yaw, -kick.pitch);
+    this.clampPullLook(); // портал закрывается — камера только в конусе (scene/portals.js)
   }
 
   // Тик: всё, что влияет на игру. dt — всегда шаг тика (1/60 с)
@@ -374,10 +376,12 @@ export class GameScene extends Scene {
     }
 
     const frozen = this.match && this.teamPaused; // матч: кто-то выбирает класс / второе оружие — мир стоит у всех
-    if (!this.downed && !frozen) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
+    this.updateFade(dt); // затемнение перехода через портал (scene/portals.js)
+    if (this.pull) this.updatePull(dt); //  портал закрывается — затягивает к выходу (вместо управления)
+    else if (!this.downed && !frozen) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
     // 2. Мир: существа, предметы, снаряды, ловушки, события. Клиент сетевой игры мир не считает —
     // его считает хост и присылает (тогда tickWorld заменяет сеть: net.applyWorld)
-    if (this.role !== "client" && !frozen) this.tickWorld(dt);
+    if (this.role !== "client" && !frozen) this.tickWorlds(dt); // мир героя + медленно главный, порталы (scene/portals.js)
     this.net?.tick(dt); // хост — разобрать сообщения гостей и разослать снимок; гость — применить снимки хоста
     if (this.duel) this.tickDuel(dt); // дуэль: раунды, подготовка, враги друг другу (scene/duel.js)
     else this.tickCoop(dt, input); // матч: урны, оживление, силуэты союзников (scene/coop.js)
@@ -390,8 +394,10 @@ export class GameScene extends Scene {
 
   // Все герои в мире: свой и гости сетевой игры (их герои у хоста — remote)
   heroes() {
-    if (!this.net || this.net.role !== "host") return [this.player];
-    const list = this.dedicated ? [] : [this.player];
+    // свой герой — только если он в этом (активном) мире: в комнате портала его нет в главном
+    const mine = (this.player.worldId ?? "main") === this.activeWorld.id ? [this.player] : [];
+    if (!this.net || this.net.role !== "host") return mine;
+    const list = this.dedicated ? [] : mine;
     for (const q of this.net.guests.values()) if (q.hero?.alive) list.push(q.hero);
     return list;
   }
@@ -494,7 +500,7 @@ export class GameScene extends Scene {
     this.updateQuests(dt); // задания стража (scene/quests.js)
     this.updateElites(dt); // ауры элитных мобов (scene/elites.js)
     this.achSave(dt); // счётчики ачивок — в профиль раз в 5 с (scene/achievements.js)
-    this.updateCaves(dt); // пещеры: мобы в комнатах, охрана сундуков, боссы (scene/caves.js)
+    if (this.inMain()) this.updateCaves(dt); // пещеры: мобы в комнатах, охрана сундуков, боссы (scene/caves.js)
     this.updateMobKinds(dt); // шаман лечит, гоблин ставит капканы, вожак зовёт упырей (scene/mob-kinds.js)
     this.hints?.update(this, dt); // подсказки новичку (hints.js)
     this.tickRunStats(dt); //     итоги забега: время (scene/run-stats.js)
@@ -526,26 +532,30 @@ export class GameScene extends Scene {
 
   // Тик мира: всё, что живёт без героя — существа (мозги, физика), предметы, снаряды, ловушки, динамит,
   // логова, нашествие. Это и есть то, что в сетевой игре считает хост
-  tickWorld(dt) {
+  // room — комната портала (без спавна, нашествия, логов...); slow — главный мир, пока герой в комнате (редкий тик)
+  tickWorld(dt, { room = false, slow = false } = {}) {
+    const full = !room && !slow;
     const { engine, player } = this;
-    this.updateResidents(dt); // страж погиб — вернётся через минуту
-    if (!this.world.floor) this.voidCheck(dt); // летающие острова: упал в бездну
+    if (!room) this.updateResidents(dt); // страж погиб — вернётся через минуту
+    if (full && !this.world.floor) this.voidCheck(dt); // летающие острова: упал в бездну
     // Большой мир — по частям: раз в секунду подгрузить близкие куски, выгрузить дальние (ChunkStore.stream)
-    this.streamIn = (this.streamIn ?? 1) - dt;
+    this.streamIn = (this.streamIn ?? 1) - (full ? dt : 0);
     if (this.streamIn <= 0) {
       this.streamIn = 1;
       if (saveStore.onDisk.size > STREAM.minChunks && saveStore.world === this.world) saveStore.stream(this.world, player.position.x, player.position.z, STREAM.radius);
     }
     // 3. Существа: появляются, думают, ходят, бьют; павшие исчезают
     profiler.begin(PROF.spawn);
-    this.spawner.interval = this.spawnInterval(); // уровень героя и сколько мобов уже есть (scene/session.js)
-    this.spawner.update(dt);
-    this.boarSpawner.update(dt);
-    // Шанс нашествия растёт, пока его нет: за каждые growEvery с ожидания x++ → шанс (1 + x) × chance
-    if (!this.invasion.active) this.invasionWait = (this.invasionWait || 0) + dt;
-    else this.invasionWait = 0;
-    this.invasion.chance = INVASION.chance * (1 + Math.floor(this.invasionWait / INVASION.growEvery));
-    this.invasion.update(dt);
+    if (full) {
+      this.spawner.interval = this.spawnInterval(); // уровень героя и сколько мобов уже есть (scene/session.js)
+      this.spawner.update(dt);
+      this.boarSpawner.update(dt);
+      // Шанс нашествия растёт, пока его нет: за каждые growEvery с ожидания x++ → шанс (1 + x) × chance
+      if (!this.invasion.active) this.invasionWait = (this.invasionWait || 0) + dt;
+      else this.invasionWait = 0;
+      this.invasion.chance = INVASION.chance * (1 + Math.floor(this.invasionWait / INVASION.growEvery));
+      this.invasion.update(dt);
+    }
     profiler.end(PROF.spawn);
     profiler.begin(PROF.items);
     this.pickups.update(dt); // предметы на земле падают и крутятся
@@ -570,16 +580,16 @@ export class GameScene extends Scene {
     profiler.end(PROF.traps);
     // Автоподбор (V — вкл/выкл): всё, что лежит рядом, само попадает в сумку
     profiler.begin(PROF.items);
-    if (this.settings.general.autoLoot !== false && player.alive) {
+    if (!slow && this.settings.general.autoLoot !== false && player.alive) {
       this.pickups.autoCollect(player, PICKUP_AUTO_RADIUS, (p) => this.pickUp(p, { quiet: true }));
     }
     profiler.end(PROF.items);
     profiler.begin(PROF.world);
     this.updateFuses(dt); // динамит догорает — взрыв
-    this.updateLairs(dt); // боссы в логовах: появление, через 3 мин после гибели — новый
+    if (!room) this.updateLairs(dt); // боссы в логовах: появление, через 3 мин после гибели — новый
     this.bossWarnings(); // запал раздутого — красный круг на земле
-    if (player.alive) this.ultimate.update(dt); // заряд ульты со временем
-    this.fog.reveal(player.position); // туман войны: открываем карту вокруг героя
+    if (!slow && player.alive) this.ultimate.update(dt); // заряд ульты со временем
+    if (full) this.fog.reveal(player.position); // туман войны: открываем карту вокруг героя
     profiler.end(PROF.world);
     // Поиск пути — не больше 6 пересчётов за кадр (нашествие: десятки мобов разом), остальные — в следующих
     pathBudget(6);
@@ -638,7 +648,7 @@ export class GameScene extends Scene {
       // despawnDistance, злой моб — дальше huntDespawn (отстал от героя). Злых нашествия не трогаем
       const dist = this.nearestHeroDist(e); // сетевая игра: до ближайшего из героев (моб у гостя не исчезает)
       const wildBoar = e.type === "boar";
-      const gone = e.boss || e.guardOf ? false : // босс и охрана сундука не пропадают
+      const gone = e.boss || e.guardOf || this.slowTick ? false : // (главный мир, пока герой в комнате портала, — не чистим) // босс и охрана сундука не пропадают
         e.kind === "mob"
         ? (!e.aggro && (dist > SPAWN.despawnDistance || (e.age > LIFETIME.mob && dist > LIFETIME.keep))) || (dist > SPAWN.huntDespawn && !this.invasion.active)
         : wildBoar && dist > SPAWN.despawnDistance;
@@ -716,6 +726,7 @@ export class GameScene extends Scene {
       e.renderPosition.y = e.visY;
     }
     player.renderYaw = this.look.yaw; // герой смотрит туда же, куда камера (мышь — каждый кадр)
+    this.drawPortals(); // порталы: светящиеся овалы (scene/portals.js)
     // Покачивание головы: скорость по земле, на земле ли, бежим ли
     this.bob.update(dt, Math.hypot(player.velocity.x, player.velocity.z), player.onGround, !background && engine.input.isDown("run"));
     this.staminaFlash = Math.max(0, (this.staminaFlash || 0) - dt);
@@ -839,7 +850,7 @@ export class GameScene extends Scene {
       camera,
       world: this.world,
       ghost: this.engine.scene === this ? this.ghost : null,
-      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...(this.treasure?.model ? [this.chestEntity()].filter(Boolean) : []), ...this.caveChestEntities(), ...this.houseChestEntities(), ...this.urnList()], firstPerson ? this.player : null),
+      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...(this.inMain() ? [...(this.treasure?.model ? [this.chestEntity()].filter(Boolean) : []), ...this.caveChestEntities(), ...this.houseChestEntities()] : []), ...this.urnList()], firstPerson ? this.player : null),
       viewModels: vm ? [vm] : [], // рука — слой «для экрана», только от 1-го лица
       particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
       // Оптика: всё вне круга прицела размыто (круг — в hud.js → SCOPE)
@@ -850,6 +861,8 @@ export class GameScene extends Scene {
   drawUI(ui) {
     profiler.begin(PROF.hudDraw);
     this.hud.draw(ui, this);
+    const fade = this.fadeAlpha?.() || 0; // переход через портал — затемнение
+    if (fade > 0) ui.rect(0, 0, ui.width, ui.height, [0, 0, 0], Math.round(fade * 255));
     profiler.end(PROF.hudDraw);
   }
 
@@ -900,4 +913,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);
+mixParts(GameScene, [PortalsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);

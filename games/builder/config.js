@@ -179,6 +179,17 @@ export const FLASH = {
   items: { lichbolt: [170, 90, 255], magma: [255, 120, 40], fireball: [255, 130, 40], spore: [140, 240, 100] },
 };
 
+// Порталы (scene/portals.js): раз в every с (если их меньше max) у героя (на distance м) — портал в свою комнату
+// (room: размер, высота, цвета); живёт life с. enterRadius — шагнуть ближе — вход; cooldown — с после перехода;
+// slowEvery — главный мир, пока герой в комнате, тикает раз в столько тиков; fade — с затемнения (туда и обратно).
+// Закрытие: за warn с до конца того, кто в комнате, затягивает к выходу — pull (м/с: start, ×mult в секунду, до
+// max), камера — в конусе cone (° по горизонтали / вертикали), тряска shake; light — свет портала
+export const PORTALS = {
+  every: [90, 150], max: 3, distance: [10, 25], life: [120, 200], enterRadius: 0.9, cooldown: 2, slowEvery: 4, fade: 0.5,
+  room: { w: 9, d: 11, h: 5, y: 100, wall: [70, 62, 92], floor: [56, 50, 74], floor2: [64, 58, 84] },
+  warn: 8, pull: { start: 0.1, mult: 2, max: 30 }, cone: [35, 25], shake: 0.4, light: { radius: 5, power: 1.3 },
+};
+
 export const LIGHTS = {
   lamp: { color: [255, 214, 130], power: 1.5, radius: 9 }, //   (все источники ×1.5)
   torch: { color: [255, 160, 70], power: 1.35, radius: 7 },
