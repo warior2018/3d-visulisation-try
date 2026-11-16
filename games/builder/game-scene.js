@@ -667,16 +667,18 @@ export class GameScene extends Scene {
     // Покачивание головы: скорость по земле, на земле ли, бежим ли
     this.bob.update(dt, Math.hypot(player.velocity.x, player.velocity.z), player.onGround, !background && engine.input.isDown("run"));
     this.staminaFlash = Math.max(0, (this.staminaFlash || 0) - dt);
-    this.syncEye(player.renderPosition);
-    // шагнул на ступеньку / полублок (физика: autoStep) — камера поднимается плавно, а не рывком
+    // Ступеньки / полублоки (физика: autoStep и шаг вниз — e.stepped): высота камеры плавно догоняет высоту героя
+    // (а не «рывок + откат»: раньше откат шёл от сглаженной позиции и дёргался между тиками). Ещё stepTime с после
+    // шага сглаживаем; прыжок и падение — без сглаживания
+    const rp = player.renderPosition;
     if (player.stepped) {
-      this.stepLag = Math.max(-1, Math.min(1, (this.stepLag || 0) + player.stepped)); // вверх (+) и вниз (−)
+      this.stepTime = 0.3;
       player.stepped = 0;
     }
-    if (Math.abs(this.stepLag || 0) > 0.001) {
-      this.look.position = this.look.position.add(new Vec3(0, -this.stepLag, 0));
-      this.stepLag *= Math.exp(-dt * 14);
-    } else this.stepLag = 0;
+    this.stepTime = Math.max(0, (this.stepTime || 0) - dt);
+    if (this.camFootY === undefined || this.stepTime <= 0 || Math.abs(rp.y - this.camFootY) > 1.2) this.camFootY = rp.y;
+    else this.camFootY += (rp.y - this.camFootY) * (1 - Math.exp(-dt * 16));
+    this.syncEye(new Vec3(rp.x, this.camFootY, rp.z));
     engine.sound.setListener(this.look.position, this.look.yaw); // «уши» — в глазах героя (объёмный звук)
     this.hitMarker = Math.max(0, this.hitMarker - dt);
     this.blockFlash = Math.max(0, (this.blockFlash || 0) - dt);
