@@ -132,7 +132,7 @@ class Heap {
 function estimate(x, y, z, g) {
   const dx = Math.abs(x - g[0]);
   const dz = Math.abs(z - g[2]);
-  return Math.max(dx, dz) + (Math.SQRT2 - 1) * Math.min(dx, dz) + Math.abs(y - g[1]) * 0.5;
+  return Math.max(dx, dz) + (Math.SQRT2 - 1) * Math.min(dx, dz) + Math.abs(y - g[1]) * 0.5; // (спуск стоит 0.5 за блок — оценка не больше настоящего)
 }
 
 // A*: путь от клетки start до клетки goal ([x, y, z] — клетка, где стоят ноги).
