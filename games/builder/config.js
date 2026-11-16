@@ -185,7 +185,9 @@ export const FLASH = {
 // Закрытие: за warn с до конца того, кто в комнате, затягивает к выходу — pull (м/с: start, ×mult в секунду, до
 // max), камера — в конусе cone (° по горизонтали / вертикали), тряска shake; light — свет портала
 export const PORTALS = {
-  every: [90, 150], max: 3, distance: [10, 25], life: [120, 200], enterRadius: 0.9, cooldown: 2, slowEvery: 4, fade: 0.5,
+  every: [90, 150], max: 3, distance: [10, 25], life: [60, 120], enterRadius: 0.9, cooldown: 2, slowEvery: 4, fade: 0.5,
+  // elites — элиты в комнате (вокруг дерева, eliteRadius), chests — сундуки (x, z), тир — по chestTiers
+  elites: 4, eliteRadius: [4, 6], chests: [[-9, 0], [9, 0]], chestTiers: { wood: 1, steel: 1, gold: 1 }, coins: 40, coinsPerLevel: 4,
   // room: зал w × d × h (высота), пол на y; дерево посредине (tree), вокруг — камень, с радиуса ground[0] — земля
   // полублоком, с ground[1] — целым блоком (две ступени); лампы в потолке через lampStep и по стенам
   room: { w: 21, d: 21, h: 10, y: 100, wall: [70, 62, 92], stone: [128, 126, 132], dirt: [130, 96, 62], grass: [96, 160, 72], ground: [7, 8.5], tree: { height: 6, crown: 3 }, lampStep: 6 },

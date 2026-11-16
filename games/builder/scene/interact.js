@@ -11,6 +11,7 @@ export class InteractPart {
   // ---------- Взаимодействие (клавиша interact, по умолчанию F) ----------
   // Предмет на земле под прицелом — подобрать
   interact() {
+    if (this.tryRoomChest()) return; // сундук в комнате портала (scene/portals.js)
     if (this.tryCaveChest()) return; // сундук в пещере (scene/caves.js)
     if (this.tryHouseChest()) return; // сундук в доме (scene/islands.js)
     if (this.tryChest()) return; // сундук на дальнем острове рядом — открыть (scene/islands.js)

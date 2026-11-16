@@ -13,7 +13,9 @@
 // ============================================================
 
 import { Vec3, buildTree, dismount, HALF } from "../../../engine/index.js";
-import { PORTALS, LIGHTS } from "../config.js";
+import { PORTALS, LIGHTS, MOB_MIX, ELITE, CHEST_TIERS, ISLANDS, pickChestTier } from "../config.js";
+import { pickWeighted } from "./shared.js";
+import { mobGrowth, CREATURES } from "../creatures.js";
 
 const PURPLE = [170, 90, 255], CORE = [235, 210, 255];
 const rnd = ([a, b]) => a + Math.random() * (b - a);
@@ -180,9 +182,53 @@ export class PortalsPart {
       v.place(x, y0 + 3, z, LIGHTS.lamp.color);
     }
     portal.room = w;
+    // 2 сундука случайного тира (равные шансы) — по бокам на земле; 4 элиты вокруг дерева (только хост)
+    portal.chests = PORTALS.chests.map(([x, z]) => ({ x: x - 1, y: y0 + 1, z: z - 0.5, opened: false, tier: pickChestTier(PORTALS.chestTiers) }));
+    if (this.role !== "client") this.withWorld(w, () => this.roomElites(portal, y0));
     portal.exit = { x: 0.5, y: y0 + 1, z: -hz + 1.5, yaw: 0 }; //         выход — у дальней стены, на земле
     portal.spawn = { x: 0.5, y: y0 + 1, z: hz - 2, yaw: Math.PI }; //     вход — у ближней, лицом к дереву и выходу
     return w;
+  }
+
+  roomElites(portal, y0) {
+    const auras = Object.keys(ELITE.auras);
+    for (let i = 0, tries = 0; i < PORTALS.elites && tries < 40; tries++) {
+      const type = pickWeighted(MOB_MIX);
+      if (type === "bat" || (CREATURES[type]?.kind && CREATURES[type].kind !== "mob")) continue; // только наземные враги
+      const a = (i / PORTALS.elites) * Math.PI * 2 + Math.random() * 0.8, r = PORTALS.eliteRadius[0] + Math.random() * (PORTALS.eliteRadius[1] - PORTALS.eliteRadius[0]);
+      const e = this.spawn(type, { x: Math.sin(a) * r + 0.5, y: y0, z: Math.cos(a) * r + 0.5, yaw: Math.random() * Math.PI * 2, ...mobGrowth(this.spawner.spawned++) });
+      i++;
+      if (!e) continue;
+      e.guardOf = "portal:" + portal.id; // не пропадают
+      this.makeElite(e, auras[Math.floor(Math.random() * auras.length)]);
+    }
+  }
+
+  // Сундуки комнаты портала, в которой стоит герой (модели)
+  roomChestEntities() {
+    const portal = (this.portals || []).find((o) => o.room === this.activeWorld);
+    const list = [];
+    for (const c of portal?.chests || []) {
+      if (!c.ent) {
+        c.ent = { position: new Vec3(c.x + 1, c.y, c.z + 0.5), yaw: 0, roll: 0, alive: true, hurtTime: Infinity, deadTime: 0, view: null };
+        this.game.models.attach(c.ent, "chest-" + c.tier);
+      }
+      c.ent.view?.animator.setBase(c.opened ? "Opened" : "Closed");
+      list.push(c.ent);
+    }
+    return list;
+  }
+
+  tryRoomChest() {
+    if (this.inMain()) return false;
+    const portal = (this.portals || []).find((o) => o.room === this.activeWorld), p = this.player.position;
+    for (const c of portal?.chests || []) {
+      if (Math.hypot(c.x + 1 - p.x, c.z + 0.5 - p.z) > ISLANDS.chest.reach + 0.5 || Math.abs(p.y - c.y) > 3) continue;
+      const T = CHEST_TIERS[c.tier] || CHEST_TIERS.wood;
+      this.openChestStore(c, { coins: Math.round((PORTALS.coins + PORTALS.coinsPerLevel * this.experience.level) * T.coins), tier: (tiers) => tiers[Math.floor(Math.random() * tiers.length)], view: () => c.ent?.view, rarity: T.rarity });
+      return true;
+    }
+    return false;
   }
 
   // Перенести существо e в мир w в точку at

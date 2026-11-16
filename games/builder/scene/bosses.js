@@ -124,13 +124,25 @@ export class BossesPart {
     e.digIn = (e.digIn ?? 0) - dt;
     if (e.digIn > 0) return;
     e.digIn = BOSS.chase.every;
-    const dx = target.position.x - e.position.x, dz = target.position.z - e.position.z;
+    let dx = target.position.x - e.position.x, dz = target.position.z - e.position.z;
+    const up = target.position.y > e.position.y + 0.9;
+    // цель высоко почти над головой (смотрит в яму сверху): копать «к ней» некуда — роет лестницу вбок
+    // в одну сторону (запоминает её) и идёт по ней (e.detour), пока не выберется
+    if (up && Math.hypot(dx, dz) < 3 && target.position.y > e.position.y + 2) {
+      if (!e.digDir || e.digDirT < 0) {
+        const a = Math.random() * Math.PI * 2;
+        e.digDir = { x: Math.sin(a), z: Math.cos(a) };
+      }
+      e.digDirT = 6;
+      dx = e.digDir.x;
+      dz = e.digDir.z;
+      e.detour = { position: { x: e.position.x + dx * 2.5, y: e.position.y + 1, z: e.position.z + dz * 2.5 }, t: BOSS.chase.every * 2 };
+    } else e.digDirT = (e.digDirT ?? 0) - BOSS.chase.every;
     const len = Math.hypot(dx, dz) || 1;
     const feet = Math.floor(e.position.y + 0.05);
     const cells = new Set();
     // цель выше (стоит над ямой / на уступе): впереди оставляем ступеньку у ног, а выше — пробиваем с запасом
     // в блок над головой, чтобы мог запрыгнуть и выбраться; иначе — ход на своём уровне
-    const up = target.position.y > e.position.y + 0.9;
     const from = up ? feet + 1 : feet, to = Math.floor(e.position.y + e.height) + (up ? 1 : 0);
     for (const ahead of [e.radius + 0.4, e.radius + 1]) {
       for (const side of [-e.radius * 0.8, 0, e.radius * 0.8]) {
@@ -140,7 +152,7 @@ export class BossesPart {
       }
     }
     // над головой — тоже, если цель выше (иначе упирается макушкой в край ямы при прыжке)
-    if (up) for (const side of [-e.radius * 0.8, 0, e.radius * 0.8]) cells.add(`${Math.floor(e.position.x - (dz / len) * side)},${to},${Math.floor(e.position.z + (dx / len) * side)}`);
+    if (up) for (const side of [-e.radius * 0.8, 0, e.radius * 0.8]) for (const h of [to, to + 1]) cells.add(`${Math.floor(e.position.x - (dz / len) * side)},${h},${Math.floor(e.position.z + (dx / len) * side)}`);
     // Цель ниже (закопался в яму): копает и вниз — под собой (рядом) или ступенькой впереди (далеко)
     if (target.position.y < e.position.y - 0.9) {
       const near = len < 6;

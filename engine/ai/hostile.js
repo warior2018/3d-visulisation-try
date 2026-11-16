@@ -206,7 +206,9 @@ export class HostileBrain extends Brain {
       opts.speed = e.speed * (out ? 1 + (this.chase.speed || 0) : 1);
       opts.jumpSpeed = out ? this.chase.jump || this.jumpSpeed : this.jumpSpeed;
       if (this.chase && this.stuck(e, target, dt)) ctx.dig?.(e, target, dt);
-      walking = pursue(e, target, dt, opts);
+      // e.detour — временная точка от игры (босс прорыл лестницу вверх к цели над головой): идём к ней
+      if (e.detour && (e.detour.t -= dt) <= 0) e.detour = null;
+      walking = pursue(e, e.detour || target, dt, opts);
     } else if (T && fromHome(e) > 1) {
       // Без цели и не дома — идём в центр логова (далеко — с погоней: ломает блоки на пути домой)
       const home = { position: { x: T.x, y: e.position.y, z: T.z } };
