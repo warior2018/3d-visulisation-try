@@ -16,12 +16,17 @@
 //      onDrop: (item, count, data) => {},            // выбросили (Q) — игра решает, что с этим делать (data — свои данные предмета)
 //      canDrop: (item, data) => true | "ПОЧЕМУ НЕТ",  // можно ли выбросить (нельзя — предмет остаётся, надпись внизу)
 //      onClose: () => {},                            // окно закрыли (например, сундук: пустой — убрать)
+//      equipAction: "skill2", equipKey: "E",         // E над предметом — надеть (в секцию с equip: true; занято —
+//                                                    //   поменяться местами), над надетым — снять в сумку
+//    У секции: equip: true — сюда надевают (оружие, броня, предметы); group — «чья»: Shift+ЛКМ перекладывает
+//    в секции другой group (сундук ↔ сумка), а если все свои — из сумки в надетое и обратно.
 //    })
 //
 //  Мышь: ЛКМ по предмету — взять всю ячейку «в руку» (едет за курсором); ЛКМ по ячейке —
 //  положить всё (там другой предмет — поменяются местами, такой же — сложатся в стопку).
 //  ПКМ — по одной штуке: по стопке — взять одну (ещё ПКМ по тому же предмету — ещё одну в руку),
 //  с предметом в руке по пустой ячейке — положить одну. Так стопки и делят.
+//  Shift+ЛКМ — сразу в другую сторону (сундук → сумка и обратно, сумка ↔ надетое) в первую свободную ячейку.
 //  Q (действие "drop") над ячейкой — выбросить один предмет; Shift+Q — всю стопку из ячейки разом
 //  (onDrop получит её целиком: item, count); с предметом в руке — выбросить его.
 //  itemInfo(id) → { name, color, drawIcon? } — игра рассказывает, что за предметы.
@@ -33,7 +38,7 @@ import { drawWindow } from "../ui/window.js";
 
 export class InventoryScene extends Scene {
   // describe(slot) → [{ text, color?, size? }] — плашка с информацией о предмете под мышью (null — без неё)
-  constructor({ entity, itemInfo, sections = null, title = "INVENTORY", closeActions = ["inventory", "pause"], dropAction = "drop", dropKey = "Q", onChange = () => {}, onDrop = () => {}, canDrop = () => true, describe = null, onClose = () => {} }) {
+  constructor({ entity, itemInfo, sections = null, title = "INVENTORY", closeActions = ["inventory", "pause"], dropAction = "drop", dropKey = "Q", onChange = () => {}, onDrop = () => {}, canDrop = () => true, describe = null, onClose = () => {}, equipAction = "skill2", equipKey = "E" }) {
     super();
     this.transparent = true;
     this.showToasts = false; // всплывающие надписи закрыли бы заголовок окна
@@ -50,6 +55,8 @@ export class InventoryScene extends Scene {
     this.canDrop = canDrop;
     this.describe = describe;
     this.onClose = onClose;
+    this.equipAction = equipAction;
+    this.equipKey = equipKey;
     this.held = null; //   { stack: { item, count }, from: { s, i } } — что взяли «в руку»
     this.hover = null; //  { s, i } — ячейка под мышью (с прошлой отрисовки)
   }
@@ -90,7 +97,7 @@ export class InventoryScene extends Scene {
     });
 
     const warn = this.warning && performance.now() < this.warning.until ? this.warning.text : null;
-    ui.text(warn || `LMB - WHOLE SLOT, RMB - ONE BY ONE. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK`, box.cx, box.y + box.h - 30, 2, warn ? ui.theme.warn : ui.theme.muted, "center", 255, box.w);
+    ui.text(warn || `LMB - WHOLE SLOT, RMB - ONE BY ONE, SHIFT+LMB - MOVE ACROSS, ${this.equipKey} - EQUIP. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK`, box.cx, box.y + box.h - 30, 2, warn ? ui.theme.warn : ui.theme.muted, "center", 255, box.w);
 
     // Предмет «в руке» — у курсора
     if (this.held) drawItem(ui, this.itemInfo, this.held.stack, ui.mouseX - 40, ui.mouseY - 40, 80, { name: false });
@@ -159,7 +166,7 @@ export class InventoryScene extends Scene {
       x += o.w + GAP;
     }
     const warn = this.warning && performance.now() < this.warning.until ? this.warning.text : null;
-    ui.text(warn || `LMB - WHOLE SLOT, RMB - ONE BY ONE. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK`, box.cx, box.y + box.h - 30, 2, warn ? ui.theme.warn : ui.theme.muted, "center", 255, box.w);
+    ui.text(warn || `LMB - WHOLE SLOT, RMB - ONE BY ONE, SHIFT+LMB - MOVE ACROSS, ${this.equipKey} - EQUIP. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK`, box.cx, box.y + box.h - 30, 2, warn ? ui.theme.warn : ui.theme.muted, "center", 255, box.w);
     if (this.held) drawItem(ui, this.itemInfo, this.held.stack, ui.mouseX - 40, ui.mouseY - 40, 80, { name: false });
     this.drawInfo(ui);
   }
@@ -184,7 +191,7 @@ export class InventoryScene extends Scene {
   onButton(id, { right = false } = {}) {
     if (id === "close") return this.close();
     const [kind, s, i] = id.split(":");
-    if (kind === "slot") (right ? this.rightClickSlot(+s, +i) : this.clickSlot(+s, +i));
+    if (kind === "slot") (right ? this.rightClickSlot(+s, +i) : !this.held && this.engine.input.shift ? this.quickMove(+s, +i) : this.clickSlot(+s, +i));
     this.engine.redraw();
   }
 
@@ -257,7 +264,87 @@ export class InventoryScene extends Scene {
     this.onChange();
   }
 
+  // Shift+ЛКМ: вся ячейка — в «другую сторону», в первые свободные ячейки (стопки сначала докладываются).
+  // Не влезло — остаток на месте
+  quickMove(s, i) {
+    const sec = this.sections[s], slot = sec.inventory.slots[i];
+    if (!slot) return;
+    const others = this.sections.map((x, k) => k).filter((k) => k !== s && this.sections[k].inventory !== sec.inventory);
+    let targets = others.filter((k) => (this.sections[k].group ?? "own") !== (sec.group ?? "own"));
+    if (!targets.length) targets = sec.equip ? others.filter((k) => !this.sections[k].equip) : others.filter((k) => this.sections[k].equip);
+    if (!targets.length) targets = others;
+    const left = this.putInto(targets, slot);
+    if (left === slot.count) return this.warn("NO ROOM");
+    if (left > 0) slot.count = left;
+    else sec.inventory.slots[i] = null;
+    this.onChange();
+  }
+
+  // Положить стопку в секции targets (по порядку; ячейки — с учётом indices и accepts). Вернёт, сколько не влезло
+  putInto(targets, slot) {
+    let left = slot.count;
+    for (const pass of ["stack", "empty"]) {
+      for (const k of targets) {
+        const sec = this.sections[k], inv = sec.inventory, idx = sec.indices || inv.slots.map((_, j) => j);
+        for (const j of idx) {
+          if (left <= 0) return 0;
+          const here = inv.slots[j];
+          if (pass === "stack" && here && !here.data && !slot.data && here.item === slot.item) {
+            const put = Math.min(left, inv.maxStack(slot.item) - here.count);
+            if (put > 0) { here.count += put; left -= put; }
+          } else if (pass === "empty" && !here && inv.accepts(j, slot.item)) {
+            const put = slot.data ? 1 : Math.min(left, inv.maxStack(slot.item));
+            inv.slots[j] = slot.data ? { item: slot.item, count: 1, data: { ...slot.data } } : { item: slot.item, count: put };
+            left -= put;
+          }
+        }
+      }
+    }
+    return left;
+  }
+
+  // E над предметом: надеть — в первую подходящую ячейку секций equip (там что-то есть — меняются местами за один
+  // шаг: ячейка ни на миг не пустеет); над надетым — снять в сумку (Shift+ЛКМ)
+  equip() {
+    if (this.held || !this.hover) return;
+    const { s, i } = this.hover, sec = this.sections[s], slot = sec.inventory.slots[i];
+    if (!slot) return;
+    if (sec.equip) return this.quickMove(s, i);
+    for (const [k, t] of this.sections.entries()) {
+      if (!t.equip || k === s) continue;
+      const idx = t.indices || t.inventory.slots.map((_, j) => j);
+      const j = idx.find((n) => t.inventory.accepts(n, slot.item));
+      if (j === undefined) continue;
+      const there = t.inventory.slots[j];
+      if (there && there.item === slot.item && !there.data && !slot.data) { // такое уже надето — доложить в стопку
+        const put = Math.min(slot.count, t.inventory.maxStack(slot.item) - there.count);
+        if (put <= 0) return this.warn("SLOT IS FULL");
+        there.count += put;
+        slot.count -= put;
+        if (slot.count <= 0) sec.inventory.slots[i] = null;
+      } else if (there && !sec.inventory.accepts(i, there.item)) return this.warn("CAN'T SWAP");
+      else {
+        t.inventory.slots[j] = slot; //      поменялись местами сразу
+        sec.inventory.slots[i] = there || null;
+      }
+      this.onChange();
+      return;
+    }
+    if (!this.sections.some((t) => t.equip)) return this.quickMove(s, i); // надеть некуда (сундук) — к себе
+    this.warn("CAN'T EQUIP THIS");
+  }
+
+  warn(text) {
+    this.warning = { text, until: performance.now() + 1500 };
+    setTimeout(() => this.engine?.redraw(), 1600);
+  }
+
   onPress(actions) {
+    if (this.equipAction && actions.includes(this.equipAction)) {
+      this.equip();
+      this.engine.redraw();
+      return;
+    }
     if (actions.includes(this.dropAction)) {
       this.drop();
       this.engine.redraw();

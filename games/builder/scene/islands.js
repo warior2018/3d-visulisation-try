@@ -194,8 +194,9 @@ export class IslandsPart {
       title: "TREASURE CHEST",
       describe: (slot) => describeSlot(this, slot),
       dropKey: Input.label(this.settings.controls.bindings.drop),
+      equipKey: Input.label(this.settings.controls.bindings.skill2),
       sections: [
-        { inventory: inv, title: "TREASURE CHEST", cols: ISLANDS.chest.slots },
+        { inventory: inv, title: "TREASURE CHEST", cols: ISLANDS.chest.slots, group: "chest" },
         { inventory: this.player.inventory, title: "BAG", cols: 8 },
       ],
       onChange: () => {

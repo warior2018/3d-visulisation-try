@@ -262,17 +262,18 @@ export class ShopPart {
       itemInfo,
       describe: (slot) => describeSlot(this, slot), // плашка о предмете под мышью (item-info.js)
       dropKey: Input.label(b.drop),
+      equipKey: Input.label(b.skill2),
       sections: [
         // Слева — сумка столбиком; справа — оружие | броня (сверху вниз: шлем, нагрудник, поножи, ботинки) | вещи
         { inventory: this.player.inventory, title: "BAG", cols: 4, area: "left" },
-        { inventory: this.player.hotbar, indices: [0], title: "WEAPON", cols: 1, area: "right", refuse: () => "ONLY A WEAPON HERE" },
+        { inventory: this.player.hotbar, indices: [0], title: "WEAPON", cols: 1, area: "right", equip: true, refuse: () => "ONLY A WEAPON HERE" },
         {
-          inventory: this.player.armor, title: "ARMOR", cols: 1, area: "right",
+          inventory: this.player.armor, title: "ARMOR", cols: 1, area: "right", equip: true,
           label: (i) => ARMOR_SLOT_NAMES[i], // HELMET / CHEST / LEGS / BOOTS — в углу ячейки
           refuse: (item, i) => `ONLY ${ARMOR_SLOT_NAMES[i]} HERE`,
         },
         {
-          inventory: this.player.hotbar, indices: [1, 2], title: "ITEMS", cols: 1, area: "right",
+          inventory: this.player.hotbar, indices: [1, 2], title: "ITEMS", cols: 1, area: "right", equip: true,
           label: (i) => Input.label(b[["", "item1", "item2"][i]]),
           refuse: () => "ONLY TOOLS, MEDKITS AND TRAPS HERE",
         },
