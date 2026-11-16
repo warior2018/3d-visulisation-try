@@ -6,7 +6,7 @@
 //  (worldgen.caves). Сундук — та же модель, что на дальнем острове (tools/make-chest.js).
 // ============================================================
 
-import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS, LOOT } from "../config.js";
+import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS, LOOT, FLOATING } from "../config.js";
 import { Vec3, rarityOf, HALF } from "../../../engine/index.js";
 import { mobGrowth } from "../creatures.js";
 import { pickWeighted } from "./shared.js";
@@ -25,11 +25,18 @@ export class CavesPart {
       const n = disc.main ? between(rnd, C.rooms) : rnd() < C.islandRoom ? 1 : 0;
       for (let k = 0, tries = 0; k < n && tries < 40; tries++) {
         const w = between(rnd, C.size.w), d = between(rnd, C.size.d), h = between(rnd, C.size.h);
-        const a = rnd() * Math.PI * 2, r = rnd() * Math.max(2, disc.r * 0.75);
+        // глубина: пол на depth ниже травы острова, но не ниже C.floor; конус под островом к низу сужается —
+        // глубокую комнату ставим ближе к оси острова (в конус), мелкую — где угодно
+        const lift = disc.lift || 0;
+        const floor = Math.max(C.floor, lift - between(rnd, C.depth));
+        const bottom = FLOATING.bottom, D = lift - bottom;
+        const k = D > 0 ? Math.max(0, 1 - Math.pow(Math.max(0, lift - floor) / D, 1 / 1.6)) : 1; // доля радиуса конуса на этой глубине
+        const room = Math.max(w, d) / 2 + 1;
+        const maxR = Math.max(0, disc.r * Math.min(0.75, k) - room);
+        const a = rnd() * Math.PI * 2, r = rnd() * maxR;
         const cx = Math.round(disc.x + Math.sin(a) * r), cz = Math.round(disc.z + Math.cos(a) * r);
-        if (disc.main && Math.hypot(cx, cz) < C.keepClear) continue; // не под местом появления
-        if (rooms.some((o) => Math.abs(o.x - cx) < (o.w + w) / 2 + 4 && Math.abs(o.z - cz) < (o.d + d) / 2 + 4)) continue;
-        const floor = (disc.lift || 0) - between(rnd, C.depth); // пол комнаты: на столько ниже травы острова (разные уровни)
+        if (disc.main && Math.hypot(cx, cz) < C.keepClear && lift - floor < 12) continue; // не под местом появления (неглубоко)
+        if (rooms.some((o) => Math.abs(o.x - cx) < (o.w + w) / 2 + 4 && Math.abs(o.z - cz) < (o.d + d) / 2 + 4 && Math.abs(o.y - floor) < 8)) continue;
         rooms.push({ x: cx, z: cz, y: floor, w, d, h, kind: "plain", disc: T.discs.indexOf(disc), ledge: rnd() < C.ledge ? Math.floor(rnd() * 4) : -1 });
         k++;
       }

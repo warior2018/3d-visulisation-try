@@ -129,7 +129,8 @@ export class Terrain {
   // под ней пара слоёв земли, глубже — камень. Вернёт, сколько кубиков поставлено
   // underside — летающие острова: под каждым островом — каменный «корень» вниз (конус), глубина в центре —
   // underside × радиус острова (0 — нет: острова лежат на полу мира)
-  build(world, { grass = [96, 160, 72], dirt = [130, 96, 62], stone = [140, 140, 146], snow = [236, 240, 246], rockLine = 10, snowLine = 14, underside = 0, rock = [112, 104, 100] } = {}) {
+  // undersideBottom — конус до этой высоты (y) у каждого острова, сужается к низу (острый); null — как раньше (× радиус)
+  build(world, { grass = [96, 160, 72], dirt = [130, 96, 62], stone = [140, 140, 146], snow = [236, 240, 246], rockLine = 10, snowLine = 14, underside = 0, rock = [112, 104, 100], undersideBottom = null } = {}) {
     let placed = 0;
     const done = new Set(); // столбики, уже уложенные (острова не перекрываются, но на всякий случай)
     for (const disc of this.discs) {
@@ -152,7 +153,9 @@ export class Terrain {
           const d = Math.hypot(x + 0.5 - disc.x, z + 0.5 - disc.z) / disc.r;
           // неровный низ: глубина по параболе от центра + шум (по координатам — одинаково при каждой постройке)
           const noise = ((Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1 + 1) % 1;
-          const depth = Math.max(1, Math.floor((1 - Math.min(1, d) ** 2) * disc.r * underside + noise * 3));
+          const depth = undersideBottom !== null
+            ? Math.max(1, Math.floor(((disc.lift || 0) - undersideBottom) * (1 - Math.min(1, d)) ** 1.6 + noise * 2)) // острый конус до undersideBottom
+            : Math.max(1, Math.floor((1 - Math.min(1, d) ** 2) * disc.r * underside + noise * 3));
           for (let y = -1; y >= -depth; y--) if (world.place(x, lift + y, z, y > -3 ? dirt : rock)) placed++;
         }
       }

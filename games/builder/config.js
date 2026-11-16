@@ -458,14 +458,15 @@ export const WORLD_SIZES = {
   3: { name: "LARGE", islands: [4, 6] },
 };
 // voidY — ниже этого (бездна под летающими островами) — падение: voidDamage макс. HP и обратно наверх
-export const FLOATING = { underside: 0.3, voidY: -35, voidDamage: 0.35 };
+// bottom — до какой высоты (y) уходит острый каменный конус под каждым островом
+export const FLOATING = { underside: 0.3, bottom: -30, voidY: -35, voidDamage: 0.35 };
 export function worldgenFor(size = 3, floating = false) {
   const W = WORLDGEN, T = W.terrain;
   const count = WORLD_SIZES[size]?.islands ?? T.islands.count;
   return {
     ...W,
     terrain: { ...T, islands: { ...T.islands, count } },
-    colors: { ...W.colors, underside: floating ? FLOATING.underside : 0 },
+    colors: { ...W.colors, underside: floating ? FLOATING.underside : 0, undersideBottom: floating ? FLOATING.bottom : null },
   };
 }
 // Атаки — параметры для классов движка (engine/combat/attacks.js).
@@ -831,7 +832,7 @@ export const FALL_DAMAGE = {
 // reward — сундук: монеты (+perLevel за уровень) и вещь любого тира не ниже rarity
 export const CAVES = {
   rooms: [4, 6], islandRoom: 0.5, keepClear: 14,
-  size: { w: [7, 11], d: [7, 11], h: [4, 6] }, depth: [6, 13], ledge: 0.4, // ledge — шанс уступа внутри комнаты (свой уровень)
+  size: { w: [7, 11], d: [7, 11], h: [4, 6] }, depth: [6, 30], floor: -25, ledge: 0.4, // floor — ниже этого пол комнат не опускается (там конус узкий) // ledge — шанс уступа внутри комнаты (свой уровень)
   bridgeIslands: 0.3, lampEvery: 7, exitChance: 0.15, //                 exitChance — шанс лишнего прохода наверх у комнаты
   boss: 0.05, chest: 0.35, guard: 0.15, trigger: 18,
   spawn: { radius: 40, every: 14, max: 3 },
