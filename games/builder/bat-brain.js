@@ -77,6 +77,19 @@ export class BatBrain extends Brain {
     }
     const tp = t.position, th = t.height || 1.6;
     e.batState ||= "circle";
+    // Обход: в пике / на подлёте упёрлась в стену (физика: e.blocked) — облёт сбоку (sidestep)
+    if (e.sidestep) {
+      e.sidestep.t -= dt;
+      this.steer(e, e.position.x + e.sidestep.x, e.position.z + e.sidestep.z, this.speed);
+      this.fly(e, dt, Math.max(e.position.y, tp.y + th * HEAD));
+      if (e.sidestep.t <= 0 || e.blocked) e.sidestep = null;
+      return { walking: true, alerted: [] };
+    }
+    if ((e.batState === "dive" || e.batState === "approach") && e.blocked && this.findSide(e, tp, ctx)) {
+      e.diving = false;
+      if (e.batState === "dive") e.batState = "approach"; // пике сорвалось — подлетит и ударит
+      return { walking: true, alerted: [] };
+    }
     e.batTimer = (e.batTimer ?? rnd(this.wait)) - dt;
     if (e.batState === "circle") {
       e.orbitR ||= rnd(this.orbit);
@@ -125,6 +138,21 @@ export class BatBrain extends Brain {
       }
     }
     return { walking: true, alerted: [] };
+  }
+
+  // Куда облететь стену: влево или вправо от направления на цель — где свободно (2 клетки вбок на высоте тела);
+  // оба свободны — ближе к цели. Нашли — e.sidestep на 0.6 с
+  findSide(e, tp, ctx) {
+    const solid = ctx.navWorld?.isSolid;
+    if (!solid) return false;
+    const dx = tp.x - e.position.x, dz = tp.z - e.position.z, l = Math.hypot(dx, dz) || 1;
+    const px = -dz / l, pz = dx / l, y = Math.floor(e.position.y + e.height * 0.5);
+    const free = (s) => [1, 2].every((k) => !solid(Math.floor(e.position.x + px * s * k), y, Math.floor(e.position.z + pz * s * k)));
+    const sides = [1, -1].filter(free);
+    if (!sides.length) return false;
+    const s = sides.length === 2 ? (Math.random() < 0.5 ? 1 : -1) : sides[0];
+    e.sidestep = { x: px * s * 3 + (dx / l) * 1, z: pz * s * 3 + (dz / l) * 1, t: 0.6 };
+    return true;
   }
 
   startRetreat(e, dx, dz, delay = 0) {
