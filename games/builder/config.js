@@ -875,6 +875,8 @@ export const CAVES = {
   pit: { width: 2, depth: 2, damage: 0.12, every: 0.6, color: [176, 176, 186] },
   // уклон туннелей и выходов: блоков на клетку [от, до] (0.5–1 — 1–2 блока на 2 клетки; полублоки сглаживают)
   slope: [0.5, 1],
+  // niche — шанс выбить блок стены / потолка пещеры (ниши, неровности); пол не трогаем
+  niche: 0.03,
   // minDist — обычный спавн в комнате не ближе стольких м к любому герою; guardMinDist — то же для охраны сундука
   spawn: { radius: 40, every: 14, max: 3, minDist: 11 }, guardMinDist: 8,
   reward: { coins: 60, perLevel: 6, rarity: "rare" },

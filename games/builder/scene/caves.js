@@ -259,9 +259,38 @@ export class CavesPart {
       if (at.get(x + "," + z).some((o) => o < y && o > y - 3)) continue; // чужой проход ниже вплотную — не закрываем (2 блока над ним — оставим)
       if (this.world.place(x, y - 1, z, [118, 112, 108])) fixed++;
     }
+    this.caveNiches(rooms, all);
     for (const pts of this.genPaths || []) this.halfSteps(pts);
     if (fixed) this.engine.log(`пещеры: пол проходов поправлен в ${fixed} клетках`);
     this.genPaths = null;
+  }
+
+  // Разнообразие: стены и потолок пещер (блок у пустоты пещеры) с шансом CAVES.niche выбиты — ниши, неровности.
+  // Пол не трогаем (над ним пусто — по нему ходят), лампы — тоже; насквозь наружу не пробиваем (за блоком — скала)
+  caveNiches(rooms, pts) {
+    const W = this.world, cells = new Set();
+    const add = (x, y, z) => cells.add(x + "," + y + "," + z);
+    for (const r of rooms) {
+      const x0 = r.x - Math.floor(r.w / 2) - 1, z0 = r.z - Math.floor(r.d / 2) - 1;
+      for (let i = 0; i < r.w + 2; i++) for (let k = 0; k < r.d + 2; k++) for (let j = 0; j <= r.h; j++) add(x0 + i, r.y + j, z0 + k);
+    }
+    for (const [x, y, z] of pts) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) for (let j = 0; j <= 3; j++) add(x + dx, y + j, z + dz);
+    const lamp = (b) => !!W.emitterOf?.(b);
+    let n = 0;
+    for (const key of cells) {
+      const [x, y, z] = key.split(",").map(Number);
+      const b = W.get(x, y, z);
+      if (!b || lamp(b) || !W.has(x, y - 1, z) && !W.has(x, y + 1, z)) continue;
+      if (!W.has(x, y + 1, z)) continue; // пол (над ним пусто) — не трогаем
+      // у пустоты пещеры: сбоку (стена) — за блоком с той стороны скала; снизу (потолок) — над ним скала
+      let open = null;
+      for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, -1, 0]]) if (!W.has(x + dx, y + dy, z + dz)) { open = [dx, dy, dz]; break; }
+      if (!open || !W.has(x - open[0], y - open[1], z - open[2])) continue;
+      if (Math.random() >= CAVES.niche) continue; // шанс — на каждый блок стены / потолка
+      W.remove(x, y, z);
+      n++;
+    }
+    if (n) this.engine.log(`пещеры: ${n} ниш в стенах и потолке`);
   }
 
   // Подъёмы в проходе — полублоками: на полу прохода (3 × 3 вокруг каждой точки) у уступа в 1 блок
