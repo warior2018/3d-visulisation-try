@@ -4,7 +4,7 @@
 //  открыт ли он — в сохранении мира (worldgen.treasure). Сундук — на карте; F рядом — открыть.
 // ============================================================
 
-import { ISLANDS, LIGHTS, LOOT, FALL_DAMAGE } from "../config.js";
+import { ISLANDS, LIGHTS, LOOT, FALL_DAMAGE, CHEST_TIERS, HOUSE_CHEST } from "../config.js";
 import { Vec3, Inventory, InventoryScene, Input } from "../../../engine/index.js";
 import { rarityData, tierOf, rollRarities } from "./loot.js";
 import { ITEMS, isWeapon, isArmor, maxStack, itemInfo } from "../items.js";
@@ -153,15 +153,56 @@ export class IslandsPart {
     return true;
   }
 
+  // ---------- Сундуки в домах (HOUSE_CHEST, вид — CHEST_TIERS) ----------
+  // Новый мир: в доме (s — площадка, y — пол) с шансом — сундук посреди комнаты
+  maybeHouseChest(s, y, rnd) {
+    const H = HOUSE_CHEST;
+    if (s.w < 4 || s.d < 3 || rnd() >= H.chance) return;
+    const total = Object.values(H.tiers).reduce((a, b) => a + b, 0);
+    let r = rnd() * total, tier = "wood";
+    for (const [id, w] of Object.entries(H.tiers)) if ((r -= w) < 0) { tier = id; break; }
+    (this.houseChests ||= []).push({ x: s.x + Math.floor(s.w / 2) - 1, y, z: s.z + Math.floor(s.d / 2), tier, opened: false });
+  }
+
+  houseChestEntities() {
+    const list = [];
+    for (const c of this.houseChests || []) {
+      if (c.gone) continue;
+      if (!c.ent) {
+        c.ent = { position: new Vec3(c.x + 1, c.y, c.z + 0.5), yaw: 0, roll: 0, alive: true, hurtTime: Infinity, deadTime: 0, view: null };
+        this.game.models.attach(c.ent, "chest-" + c.tier);
+      }
+      c.ent.view?.animator.setBase(c.opened ? "Opened" : "Closed");
+      list.push(c.ent);
+    }
+    return list;
+  }
+
+  tryHouseChest() {
+    const p = this.player.position;
+    for (const c of this.houseChests || []) {
+      if (c.gone || Math.hypot(c.x + 1 - p.x, c.z + 0.5 - p.z) > ISLANDS.chest.reach + 0.5 || Math.abs(p.y - c.y) > 3) continue;
+      const T = CHEST_TIERS[c.tier] || CHEST_TIERS.wood, H = HOUSE_CHEST;
+      this.openChestStore(c, { coins: Math.round((H.coins + H.perLevel * this.experience.level) * T.coins), tier: (tiers) => tiers[Math.floor(Math.random() * tiers.length)], view: () => c.ent?.view, rarity: T.rarity });
+      return true;
+    }
+    return false;
+  }
+
+  // В сохранение: сундуки домов (без моделей)
+  houseChestsJSON() {
+    return (this.houseChests || []).map(({ ent, ...c }) => c);
+  }
+
   // Содержимое сундука (при первом открытии): вещь по LOOT.rarity (5 % — две), монеты стопкой и немного
   // костей / черепов (ISLANDS.chest.junk). Раскидано по случайным ячейкам, часть — пустые
-  rollChest({ coins, tier }) {
+  rollChest({ coins, tier, rarity = LOOT.rarity }) {
     const J = ISLANDS.chest;
     const pool = Object.keys(ITEMS).filter((id) => isWeapon(id) || isArmor(id));
     const tiers = [...new Set(pool.map(tierOf))].sort((a, b) => a - b);
     const t = tier(tiers), list = pool.filter((id) => tierOf(id) === t);
     const stacks = [];
-    for (const r of rollRarities(LOOT.rarity)) {
+    for (const r of rollRarities(rarity)) {
       const item = list[Math.floor(Math.random() * list.length)], data = rarityData(r);
       if (item) stacks.push({ item, count: 1, ...(data ? { data } : {}) });
     }
@@ -176,10 +217,10 @@ export class IslandsPart {
   }
 
   // Окно сундука: его ячейки сверху, сумка героя снизу; перекладывать мышью. Опустел и закрыли — сундук пропадает
-  openChestStore(c, { coins, tier, view }) {
+  openChestStore(c, { coins, tier, view, rarity }) {
     if (c.opened && !c.items) return void (c.gone = true); // открыт ещё до хранилищ (старое сохранение) — пропал
     if (!c.items) {
-      c.items = this.rollChest({ coins, tier });
+      c.items = this.rollChest({ coins, tier, rarity });
       c.opened = true;
       view()?.animator.playOnce("Open");
       this.engine.sound.play("levelup");

@@ -3,7 +3,7 @@
 //  Размер — на 2 × 1 клетки (1.8 × 0.9 м), низ — на y = 0, смотрит вдоль +Z (замок спереди).
 //  Анимации: Closed — закрыт, Open — крышка откидывается назад (0.5 с), Opened — открыт.
 //  Внутри — золото (видно, когда крышка открыта).
-//  Запуск: node tools/make-chest.js  ->  games/builder/assets/chest.glb
+//  Запуск: node tools/make-chest.js  ->  games/builder/assets/chest.glb (+ chest-wood / chest-steel / chest-gold)
 // ============================================================
 
 import { fileURLToPath } from "node:url";
@@ -59,3 +59,15 @@ const ANIMATIONS = {
 };
 
 writeGLB(OUT, buildGLB({ name: "Chest", generator: "VOID tools/make-chest.js", bones: BONES, parts, animations: ANIMATIONS }));
+
+// Сундуки по виду (CHEST_TIERS): та же форма, свои цвета — chest-wood / chest-steel / chest-gold
+const IRON = [0.24, 0.24, 0.26], IRON_D = [0.16, 0.16, 0.18];
+const VARIANTS = {
+  wood: new Map([[GOLD, IRON], [GOLD_DARK, IRON_D]]), //                                        дерево, железные оковки
+  steel: new Map([[WOOD, [0.56, 0.58, 0.62]], [WOOD_DARK, [0.4, 0.42, 0.46]], [GOLD, [0.3, 0.31, 0.34]], [GOLD_DARK, [0.22, 0.22, 0.25]]]), // сталь
+  gold: new Map([[WOOD, [0.92, 0.74, 0.26]], [WOOD_DARK, [0.7, 0.52, 0.16]], [GOLD, [1, 0.92, 0.6]], [GOLD_DARK, [0.85, 0.7, 0.3]]]), //       золото
+};
+for (const [id, map] of Object.entries(VARIANTS)) {
+  const out = fileURLToPath(new URL(`../games/builder/assets/chest-${id}.glb`, import.meta.url));
+  writeGLB(out, buildGLB({ name: "Chest-" + id, generator: "VOID tools/make-chest.js", bones: BONES, parts: parts.map((p) => ({ ...p, color: map.get(p.color) || p.color })), animations: ANIMATIONS }));
+}

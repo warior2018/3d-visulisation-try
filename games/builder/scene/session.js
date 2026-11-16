@@ -44,6 +44,7 @@ export class SessionPart {
     }
     this.caves = saved?.worldgen?.caves || null; // пещеры: комнаты и что в них уже было (scene/caves.js)
     this.treasure = saved?.worldgen?.treasure || null; // сундук на дальнем острове (scene/islands.js)
+    this.houseChests = saved?.worldgen?.houseChests || []; // сундуки в домах (scene/islands.js)
     // дуэль: вместо обычного мира — арена-коробка и комнаты подготовки (scene/duel.js; гостю мир придёт от хоста)
     if (this.duel) { if (this.role !== "client") this.buildDuelWorld((this.game.net?.roster || [1, 2]).length); } else if (!saved) this.generateWorld(); // новый мир: рельеф, постройки, деревья
     // Камни и прочее на земле. В сохранениях до камней их нет — разбрасываем, чтобы было из чего строить
@@ -307,7 +308,7 @@ export class SessionPart {
       if (toast) this.engine.toast(ok ? "PROGRESS SAVED" : "NO OWN SAVE - PROGRESS NOT SAVED");
       return;
     }
-    const r = saveGame({ background, world: this.world, player: this.player, look: this.look, creatures, progression, spawned: this.spawner.spawned, pickups: this.pickups.toJSON(), traps: this.traps.toJSON(), fog: this.fog.toJSON(), worldgen: this.terrain ? { seed: this.terrain.seed, terrain: this.terrainParams || TERRAIN_V1, ...(this.arena ? { arena: this.arena } : {}), ...(this.treasure ? { treasure: this.treasure } : {}), ...(this.caves ? { caves: this.cavesJSON() } : {}) } : null });
+    const r = saveGame({ background, world: this.world, player: this.player, look: this.look, creatures, progression, spawned: this.spawner.spawned, pickups: this.pickups.toJSON(), traps: this.traps.toJSON(), fog: this.fog.toJSON(), worldgen: this.terrain ? { seed: this.terrain.seed, terrain: this.terrainParams || TERRAIN_V1, ...(this.arena ? { arena: this.arena } : {}), ...(this.treasure ? { treasure: this.treasure } : {}), ...(this.houseChests?.length ? { houseChests: this.houseChestsJSON() } : {}), ...(this.caves ? { caves: this.cavesJSON() } : {}) } : null });
     const what = `${r.blocks} блоков, записано кусков ${r.chunks} (${(r.bytes / 1024).toFixed(0)} КБ)${r.removed ? `, убрано ${r.removed}` : ""}${background ? ", в фоне" : ""}`;
     if (!background) console.log(`Сохранено: ${what} -> ${SAVE_DIR}`);
     this.engine.log(`сохранено${background ? " (авто)" : ""}: ${what}, уровень ${this.experience.level}, ${this.talentsSummary()}`);

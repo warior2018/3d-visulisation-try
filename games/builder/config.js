@@ -884,6 +884,17 @@ export const CAVES = {
 // больше чем на above — видно, только если моб не глубже underground блоков под рельефом своего острова
 export const MAP_MOBS = { scale: 0.6, below: 3.5, above: 3.5, underground: 1.5 };
 
+// Сундуки по виду: деревянный / стальной / золотой — своя модель (tools/make-chest.js → chest-*.glb), редкость
+// вещи (rarity — как LOOT.rarity: шансы legendary / epic / rare, остальное — обычная; bonus — две вещи) и монеты
+// (coins — множитель к монетам места). Где какие: дома — HOUSE_CHEST, пещеры и остров — как раньше (обычный сундук)
+export const CHEST_TIERS = {
+  wood: { rarity: { legendary: 0.01, epic: 0.06, rare: 0.25, bonus: 0, reroll: { legendary: 0.02, epic: 0.1, rare: 0.4 } }, coins: 0.6 },
+  steel: { rarity: { legendary: 0.04, epic: 0.18, rare: 0.5, bonus: 0.03, reroll: { legendary: 0.06, epic: 0.25, rare: 0.6 } }, coins: 1 },
+  gold: { rarity: { legendary: 0.2, epic: 0.4, rare: 0.4, bonus: 0.1, reroll: { legendary: 0.25, epic: 0.45, rare: 0.3 } }, coins: 2 },
+};
+// Сундук в доме: chance — шанс на дом; tiers — веса видов; coins + perLevel × уровень героя (× coins вида)
+export const HOUSE_CHEST = { chance: 0.3, tiers: { gold: 5, steel: 20, wood: 75 }, coins: 40, perLevel: 4 };
+
 export const ISLANDS = {
   bridge: { chance: 0.75, width: 3, post: 4, deck: [120, 84, 52], rail: [92, 64, 40] },
   // мост от логова на маленьком острове к главному: ниже края главного на FALL_DAMAGE.from + below блоков
@@ -1041,8 +1052,8 @@ export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1, shortFuse: [0.75
 // прибавляется к нынешней скорости (рывок ещё идёт / летим), не больше maxSpeed м/с. Себе — selfDamage урона
 export const ROCKET_JUMP = {
   // stack — какая доля прежней скорости (и вверх тоже) складывается с новым толчком
-  // selfDamage — свой взрыв ранит и себя: доля урона взрыва (0.05 — на 95 % меньше)
-  lift: 0.6, reach: 1.1, maxSpeed: 20, stack: 0.5, selfDamage: 0.05, // толчок — импульс: скорость сразу, дальше гаснет
+  // selfDamage — свой взрыв ранит и себя: доля урона взрыва (0 — не ранит)
+  lift: 0.6, reach: 1.1, maxSpeed: 20, stack: 0.5, selfDamage: 0, // толчок — импульс: скорость сразу, дальше гаснет
   push: { "hand-grenade": 3.75, launcher: 4.875, dynamite: 5.625, cluster: 3, default: 3.75 },
 };
 export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, lift: 0.3 };

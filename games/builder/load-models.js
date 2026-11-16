@@ -60,6 +60,7 @@ export function loadModels(models) {
   models.load("item-knife", path.join(ASSETS, "knife.glb"));
   models.load("item-bolt", path.join(ASSETS, "bolt.glb")); // болт арбалета в полёте
   models.load("chest", path.join(ASSETS, "chest.glb")); // сундук сокровищ (tools/make-chest.js)
+  for (const t of ["wood", "steel", "gold"]) models.load("chest-" + t, path.join(ASSETS, `chest-${t}.glb`)); // сундуки по виду
   models.load("urn", path.join(ASSETS, "urn.glb")); // урна погибшего (сетевая игра)
   models.load("item-dynamite-lit", path.join(ASSETS, "w-dynamite.glb")); // брошенный динамит лежит с горящим фитилём // нож, брошенный мобом-стрелком (снаряд)
   // Блок в руке — по модели на каждый цвет палитры: розовую «метку» перекрашиваем в цвет

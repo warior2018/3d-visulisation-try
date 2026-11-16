@@ -112,6 +112,7 @@ export class WorldgenPart {
       if (s.kind === "house") {
         const wall = pick([WOOD, STONE, BRICK]);
         buildHouse(this.world, { ...s, y, h: range(W.house.h), wall, trim: wall === WOOD ? STONE : WOOD, roof: pick([WOOD, BRICK, STONE]), decay: rnd() * W.house.decay[1], random: rnd });
+        this.maybeHouseChest(s, y, rnd); // сундук в доме (scene/islands.js)
       } else if (s.kind === "tower") {
         buildTower(this.world, { ...s, y, size: s.w, h: range(W.tower.h), wall: STONE, top: WOOD, door: pick(["north", "south", "east", "west"]), random: rnd });
       } else {

@@ -116,7 +116,7 @@ export class MagicPart {
     p.velocity.z = v.z;
     if (v.y > 0) p.onGround = false;
     // свой взрыв ранит и себя — на selfDamage урона взрыва (95 % меньше)
-    if (attack) {
+    if (attack && R.selfDamage > 0) {
       const avg = Array.isArray(attack.damage) ? (attack.damage[0] + attack.damage[1]) / 2 : attack.damage || 0;
       const base = Object.values(ATTACKS).find((a) => a.id === attack.id)?.damage;
       const full = (Array.isArray(base) ? (base[0] + base[1]) / 2 : base || avg) * this.damageScaleOf(attack);
