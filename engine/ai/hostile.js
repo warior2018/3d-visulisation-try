@@ -124,7 +124,17 @@ export class HostileBrain extends Brain {
   update(e, ctx, dt) {
     this.ctx = ctx; // для проверки «видит ли» (nearestEnemy)
     const entities = ctx.entities;
-    e.nav ||= new Navigator({ ...ctx.navWorld, height: Math.ceil(e.height - 1e-6) }); // свой «штурман» у каждого, под рост существа
+    // свой «штурман» у каждого, под рост существа; широкий (радиус больше полклетки — тролль) ищет путь как
+    // «толстый»: клетка занята, если занята хоть одна соседняя (проход шириной 1 — не для него)
+    if (!e.nav) {
+      const base = ctx.navWorld.isSolid;
+      const wide = (e.radius || 0.3) > 0.5;
+      const isSolid = wide ? (x, y, z) => {
+        for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if (base(x + dx, y, z + dz)) return true;
+        return false;
+      } : base;
+      e.nav = new Navigator({ ...ctx.navWorld, isSolid, height: Math.ceil(e.height - 1e-6) });
+    }
     let alerted = NONE;
 
     // 1. Злость. Цель «прилипает»: ударили — злимся на обидчика, только если своей цели ещё нет
