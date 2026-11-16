@@ -176,12 +176,15 @@ export const PALETTE_SURFACE = { 5: "slip" };
 
 // Рост героя 1.6 (модель скелета 1.8 × HERO_SCALE). С катаной в руках — стойка самурая (STANCE): колени
 // согнуты, герой ниже — и коробка столкновений, и глаза (game-scene.js → updateStance)
-export const HERO_SCALE = 1.6 / 1.8;
-export const STANCE = { height: 1.4, eyeHeight: 1.28 };
+// Герой на 5 % крупнее (рост 1.68: модель, коробка, глаза, голова); мобы — на 10 % мельче (MOB_SIZE: модель,
+// коробка, головы — creatures.js)
+export const HERO_SCALE = (1.6 / 1.8) * 1.05;
+export const MOB_SIZE = 0.9;
+export const STANCE = { height: 1.47, eyeHeight: 1.34 };
 // Присед (Ctrl; настройки: держать / переключать): ниже рост (коробка и хитбоксы — голова ниже) и глаза, медленнее
 // ходьба (speed), у стволов меньше отдача (recoil — множитель) и разброс дроби (spread — множитель)
 // notice — во сколько раз ближе мобы замечают присевшего (радиус агра ×0.55 — на 45 % меньше)
-export const CROUCH = { height: 1.15, eyeHeight: 1.0, speed: -0.5, recoil: 0.5, spread: 0.6, notice: 0.55 };
+export const CROUCH = { height: 1.21, eyeHeight: 1.05, speed: -0.5, recoil: 0.5, spread: 0.6, notice: 0.55 };
 // Геймпад: в движке есть (engine/input/gamepad.js), в игре пока выключен — не проверен на настоящем
 export const GAMEPAD_ENABLED = false;
 
@@ -194,8 +197,8 @@ export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over
 export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
 
 export const PLAYER = {
-  height: 1.6, //     рост (коробка столкновений)
-  eyeHeight: 1.48, // глаза над ногами (метры)
+  height: 1.68, //    рост (коробка столкновений)
+  eyeHeight: 1.55, // глаза над ногами (метры)
   speed: 4, //        шаг, м/с
   runMultiplier: 2,
   jumpHeight: 1.2, // прыжок на 1.2 блока — хватает, чтобы запрыгнуть на один

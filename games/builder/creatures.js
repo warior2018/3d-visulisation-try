@@ -6,7 +6,7 @@
 // ============================================================
 
 import { Vec3, Inventory, Player, Mob, NPC, MeleeAttack, SlamAttack, ThrowAttack, HostileBrain, KamikazeBrain, WanderBrain, GuardBrain, FollowBrain, Taming, Rideable, grow, growth } from "../../engine/index.js";
-import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER } from "./config.js";
+import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER, MOB_SIZE } from "./config.js";
 import { maxStack } from "./items.js";
 
 // Головы (хитбоксы хедшотов) — в осях существа: от ног вверх, +Z — куда смотрит.
@@ -33,6 +33,10 @@ export const HITBOXES = {
   goblin: [{ id: "head", min: [-0.11, 1.12, -0.11], max: [0.11, 1.33, 0.11], multiplier: 2 }],
   champion: [{ id: "head", min: [-0.3, 2.56, -0.3], max: [0.3, 3.18, 0.3], multiplier: 2 }],
 };
+// Мобы мельче на MOB_SIZE — и головы (хитбоксы) тоже (координаты выше — для полного размера)
+for (const type of ["skeleton", "zombie", "troll", "lich", "bloater", "ghoul", "mummy", "shaman", "goblin", "champion"]) {
+  HITBOXES[type] = HITBOXES[type].map((h) => ({ ...h, min: h.min.map((v) => v * MOB_SIZE), max: h.max.map((v) => v * MOB_SIZE) }));
+}
 
 export const CREATURES = {
   player: {
@@ -268,6 +272,12 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
   options.hitboxes = HITBOXES[type] || [];
   if (def.radius) options.radius = def.radius;
   if (def.height) options.height = def.height;
+  // мобы — мельче на MOB_SIZE: коробка (рост и ширина по умолчанию у движка — 1.8 и 0.3), модель — ниже (e.scale)
+  const mobSized = (def.kind || "mob") === "mob";
+  if (mobSized) {
+    options.height = (options.height ?? 1.8) * MOB_SIZE;
+    options.radius = (options.radius ?? 0.3) * MOB_SIZE;
+  }
   const xp = Math.round((def.xp || 0) * (1 + bonusXp)); // сколько опыта за победу (мобы и звери)
   if (def.attack) {
     // Своя атака у каждого (свой кулдаун); урон — с прибавкой
@@ -315,6 +325,7 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
   if ((def.kind || "mob") === "mob" && !def.boss) e.regenPct = MOB_REGEN.pct; // мобы зализывают раны: 1 % макс. HP/с (рана режет)
   if (def.tauntRadius) e.tauntRadius = def.tauntRadius;
   if (def.scale) e.scale = def.scale; // размер модели
+  if (mobSized) e.scale = (def.scale || 1) * MOB_SIZE;
   if (inventory) e.inventory.loadFrom(inventory);
   else {
     // Добыча: число или [от, до] — случайно в этих пределах (0 — в этот раз не выпадет)

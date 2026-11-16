@@ -79,8 +79,9 @@ export class CavesPart {
     this.engine.log(`пещеры: ${rooms.length} комнат — ${rooms.filter((r) => r.kind === "chest").length} с сундуком, ${rooms.filter((r) => r.kind === "boss").length} с боссом`);
   }
 
-  // убрать блок и, если нужно, поставить лампу (в потолке)
+  // Лампа в потолке прохода — только в скале: над проходом пусто (вышел за конус острова, в воздух) — лампы нет
   caveLamp(x, y, z) {
+    if (!this.world.has(x, y, z)) return;
     this.world.remove(x, y, z);
     this.world.place(x, y, z, LIGHTS.lamp.color);
   }
