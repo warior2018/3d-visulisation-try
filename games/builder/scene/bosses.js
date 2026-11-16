@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { BONE_CROWN, TROLL_HIDE, BOSS, WORLDGEN, LICH, ATTACKS, SHAKE, BLOATER, ZOMBIE_GRENADE, BUILD } from "../config.js";
+import { BONE_CROWN, TROLL_HIDE, BOSS, WORLDGEN, LICH, ATTACKS, SHAKE, BLOATER, ZOMBIE_GRENADE } from "../config.js";
 import { seededRandom, flattenArea, grow, Vec3, MagicAttack } from "../../../engine/index.js";
 import { CREATURES, mobGrowth } from "../creatures.js";
 
@@ -162,8 +162,7 @@ export class BossesPart {
       if (!this.world.has(x, y, z)) continue;
       if (this.world.remove(x, y, z) === false) continue; // неломаемый
       n++;
-      // блок ломается «с дропом», как у героя: на землю падает блок для стройки (не в дуэли)
-      if (BUILD.refundOnBreak && !this.duel) this.pickups.add(BUILD.item, BUILD.perBlock, { x: x + 0.5, y, z: z + 0.5 });
+      // без дропа: блоки, сломанные мобами, не выпадают (дроп — только когда ломает герой)
       if (n <= 4) this.sparkFx?.({ x: x + 0.5, y: y + 0.5, z: z + 0.5 });
     }
     if (n) this.engine.sound.play("remove", { at: { x: list[0][0], y: list[0][1], z: list[0][2] } });
