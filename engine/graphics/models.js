@@ -29,7 +29,7 @@ function fallRotation(e) {
 
 // Свет места на модели: k — сколько света (0…1+), warm — доля тёплого (лампы, факел) 0…1. В tint (рисовальщик:
 // a < 0 — умножить цвет на rgb): темнее в пещере (до 5 %), у лампы — теплее
-const LAMP_TINT = [1, 0.8, 0.52];
+const LAMP_TINT = [1, 0.86, 0.42]; // как LAMP в world-fx.js
 export function lightTint(out, k, warm = 0) {
   const b = Math.max(0.05, Math.min(1.2, k)), w = Math.max(0, Math.min(1, warm)) * 0.7;
   out.set([b * (1 + (LAMP_TINT[0] - 1) * w), b * (1 + (LAMP_TINT[1] - 1) * w), b * (1 + (LAMP_TINT[2] - 1) * w), -1]);

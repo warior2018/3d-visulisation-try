@@ -38,7 +38,7 @@ const UNIFORMS_NEW = `  voidSky: f32,
 
 const FX = /* wgsl */ `
 
-const LAMP = vec3f(1.0, 0.8, 0.52);   // тёплый свет ламп
+const LAMP = vec3f(1.0, 0.86, 0.42);  // тёплый, желтоватый свет ламп
 const CLOUD_H = 70.0;                 // высота облаков (м)
 
 fn hash2(p: vec2f) -> f32 {
