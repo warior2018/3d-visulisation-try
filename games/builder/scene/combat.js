@@ -166,12 +166,19 @@ export class CombatPart {
     return c.value;
   }
 
+  // Стена между a и b? Не один луч, а «толстый»: от глаз a к голове, середине и ногам b, и к его бокам —
+  // закрыто, только если закрыты все. Иначе край ступеньки / склона (цель ниже на лестнице) прятал целиком
   blockedBetween(a, b) {
-    const from = { x: a.position.x, y: a.position.y + a.height * 0.75, z: a.position.z };
-    const to = { x: b.position.x - from.x, y: b.position.y + b.height / 2 - from.y, z: b.position.z - from.z };
-    const len = Math.hypot(to.x, to.y, to.z) || 1;
-    const hit = this.world.raycast(from, new Vec3(to.x / len, to.y / len, to.z / len), len);
-    return !!hit?.block;
+    const from = { x: a.position.x, y: a.position.y + a.height * 0.85, z: a.position.z };
+    const dx = b.position.x - from.x, dz = b.position.z - from.z, d = Math.hypot(dx, dz) || 1;
+    const r = b.radius ?? 0.4, sx = (-dz / d) * r, sz = (dx / d) * r; // поперёк линии взгляда
+    const ray = (x, y, z) => {
+      const to = { x: x - from.x, y: y - from.y, z: z - from.z }, len = Math.hypot(to.x, to.y, to.z) || 1;
+      return !!this.world.raycast(from, new Vec3(to.x / len, to.y / len, to.z / len), len)?.block;
+    };
+    const { x, y, z } = b.position, h = b.height;
+    for (const k of [0.9, 0.5, 0.15]) if (!ray(x, y + h * k, z)) return false;
+    return ray(x + sx, y + h * 0.6, z + sz) && ray(x - sx, y + h * 0.6, z - sz);
   }
 
   // Что атаки движка знают о нашем мире: кто под прицелом, кто вокруг
