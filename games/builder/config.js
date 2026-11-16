@@ -170,7 +170,10 @@ export const TORCH = { time: 71, radius: 7, power: 0.75, height: 1.3, slow: -0.0
 // boom — взрыв (радиус — не меньше radius, или радиус взрыва × perRadius), projectile — светящийся снаряд в полёте
 // (свой цвет glow — стрелы, болты; или по предмету — items). life — секунд, power — сила (лампа — 1)
 export const FLASH = {
-  muzzle: { radius: 4.5, power: 1.4, life: 0.07, color: [255, 205, 130] },
+  // выстрел: у ствола (radius, power) и впереди по линии выстрела (на ahead блоков: cone — радиус, conePower) —
+  // свет конусом перед героем. Время (половина — полная сила, половина — гаснет): time[0] + (урон − 10) × perDamage,
+  // в пределах time (автомат 0.15, пистолет ~0.7, снайперка 0.8)
+  muzzle: { radius: 4, power: 1.3, ahead: 5, cone: 6.5, conePower: 0.7, time: [0.15, 0.8], perDamage: 0.0306, color: [255, 205, 130] },
   boom: { radius: 6, perRadius: 2, power: 2, life: 0.45, color: [255, 150, 60] },
   projectile: { radius: 3.5, power: 0.8 },
   items: { lichbolt: [170, 90, 255], magma: [255, 120, 40], fireball: [255, 130, 40], spore: [140, 240, 100] },

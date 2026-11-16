@@ -86,8 +86,15 @@ export class ThrowersPart {
   tracer(from, to, attackId) {
     const tr = BULLET.trace[attackId];
     const fx = skinFx(this.settings, ITEM_OF_ATTACK[attackId]); // скин оружия красит трассер
-    const M = FLASH.muzzle;
-    this.flash?.(from, { radius: M.radius, power: M.power, life: M.life, color: fx || M.color }); // вспышка у ствола
+    // Вспышка выстрела: у ствола и конусом вперёд (свет дальше по линии выстрела); время — от урона выстрела:
+    // автомат ~0.15 с, пистолет ~0.7, снайперка 0.8 (половину — в полную силу, половину — гаснет)
+    const M = FLASH.muzzle, a = Object.values(ATTACKS).find((x) => x.id === attackId);
+    const dmg = (Array.isArray(a?.damage) ? (a.damage[0] + a.damage[1]) / 2 : a?.damage || 10) * (a?.pellets || 1);
+    const life = Math.max(M.time[0], Math.min(M.time[1], M.time[0] + (dmg - 10) * M.perDamage));
+    const color = fx || M.color;
+    this.flash?.(from, { radius: M.radius, power: M.power, life, hold: life / 2, color });
+    const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z, l = Math.hypot(dx, dy, dz) || 1, ahead = Math.min(M.ahead, l * 0.7);
+    this.flash?.({ x: from.x + (dx / l) * ahead, y: from.y + (dy / l) * ahead, z: from.z + (dz / l) * ahead }, { radius: M.cone, power: M.conePower, life, hold: life / 2, color });
     if (tr) this.beams.add({ from, to, color: fx || BULLET.color, core: fx ? lighter(fx) : BULLET.core, life: tr.life, width: tr.width });
   }
 

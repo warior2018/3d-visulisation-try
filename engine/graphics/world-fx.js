@@ -258,8 +258,8 @@ fn cube_fx_fs(in: CubeFxOut) -> @location(0) vec4f {
   }
   let k = in.sky * u.brightness + lampL * 1.1 * u.base;
   let tint = mix(vec3f(1.0), LAMP, clamp(lampL / max(k, 0.001), 0.0, 1.0) * 0.7);
-  let lit = haze(color * tint, in.worldXZ) * k + haze(color, in.worldXZ) * dyn * u.base;
-  return vec4f(toOutput(lit), 1.0);
+  let outC = haze(color * tint, in.worldXZ) * k + haze(color, in.worldXZ) * dyn * u.base; // (lit — уже занято выше)
+  return vec4f(toOutput(outC), 1.0);
 }
 `;
 

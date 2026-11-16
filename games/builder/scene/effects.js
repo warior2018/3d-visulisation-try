@@ -27,8 +27,9 @@ export class EffectsPart {
   // Взрыв: вспышка огня (быстро гаснет) и клубы дыма (медленно поднимаются и растут)
   // color — свой цвет огня (скин оружия), иначе обычный
   // Вспышка света (FLASH): светит life с, гаснет к концу (renderer.setLights — updateFlashes)
-  flash(at, { radius = 4, power = 1, life = 0.1, color = [255, 200, 130] } = {}) {
-    (this.flashes ||= []).push({ x: at.x, y: at.y, z: at.z, radius, power, life, left: life, color: color.map((c) => (c > 1 ? c / 255 : c)) });
+  // hold — сколько из life светит в полную силу (дальше гаснет до конца life)
+  flash(at, { radius = 4, power = 1, life = 0.1, hold = 0, color = [255, 200, 130] } = {}) {
+    (this.flashes ||= []).push({ x: at.x, y: at.y, z: at.z, radius, power, life, hold: Math.min(hold, life * 0.95), left: life, color: color.map((c) => (c > 1 ? c / 255 : c)) });
   }
 
   // Каждый тик: вспышки гаснут; светящиеся снаряды (стрелы, болты, сгустки — glow / FLASH.items) светят, пока летят.
@@ -37,7 +38,7 @@ export class EffectsPart {
     const list = [];
     this.flashes = (this.flashes || []).filter((f) => (f.left -= dt) > 0);
     for (const f of this.flashes) {
-      const k = f.left / f.life;
+      const fade = f.life - f.hold, k = f.left > fade ? 1 : f.left / Math.max(1e-3, fade); // держит hold с, потом гаснет
       list.push({ x: f.x, y: f.y, z: f.z, radius: f.radius, color: f.color, power: f.power * k * k });
     }
     const P = FLASH.projectile;
