@@ -1038,7 +1038,7 @@ export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1, shortFuse: [0.75
 // от героя (от середины тела) отбрасывает его от центра взрыва: рывок push м/с на pushTime с — одинаково во всём
 // радиусе (радиус взрыва растёт с талантом), плюс lift вверх. Складывается: толчок прибавляется к нынешней
 // скорости (рывок ещё идёт / летим), не больше maxSpeed м/с. Урона себе нет
-export const ROCKET_JUMP = { push: 14, pushTime: 0.32, lift: 0.6, reach: 1.1, maxSpeed: 40 };
+export const ROCKET_JUMP = { push: 7, pushTime: 0.32, lift: 0.6, reach: 1.1, maxSpeed: 20 };
 export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, lift: 0.3 };
 // Скольжение рывков по стенам (движок: dash slide), как в Overwatch: влетел в стену почти в лоб (ближе stopAngle°
 // к перпендикуляру) — стоп, иначе рывок едет вдоль стены на keep своей скорости и, кончилась стена, — дальше
