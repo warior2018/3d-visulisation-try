@@ -61,7 +61,9 @@ export class ThrowersPart {
       // снаряд босса (валун, сгусток) ломает блок, в который попал
       onLand: (p, wall) => {
         const b = wall?.block;
-        if (e.boss && b) this.bossBreak?.([[b.x, b.y, b.z]]);
+        if (e.boss && b) this.bossBreak?.(e.type === "lich" // сгусток лича — шире: блок и соседи крестом
+          ? [[b.x, b.y, b.z], [b.x + 1, b.y, b.z], [b.x - 1, b.y, b.z], [b.x, b.y + 1, b.z], [b.x, b.y - 1, b.z], [b.x, b.y, b.z + 1], [b.x, b.y, b.z - 1]]
+          : [[b.x, b.y, b.z]]);
       },
     });
     e.view?.animator.playOnce("Throw");

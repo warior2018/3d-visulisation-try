@@ -8,7 +8,7 @@
 // ============================================================
 
 import { rarityOf, chance, pickWeightedKey, TradeScene, translate } from "../../../engine/index.js";
-import { LOOT, ITEM_TIER, ARMOR_TIER, ARMOR, SHOP, TIERS, WEAPON_PERKS } from "../config.js";
+import { LOOT, ITEM_TIER, ARMOR_TIER, ARMOR, SHOP, TIERS, WEAPON_PERKS, SUBCLASS_WEAPONS } from "../config.js";
 import { TALENT_TREE, weaponTab } from "../talents.js";
 import { ITEMS, itemName, isWeapon, isArmor, itemInfo } from "../items.js";
 import { RESIDENTS } from "../creatures.js";
@@ -66,6 +66,12 @@ export function perksText(perks, tr = (s) => s) {
   return Object.entries(perks).map(([id, r]) => `${name(id)} ${r}`).join(", ");
 }
 
+// Редкость не выше cap
+const RANK = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+export function capRarity(r, cap) {
+  return (RANK[r] ?? 0) > (RANK[cap] ?? 4) ? cap : r;
+}
+
 export function tierOf(id) {
   const info = ITEMS[id];
   return ITEM_TIER[id] || (info?.set ? ARMOR_TIER[info.set] : 0) || 0;
@@ -86,8 +92,26 @@ export class LootPart {
     const pool = Object.keys(ITEMS).filter((id) => (isWeapon(id) || isArmor(id)) && tierOf(id) === tier);
     if (!pool.length) return null;
     const one = () => pool[Math.floor(Math.random() * pool.length)];
-    // Редкость — LOOT.mobRarity (удача поднимает редкие; иногда +1 вещь); с элиты — не ниже RARE
-    return rollRarities(LOOT.mobRarity, this.luck()).map((r) => ({ item: one(), rarity: e.elite && r === "common" ? "rare" : r }));
+    // Редкость — LOOT.mobRarity (удача поднимает редкие; иногда +1 вещь); с элиты — не ниже RARE. Потолок — по мобу
+    // (LOOT.mobCap) и по вещи: оружие подкласса — не выше EPIC, а вложено в его ветку ≥ subclassTalents — LEGENDARY
+    return rollRarities(LOOT.mobRarity, this.luck()).map((r) => {
+      const item = one();
+      let rarity = e.elite && r === "common" ? "rare" : r;
+      rarity = capRarity(rarity, this.gearCap(e, item));
+      return { item, rarity };
+    });
+  }
+
+  // Потолок редкости вещи item с моба e
+  gearCap(e, item) {
+    const C = LOOT.mobCap;
+    let cap = e.boss || e.miniboss ? "legendary" : e.elite ? C.elite : C.types[e.type] ?? C.default;
+    if (SUBCLASS_WEAPONS.has(item)) {
+      const tab = TALENT_TREE.tabs.find((t) => t.weapon === item);
+      const spent = (tab?.talents || []).reduce((n, t) => n + (this.talents?.rank(t.id) || 0), 0);
+      cap = capRarity(cap, spent >= C.subclassTalents ? "legendary" : "epic");
+    }
+    return cap;
   }
 
   dropGear(e) {

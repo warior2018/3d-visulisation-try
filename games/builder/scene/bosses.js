@@ -218,6 +218,9 @@ export class BossesPart {
       if (e.aggro === this.player) this.engine.toast(`${e.name} IS ENRAGED!`, 2000);
     }
     if (e.type !== "lich" || !e.aggro || e.stunned) return;
+    // Цель за стеной дольше LICH.digAfter с (не видит — стоит и ждёт): пробивает себе ход к ней, как тролль
+    e.blindFor = this.blockedCached(e, e.aggro) ? (e.blindFor || 0) + dt : 0;
+    if (e.blindFor > LICH.digAfter) this.bossDig(e, e.aggro, dt);
     // Прыжок: подошли вплотную — исчезает и появляется подальше от героя, в другом конце зала
     e.blinkCd -= dt;
     const t = e.aggro;

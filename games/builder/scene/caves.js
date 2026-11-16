@@ -6,7 +6,7 @@
 //  (worldgen.caves). Сундук — та же модель, что на дальнем острове (tools/make-chest.js).
 // ============================================================
 
-import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS, FLOATING } from "../config.js";
+import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS, FLOATING, CHEST_TIERS, CAVE_CHEST_TIERS, pickChestTier } from "../config.js";
 import { Vec3, HALF } from "../../../engine/index.js";
 import { mobGrowth, CREATURES } from "../creatures.js";
 import { pickWeighted } from "./shared.js";
@@ -84,7 +84,7 @@ export class CavesPart {
       this.carveExit(room, rnd);
     }
     this.repairPaths(rooms);
-    for (const room of rooms) if (room.kind === "chest") room.chest = { x: room.x - 1, y: room.y, z: room.z, opened: false };
+    for (const room of rooms) if (room.kind === "chest") room.chest = { x: room.x - 1, y: room.y, z: room.z, opened: false, tier: pickChestTier(CAVE_CHEST_TIERS, rnd) };
     this.caves = { rooms };
     this.engine.log(`пещеры: ${rooms.length} комнат — ${rooms.filter((r) => r.kind === "chest").length} с сундуком, ${rooms.filter((r) => r.kind === "boss").length} с боссом`);
   }
@@ -177,6 +177,26 @@ export class CavesPart {
     return null;
   }
 
+  // Проходит ли путь вплотную над / под уже прорытым проходом (ближе 2 клеток по плану и на 1–3 блока выше / ниже):
+  // там кисть одного выбивает пол другому — уступы в 2 блока. На одном уровне — можно (просто развилка)
+  pathCrosses(pts) {
+    const all = this.genPaths;
+    if (!all?.length) return false;
+    const idx = (this.genIndex ||= new Map());
+    if (this.genIndexed !== all.length) { // досчитать новые проходы
+      for (let i = this.genIndexed || 0; i < all.length; i++) for (const [x, y, z] of all[i]) {
+        const k = x + "," + z;
+        (idx.get(k) || idx.set(k, []).get(k)).push(y);
+      }
+      this.genIndexed = all.length;
+    }
+    for (const [x, y, z] of pts) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+      const ys = idx.get(x + dx + "," + (z + dz));
+      if (ys?.some((o) => Math.abs(o - y) >= 1 && Math.abs(o - y) <= 3)) return true;
+    }
+    return false;
+  }
+
   // Клетки ломаной от a до b (сначала по x — xFirst, иначе по z); крутой перепад — петля сбоку (набрать длину):
   // уклон slope блока на клетку (CAVES.slope: 0.5–1 — 1–2 блока на 2 клетки). Вернёт [[x, y, z], ...]
   tunnelPath(a, b, xFirst, slope) {
@@ -213,7 +233,7 @@ export class CavesPart {
     const slope = CAVES.slope[0] + Math.random() * (CAVES.slope[1] - CAVES.slope[0]);
     const skip = [a, b];
     const paths = [true, false].map((xf) => this.tunnelPath(a, b, xf, slope));
-    let pts = paths.find((p) => !this.pathHits(p, skip));
+    let pts = paths.find((p) => !this.pathHits(p, skip) && !this.pathCrosses(p)) || paths.find((p) => !this.pathHits(p, skip));
     if (!pts) {
       const via = this.pathHits(paths[0], skip);
       if (via && depth < 3) {
@@ -263,6 +283,8 @@ export class CavesPart {
     for (const pts of this.genPaths || []) this.halfSteps(pts);
     if (fixed) this.engine.log(`пещеры: пол проходов поправлен в ${fixed} клетках`);
     this.genPaths = null;
+    this.genIndex = null;
+    this.genIndexed = 0;
   }
 
   // Разнообразие: стены и потолок пещер (блок у пустоты пещеры) с шансом CAVES.niche выбиты — ниши, неровности.
@@ -329,7 +351,7 @@ export class CavesPart {
     let pts = null;
     for (let i = 0; i < 8 && !pts; i++) {
       const p = plan(rnd() * Math.PI * 2);
-      if (!this.pathHits(p, [r])) pts = p;
+      if (!this.pathHits(p, [r]) && (!this.pathCrosses(p) || i >= 5)) pts = p; // сначала — без пересечений с проходами
       else if (i === 7) pts = p;
     }
     this.carvePath(pts);
@@ -439,7 +461,7 @@ export class CavesPart {
       if (!c || c.gone) continue;
       if (!c.ent) {
         c.ent = { position: new Vec3(c.x + 1, c.y, c.z + 0.5), yaw: 0, roll: 0, alive: true, hurtTime: Infinity, deadTime: 0, view: null };
-        this.game.models.attach(c.ent, "chest");
+        this.game.models.attach(c.ent, c.tier ? "chest-" + c.tier : "chest"); // вид сундука (старые — обычный)
       }
       c.ent.view?.animator.setBase(c.opened ? "Opened" : "Closed");
       list.push(c.ent);
@@ -461,7 +483,8 @@ export class CavesPart {
         return true;
       }
       // вещь: случайного тира из тех, что есть (scene/islands.js → openChestStore)
-      this.openChestStore(c, { coins: CAVES.reward.coins + CAVES.reward.perLevel * this.experience.level, tier: (tiers) => tiers[Math.floor(Math.random() * tiers.length)], view: () => c.ent?.view });
+      const T = CHEST_TIERS[c.tier] || CHEST_TIERS.steel;
+      this.openChestStore(c, { coins: Math.round((CAVES.reward.coins + CAVES.reward.perLevel * this.experience.level) * T.coins), tier: (tiers) => tiers[Math.floor(Math.random() * tiers.length)], view: () => c.ent?.view, rarity: T.rarity });
       return true;
     }
     return false;
@@ -470,6 +493,6 @@ export class CavesPart {
   // В сохранение: комнаты (без моделей)
   cavesJSON() {
     if (!this.caves) return null;
-    return { rooms: this.caves.rooms.map(({ chest, ...r }) => ({ ...r, timer: undefined, ...(chest ? { chest: { x: chest.x, y: chest.y, z: chest.z, opened: !!chest.opened, ...(chest.items ? { items: chest.items } : {}), ...(chest.gone ? { gone: true } : {}) } } : {}) })) };
+    return { rooms: this.caves.rooms.map(({ chest, ...r }) => ({ ...r, timer: undefined, ...(chest ? { chest: { x: chest.x, y: chest.y, z: chest.z, opened: !!chest.opened, ...(chest.tier ? { tier: chest.tier } : {}), ...(chest.items ? { items: chest.items } : {}), ...(chest.gone ? { gone: true } : {}) } } : {}) })) };
   }
 }

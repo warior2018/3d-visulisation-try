@@ -388,7 +388,8 @@ export const BOSS = {
 // ЛИЧ (второй босс): высокий скелет-колдун. Держится на расстоянии и стреляет фиолетовыми сгустками; подошёл
 // ближе blink.near — исчезает и появляется в другом конце зала (раз в blink.cooldown с); раз в summon.every с
 // поднимает summon.count скелетов (не больше summon.max сразу; без добычи)
-export const LICH = { blink: { near: 3.5, cooldown: 6 }, summon: { every: 15, count: 2, max: 3 } };
+// digAfter — цель за стеной дольше стольких с: лич пробивает ход (как тролль)
+export const LICH = { digAfter: 2, blink: { near: 3.5, cooldown: 6 }, summon: { every: 15, count: 2, max: 3 } };
 // Корона лича (трофей): навсегда +урон всем — первая +6 %, каждая следующая на 1 % меньше (6, 5, 4…)
 export const BONE_CROWN = { first: 0.06, step: 0.01 };
 
@@ -904,6 +905,15 @@ export const CHEST_TIERS = {
 };
 // Сундук в доме: chance — шанс на дом; tiers — веса видов; coins + perLevel × уровень героя (× coins вида)
 export const HOUSE_CHEST = { chance: 0.3, tiers: { gold: 5, steel: 20, wood: 75 }, coins: 40, perLevel: 4 };
+// Виды сундуков в пещерах (только стальные и золотые) и на дальнем острове (любые) — веса
+export const CAVE_CHEST_TIERS = { steel: 70, gold: 30 };
+export const ISLAND_CHEST_TIERS = { wood: 30, steel: 40, gold: 30 };
+// выбрать вид по весам ({ id: вес }); rnd — случайность генерации
+export function pickChestTier(weights, rnd = Math.random) {
+  let r = rnd() * Object.values(weights).reduce((a, b) => a + b, 0);
+  for (const [id, w] of Object.entries(weights)) if ((r -= w) < 0) return id;
+  return Object.keys(weights)[0];
+}
 
 export const ISLANDS = {
   bridge: { chance: 0.75, width: 3, post: 4, deck: [120, 84, 52], rail: [92, 64, 40] },
@@ -1003,6 +1013,12 @@ export const LOOT = {
   // Редкость вещи с МОБА (как было: 70 / 22 / 6.5 / 1.5, удача поднимает редкие) + 1 % — «+1 вещь», обе не ниже RARE
   mobRarity: { legendary: 0.015, epic: 0.065, rare: 0.22, bonus: 0.01, reroll: { legendary: 0.05, epic: 0.2, rare: 0.75 } },
   tiers: (n) => ({ 1: Math.max(10, 60 - n / 8), 2: 30, 3: Math.min(35, 5 + n / 20), 4: Math.min(25, n / 40) }),
+  // Потолок редкости вещи с моба: по виду (types), элита, остальные (default); боссы и минибосс — любая.
+  // Оружие подкласса — не выше EPIC, пока в его ветку не вложено subclassTalents очков (тогда — и LEGENDARY)
+  mobCap: {
+    types: { skeleton: "rare", zombie: "rare", goblin: "rare", ghoul: "epic", mummy: "epic", shaman: "epic", bloater: "epic", bat: "epic" },
+    elite: "epic", default: "epic", subclassTalents: 2,
+  },
   sell: 0.25,
   resources: { bone: 1, skull: 3, block: 0, "zombie-eye": 2, "linen-roll": 3, "ghoul-fang": 3, "champion-fang": 20, "powder-gut": 4, "shaman-skull": 5, "bat-wing": 6 },
 };

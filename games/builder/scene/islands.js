@@ -4,7 +4,7 @@
 //  открыт ли он — в сохранении мира (worldgen.treasure). Сундук — на карте; F рядом — открыть.
 // ============================================================
 
-import { ISLANDS, LIGHTS, LOOT, FALL_DAMAGE, CHEST_TIERS, HOUSE_CHEST } from "../config.js";
+import { ISLANDS, LIGHTS, LOOT, FALL_DAMAGE, CHEST_TIERS, HOUSE_CHEST, ISLAND_CHEST_TIERS, pickChestTier } from "../config.js";
 import { Vec3, Inventory, InventoryScene, Input } from "../../../engine/index.js";
 import { rarityData, tierOf, rollRarities } from "./loot.js";
 import { ITEMS, isWeapon, isArmor, maxStack, itemInfo } from "../items.js";
@@ -139,7 +139,7 @@ export class IslandsPart {
     }
     if (!best) return null;
     // Модель сундука (tools/make-chest.js) на 2 × 1 клетки; блоков в мире нет (model: true — старые сундуки были блоками)
-    return { ...best, opened: false, model: true };
+    return { ...best, opened: false, model: true, tier: pickChestTier(ISLAND_CHEST_TIERS) };
   }
 
   // F рядом с сундуком: открыть хранилище (ISLANDS.chest.slots ячеек)
@@ -149,7 +149,8 @@ export class IslandsPart {
     const p = this.player.position;
     if (Math.hypot(c.x + 1 - p.x, c.z + 0.5 - p.z) > ISLANDS.chest.reach + 0.5 || Math.abs(p.y - c.y) > 3) return false;
     // вещь: самого высокого тира, что есть сейчас
-    this.openChestStore(c, { coins: ISLANDS.chest.coins + ISLANDS.chest.perLevel * this.experience.level, tier: (tiers) => tiers[tiers.length - 1], view: () => this.chestEntity()?.view });
+    const T = CHEST_TIERS[c.tier] || CHEST_TIERS.gold;
+    this.openChestStore(c, { coins: Math.round((ISLANDS.chest.coins + ISLANDS.chest.perLevel * this.experience.level) * T.coins), tier: (tiers) => tiers[tiers.length - 1], view: () => this.chestEntity()?.view, rarity: T.rarity });
     return true;
   }
 
@@ -264,7 +265,7 @@ export class IslandsPart {
     if (!c?.model || c.gone) return null;
     if (!this.chestEnt) {
       this.chestEnt = { position: new Vec3(c.x + 1, c.y, c.z + 0.5), yaw: 0, roll: 0, alive: true, hurtTime: Infinity, deadTime: 0, view: null };
-      this.game.models.attach(this.chestEnt, "chest");
+      this.game.models.attach(this.chestEnt, c.tier ? "chest-" + c.tier : "chest");
     }
     this.chestEnt.view?.animator.setBase(c.opened ? "Opened" : "Closed");
     return this.chestEnt;
