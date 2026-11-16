@@ -103,6 +103,15 @@ export class Physics {
       }
       if (this.moveAxis(e, "z", v.z * k)) { e.wallNZ = -Math.sign(v.z); v.z = 0; e.blocked = true; e.blockedZ = true; }
     }
+    // Шаг вниз: шёл по земле и сошёл с края ступеньки (до stepHeight) — сразу на нижнюю опору, без полёта
+    if (e.wasOnGround && !e.onGround && v.y <= 0) {
+      const sh = e.stepHeight ?? STEP_HEIGHT, y0 = e.position.y;
+      if (sh > 0 && this.moveAxis(e, "y", -sh)) {
+        e.onGround = true;
+        v.y = 0;
+        e.stepped = (e.stepped || 0) - (y0 - e.position.y); // камера опускается плавно
+      } else e.position.y = y0;
+    }
     if (!e.onGround) v.y = Math.max(v.y - half, -MAX_FALL); // вторая половина тяжести
     if (sv) {
       // скорость скольжения — своя, не копится в скорости тела (её каждый кадр задают заново);

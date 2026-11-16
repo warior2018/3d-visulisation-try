@@ -669,10 +669,10 @@ export class GameScene extends Scene {
     this.syncEye(player.renderPosition);
     // шагнул на ступеньку / полублок (физика: autoStep) — камера поднимается плавно, а не рывком
     if (player.stepped) {
-      this.stepLag = Math.min(1, (this.stepLag || 0) + player.stepped);
+      this.stepLag = Math.max(-1, Math.min(1, (this.stepLag || 0) + player.stepped)); // вверх (+) и вниз (−)
       player.stepped = 0;
     }
-    if (this.stepLag > 0.001) {
+    if (Math.abs(this.stepLag || 0) > 0.001) {
       this.look.position = this.look.position.add(new Vec3(0, -this.stepLag, 0));
       this.stepLag *= Math.exp(-dt * 14);
     } else this.stepLag = 0;

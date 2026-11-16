@@ -137,7 +137,7 @@ export function exposedFaces(world, chunk, out = null, light = false) {
     if (!shut(x + 1, y, z)) mask |= 1;
     if (!shut(x - 1, y, z)) mask |= 2;
     if (half || !world.has(x, y + 1, z)) mask |= 4; // верх полублока виден всегда
-    if (!world.isSolid(x, y - 1, z)) mask |= 8; // снизу — блок или пол мира
+    if (!world.isSolid(x, y - 1, z) || world.get?.(x, y - 1, z)?.surface === HALF) mask |= 8; // снизу — блок или пол (полублок низ не закрывает: зазор)
     if (!shut(x, y, z + 1)) mask |= 16;
     if (!shut(x, y, z - 1)) mask |= 32;
     if (!mask) continue;
