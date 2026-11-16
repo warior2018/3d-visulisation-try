@@ -6,12 +6,10 @@
 //  (worldgen.caves). Сундук — та же модель, что на дальнем острове (tools/make-chest.js).
 // ============================================================
 
-import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS, LOOT, FLOATING } from "../config.js";
-import { Vec3, rarityOf, HALF } from "../../../engine/index.js";
+import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS, FLOATING } from "../config.js";
+import { Vec3, HALF } from "../../../engine/index.js";
 import { mobGrowth } from "../creatures.js";
 import { pickWeighted } from "./shared.js";
-import { rarityData, tierOf, rollRarities } from "./loot.js";
-import { ITEMS, isWeapon, isArmor } from "../items.js";
 
 const between = (rnd, [a, b]) => a + Math.floor(rnd() * (b - a + 1));
 
@@ -215,7 +213,8 @@ export class CavesPart {
     const list = [];
     for (const room of this.caves?.rooms || []) {
       const c = room.chest;
-      if (!c) continue;
+      if (c?.opened && !c.items) c.gone = true; // открыт до хранилищ (старое сохранение)
+      if (!c || c.gone) continue;
       if (!c.ent) {
         c.ent = { position: new Vec3(c.x + 1, c.y, c.z + 0.5), yaw: 0, roll: 0, alive: true, hurtTime: Infinity, deadTime: 0, view: null };
         this.game.models.attach(c.ent, "chest");
@@ -230,44 +229,18 @@ export class CavesPart {
     const p = this.player.position;
     for (const room of this.caves?.rooms || []) {
       const c = room.chest;
-      if (!c || c.opened) continue;
+      if (!c || c.gone) continue;
       if (Math.hypot(c.x + 1 - p.x, c.z + 0.5 - p.z) > ISLANDS.chest.reach + 0.5 || Math.abs(p.y - c.y) > 3) continue;
-      this.openCaveChest(c);
+      // вещь: случайного тира из тех, что есть (scene/islands.js → openChestStore)
+      this.openChestStore(c, { coins: CAVES.reward.coins + CAVES.reward.perLevel * this.experience.level, tier: (tiers) => tiers[Math.floor(Math.random() * tiers.length)], view: () => c.ent?.view });
       return true;
     }
     return false;
   }
 
-  openCaveChest(c) {
-    const C = CAVES.reward;
-    c.opened = true;
-    c.ent?.view?.animator.playOnce("Open");
-    const coins = C.coins + C.perLevel * this.experience.level;
-    const at = { x: c.x + 1, y: c.y + 1.5, z: c.z + 0.5 };
-    const left = this.giveResource("coin", coins);
-    if (left > 0) this.pickups.add("coin", left, at);
-    const pool = Object.keys(ITEMS).filter((id) => isWeapon(id) || isArmor(id));
-    const tiers = [...new Set(pool.map(tierOf))].sort((a, b) => a - b);
-    const tier = tiers[Math.min(tiers.length - 1, Math.floor(Math.random() * tiers.length))];
-    const list = pool.filter((id) => tierOf(id) === tier);
-    // редкость — LOOT.rarity (12.5 / 27.5 / 55, 5 % — две вещи)
-    const rarities = rollRarities(LOOT.rarity);
-    let item = null;
-    for (const r of rarities) {
-      item = list[Math.floor(Math.random() * list.length)];
-      const data = rarityData(r);
-      if (item) this.pickups.add(item, 1, at, data ? { data } : {});
-    }
-    const rarity = rarities[0] + "";
-    this.engine.sound.play("levelup");
-    const tr = (x) => this.engine.locale?.translate?.(x) ?? x;
-    this.engine.toast(tr("CHEST") + ": +" + coins + " " + tr("COINS") + ", " + tr(rarityOf(rarity).name) + (rarities.length > 1 ? " +1" : "") + "!", 3000);
-    this.engine.log(`пещерный сундук: ${coins} монет, ${item} (${rarity})`);
-  }
-
   // В сохранение: комнаты (без моделей)
   cavesJSON() {
     if (!this.caves) return null;
-    return { rooms: this.caves.rooms.map(({ chest, ...r }) => ({ ...r, timer: undefined, ...(chest ? { chest: { x: chest.x, y: chest.y, z: chest.z, opened: !!chest.opened } } : {}) })) };
+    return { rooms: this.caves.rooms.map(({ chest, ...r }) => ({ ...r, timer: undefined, ...(chest ? { chest: { x: chest.x, y: chest.y, z: chest.z, opened: !!chest.opened, ...(chest.items ? { items: chest.items } : {}), ...(chest.gone ? { gone: true } : {}) } } : {}) })) };
   }
 }

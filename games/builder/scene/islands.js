@@ -5,9 +5,10 @@
 // ============================================================
 
 import { ISLANDS, LIGHTS, LOOT, FALL_DAMAGE } from "../config.js";
-import { rarityOf, Vec3 } from "../../../engine/index.js";
+import { Vec3, Inventory, InventoryScene, Input } from "../../../engine/index.js";
 import { rarityData, tierOf, rollRarities } from "./loot.js";
-import { ITEMS, isWeapon, isArmor } from "../items.js";
+import { ITEMS, isWeapon, isArmor, maxStack, itemInfo } from "../items.js";
+import { describeSlot } from "../item-info.js";
 
 export class IslandsPart {
   // Новый мир: мосты и сундук. rnd — случайность генерации
@@ -141,51 +142,84 @@ export class IslandsPart {
     return { ...best, opened: false, model: true };
   }
 
-  // F рядом с сундуком: награда (один раз)
+  // F рядом с сундуком: открыть хранилище (ISLANDS.chest.slots ячеек)
   tryChest() {
     const c = this.treasure;
-    if (!c || c.opened) return false;
+    if (!c || c.gone) return false;
     const p = this.player.position;
     if (Math.hypot(c.x + 1 - p.x, c.z + 0.5 - p.z) > ISLANDS.chest.reach + 0.5 || Math.abs(p.y - c.y) > 3) return false;
-    this.openChest();
+    // вещь: самого высокого тира, что есть сейчас
+    this.openChestStore(c, { coins: ISLANDS.chest.coins + ISLANDS.chest.perLevel * this.experience.level, tier: (tiers) => tiers[tiers.length - 1], view: () => this.chestEntity()?.view });
     return true;
   }
 
-  openChest() {
-    const c = this.treasure, C = ISLANDS.chest;
-    c.opened = true;
-    const coins = C.coins + C.perLevel * this.experience.level;
-    const left = this.giveResource("coin", coins);
-    const at = { x: c.x + 1, y: c.y + 2.2, z: c.z + 0.5 };
-    if (left > 0) this.pickups.add("coin", left, at);
-    // вещь: самого высокого тира, что есть сейчас; редкость — не ниже C.rarity
+  // Содержимое сундука (при первом открытии): вещь по LOOT.rarity (5 % — две), монеты стопкой и немного
+  // костей / черепов (ISLANDS.chest.junk). Раскидано по случайным ячейкам, часть — пустые
+  rollChest({ coins, tier }) {
+    const J = ISLANDS.chest;
     const pool = Object.keys(ITEMS).filter((id) => isWeapon(id) || isArmor(id));
-    const top = Math.max(...pool.map(tierOf));
-    const list = pool.filter((id) => tierOf(id) === top);
-    // редкость — LOOT.rarity (12.5 / 27.5 / 55, 5 % — две вещи)
-    const rarities = rollRarities(LOOT.rarity);
-    let item = null;
-    for (const r of rarities) {
-      item = list[Math.floor(Math.random() * list.length)];
-      const data = rarityData(r);
-      if (item) this.pickups.add(item, 1, at, data ? { data } : {});
+    const tiers = [...new Set(pool.map(tierOf))].sort((a, b) => a - b);
+    const t = tier(tiers), list = pool.filter((id) => tierOf(id) === t);
+    const stacks = [];
+    for (const r of rollRarities(LOOT.rarity)) {
+      const item = list[Math.floor(Math.random() * list.length)], data = rarityData(r);
+      if (item) stacks.push({ item, count: 1, ...(data ? { data } : {}) });
     }
-    const rarity = rarities[0] + "";
-    // крышка открывается (модель) — у старого сундука из блоков верх убираем
-    if (c.model) this.chestEntity()?.view?.animator.playOnce("Open");
-    else for (const ox of [0, 1]) this.world.remove?.(c.x + ox, c.y + 1, c.z);
-    this.engine.sound.play("levelup");
-    const tr = (x) => this.engine.locale?.translate?.(x) ?? x;
-    this.engine.toast(tr("CHEST") + ": +" + coins + " " + tr("COINS") + ", " + tr(rarityOf(rarity).name) + (rarities.length > 1 ? " +1" : "") + "!", 3000);
-    this.engine.log(`сундук открыт: ${coins} монет, ${item} (${rarity})`);
-    this.fx?.burst(at, { count: 30, speed: 3, up: 2, color: C.color, size: 0.08, life: 1, gravity: 6, drag: 1 });
-    this.save?.(false);
+    stacks.push({ item: "coin", count: coins });
+    for (const [item, j] of Object.entries(J.junk)) {
+      if (Math.random() >= j.chance) continue;
+      stacks.push({ item, count: j.count[0] + Math.floor(Math.random() * (j.count[1] - j.count[0] + 1)) });
+    }
+    const slots = new Array(J.slots).fill(null), free = slots.map((_, i) => i);
+    for (const st of stacks.slice(0, J.slots)) slots[free.splice(Math.floor(Math.random() * free.length), 1)[0]] = st;
+    return slots;
+  }
+
+  // Окно сундука: его ячейки сверху, сумка героя снизу; перекладывать мышью. Опустел и закрыли — сундук пропадает
+  openChestStore(c, { coins, tier, view }) {
+    if (c.opened && !c.items) return void (c.gone = true); // открыт ещё до хранилищ (старое сохранение) — пропал
+    if (!c.items) {
+      c.items = this.rollChest({ coins, tier });
+      c.opened = true;
+      view()?.animator.playOnce("Open");
+      this.engine.sound.play("levelup");
+      this.engine.log(`сундук открыт: ${c.items.filter(Boolean).map((s) => s.item + "×" + s.count).join(", ")}`);
+    }
+    const inv = new Inventory(ISLANDS.chest.slots, maxStack);
+    inv.loadFrom(c.items);
+    const at = { x: c.x + 1, y: c.y + 1, z: c.z + 0.5 };
+    this.pushLive(new InventoryScene({
+      entity: this.player,
+      itemInfo,
+      title: "TREASURE CHEST",
+      describe: (slot) => describeSlot(this, slot),
+      dropKey: Input.label(this.settings.controls.bindings.drop),
+      sections: [
+        { inventory: inv, title: "TREASURE CHEST", cols: ISLANDS.chest.slots },
+        { inventory: this.player.inventory, title: "BAG", cols: 8 },
+      ],
+      onChange: () => {
+        c.items = inv.toJSON();
+        this.syncAbilities();
+      },
+      canDrop: () => "TAKE IT INTO THE BAG",
+      onClose: () => {
+        c.items = inv.toJSON();
+        if (inv.isEmpty()) {
+          c.gone = true; // пустой — пропадает
+          this.fx?.burst(at, { count: 24, speed: 2.5, up: 1.5, color: ISLANDS.chest.color, size: 0.08, life: 0.8, gravity: 4, drag: 1 });
+          this.engine.sound.play("swing", { at });
+        }
+        this.save?.(false);
+      },
+    }));
   }
 
   // Сундук-модель как «сущность» для рисования (game-scene → drawList); открыт — крышка откинута
   chestEntity() {
     const c = this.treasure;
-    if (!c?.model) return null;
+    if (c?.opened && !c.items) c.gone = true; // открыт до хранилищ (старое сохранение)
+    if (!c?.model || c.gone) return null;
     if (!this.chestEnt) {
       this.chestEnt = { position: new Vec3(c.x + 1, c.y, c.z + 0.5), yaw: 0, roll: 0, alive: true, hurtTime: Infinity, deadTime: 0, view: null };
       this.game.models.attach(this.chestEnt, "chest");
@@ -194,10 +228,11 @@ export class IslandsPart {
     return this.chestEnt;
   }
 
-  // Для карты: сундук — золотой значок (открыт — серый)
+  // Для карты: сундук — золотой значок (открыт — серый). Сейчас на карте не показываем (ISLANDS.chest.onMap) —
+  // оставлено на будущее (например, по заданию)
   chestMarker() {
     const c = this.treasure;
-    if (!c) return [];
+    if (!c || c.gone) return [];
     return [{ x: c.x + 1, z: c.z + 0.5, icon: "chest", color: c.opened ? [110, 110, 110] : [240, 196, 80], label: c.opened ? "" : "CHEST", clamp: !c.opened, always: true }];
   }
 }

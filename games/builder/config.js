@@ -849,7 +849,9 @@ export const ISLANDS = {
   // мост от логова на маленьком острове к главному: ниже края главного на FALL_DAMAGE.from + below блоков
   // (спрыгнуть — с уроном), спуск / подъём — run клеток на блок
   lairBridge: { below: 2, run: 2 },
-  chest: { reach: 2.6, coins: 150, perLevel: 15, rarity: "epic", color: [196, 150, 60], band: [90, 70, 40] },
+  chest: { reach: 2.6, coins: 150, perLevel: 15, rarity: "epic", color: [196, 150, 60], band: [90, 70, 40], onMap: false,
+    // хранилище сундука (и пещерных тоже): slots ячеек; мусор — с шансом chance, штук count [от, до]
+    slots: 5, junk: { bone: { chance: 0.7, count: [1, 4] }, skull: { chance: 0.35, count: [1, 2] } } },
 };
 
 // Задания стража (scene/quests.js): одно за раз. kinds — какие бывают и с какого уровня (level), count — сколько

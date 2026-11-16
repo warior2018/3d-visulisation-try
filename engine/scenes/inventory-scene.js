@@ -15,6 +15,7 @@
 //      onChange: () => {},                           // что-то переложили или выбросили
 //      onDrop: (item, count, data) => {},            // выбросили (Q) — игра решает, что с этим делать (data — свои данные предмета)
 //      canDrop: (item, data) => true | "ПОЧЕМУ НЕТ",  // можно ли выбросить (нельзя — предмет остаётся, надпись внизу)
+//      onClose: () => {},                            // окно закрыли (например, сундук: пустой — убрать)
 //    })
 //
 //  Мышь: ЛКМ по предмету — взять всю ячейку «в руку» (едет за курсором); ЛКМ по ячейке —
@@ -32,7 +33,7 @@ import { drawWindow } from "../ui/window.js";
 
 export class InventoryScene extends Scene {
   // describe(slot) → [{ text, color?, size? }] — плашка с информацией о предмете под мышью (null — без неё)
-  constructor({ entity, itemInfo, sections = null, title = "INVENTORY", closeActions = ["inventory", "pause"], dropAction = "drop", dropKey = "Q", onChange = () => {}, onDrop = () => {}, canDrop = () => true, describe = null }) {
+  constructor({ entity, itemInfo, sections = null, title = "INVENTORY", closeActions = ["inventory", "pause"], dropAction = "drop", dropKey = "Q", onChange = () => {}, onDrop = () => {}, canDrop = () => true, describe = null, onClose = () => {} }) {
     super();
     this.transparent = true;
     this.showToasts = false; // всплывающие надписи закрыли бы заголовок окна
@@ -48,6 +49,7 @@ export class InventoryScene extends Scene {
     this.onDrop = onDrop;
     this.canDrop = canDrop;
     this.describe = describe;
+    this.onClose = onClose;
     this.held = null; //   { stack: { item, count }, from: { s, i } } — что взяли «в руку»
     this.hover = null; //  { s, i } — ячейка под мышью (с прошлой отрисовки)
   }
@@ -310,5 +312,6 @@ export class InventoryScene extends Scene {
       this.onChange();
     }
     this.engine.pop();
+    this.onClose();
   }
 }
