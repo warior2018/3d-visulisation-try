@@ -77,6 +77,8 @@ export class SessionPart {
       this.look.pitch = p.pitch;
     }
     this.controller = new CharacterController(this.player, this.engine.input, this.physics, PLAYER);
+    // физика — всегда активного мира (порталы: в комнате — своя; иначе герой «падал» сквозь пол главного мира)
+    Object.defineProperty(this.controller, "physics", { get: () => this.physics, set: () => {}, configurable: true });
     this.controller.onLand = (land) => this.onLand(land); // приземлился: толчок камеры (и урон от падения)
     this.controller.accel = { ...MOVEMENT }; // разгон и торможение — не мгновенные (config.js → MOVEMENT)
     // Выносливость (движок: Stamina): бег и разбег с копьём тратят, удары ближнего боя — тоже (MELEE_STAMINA)

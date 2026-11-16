@@ -284,7 +284,11 @@ export class HostNet {
   teamReady() {
     const g = this.g;
     const roster = g.game.net?.roster;
-    if (roster && this.guests.size < roster.length - (g.dedicated ? 0 : 1)) return false; // ещё не все зашли
+    // ещё не все зашли — ждём только в начале матча; кто-то отвалился потом — мир не стоит (может вернуться)
+    if (roster && !this.allJoined) {
+      if (this.guests.size < roster.length - (g.dedicated ? 0 : 1)) return false;
+      this.allJoined = true;
+    }
     const needSub = g.experience.level >= SUBCLASS.level;
     const chose = (cls, sub) => !!cls && (!needSub || !!sub);
     if (!g.dedicated && !chose(g.playerClass, g.subclass)) return false; // сервер сам не выбирает

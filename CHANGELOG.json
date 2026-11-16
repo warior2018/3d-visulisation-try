@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.100.6",
+    "date": "2026-11-16",
+    "title": "Portals back; no falling into the void; no world pause after a guest drops",
+    "changes": [
+      "Порталы снова включены",
+      "Вошёл в портал — больше не падаешь в бездну (физика героя теперь из мира комнаты)",
+      "Гость отвалился посреди матча — мир у остальных больше не встаёт на паузу"
+    ]
+  },
+  {
     "version": "0.100.5",
     "date": "2026-11-16",
     "title": "Guest dynamite explodes",
