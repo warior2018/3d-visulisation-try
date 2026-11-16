@@ -8,7 +8,7 @@
 
 import { CAVES, LIGHTS, MOB_MIX, SPAWN, ELITE, ISLANDS, FLOATING } from "../config.js";
 import { Vec3, HALF } from "../../../engine/index.js";
-import { mobGrowth } from "../creatures.js";
+import { mobGrowth, CREATURES } from "../creatures.js";
 import { pickWeighted } from "./shared.js";
 
 const between = (rnd, [a, b]) => a + Math.floor(rnd() * (b - a + 1));
@@ -379,6 +379,8 @@ export class CavesPart {
   // Моб в комнате room: на полу, в случайной клетке
   // spot — { minDist, near, tries } для caveSpot; места нет — моб не появляется (null)
   caveMob(room, type, extra = {}, spot = {}) {
+    if (CREATURES[type]?.kind && CREATURES[type].kind !== "mob") return null; // в пещерах — только враги (не мирные)
+    if (type === "bat") return null; //                                             и не летающие
     const at = this.caveSpot(room, spot);
     if (!at) return null;
     const { x, z } = at;

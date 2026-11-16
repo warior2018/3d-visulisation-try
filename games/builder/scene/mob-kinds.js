@@ -172,6 +172,7 @@ export class MobKindsPart {
   maybeBat(near, index) {
     const B = MOB_KINDS.bat;
     if (!near || index < B.from || this.duel || Math.random() >= B.chance) return;
+    if (near.cave || near.position.y < this.groundHeight(near.position.x, near.position.z) - 2) return; // не в пещере
     if (!this.isNight() && this.settings.general.dayNight !== false) return;
     if (this.entities.list.filter((m) => m.alive && m.type === "bat").length >= B.max) return;
     const { x, z } = near.position;

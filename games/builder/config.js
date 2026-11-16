@@ -229,6 +229,8 @@ export const PLAYER = {
 // start — сколько мобов сразу при входе в новый мир
 export const SPAWN = {
   interval: 7, levels: { 10: -1, 25: -1 }, crowd: { from: 15, add: 1, per: 5, step: 0.5 }, start: 20,
+  // по высоте: место спавна до near блоков выше / ниже героя — как обычно, дальше — всё реже, к far — никогда
+  vertical: { near: 5, far: 22 },
   max: 45, minPlayerDistance: 12, despawnDistance: 75, huntDespawn: 100,
 };
 // Сетевая игра (матч из лобби, lobby.js): опыт общий и капает медленнее, мобов больше; погибший — урна с призраком,

@@ -157,7 +157,8 @@ export class SessionPart {
     };
     // Не у героя под носом и не внутри построек (иначе физика вытолкнет моба на крышу)
     const far = (x, z) => this.heroes().some((h) => Math.hypot(x - h.position.x, z - h.position.z) < SPAWN.minPlayerDistance) || this.onStructure(x, z)
-      || (!this.world.floor && !this.world.topBlock(Math.floor(x), Math.floor(z))); // летающие острова: не над бездной
+      || (!this.world.floor && !this.world.topBlock(Math.floor(x), Math.floor(z))) // летающие острова: не над бездной
+      || this.tooHighOrLow(x, z); // по высоте далеко от героев (в пещере / на горе) — реже
     this.spawnRate = this.match ? MULTIPLAYER.spawn : 1; // матч: мобов больше (×1.3 чаще)
     this.spawner = new Spawner({
       ...SPAWN,
@@ -261,6 +262,16 @@ export class SessionPart {
       this.invasion.every = Infinity;
       this.startDuel();
     }
+  }
+
+  // Место спавна далеко по высоте от ближайшего героя (SPAWN.vertical): ближе near — всегда можно, дальше —
+  // всё реже (к far — почти никогда). Радиус по горизонтали — прежний
+  tooHighOrLow(x, z) {
+    const V = SPAWN.vertical, y = this.world.surfaceY(x, z);
+    let dy = Infinity;
+    for (const h of this.heroes()) dy = Math.min(dy, Math.abs(y - h.position.y));
+    if (dy <= V.near) return false;
+    return Math.random() > Math.max(0, 1 - (dy - V.near) / (V.far - V.near));
   }
 
   // Секунд между мобами сейчас (SPAWN): база − за уровень героя (10, 25) + за толпу (больше crowd.from мобов);
