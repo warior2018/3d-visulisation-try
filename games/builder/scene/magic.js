@@ -110,6 +110,15 @@ export class MagicPart {
     const s = Math.hypot(v.x, v.y, v.z);
     if (s > R.maxSpeed) v = { x: (v.x / s) * R.maxSpeed, y: (v.y / s) * R.maxSpeed, z: (v.z / s) * R.maxSpeed };
     dash(p, v.x, v.z, Math.hypot(v.x, v.y, v.z), R.pushTime, v.y, { slide: DASH_SLIDE });
+    // свой взрыв ранит и себя — на selfDamage урона взрыва (95 % меньше)
+    if (attack) {
+      const avg = Array.isArray(attack.damage) ? (attack.damage[0] + attack.damage[1]) / 2 : attack.damage || 0;
+      const base = Object.values(ATTACKS).find((a) => a.id === attack.id)?.damage;
+      const full = (Array.isArray(base) ? (base[0] + base[1]) / 2 : base || avg) * this.damageScaleOf(attack);
+      const hurt = Math.max(1, Math.round(full * R.selfDamage));
+      p.damage(hurt);
+      this.engine.log(`свой взрыв: -${hurt} HP`);
+    }
     this.engine.log(`ракетный прыжок: скорость ${Math.hypot(v.x, v.y, v.z).toFixed(1)} м/с (было ${Math.hypot(was.x, was.y, was.z).toFixed(1)}, сохранено ${R.stack * 100}%)`);
   }
 

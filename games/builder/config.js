@@ -1038,10 +1038,11 @@ export const DEMO = { gravity: 20, launcherGravity: 9, fuse: 1, shortFuse: [0.75
 // от героя (от середины тела) отбрасывает его от центра взрыва: рывок на pushTime с — одинаково во всём радиусе
 // (радиус взрыва растёт с талантом), плюс lift вверх. Сила — своя у оружия: push — скорость толчка, м/с
 // (по id атаки), и растёт с уроном (таланты, улучшения: урон ×1.3 — толчок ×1.3). Складывается: толчок
-// прибавляется к нынешней скорости (рывок ещё идёт / летим), не больше maxSpeed м/с. Урона себе нет
+// прибавляется к нынешней скорости (рывок ещё идёт / летим), не больше maxSpeed м/с. Себе — selfDamage урона
 export const ROCKET_JUMP = {
   // stack — какая доля прежней скорости (и вверх тоже) складывается с новым толчком
-  pushTime: 0.32, lift: 0.6, reach: 1.1, maxSpeed: 20, stack: 0.5,
+  // selfDamage — свой взрыв ранит и себя: доля урона взрыва (0.05 — на 95 % меньше)
+  pushTime: 0.32, lift: 0.6, reach: 1.1, maxSpeed: 20, stack: 0.5, selfDamage: 0.05,
   push: { "hand-grenade": 2.5, launcher: 3.25, dynamite: 3.75, cluster: 2, default: 2.5 },
 };
 export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, lift: 0.3 };

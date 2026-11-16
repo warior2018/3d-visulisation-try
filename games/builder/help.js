@@ -4,7 +4,7 @@
 //  reload, palette... Числа — из config.js, поэтому справка сама следует за балансом.
 // ============================================================
 
-import { ATTACKS as A, BLOCK, KATANA_IAI as IAI, MACHETE_LEAP as ML, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT, BOW } from "./config.js";
+import { ATTACKS as A, BLOCK, KATANA_IAI as IAI, MACHETE_LEAP as ML, SHOP, SHOTGUN_BLAST as SB, DEMO, MEDKIT, BOW, ROCKET_JUMP } from "./config.js";
 
 const block = { name: "BLOCK", text: `FOR ${BLOCK.window} S HITS FROM THE FRONT LOSE ${Math.round(BLOCK.weapon * 100)}% OF YOUR WEAPON DMG, SHOTS AND BLASTS - ${Math.round(BLOCK.ranged * 100)}%. COOLDOWN ${BLOCK.cooldown} S (DUEL: ${BLOCK.duelCooldown} S). TALENT REFLECT - SHOTS FLY BACK` };
 const aim = { name: "AIM", text: "HOLD TO AIM: ZOOM IN, LESS SPREAD" };
@@ -12,7 +12,7 @@ const reload = { name: "RELOAD", text: "PUT IN A NEW CLIP FROM THE BAG. THE REST
 const punch = { name: "PUNCH", text: `${A.punch.damage} DMG, UP TO ${A.punch.maxTargets} ENEMIES IN FRONT` };
 
 // Пассивка подрывника: свой взрыв рядом подкидывает (ROCKET_JUMP), урона себе нет
-const rocket = { name: "ROCKET JUMP", text: "YOUR OWN BLAST NEARBY THROWS YOU AWAY FROM IT AND UP. NO DMG TO YOU" };
+const rocket = { name: "ROCKET JUMP", text: `YOUR OWN BLAST NEARBY THROWS YOU AWAY FROM IT AND UP. ${Math.round(ROCKET_JUMP.selfDamage * 100)}% OF ITS DMG TO YOU` };
 export const HELP = {
   hand: { primary: punch, secondary: block },
   pistol: { primary: { name: "SHOOT", text: `${A.pistol.damage} DMG. CLIP ${A.pistol.magazine}` }, secondary: aim, reload },

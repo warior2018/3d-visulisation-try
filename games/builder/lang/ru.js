@@ -1358,6 +1358,7 @@ export const RU = {
   "YOUR BOARS ATTACK THE MARKED ENEMY": "ТВОИ КАБАНЫ НАПАДАЮТ НА ОТМЕЧЕННОГО ВРАГА",
   "YOUR DUELS: ${pr.get(\"duelWins\")} WON / ${pr.get(\"duelLosses\")} LOST   MATCHES: ${pr.get(\"matches\")}": "ВАШИ ДУЭЛИ: ${pr.get(\"duelWins\")} ПОБЕД / ${pr.get(\"duelLosses\")} ПОРАЖЕНИЙ   МАТЧЕЙ: ${pr.get(\"matches\")}",
   "YOUR NICKNAME IN MULTIPLAYER": "ТВОЙ НИК В СЕТЕВОЙ ИГРЕ",
+  "YOUR OWN BLAST NEARBY THROWS YOU AWAY FROM IT AND UP. ${Math.round(ROCKET_JUMP.selfDamage * 100)}% OF ITS DMG TO YOU": "СВОЙ ВЗРЫВ РЯДОМ ОТБРАСЫВАЕТ ОТ НЕГО И ВВЕРХ. СЕБЕ - ${Math.round(ROCKET_JUMP.selfDamage * 100)}% ЕГО УРОНА",
   "YOUR OWN BLAST NEARBY THROWS YOU AWAY FROM IT AND UP. NO DMG TO YOU": "СВОЙ ВЗРЫВ РЯДОМ ОТБРАСЫВАЕТ ТЕБЯ ОТ НЕГО И ВВЕРХ. УРОНА СЕБЕ НЕТ",
   "YOUR OWN TRAP! -${self.dealt} HP": "СВОЯ ЛОВУШКА! -${self.dealt} HP",
   "ZOMBIE": "ЗОМБИ",
