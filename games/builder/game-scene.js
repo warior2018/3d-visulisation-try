@@ -36,6 +36,7 @@ import { BuffsPart } from "./scene/buffs.js";
 import { BossesPart } from "./scene/bosses.js";
 import { MobKindsPart } from "./scene/mob-kinds.js";
 import { AchievementsPart } from "./scene/achievements.js";
+import { CavesPart } from "./scene/caves.js";
 import { InteractPart } from "./scene/interact.js";
 import { CoopPart } from "./scene/coop.js";
 import { DuelPart } from "./scene/duel.js";
@@ -471,6 +472,7 @@ export class GameScene extends Scene {
     this.updateQuests(dt); // задания стража (scene/quests.js)
     this.updateElites(dt); // ауры элитных мобов (scene/elites.js)
     this.achSave(dt); // счётчики ачивок — в профиль раз в 5 с (scene/achievements.js)
+    this.updateCaves(dt); // пещеры: мобы в комнатах, охрана сундуков, боссы (scene/caves.js)
     this.updateMobKinds(dt); // шаман лечит, гоблин ставит капканы, вожак зовёт упырей (scene/mob-kinds.js)
     this.hints?.update(this, dt); // подсказки новичку (hints.js)
     this.tickRunStats(dt); //     итоги забега: время (scene/run-stats.js)
@@ -769,7 +771,7 @@ export class GameScene extends Scene {
       camera,
       world: this.world,
       ghost: this.engine.scene === this ? this.ghost : null,
-      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...(this.treasure?.model ? [this.chestEntity()].filter(Boolean) : []), ...this.urnList()], firstPerson ? this.player : null),
+      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...(this.treasure?.model ? [this.chestEntity()].filter(Boolean) : []), ...this.caveChestEntities(), ...this.urnList()], firstPerson ? this.player : null),
       viewModels: vm ? [vm] : [], // рука — слой «для экрана», только от 1-го лица
       particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
       // Оптика: всё вне круга прицела размыто (круг — в hud.js → SCOPE)
@@ -830,4 +832,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);
+mixParts(GameScene, [SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);

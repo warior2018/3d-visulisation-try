@@ -148,6 +148,7 @@ export class WorldgenPart {
         n++;
       }
     }
+    this.generateCaves(rnd); // пещеры: комнаты, туннели, проходы наверх (scene/caves.js)
     this.buildIslands(rnd); // мосты на маленькие острова и сундук на дальнем (scene/islands.js)
     this.buildSpawnLights(); //  столбы с факелами у места появления (scene/islands.js)
     const count = (k) => spots.filter((s) => s.kind === k).length;

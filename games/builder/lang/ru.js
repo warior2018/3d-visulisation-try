@@ -226,6 +226,7 @@ export const RU = {
   "AUDIO": "АУДИО",
   "AUTO LOOT": "АВТОПОДБОР",
   "AUTO LOOT: ": "АВТОПОДБОР: ",
+  "AWAKENS": "ПРОБУЖДАЕТСЯ",
   "BACK": "НАЗАД",
   "BAG": "СУМКА",
   "BALANCE": "БАЛАНС",

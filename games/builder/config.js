@@ -821,6 +821,22 @@ export const FALL_DAMAGE = {
 // Острова (scene/islands.js), только в новых мирах: мосты — с главного острова на маленькие (с шансом chance,
 // ширина width, перила — столбик через post блоков); на самом дальнем острове моста нет, зато там — СУНДУК:
 // открыть (F рядом) — coins монет (+perLevel за уровень героя) и вещь не ниже rarity
+// Пещеры (scene/caves.js), только в новых мирах. rooms — комнат под главным островом [от, до], islandRoom — шанс
+// комнаты под маленьким; size — ширина / глубина / высота комнат; depth — пол на столько ниже травы острова;
+// туннели 3 × 3 (bridgeIslands — шанс туннеля к комнате на другом острове), лампа в потолке каждые lampEvery
+// блоков; extraExit — шанс второго прохода наверх. В комнате: boss — шанс босса (тролль / лич, один раз),
+// иначе chest — шанс сундука, у сундука guard — шанс охраны (1–2 элиты + обычные, всего 4 — или минибосс и
+// стрелок; появляется, когда герой ближе trigger м). spawn: пока герой ближе radius — раз в every с моб, до max в комнате.
+// reward — сундук: монеты (+perLevel за уровень) и вещь любого тира не ниже rarity
+export const CAVES = {
+  rooms: [4, 6], islandRoom: 0.5, keepClear: 14,
+  size: { w: [7, 11], d: [7, 11], h: [4, 6] }, depth: [7, 10],
+  bridgeIslands: 0.3, lampEvery: 7, extraExit: 0.3,
+  boss: 0.05, chest: 0.35, guard: 0.15, trigger: 18,
+  spawn: { radius: 40, every: 14, max: 3 },
+  reward: { coins: 60, perLevel: 6, rarity: "rare" },
+};
+
 export const ISLANDS = {
   bridge: { chance: 0.75, width: 3, post: 4, deck: [120, 84, 52], rail: [92, 64, 40] },
   chest: { reach: 2.6, coins: 150, perLevel: 15, rarity: "epic", color: [196, 150, 60], band: [90, 70, 40] },
