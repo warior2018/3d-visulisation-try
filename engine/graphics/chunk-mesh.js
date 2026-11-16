@@ -16,7 +16,7 @@
 //        view — viewOf(camera, aspect, maxDist): заранее посчитанное направление взгляда и угол обзора
 // ============================================================
 
-import { CHUNK } from "../world/voxel-world.js";
+import { CHUNK, HALF } from "../world/voxel-world.js";
 
 export const FLOATS_PER_CUBE = 7; // x, y, z, r, g, b, glow (свет от ламп и факелов 0…1: ночью не темнеет)
 
@@ -131,12 +131,15 @@ export function exposedFaces(world, chunk, out = null, light = false) {
   for (const b of chunk.blocks) {
     const { x, y, z } = b;
     let mask = 0;
-    if (!world.has(x + 1, y, z)) mask |= 1;
-    if (!world.has(x - 1, y, z)) mask |= 2;
-    if (!world.has(x, y + 1, z)) mask |= 4;
+    // полублок (HALF) закрывает соседу только свою половину: целому блоку грань рядом с ним — видна
+    const half = b.surface === HALF;
+    const shut = (bx, by, bz) => { const n = world.get?.(bx, by, bz); return !!n && (half || n.surface !== HALF); };
+    if (!shut(x + 1, y, z)) mask |= 1;
+    if (!shut(x - 1, y, z)) mask |= 2;
+    if (half || !world.has(x, y + 1, z)) mask |= 4; // верх полублока виден всегда
     if (!world.isSolid(x, y - 1, z)) mask |= 8; // снизу — блок или пол мира
-    if (!world.has(x, y, z + 1)) mask |= 16;
-    if (!world.has(x, y, z - 1)) mask |= 32;
+    if (!shut(x, y, z + 1)) mask |= 16;
+    if (!shut(x, y, z - 1)) mask |= 32;
     if (!mask) continue;
     for (let f = 0; f < 6; f++) if (mask & (1 << f)) counts[f]++;
     list.push(b, mask);
@@ -155,7 +158,7 @@ export function exposedFaces(world, chunk, out = null, light = false) {
     for (let f = 0; f < 6; f++) {
       if (!(mask & (1 << f))) continue;
       const o = at[f]++ * FLOATS_PER_CUBE;
-      data[o] = b.x; data[o + 1] = b.y; data[o + 2] = b.z;
+      data[o] = b.x; data[o + 1] = b.surface === HALF ? b.y + 0.25 : b.y; data[o + 2] = b.z; // +0.25 — метка полублока (шейдер)
       data[o + 3] = r; data[o + 4] = g; data[o + 5] = bl;
       data[o + 6] = glow;
     }

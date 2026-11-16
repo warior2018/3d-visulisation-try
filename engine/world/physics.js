@@ -16,12 +16,17 @@ const EPS = 1e-3; //      зазор между коробкой и стеной
 const MAX_STEP = 0.25; // самый длинный шаг за раз (меньше блока — не проскочим)
 const MAX_FALL = 50; //   быстрее падать нельзя (м/с)
 
+// Высота ступеньки, на которую шагаем без прыжка (полблока); у сущности своя — e.stepHeight
+export const STEP_HEIGHT = 0.5;
+
 export class Physics {
   // surfaceAt(x, y, z) — какая поверхность у твёрдой клетки ("slip" — скользкая; null — обычная). Не передали —
   // все обычные. slip — как съезжает тело со скользкого: accel (м/с² разгона), max (м/с), drag (как быстро
   // гаснет, когда сошли на обычную опору)
-  constructor({ isSolid, surfaceAt = null, hasSurfaces = null, gravity = 22, slip = { accel: 14, max: 6, drag: 12 } }) {
+  // cellTop(x, y, z) — высота верха клетки (1 — целый блок, 0.5 — полублок); не передали — все целые
+  constructor({ isSolid, cellTop = null, surfaceAt = null, hasSurfaces = null, gravity = 22, slip = { accel: 14, max: 6, drag: 12 } }) {
     this.isSolid = isSolid; // (x, y, z) -> true/false
+    this.cellTop = cellTop;
     this.surfaceAt = surfaceAt;
     this.slip = slip;
     // hasSurfaces() — есть ли в мире хоть одна особая клетка (не передали — считаем, что может быть).
@@ -40,9 +45,25 @@ export class Physics {
     const z0 = Math.floor(p.z - r), z1 = Math.floor(p.z + r - 1e-9);
     for (let x = x0; x <= x1; x++)
       for (let y = y0; y <= y1; y++)
-        for (let z = z0; z <= z1; z++)
-          if (this.isSolid(x, y, z)) return true;
+        for (let z = z0; z <= z1; z++) {
+          if (!this.isSolid(x, y, z)) continue;
+          // полублок: занята только нижняя половина — стоим на нём (ноги выше его верха) — не задеваем
+          if (this.cellTop && y + this.cellTop(x, y, z) <= p.y + 1e-9) continue;
+          return true;
+        }
     return false;
+  }
+
+  // Самый высокий верх твёрдых клеток ряда y под коробкой e (полублок — y + 0.5)
+  rowTop(e, y) {
+    const p = e.position, r = e.radius;
+    let top = y + 1;
+    if (!this.cellTop) return top;
+    top = y;
+    for (let x = Math.floor(p.x - r); x <= Math.floor(p.x + r - 1e-9); x++)
+      for (let z = Math.floor(p.z - r); z <= Math.floor(p.z + r - 1e-9); z++)
+        if (this.isSolid(x, y, z)) top = Math.max(top, y + this.cellTop(x, y, z));
+    return top > y ? top : y + 1;
   }
 
   // Один кадр: тяжесть тянет вниз, скорость двигает, стены и пол останавливают
@@ -65,6 +86,7 @@ export class Physics {
     const steps = Math.max(1, Math.ceil(longest / MAX_STEP));
     const k = dt / steps;
 
+    e.wasOnGround = e.onGround; // стоял ли на земле до шага (ступенька — только с земли)
     e.onGround = false;
     e.blocked = false; // упёрлась ли сбоку в стену (поведениям: пора прыгать)
     e.blockedX = false; // в какую стену: по X или по Z
@@ -147,6 +169,7 @@ export class Physics {
     const p = e.position;
     p[axis] += d;
     if (!this.collides(e)) return false;
+    if (axis !== "y" && this.autoStep(e)) return false; // ступенька до stepHeight — шагаем на неё (полублок)
     if (axis !== "y" && e.forgive && this.forgive(e, axis)) return false;
 
     // Насколько коробка выступает от position в сторону движения и в обратную
@@ -157,9 +180,28 @@ export class Physics {
       p[axis] = cell - ahead - EPS;
     } else {
       const cell = Math.floor(p[axis] - behind); //       клетка, в которую въехали
-      p[axis] = cell + 1 + behind + EPS;
+      p[axis] = (axis === "y" ? this.rowTop(e, cell) : cell + 1) + behind + EPS; // сверху полублока — на его верх
     }
     return true;
+  }
+
+  // Шаг на ступеньку: упёрлись сбоку, стоя на земле, — пробуем подняться до e.stepHeight (по умолчанию
+  // STEP_HEIGHT = полблока): до ближайшей половинки или целой высоты. Над головой свободно — поднялись
+  autoStep(e) {
+    const sh = e.stepHeight ?? STEP_HEIGHT;
+    if (!(sh > 0) || !e.wasOnGround) return false;
+    const p = e.position;
+    for (const top of [Math.floor(p.y) + 0.5, Math.floor(p.y) + 1, Math.floor(p.y) + 1.5]) {
+      const up = top - p.y + EPS;
+      if (up <= EPS * 2 || up > sh + EPS * 2) continue;
+      p.y += up;
+      if (!this.collides(e)) {
+        e.stepped = up; // на сколько поднялись (камера может сгладить)
+        return true;
+      }
+      p.y -= up;
+    }
+    return false;
   }
 
   // Прощение краёв (см. moveAxis): пробуем по очереди — угол вбок, край снизу, край сверху; что освободило

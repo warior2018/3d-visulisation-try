@@ -32,6 +32,9 @@ export class Chunk {
   }
 }
 
+// Полублок: блок с поверхностью HALF — нижняя половина клетки (0.5 м). Хранится и передаётся как поверхность
+export const HALF = "half";
+
 export class VoxelWorld {
   constructor() {
     this.blocks = new Map(); // key(x, y, z) -> { x, y, z, color: [r, g, b] }
@@ -54,6 +57,7 @@ export class VoxelWorld {
     this.emitters = new Map();
     this.lights = new Map();
     this.lightCount = 0;
+    this.minY = 0; //  самый низкий блок (не выше 0): поиск верхнего блока столбика идёт до него
     this.maxY = 0; //  самый высокий блок (миникарте — откуда искать верхний блок столбика) // растёт при каждом изменении — рендерер по нему понимает, что пора обновиться
   }
 
@@ -156,7 +160,8 @@ export class VoxelWorld {
     const known = this.tops.get(k);
     if (known !== undefined) return known;
     let top = null;
-    for (let y = this.maxY; y >= 0 && !top; y--) top = this.blocks.get(key(x, y, z)) || null;
+    const low = this.minY; // острова и пещеры бывают ниже 0
+    for (let y = this.maxY; y >= low && !top; y--) top = this.blocks.get(key(x, y, z)) || null;
     this.tops.set(k, top);
     return top;
   }
@@ -164,7 +169,7 @@ export class VoxelWorld {
   // Высота поверхности столбика: где стоять (над верхним кубиком). 0 — пусто (пол мира)
   surfaceY(x, z) {
     const b = this.topBlock(Math.floor(x), Math.floor(z));
-    return b ? b.y + 1 : 0;
+    return b ? b.y + (b.surface === HALF ? 0.5 : 1) : 0;
   }
 
   // Поверхность клетки: "slip" и т. п. или null (обычная, пустая клетка, пол)
@@ -173,6 +178,13 @@ export class VoxelWorld {
   }
 
   // Твёрдая ли клетка: блок или пол (всё, что ниже y = 0). Это спрашивает физика.
+  // Высота верха клетки от её низа: 1 — целый блок, 0.5 — полублок (поверхность HALF), 0 — пусто
+  cellTop(x, y, z) {
+    const b = this.blocks.get(key(x, y, z));
+    if (!b) return y < 0 && this.floor ? 1 : 0;
+    return b.surface === HALF ? 0.5 : 1;
+  }
+
   isSolid(x, y, z) {
     return (y < 0 && this.floor) || this.blocks.has(key(x, y, z));
   }
@@ -191,6 +203,7 @@ export class VoxelWorld {
     c.blocks.add(b);
     if (y < c.minY) c.minY = y;
     if (y > c.maxY) c.maxY = y;
+    if (y < this.minY) this.minY = y;
     this.touch(x, y, z);
     if (this.emitters.size && this.emitterOf(b)) this.addLight(b);
     if (y > this.maxY) this.maxY = y;

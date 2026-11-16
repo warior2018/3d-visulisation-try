@@ -158,7 +158,10 @@ struct CubeOut {
 
 @vertex
 fn cube_vs(in: CubeIn) -> CubeOut {
-  let world = in.pos + in.offset;
+  // полублок: y экземпляра с меткой +0.25 — кубик вдвое ниже (низ на месте)
+  let half = fract(in.offset.y + 0.001) > 0.1;
+  let base = vec3f(in.offset.x, floor(in.offset.y + 0.001), in.offset.z);
+  let world = select(in.pos, vec3f(in.pos.x, in.pos.y * 0.5, in.pos.z), half) + base;
   var out: CubeOut;
   out.pos = project(toView(world));
   out.local = in.pos;

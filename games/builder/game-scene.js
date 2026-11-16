@@ -86,7 +86,7 @@ export class GameScene extends Scene {
     this.world = new VoxelWorld();
     this.entities = new EntityManager();
     // surfaceAt — скользкие блоки (лёд из палитры стройки): на них не устоять
-    this.physics = new Physics({ isSolid: (x, y, z) => this.world.isSolid(x, y, z), surfaceAt: (x, y, z) => this.world.surfaceAt(x, y, z), hasSurfaces: () => this.world.surfaces > 0 });
+    this.physics = new Physics({ isSolid: (x, y, z) => this.world.isSolid(x, y, z), cellTop: (x, y, z) => this.world.cellTop(x, y, z), surfaceAt: (x, y, z) => this.world.surfaceAt(x, y, z), hasSurfaces: () => this.world.surfaces > 0 });
     // Мир для поиска пути существ: те же твёрдые клетки + «номер версии» (поставили блок — пересчитать путь)
     this.navWorld = { isSolid: this.physics.isSolid, version: () => this.world.version };
     // Предметы на земле (движок: Pickups) — падают на блоки, крутятся; модель — «item-<id>» (main.js)
@@ -667,6 +667,15 @@ export class GameScene extends Scene {
     this.bob.update(dt, Math.hypot(player.velocity.x, player.velocity.z), player.onGround, !background && engine.input.isDown("run"));
     this.staminaFlash = Math.max(0, (this.staminaFlash || 0) - dt);
     this.syncEye(player.renderPosition);
+    // шагнул на ступеньку / полублок (физика: autoStep) — камера поднимается плавно, а не рывком
+    if (player.stepped) {
+      this.stepLag = Math.min(1, (this.stepLag || 0) + player.stepped);
+      player.stepped = 0;
+    }
+    if (this.stepLag > 0.001) {
+      this.look.position = this.look.position.add(new Vec3(0, -this.stepLag, 0));
+      this.stepLag *= Math.exp(-dt * 14);
+    } else this.stepLag = 0;
     engine.sound.setListener(this.look.position, this.look.yaw); // «уши» — в глазах героя (объёмный звук)
     this.hitMarker = Math.max(0, this.hitMarker - dt);
     this.blockFlash = Math.max(0, (this.blockFlash || 0) - dt);
