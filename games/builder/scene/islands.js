@@ -76,7 +76,7 @@ export class IslandsPart {
       for (let a = 0; a < 16; a++) {
         const x = Math.floor(d.x + Math.sin((a / 16) * Math.PI * 2) * r), z = Math.floor(d.z + Math.cos((a / 16) * Math.PI * 2) * r);
         const h = this.groundHeight(x, z), h2 = this.groundHeight(x + 1, z);
-        if (h >= 1 && h === h2 && !this.onStructure(x, z) && !this.onStructure(x + 1, z)) { best = { x, y: h, z }; break; }
+        if (this.groundRel(x, z) >= 1 && h === h2 && !this.onStructure(x, z) && !this.onStructure(x + 1, z)) { best = { x, y: h, z }; break; }
         if (r === 0) break;
       }
     }

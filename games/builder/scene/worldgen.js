@@ -13,6 +13,11 @@ export class WorldgenPart {
   // ---------- Мир: постройки и камни ----------
 
   // Высота земли (рельефа) в столбике — без построек и того, что поставил герой. Плоский мир — 0
+  // Высота рельефа острова без подъёма (lift): для «на скалах ли», «на острове ли»
+  groundRel(x, z) {
+    return this.terrain ? this.terrain.relHeight(Math.floor(x) + 0.5, Math.floor(z) + 0.5) : 0;
+  }
+
   groundHeight(x, z) {
     return this.terrain ? this.terrain.height(Math.floor(x) + 0.5, Math.floor(z) + 0.5) : 0;
   }
@@ -121,7 +126,7 @@ export class WorldgenPart {
       const z = Math.floor((rnd() * 2 - 1) * (W.terrain.radius - 6));
       if (Math.hypot(x, z) < W.keepClear + 3 || this.onStructure(x, z)) continue;
       if (arenaAvoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue; // не на площадке лича
-      if (this.groundHeight(x, z) > W.colors.rockLine || this.groundHeight(x, z) < 1) continue; // не на скалах и не за краем острова
+      if (this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue; // не на скалах и не за краем острова
       if ([-1, 1].some((dx) => this.onStructure(x + dx, z) || this.onStructure(x, z + dx))) continue; // не вплотную к стенам
       if (this.nearLairTunnel(x, z)) continue; // не загораживать проход к логову
       buildTree(this.world, { x, y: this.world.surfaceY(x, z), z, height: range(W.tree.height), crown: range(W.tree.crown), random: rnd });
@@ -133,7 +138,7 @@ export class WorldgenPart {
       for (let t = 0, n = 0; t < want * 20 && n < want; t++) {
         const a = rnd() * Math.PI * 2, r = rnd() * (d.r - d.edge);
         const x = Math.floor(d.x + Math.sin(a) * r), z = Math.floor(d.z + Math.cos(a) * r);
-        if (this.onStructure(x, z) || this.groundHeight(x, z) > W.colors.rockLine || this.groundHeight(x, z) < 1) continue;
+        if (this.onStructure(x, z) || this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue;
         if ([-1, 1].some((dx) => this.onStructure(x + dx, z) || this.onStructure(x, z + dx))) continue;
         if (this.terrain.lairs.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + 2)) continue; // не над логовом
         if (this.nearLairTunnel(x, z)) continue; //                                               не у прохода к логову

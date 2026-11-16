@@ -51,7 +51,7 @@ export class Terrain {
       ...around(between(mountains.distance)), r: between(mountains.radius), h: between(mountains.height),
     }));
     // Земля — круги: главный остров и маленькие вокруг (между ними — пустой пол мира)
-    this.discs = [{ x: center.x, z: center.z, r: radius, edge, main: true, amp: hills.amp }];
+    this.discs = [{ x: center.x, z: center.z, r: radius, edge, main: true, amp: hills.amp, lift: 0 }];
     if (islands) {
       const [a, b] = islands.count;
       const n = a + Math.floor(rnd() * (b - a + 1));
@@ -60,11 +60,13 @@ export class Terrain {
         // по кругу вокруг главного, примерно поровну, с разбросом — чтобы не налезали друг на друга
         const ang = start + ((i + 0.5 * rnd()) / n) * Math.PI * 2;
         const dist = between(islands.distance);
-        const d = { x: center.x + Math.sin(ang) * dist, z: center.z + Math.cos(ang) * dist, r: between(islands.radius), edge: islands.edge ?? 5, main: false, amp: islands.hills ?? 2 };
+        const d = { x: center.x + Math.sin(ang) * dist, z: center.z + Math.cos(ang) * dist, r: between(islands.radius), edge: islands.edge ?? 5, main: false, amp: islands.hills ?? 2, lift: 0 };
+        // islands.lift [от, до] — остров выше / ниже главного на столько блоков (нет — все на одной высоте)
+        if (islands.lift) d.lift = Math.round(between(islands.lift));
         this.discs.push(d);
         if (rnd() < (islands.mountainChance ?? 0)) {
           const m = islands.mountain || { radius: [6, 9], height: [7, 11] };
-          this.mountains.push({ x: d.x, z: d.z, r: Math.min(d.r - 1, between(m.radius)), h: between(m.height) });
+          this.mountains.push({ x: d.x, z: d.z, r: Math.min(d.r - 1, between(m.radius)), h: between(m.height), lift: d.lift });
         }
       }
     }
@@ -79,11 +81,20 @@ export class Terrain {
     }
     chosen = chosen.slice(0, maxLairs);
     for (const m of this.mountains) m.boss = chosen.includes(m);
-    this.lairs = this.mountains.filter((m) => m.boss).map((m) => ({ x: Math.round(m.x), y: 1, z: Math.round(m.z), r: Math.max(4, Math.round(m.r * 0.28)), mountain: m })); // не меньше 4: босс ростом ~2.5 м
+    this.lairs = this.mountains.filter((m) => m.boss).map((m) => ({ x: Math.round(m.x), y: 1 + (m.lift || 0), z: Math.round(m.z), r: Math.max(4, Math.round(m.r * 0.28)), mountain: m })); // не меньше 4: босс ростом ~2.5 м
   }
 
-  // Сколько кубиков в столбике (x, z): 0 — ровная земля (пол мира). Самый высокий из островов
+  // Верх земли в столбике (x, z) — с подъёмом острова (lift): 0 — нет земли (пол мира / пустота)
   height(x, z) {
+    for (const disc of this.discs) {
+      const h = this.discHeight(disc, x, z);
+      if (h > 0) return h + (disc.lift || 0);
+    }
+    return 0;
+  }
+
+  // Высота рельефа самого острова в столбике (без подъёма lift): 0 — не на острове
+  relHeight(x, z) {
     let best = 0;
     for (const disc of this.discs) best = Math.max(best, this.discHeight(disc, x, z));
     return best;
@@ -127,20 +138,22 @@ export class Terrain {
       for (let x = cx - r; x <= cx + r; x++) for (let z = cz - r; z <= cz + r; z++) {
         const key = x + "," + z;
         if (done.has(key)) continue;
+        const h = this.discHeight(disc, x + 0.5, z + 0.5); // свой остров (подъём — lift)
+        if (h <= 0) continue;
         done.add(key);
-        const h = this.height(x + 0.5, z + 0.5);
+        const lift = disc.lift || 0;
         for (let y = 0; y < h; y++) {
           const top = y === h - 1;
           let color = y >= h - 3 ? dirt : stone;
           if (top) color = h > snowLine ? snow : h > rockLine ? stone : grass;
-          if (world.place(x, y, z, color)) placed++;
+          if (world.place(x, lift + y, z, color)) placed++;
         }
         if (underside > 0 && h > 0) {
           const d = Math.hypot(x + 0.5 - disc.x, z + 0.5 - disc.z) / disc.r;
           // неровный низ: глубина по параболе от центра + шум (по координатам — одинаково при каждой постройке)
           const noise = ((Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1 + 1) % 1;
           const depth = Math.max(1, Math.floor((1 - Math.min(1, d) ** 2) * disc.r * underside + noise * 3));
-          for (let y = -1; y >= -depth; y--) if (world.place(x, y, z, y > -3 ? dirt : rock)) placed++;
+          for (let y = -1; y >= -depth; y--) if (world.place(x, lift + y, z, y > -3 ? dirt : rock)) placed++;
         }
       }
     }
@@ -179,11 +192,12 @@ export class Terrain {
 
 // Выровнять площадку под постройку: столбики в прямоугольнике (x, z, w, d) — ровно высотой y
 // (лишнее срезаем, недостающее досыпаем), с запасом margin клеток вокруг
-export function flattenArea(world, { x, z, w, d, y, margin = 1, top = [96, 160, 72], fill = [130, 96, 62], clearAbove = 24 }) {
+// from — с какой высоты подсыпать землю (по умолчанию: от пола, а высоко (поднятый остров) — только 6 блоков вниз)
+export function flattenArea(world, { x, z, w, d, y, margin = 1, top = [96, 160, 72], fill = [130, 96, 62], clearAbove = 24, from = y > 8 ? y - 6 : 0 }) {
   for (let i = x - margin; i < x + w + margin; i++) {
     for (let k = z - margin; k < z + d + margin; k++) {
       for (let j = y; j < y + clearAbove; j++) world.remove(i, j, k);
-      for (let j = 0; j < y; j++) if (!world.has(i, j, k)) world.place(i, j, k, j === y - 1 ? top : fill);
+      for (let j = from; j < y; j++) if (!world.has(i, j, k)) world.place(i, j, k, j === y - 1 ? top : fill);
     }
   }
 }

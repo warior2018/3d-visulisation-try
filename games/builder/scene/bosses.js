@@ -69,7 +69,7 @@ export class BossesPart {
         if (!T.mountains.some((m) => Math.hypot(m.x - x, m.z - z) < m.r + A.radius) && !T.plateaus.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + p.edge + A.radius)) break;
       }
     }
-    const g = Math.max(1, Math.round(this.groundHeight(x, z)));
+    const g = this.groundRel(x, z) >= 1 ? Math.round(this.groundHeight(x, z)) : 1; // на поднятом / опущенном острове — его высота
     return { x, z, r: A.radius, y: g + 1 };
   }
 

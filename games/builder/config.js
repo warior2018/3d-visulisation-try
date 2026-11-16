@@ -425,7 +425,8 @@ export const WORLDGEN = {
     plateaus: { count: 3, radius: [7, 11], height: [4, 6], edge: 4 }, // плато: плоский верх, покатый край
     mountains: { count: 2, radius: [18, 24], height: [14, 20], distance: [38, 54] }, // горы
     // Маленькие острова вокруг главного (между ними — пустой пол); на острове с шансом — своя горка
-    islands: { count: [3, 6], radius: [12, 20], distance: [102, 126], edge: 6, hills: 2, mountainChance: 0.4, mountain: { radius: [7, 11], height: [8, 12] } },
+    // lift — остров выше / ниже главного (трава главного — на высоте 0) на столько блоков, случайно
+    islands: { count: [3, 6], radius: [12, 20], distance: [102, 126], edge: 6, hills: 2, mountainChance: 0.4, mountain: { radius: [7, 11], height: [8, 12] }, lift: [-5, 15] },
     bossChance: 0.3, //                                            в горе — логово босса (зал с проходом): ПЕЩЕРНЫЙ ТРОЛЛЬ (BOSS)
     minLairs: 1, maxLairs: 1, //                                   логово тролля — ровно одно в каждом мире (и всегда — площадка лича)
   },
@@ -449,31 +450,22 @@ export const WORLDGEN = {
   keepClear: 6, //           радиус пустоты вокруг места появления героя и жителей
 };
 
-// Размер мира (окно создания: 1 / 2 / 3) — во сколько раз главный остров, расстояния и число построек
-// от WORLDGEN (3 — как WORLDGEN). floating — летающие острова: пола нет, под островами — каменный корень
+// Размер мира (окно создания: 1 / 2 / 3): острова одного размера, от размера — сколько их вокруг главного
+// (маленький — 2: босс / просто остров / сундук; каждый следующий размер — ещё +1–2). Пробно, карта не утверждена
 export const WORLD_SIZES = {
-  1: { name: "SMALL", scale: 0.6 },
-  2: { name: "MEDIUM", scale: 0.8 },
-  3: { name: "LARGE", scale: 1 },
+  1: { name: "SMALL", islands: [2, 2] },
+  2: { name: "MEDIUM", islands: [3, 4] },
+  3: { name: "LARGE", islands: [4, 6] },
 };
-export const FLOATING = { underside: 0.3, voidY: -40, voidDamage: 0.35 }; // глубина корня (× радиус), где бездна, сколько HP стоит падение
+// voidY — ниже этого (бездна под летающими островами) — падение: voidDamage макс. HP и обратно наверх
+export const FLOATING = { underside: 0.3, voidY: -35, voidDamage: 0.35 };
 export function worldgenFor(size = 3, floating = false) {
-  const k = WORLD_SIZES[size]?.scale ?? 1;
   const W = WORLDGEN, T = W.terrain;
-  const sc = (v) => Math.round(v * k), pair = ([a, b]) => [sc(a), sc(b)];
-  const cnt = (v) => Math.max(1, Math.round(v * k * k));
+  const count = WORLD_SIZES[size]?.islands ?? T.islands.count;
   return {
     ...W,
-    terrain: {
-      ...T,
-      radius: sc(T.radius), edge: Math.max(8, sc(T.edge)),
-      mountains: { ...T.mountains, count: Math.max(1, Math.round(T.mountains.count * k)), radius: pair(T.mountains.radius), distance: pair(T.mountains.distance) },
-      islands: { ...T.islands, count: [Math.max(1, Math.round(T.islands.count[0] * k)), Math.max(2, Math.round(T.islands.count[1] * k))], distance: pair(T.islands.distance) },
-    },
+    terrain: { ...T, islands: { ...T.islands, count } },
     colors: { ...W.colors, underside: floating ? FLOATING.underside : 0 },
-    houses: cnt(W.houses), towers: cnt(W.towers), piles: cnt(W.piles), trees: cnt(W.trees),
-    area: W.area.map(sc),
-    arena: { ...W.arena, distance: sc(W.arena.distance) },
   };
 }
 // Атаки — параметры для классов движка (engine/combat/attacks.js).
