@@ -50,6 +50,17 @@ import { HostNet, ClientNet, baseClip } from "./scene/net.js";
 import { Chat } from "./scene/chat.js";
 import { registerCommands } from "./scene/commands.js";
 
+// Вид мобов-перекрасок (скелет / зомби): снаряжение (tools/make-mob-gear.js) и осанка поверх анимации.
+// turns: x — наклон вперёд (+) / назад (−), z — набок; руки: x − — вперёд
+const MOB_LOOKS = {
+  ghoul: { turns: { spine: ["x", 25], neck: ["x", 15], head: ["x", -25], upperArm_L: ["x", -25], upperArm_R: ["x", -25] } }, // сгорбленный, руки-когти вперёд
+  mummy: { wear: { model: "mob-bandage", bone: "head" }, turns: { spine: ["x", 8], head: ["z", 12], upperArm_R: ["x", -55] } }, // голова набок, рука тянется
+  shaman: { wear: { model: "mob-shaman-mask", bone: "head" }, hold: "w-shaman-staff", turns: { spine: ["x", -6] } }, //     прямой, с посохом
+  goblin: { wear: { model: "mob-goblin-ears", bone: "head" }, turns: { spine: ["x", 18], head: ["x", -12] } }, //          пригнулся, крадётся
+  champion: { wear: { model: "mob-pauldrons", bone: "chest" }, hold: "w-cleaver", turns: { spine: ["x", 6] } }, //         наплечники и тесак
+  lich: { wear: { model: "mob-crown", bone: "head" } }, //                                                                  корона
+};
+
 export class GameScene extends Scene {
   // game — общее для всей игры: { models, openSettings(), toMenu() }
   constructor(game) {
@@ -180,6 +191,19 @@ export class GameScene extends Scene {
 
   // ---------- Сущности ----------
 
+  // Вид моба поверх модели: что надето (wear — на кость), что в руке (hold), осанка (turns: кость → [ось, градусы])
+  dressMob(e) {
+    const L = MOB_LOOKS[e.type];
+    if (!L) return;
+    const models = this.game.models;
+    if (L.wear) models.wear(e, L.wear.model, { bone: L.wear.bone });
+    if (L.hold) models.hold(e, L.hold, IN_HAND);
+    for (const [bone, [axis, deg]] of Object.entries(L.turns || {})) {
+      const a = (deg * Math.PI) / 360, s = Math.sin(a);
+      e.view?.animator.turnBone(bone, [axis === "x" ? s : 0, axis === "y" ? s : 0, axis === "z" ? s : 0, Math.cos(a)]);
+    }
+  }
+
   spawn(type, data) {
     const e = createCreature(type, data);
     if (!e) return null;
@@ -215,6 +239,7 @@ export class GameScene extends Scene {
     this.game.models.attach(e, modelFor(e));
     if (e.ranged) this.game.models.hold(e, e.ranged.held, IN_HAND); // метатель: в руке то, что бросает
     if (e.helmet) this.game.models.wear(e, "mob-helmet", { bone: "head" }); // в каске (MOB_HELMET) — видно
+    this.dressMob(e); // свой вид у мобов-перекрасок: снаряжение и осанка (MOB_LOOKS)
     if (e.type === "bloater") {
       e.onPrime = (b) => this.engine.sound.play("growl", { at: b.position, volume: 1 }); // зашипел — сейчас рванёт
       e.onBoom = (b) => this.bloaterBoom(b);
