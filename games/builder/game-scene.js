@@ -518,6 +518,7 @@ export class GameScene extends Scene {
     }
     // 3. Существа: появляются, думают, ходят, бьют; павшие исчезают
     profiler.begin(PROF.spawn);
+    this.spawner.interval = this.spawnInterval(); // уровень героя и сколько мобов уже есть (scene/session.js)
     this.spawner.update(dt);
     this.boarSpawner.update(dt);
     // Шанс нашествия растёт, пока его нет: за каждые growEvery с ожидания x++ → шанс (1 + x) × chance

@@ -37,7 +37,7 @@ export class Spawner {
   update(dt) {
     this.timer += dt;
     if (this.timer < this.interval) return;
-    this.timer -= this.interval;
+    this.timer = Math.min(this.timer - this.interval, this.interval); // интервал вырос на ходу — не копим долг
     if (this.count() >= this.max) return;
     if (this.random() >= this.chance) return; // не повезло — ждём следующего раза
 
@@ -48,6 +48,18 @@ export class Spawner {
       this.spawn(x, z, this.spawned++);
       return;
     }
+  }
+
+  // Создать одного сейчас (без таймера и шанса): начальные мобы мира. Вернёт, получилось ли
+  spawnNow() {
+    if (this.count() >= this.max) return false;
+    for (let i = 0; i < 10; i++) {
+      const { x, z } = this.pickPoint();
+      if (this.avoid?.(x, z)) continue;
+      this.spawn(x, z, this.spawned++);
+      return true;
+    }
+    return false;
   }
 
   // Случайная точка: в круге вокруг around() (равномерно по площади кольца) или в области area

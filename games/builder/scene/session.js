@@ -190,6 +190,8 @@ export class SessionPart {
     this.scaleBoars(true); //                      кабаны тоже (здоровье — как в сохранении)
     // Поставленные ловушки (атаки собираем заново по виду)
     for (const t of Array.isArray(saved?.traps) ? saved.traps : []) if (TRAPS[t.type]) if (!t.tilt) this.placeTrapAt(t.type, t, { yaw: t.yaw, age: t.age }); // ловушек на стенах больше нет
+    // Новый мир: сразу SPAWN.start мобов вокруг (обычные виды, не ближе minPlayerDistance)
+    if (!saved && !this.duel && this.role !== "client") for (let i = 0; i < SPAWN.start; i++) this.spawner.spawnNow();
     // Кабаны — редко (BOARS.chance), и не больше BOARS.max диких
     this.boarSpawner = new Spawner({
       ...BOARS,
@@ -210,7 +212,7 @@ export class SessionPart {
       // мобов и так много (≥ blockAt от предела спавна) — нашествия не будет
       canStart: () => this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length < SPAWN.max * INVASION.blockAt,
       onStart: () => {
-        this.spawner.interval = SPAWN.interval / INVASION.spawnSpeed / this.spawnRate;
+        this.spawner.interval = this.spawnInterval();
         this.spawner.max = INVASION.max;
         // Какое нашествие: обычное / быстрое (все мобы +30 % скорости) / дальнее (половина новых — стрелки)
         const id = pickWeighted(Object.fromEntries(Object.entries(INVASION.types).map(([k, t]) => [k, t.weight])));
@@ -221,7 +223,7 @@ export class SessionPart {
         this.engine.log(`нашествие №${this.invasion.count} (${this.invasionKind.id}): спавн раз в ${this.spawner.interval.toFixed(2)} с, до ${INVASION.max} мобов`);
       },
       onEnd: () => {
-        this.spawner.interval = SPAWN.interval / this.spawnRate;
+        this.spawner.interval = this.spawnInterval();
         this.spawner.max = SPAWN.max;
         for (const e of this.entities.list) delete e.speedBonuses.invasion; // быстрое нашествие кончилось — обычная скорость
         this.engine.sound.play("levelup");
@@ -259,6 +261,18 @@ export class SessionPart {
       this.invasion.every = Infinity;
       this.startDuel();
     }
+  }
+
+  // Секунд между мобами сейчас (SPAWN): база − за уровень героя (10, 25) + за толпу (больше crowd.from мобов);
+  // нашествие — чаще (INVASION.spawnSpeed), матч — чаще (spawnRate)
+  spawnInterval() {
+    const S = SPAWN, lvl = this.experience?.level || 1;
+    let t = S.interval;
+    for (const [l, d] of Object.entries(S.levels)) if (lvl >= Number(l)) t += d;
+    const n = this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length;
+    if (n > S.crowd.from) t += S.crowd.add + Math.floor((n - S.crowd.from) / S.crowd.per) * S.crowd.step;
+    if (this.invasion?.active) t /= INVASION.spawnSpeed;
+    return Math.max(0.5, t / (this.spawnRate || 1));
   }
 
   exit() {
