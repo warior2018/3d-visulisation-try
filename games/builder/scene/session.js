@@ -291,8 +291,10 @@ export class SessionPart {
     if (!this.activeWorld || this.inMain?.() !== false) return;
     const portal = (this.portals || []).find((o) => o.room === this.activeWorld);
     this.pull = null;
+    this.portalFade = null;
     this.player.invulnerable = false;
-    if (portal) this.leaveRoom(portal);
+    const out = portal ? { x: portal.x + Math.sin(portal.yaw) * 2, y: portal.y, z: portal.z + Math.cos(portal.yaw) * 2 } : { x: 0, y: this.worlds.get("main").voxels.surfaceY(0, 0) + 1, z: 0 };
+    this.moveHero(this.worlds.get("main"), out, portal?.yaw || 0);
   }
 
   exit() {

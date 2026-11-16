@@ -231,14 +231,23 @@ export class HostNet {
       this.fxOut.length = 0;
       return;
     }
-    const e = [];
-    for (const x of g.entities.list) {
-      if (!x.view && !x.remote) continue;
+    // существа — по мирам (порталы): каждому гостю — существа его мира
+    const rowsOf = (w) => {
+      const e = [];
+      for (const x of w.entities.list) {
+        if (!x.view && !x.remote) continue;
       if (x === g.player && g.dedicated) continue; // сервер: своего героя не показываем
       const walking = x === g.player ? !!g.move?.moving : !!x.netWalk;
-      e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.ceil(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow) | (x.diving ? 64 : 0)]);
-      x.netAttack = false;
+        e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.ceil(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow) | (x.diving ? 64 : 0)]);
+      }
+      return e;
+    };
+    const rows = new Map();
+    for (const q of this.guests.values()) {
+      const w = g.worldOf ? g.worldOf(q.hero) : g.activeWorld;
+      if (!rows.has(w)) rows.set(w, rowsOf(w));
     }
+    for (const w of rows.keys()) for (const x of w.entities.list) x.netAttack = false;
     let p, h, inv;
     if (this.ticks % (SNAP_EVERY * 4) === 0) {
       // 7-е поле — кто выбросил (номер героя): у него автоподбор не берёт, пока не отойдёт
@@ -254,7 +263,14 @@ export class HostNet {
     const fx = this.fxOut.length ? this.fxOut.splice(0) : undefined;
     // таблица игроков (TAB) — раз в секунду: [имя, пинг, класс, погиб, хост]
     const tab = this.ticks % 60 === 0 ? g.scoreRows().map((r) => [r.name, r.ping, r.cls || "", r.down ? 1 : 0, r.host ? 1 : 0]) : undefined;
-    this.server.broadcast({ t: "snap", k: this.ticks, e, b: this.blocks.length ? this.blocks.splice(0) : undefined, p, h, inv, fx, tab, pz: g.teamPaused ? 1 : 0, du: duelSnap(g) });
+    const pt = p ? (g.portals || []).map((o) => [o.id, r2(o.x), r2(o.y), r2(o.z), r2(o.yaw)]) : undefined; // порталы (scene/portals.js)
+    const b = this.blocks.length ? this.blocks.splice(0) : undefined;
+    for (const q of this.guests.values()) {
+      const w = g.worldOf ? g.worldOf(q.hero) : g.activeWorld;
+      const main = !g.worldOf || w === g.mainWorld;
+      // предметы на земле — только главного мира (и только тем, кто в нём)
+      this.server.send(q.peer, { t: "snap", k: this.ticks, e: rows.get(w) || [], b, p: main ? p : undefined, h, inv, fx, tab, pt, pz: g.teamPaused ? 1 : 0, du: duelSnap(g) });
+    }
   }
 
   sendChat(text) {
@@ -300,6 +316,21 @@ export class HostNet {
 
   // Опыт за убитого — и гостям (общий, как в кооперативе)
   // Гость добил моба (не матч): опыт — ему одному
+  // Порталы (scene/portals.js): гость перенесён в мир (id портала; 0 — главный) — сказать ему
+  sendWorld(hero, id, at, yaw) {
+    for (const q of this.guests.values()) {
+      if (q.hero !== hero) continue;
+      q.target = { x: at.x, y: at.y, z: at.z, yaw };
+      q.lockUntil = Date.now() + 2500;
+      hero.portalCd = Date.now() + 3000;
+      this.server.send(q.peer, { t: "world", id, x: r2(at.x), y: r2(at.y), z: r2(at.z), yaw: r2(yaw) });
+    }
+  }
+
+  sendPull(hero, id) {
+    for (const q of this.guests.values()) if (q.hero === hero) this.server.send(q.peer, { t: "pull", id });
+  }
+
   sendKillXp(hero, n) {
     for (const q of this.guests.values()) if (q.hero === hero) this.server.send(q.peer, { t: "kxp", n });
   }
@@ -364,10 +395,17 @@ export class HostNet {
     if (!guest) return; // остальное — только после hello
     const h = guest.hero;
     switch (msg.t) {
+      case "leaveRoom": { // гостя дотянуло до выхода закрывающегося портала — выпустить
+        const hero = guest?.hero;
+        const portal = hero && (g.portals || []).find((o) => o.room && g.worldOf(hero) === o.room);
+        if (portal) g.heroLeave(hero, portal);
+        return;
+      }
       case "state":
         // куда встать — цель; сам герой гостя доезжает до неё плавно (smoothGuests): состояние приходит
         // 20 раз в секунду и неровно, а кадров — 60+; без этого гость у хоста двигался рывками
-        guest.target = { x: +msg.x || 0, y: +msg.y || 0, z: +msg.z || 0, yaw: +msg.yaw || 0 };
+        // только что перенесён порталом — пока гость не перешёл, старые координаты не берём
+        if (!(guest.lockUntil > Date.now())) guest.target = { x: +msg.x || 0, y: +msg.y || 0, z: +msg.z || 0, yaw: +msg.yaw || 0 };
         h.netWalk = !!msg.w;
         // присед / стойка гостя: рост и голова (хитбокс) ниже, клип стойки (game-scene.js)
         if ((+msg.cr || 0) !== (h.netLow || 0)) lowerBody(h, +msg.cr || 0);
@@ -614,8 +652,15 @@ export class ClientNet {
         g.engine.toast("CONNECTED", 2500);
         return;
       }
+      case "world": // хост перенёс нашего героя порталом (scene/portals.js)
+        g.netWorld?.(msg, this.copies);
+        return;
+      case "pull": // наш портал закрывается — затягивает к выходу
+        g.netPull?.(msg);
+        return;
       case "snap":
         if (!this.ready) return;
+        if (msg.pt) g.syncPortals?.(msg.pt);
         this.applyBlocks(msg.b);
         this.snapK = +msg.k || 0;
         this.hostTick = Math.max(this.hostTick ?? 0, this.snapK);
@@ -719,7 +764,7 @@ export class ClientNet {
 
   applyBlocks(list) {
     if (!list) return;
-    const w = this.g.world;
+    const w = this.g.worlds?.get("main")?.voxels || this.g.world; // блоки хоста — главного мира (в комнате портала — тоже туда)
     w.quiet = true;
     for (const b of list) {
       if (b.length > 3) w.place(b[0], b[1], b[2], [b[3], b[4], b[5]], b[6] || null);

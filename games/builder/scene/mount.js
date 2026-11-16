@@ -54,6 +54,10 @@ export class MountPart {
   mountNow() {
     this.mountCast = 0;
     const p = this.player;
+    if (this.waitingSteed) { // ждал у портала — убрать, позовём нового
+      this.removeEntity(this.waitingSteed);
+      this.waitingSteed = null;
+    }
     const steed = this.spawn("steed", { x: p.position.x, y: p.position.y, z: p.position.z, yaw: this.look.yaw });
     if (!steed) return;
     steed.rideable = { seat: MOUNT.seat, speed: MOUNT.speed, runMultiplier: MOUNT.runMultiplier, jumpHeight: MOUNT.jumpHeight };

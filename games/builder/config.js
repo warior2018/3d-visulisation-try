@@ -186,7 +186,9 @@ export const FLASH = {
 // max), камера — в конусе cone (° по горизонтали / вертикали), тряска shake; light — свет портала
 export const PORTALS = {
   every: [90, 150], max: 3, distance: [10, 25], life: [120, 200], enterRadius: 0.9, cooldown: 2, slowEvery: 4, fade: 0.5,
-  room: { w: 9, d: 11, h: 5, y: 100, wall: [70, 62, 92], floor: [56, 50, 74], floor2: [64, 58, 84] },
+  // room: зал w × d × h (высота), пол на y; дерево посредине (tree), вокруг — камень, с радиуса ground[0] — земля
+  // полублоком, с ground[1] — целым блоком (две ступени); лампы в потолке через lampStep и по стенам
+  room: { w: 21, d: 21, h: 10, y: 100, wall: [70, 62, 92], stone: [128, 126, 132], dirt: [130, 96, 62], grass: [96, 160, 72], ground: [7, 8.5], tree: { height: 6, crown: 3 }, lampStep: 6 },
   warn: 8, pull: { start: 0.1, mult: 2, max: 30 }, cone: [35, 25], shake: 0.4, light: { radius: 5, power: 1.3 },
 };
 

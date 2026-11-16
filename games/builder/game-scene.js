@@ -398,7 +398,7 @@ export class GameScene extends Scene {
     const mine = (this.player.worldId ?? "main") === this.activeWorld.id ? [this.player] : [];
     if (!this.net || this.net.role !== "host") return mine;
     const list = this.dedicated ? [] : mine;
-    for (const q of this.net.guests.values()) if (q.hero?.alive) list.push(q.hero);
+    for (const q of this.net.guests.values()) if (q.hero?.alive && (q.hero.worldId ?? "main") === this.activeWorld.id) list.push(q.hero);
     return list;
   }
 
@@ -533,11 +533,13 @@ export class GameScene extends Scene {
   // Тик мира: всё, что живёт без героя — существа (мозги, физика), предметы, снаряды, ловушки, динамит,
   // логова, нашествие. Это и есть то, что в сетевой игре считает хост
   // room — комната портала (без спавна, нашествия, логов...); slow — главный мир, пока герой в комнате (редкий тик)
-  tickWorld(dt, { room = false, slow = false } = {}) {
+  // other — мир, где только гости (не свой): свой герой тут не подбирает, не открывает карту и т. п.
+  tickWorld(dt, { room = false, slow = false, other = false } = {}) {
     const full = !room && !slow;
+    const mine = !other && !slow && (this.player.worldId ?? "main") === this.activeWorld.id;
     const { engine, player } = this;
     if (!room) this.updateResidents(dt); // страж погиб — вернётся через минуту
-    if (full && !this.world.floor) this.voidCheck(dt); // летающие острова: упал в бездну
+    if (full && mine && !this.world.floor) this.voidCheck(dt); // летающие острова: упал в бездну
     // Большой мир — по частям: раз в секунду подгрузить близкие куски, выгрузить дальние (ChunkStore.stream)
     this.streamIn = (this.streamIn ?? 1) - (full ? dt : 0);
     if (this.streamIn <= 0) {
@@ -580,7 +582,7 @@ export class GameScene extends Scene {
     profiler.end(PROF.traps);
     // Автоподбор (V — вкл/выкл): всё, что лежит рядом, само попадает в сумку
     profiler.begin(PROF.items);
-    if (!slow && this.settings.general.autoLoot !== false && player.alive) {
+    if (mine && this.settings.general.autoLoot !== false && player.alive) {
       this.pickups.autoCollect(player, PICKUP_AUTO_RADIUS, (p) => this.pickUp(p, { quiet: true }));
     }
     profiler.end(PROF.items);
@@ -588,8 +590,8 @@ export class GameScene extends Scene {
     this.updateFuses(dt); // динамит догорает — взрыв
     if (!room) this.updateLairs(dt); // боссы в логовах: появление, через 3 мин после гибели — новый
     this.bossWarnings(); // запал раздутого — красный круг на земле
-    if (!slow && player.alive) this.ultimate.update(dt); // заряд ульты со временем
-    if (full) this.fog.reveal(player.position); // туман войны: открываем карту вокруг героя
+    if (mine && player.alive) this.ultimate.update(dt); // заряд ульты со временем
+    if (full && mine) this.fog.reveal(player.position); // туман войны: открываем карту вокруг героя
     profiler.end(PROF.world);
     // Поиск пути — не больше 6 пересчётов за кадр (нашествие: десятки мобов разом), остальные — в следующих
     pathBudget(6);
