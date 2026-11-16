@@ -17,7 +17,7 @@ export class BatBrain extends Brain {
     super();
     Object.assign(this, {
       aggroRadius: 18, leash: 45, speed: 4.5, orbit: [2.5, 3.5], hover: [1, 1.5], wait: [4, 5], diveHeight: 2.25,
-      diveSpeed: 11, retreat: 1.2, flap: { every: 0.3, impulse: 4.4 }, maxFall: 6,
+      diveSpeed: 11, retreat: 1.2, climbChance: 0.15, climb: [2, 3], flap: { every: 0.3, impulse: 4.4 }, maxFall: 6,
     }, o);
   }
 
@@ -96,16 +96,27 @@ export class BatBrain extends Brain {
       e.hoverH ??= rnd(this.hover);
       e.orbitA = (e.orbitA ?? Math.atan2(e.position.x - tp.x, e.position.z - tp.z)) + (dt * this.speed) / e.orbitR;
       this.steer(e, tp.x + Math.sin(e.orbitA) * e.orbitR, tp.z + Math.cos(e.orbitA) * e.orbitR, this.speed);
-      this.fly(e, dt, tp.y + th * 0.6 + e.hoverH);
+      // высота круга: за целью вверх — да, вниз — нет (герой спрыгнул — мышь осталась выше: повод для пике)
+      const hy = tp.y + th * 0.6 + e.hoverH;
+      e.hoverY = e.hoverY === undefined ? hy : Math.max(e.hoverY, hy);
+      this.fly(e, dt, e.hoverY);
       if (e.batTimer <= 0) {
         const above = e.position.y - tp.y - th * 0.6;
-        e.batState = above > this.diveHeight ? "dive" : "approach";
-        e.batTimer = e.batState === "dive" ? 1.6 : 4;
-        if (e.batState === "dive") {
-          e.diving = true;
-          e.diveFrom = { x: e.position.x - tp.x, z: e.position.z - tp.z }; // откуда налетел — потом в обратную сторону
+        if (above > this.diveHeight) this.startDive(e, tp);
+        else if (Math.random() < this.climbChance) { // взмывает на 2–3 блока — и пике (всегда)
+          e.batState = "climb";
+          e.climbY = e.position.y + rnd(this.climb);
+          e.batTimer = 2.5;
+        } else {
+          e.batState = "approach";
+          e.batTimer = 4;
         }
       }
+    } else if (e.batState === "climb") {
+      this.steer(e, e.position.x, e.position.z, 0); // зависла и машет вверх
+      e.yaw = Math.atan2(tp.x - e.position.x, tp.z - e.position.z);
+      this.fly(e, dt, e.climbY + 0.5);
+      if (e.position.y >= e.climbY || e.batTimer <= 0) this.startDive(e, tp);
     } else if (e.batState === "dive") {
       // крылья сложены: серединой тела — прямо в голову цели (доворачивает)
       const cx = tp.x - e.position.x, cy = tp.y + th * HEAD - (e.position.y + e.height * 0.5), cz = tp.z - e.position.z, l = Math.hypot(cx, cy, cz) || 1;
@@ -134,6 +145,7 @@ export class BatBrain extends Brain {
         e.batState = "circle";
         e.batTimer = rnd(this.wait);
         e.hoverH = rnd(this.hover);
+        e.hoverY = undefined; // новая высота круга — от цели
         e.orbitA = undefined;
       }
     }
@@ -154,6 +166,13 @@ export class BatBrain extends Brain {
     e.sidestep = { x: px * s * 3 + (dx / l) * 1, z: pz * s * 3 + (dz / l) * 1, t: 0.6 };
     this.steer(e, e.position.x + e.sidestep.x, e.position.z + e.sidestep.z, this.speed); // сразу вбок
     return true;
+  }
+
+  startDive(e, tp) {
+    e.batState = "dive";
+    e.batTimer = 1.6;
+    e.diving = true;
+    e.diveFrom = { x: e.position.x - tp.x, z: e.position.z - tp.z }; // откуда налетела — потом в обратную сторону
   }
 
   startRetreat(e, dx, dz, delay = 0) {
