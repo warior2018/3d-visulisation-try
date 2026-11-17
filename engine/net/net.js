@@ -134,6 +134,8 @@ export class NetClient {
 
   connect(host, port = DEFAULT_PORT, timeoutMs = 5000) {
     return new Promise((resolve, reject) => {
+      this.host = host; // куда подключались (переподключение — туда же)
+      this.port = port;
       const s = net.createConnection({ host, port });
       const timer = setTimeout(() => {
         s.destroy();
@@ -150,8 +152,9 @@ export class NetClient {
         clearTimeout(timer);
         if (!this.connected) reject(e);
       });
-      reader(s, (msg) => this.onMessage?.(msg), (e) => this.close(e.message));
-      s.on("close", () => this.close("связь оборвалась"));
+      // старый сокет (до переподключения) закрылся позже — новый не трогаем
+      reader(s, (msg) => this.socket === s && this.onMessage?.(msg), (e) => this.socket === s && this.close(e.message));
+      s.on("close", () => this.socket === s && this.close("связь оборвалась"));
     });
   }
 

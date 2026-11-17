@@ -29,7 +29,10 @@ import { lowerBody } from "./pets.js";
 import { skinUnlocked } from "../skins.js";
 
 const SNAP_EVERY = 3; //   снимок раз в 3 тика (20 в секунду при 60 тиках)
-const TIMEOUT = 10000; // мс без единого сообщения — связь потеряна
+const TIMEOUT = 15000; // мс без единого сообщения — связь потеряна
+// Связь оборвалась (не сам вышел): герой гостя ждёт у хоста GRACE мс, гость сам переподключается (раз в RETRY мс)
+const GRACE = 45000, RETRY = 2000;
+const LAG_BYTES = 256 * 1024; // у хоста в очереди к гостю больше — снимки ему пропускаем (слабый интернет)
 // Копии у гостя рисуются с отставанием DELAY тиков (100 мс), между двумя снимками, которые обрамляют это время
 // (буфер интерполяции, как cl_interp в Source / Overwatch): снимок пришёл неровно или один потерялся — движение
 // всё равно ровное. Часы гостя (viewTick) идут сами и мягко подтягиваются к часам хоста
@@ -222,6 +225,14 @@ export class HostNet {
     if (this.ticks % 60 === 0) {
       const now = Date.now();
       for (const q of this.guests.values()) if (now - (q.peer.data.seen || now) > TIMEOUT) this.server.kick(q.peer, "timeout");
+      // не вернулся за GRACE — герой исчезает
+      for (const [name, gh] of this.ghosts || []) if (now > gh.until) {
+        this.ghosts.delete(name);
+        g.removeEntity(gh.hero);
+        g.engine.log(`сеть: ${name} не вернулся — ушёл`);
+        g.chat?.system(`${name} LEFT`);
+        this.server.broadcast({ t: "chat", from: "", text: `${name} LEFT` });
+      }
     }
     this.smoothGuests();
     if (g.match && !g.duel) g.teamPaused = !this.teamReady(); // матч: кто-то ещё выбирает класс / второе оружие — мир стоит
@@ -271,7 +282,14 @@ export class HostNet {
       const w = g.worldOf ? g.worldOf(q.hero) : g.activeWorld;
       const main = !g.worldOf || w === g.mainWorld;
       // предметы на земле — только главного мира (и только тем, кто в нём)
-      this.server.send(q.peer, { t: "snap", k: this.ticks, e: rows.get(w) || [], b, p: main ? p : undefined, h, inv, fx, tab, pt, pz: g.teamPaused ? 1 : 0, du: duelSnap(g) });
+      // гость не успевает принимать (очередь растёт) — снимок пропускаем, блоки копим ему на потом
+      if ((q.peer.socket.writableLength || 0) > LAG_BYTES) {
+        if (b) (q.lagB ||= []).push(...b);
+        continue;
+      }
+      const bb = q.lagB ? [...q.lagB, ...(b || [])] : b;
+      q.lagB = null;
+      this.server.send(q.peer, { t: "snap", k: this.ticks, e: rows.get(w) || [], b: bb, p: main ? p : undefined, h, inv, fx, tab, pt, pz: g.teamPaused ? 1 : 0, du: duelSnap(g) });
     }
   }
 
@@ -363,10 +381,14 @@ export class HostNet {
           return;
         }
         const p = g.player.position;
-        const spawn = { x: p.x + 1.5, y: p.y + 0.5, z: p.z + 1.5 };
-        const hero = g.spawn("player", spawn);
+        const name = String(msg.name || "GUEST").slice(0, 16).toUpperCase();
+        // переподключился (связь обрывалась): тот же герой, там же, где стоял
+        const ghost = this.ghosts?.get(name);
+        if (ghost) this.ghosts.delete(name);
+        const hero = ghost ? ghost.hero : g.spawn("player", { x: p.x + 1.5, y: p.y + 0.5, z: p.z + 1.5 });
+        const spawn = { x: hero.position.x, y: hero.position.y, z: hero.position.z };
         hero.remote = true; // двигает сеть: физика и мозги его не трогают
-        hero.name = String(msg.name || "GUEST").slice(0, 16).toUpperCase();
+        hero.name = name;
         setSkins(g, hero, msg.sk); // скины гостя — на его герое у хоста
         this.skinsDirty = true; //    и всем — с ближайшим снимком
         // по гостю попали (мобы на хосте) — урон уходит гостю; здесь он не умирает (здоровье — у гостя)
@@ -376,21 +398,34 @@ export class HostNet {
           this.server.send(peer, { t: "hurt", n: dealt, a: d.amount, p: d.part || null, from: d.source?.name || "", k: d.kind || null, s: d.shot || null, si: d.source ? netId(d.source) : 0 });
           hero.stats.hp = Math.max(1, this.guests.get(peer.id)?.hp ?? hero.stats.maxHp); // как у гостя (state)
         };
-        this.guests.set(peer.id, { peer, hero, name: hero.name });
+        this.guests.set(peer.id, { peer, hero, name: hero.name, cls: ghost?.cls || null, sub: ghost?.sub || null, hp: ghost?.hp });
         const surfaces = [];
         const chunks = [];
         for (const c of g.world.chunks.values()) if (c.blocks.size) chunks.push([c.cx, c.cz, encodeChunk(c, surfaces).toString("base64")]);
         this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn });
-        g.engine.log(`сеть: подключился ${hero.name} (${peer.address}), отправлено кусков мира ${chunks.length}`);
-        g.engine.toast(`${hero.name} JOINED`, 3000);
-        g.chat?.system(`${hero.name} JOINED`);
-        this.server.broadcast({ t: "chat", from: "", text: `${hero.name} JOINED` }, peer);
+        g.engine.log(`сеть: ${ghost ? "вернулся" : "подключился"} ${hero.name} (${peer.address}), отправлено кусков мира ${chunks.length}`);
+        const said = `${hero.name} ${ghost ? "RECONNECTED" : "JOINED"}`;
+        g.engine.toast(said, 3000);
+        g.chat?.system(said);
+        this.server.broadcast({ t: "chat", from: "", text: said }, peer);
         return;
       }
+      case "quit": // гость выходит сам — ждать его не надо
+        if (guest) guest.quit = true;
+        return;
       case "leave": {
         if (!guest) return;
-        g.removeEntity(guest.hero);
         this.guests.delete(peer.id);
+        // связь оборвалась (не сам вышел): герой стоит и ждёт GRACE — гость переподключится
+        if (!guest.quit && !g.duel) {
+          (this.ghosts ||= new Map()).set(guest.name, { hero: guest.hero, until: Date.now() + GRACE, cls: guest.cls, sub: guest.sub, hp: guest.hp });
+          guest.hero.netWalk = false;
+          g.engine.log(`сеть: ${guest.name} потерял связь (${msg.reason || ""}) — ждём ${GRACE / 1000} с`);
+          g.chat?.system(`${guest.name} LOST CONNECTION`);
+          this.server.broadcast({ t: "chat", from: "", text: `${guest.name} LOST CONNECTION` });
+          return;
+        }
+        g.removeEntity(guest.hero);
         g.engine.log(`сеть: ${guest.name} отключился (${msg.reason || ""})`);
         g.engine.toast(`${guest.name} LEFT`, 3000);
         g.chat?.system(`${guest.name} LEFT`);
@@ -577,7 +612,18 @@ export class ClientNet {
 
   tick(dt) {
     const g = this.g;
-    for (const msg of this.inbox.splice(0)) this.handle(msg);
+    // пришло сразу много снимков (залагало) — целиком разбираем только последний, из прочих — блоки и эффекты
+    const msgs = this.inbox.splice(0);
+    let last = -1;
+    for (let i = 0; i < msgs.length; i++) if (msgs[i].t === "snap") last = i;
+    msgs.forEach((msg, i) => {
+      if (msg.t === "snap" && i !== last) {
+        if (!this.ready) return;
+        this.applyBlocks(msg.b);
+        this.fx.play(msg.fx, this.you);
+      } else this.handle(msg);
+    });
+    if (this.reconnectUntil) return this.tryReconnect();
     // раз в секунду — ping; хост молчит дольше TIMEOUT — связь потеряна
     if (this.ticks % 60 === 0) {
       this.client.send({ t: "ping", ts: Date.now(), ms: this.ping ?? 0 });
@@ -645,6 +691,10 @@ export class ClientNet {
         for (const [cx, cz, data] of msg.chunks || []) decodeChunk(Buffer.from(data, "base64"), cx, cz, w, surfaces);
         w.quiet = false;
         for (const e of [...g.entities.list]) if (e !== g.player) g.removeEntity(e);
+        this.copies.clear(); // (переподключение) старые копии — заново из снимков
+        this.items.clear();
+        this.taken.clear();
+        this.hostTick = this.viewTick = undefined;
         g.pickups.clear();
         g.traps.clear();
         for (const k of [...(g.netTraps?.keys() || [])]) applyTrap(g, { a: 0, k });
@@ -763,12 +813,46 @@ export class ClientNet {
         return;
       case "bye":
       case "closed":
+        // связь оборвалась / хост отключил за молчание — не в меню, а переподключаемся (герой ждёт у хоста)
+        if (this.ready && !this.leaving && (msg.t === "closed" || msg.reason === "timeout")) {
+          g.engine.log(`сеть: связь потеряна (${msg.reason || ""}) — переподключаемся`);
+          g.engine.toast("CONNECTION LOST, RECONNECTING...", 3000);
+          this.ready = false;
+          this.client.close("переподключение");
+          this.reconnectUntil = Date.now() + GRACE - 5000;
+          this.retryAt = 0;
+          return;
+        }
+        if (this.reconnectUntil) return; // старое «закрыто» во время попыток
         g.engine.log(`сеть: отключены (${msg.reason || ""})`);
         g.engine.toast(`DISCONNECTED${msg.reason ? ": " + String(msg.reason).toUpperCase() : ""}`, 4000);
         this.ready = false;
         g.game.toMenu?.();
         return;
     }
+  }
+
+  // Переподключение: раз в RETRY мс к тому же хосту; не вышло за отведённое — в меню
+  tryReconnect() {
+    const now = Date.now();
+    if (this.client.connected || this.connecting) return;
+    if (now > this.reconnectUntil) {
+      this.reconnectUntil = 0;
+      this.g.engine.toast("DISCONNECTED", 4000);
+      this.g.game.toMenu?.();
+      return;
+    }
+    if (now < this.retryAt) return;
+    this.retryAt = now + RETRY;
+    this.connecting = true;
+    this.client.connect(this.client.host, this.client.port, RETRY).then(() => {
+      this.connecting = false;
+      this.reconnectUntil = 0;
+      this.lastHeard = Date.now();
+      this.start(); // hello — хост узнает по имени и вернёт нашего героя
+    }, () => {
+      this.connecting = false;
+    });
   }
 
   applyBlocks(list) {
@@ -881,6 +965,15 @@ export class ClientNet {
   }
 
   close() {
+    this.leaving = true;
+    this.reconnectUntil = 0;
+    this.client.send({ t: "quit" }); // сами выходим — хосту не ждать нас
+    const sock = this.client.socket; // мягко: «quit» успеет уйти до закрытия
+    if (sock) {
+      this.client.connected = false;
+      this.client.socket = null;
+      sock.end();
+    }
     this.g.world.onChange = null;
     this.fx.close();
     this.undoPickups?.();
