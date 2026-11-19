@@ -510,7 +510,17 @@ export class GameScene extends Scene {
     if (player.mount) move = this.rideTick(dt); // верхом: ведём скакуна (scene/mount.js)
     else {
       this.hammerControl(dt); // удар молотом: медленнее ходим, быстрее падаем; JUMP SLAM — прыжок выше
+      if (this.flying) { // консоль fly: прыжок — вверх, присед — вниз, иначе висим
+        const inp = this.controller.input, up = inp.isDown("jump") ? 1 : 0, down = inp.isDown("crouch") ? 1 : 0;
+        player.velocity.y = (up - down) * PLAYER.speed * 1.5;
+        this.controller.jumpBlocked = true;
+      }
       move = this.controller.update(dt, this.look.yaw);
+      if (this.flying) {
+        this.controller.jumpBlocked = false;
+        this.controller.peakY = null; // летим — не падение
+        this.groundY = player.position.y;
+      }
     }
     this.move = move;
     if (player.onGround) this.groundY = player.position.y; // откуда оторвались от земли (урон от падения — от этой высоты)

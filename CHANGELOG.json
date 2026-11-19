@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.100.12",
+    "date": "2026-11-19",
+    "title": "Console: kill and fly",
+    "changes": [
+      "Команда kill [-r радиус] [-m моб] [-e] [-n]: убить в радиусе / один вид / врагов / нейтральных",
+      "Команда fly: полёт вкл/выкл (прыжок — вверх, присед — вниз)"
+    ]
+  },
+  {
     "version": "0.100.11",
     "date": "2026-11-19",
     "title": "Fix: closing a chest in a portal room threw you out",

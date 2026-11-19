@@ -25,6 +25,13 @@ export function registerCommands(g) {
   };
 
   c.command("god", { help: "god - invulnerability on/off", cheat: true, run: () => `GOD ${(g.god = !g.god) ? "ON" : "OFF"}` });
+  // fly: полёт вкл/выкл — тяжести нет, прыжок — вверх, присед — вниз (game-scene: flyControl); урона от падения нет
+  c.command("fly", { help: "fly - flying on/off (jump - up, crouch - down)", cheat: true, run: () => {
+    g.flying = !g.flying;
+    g.player.noGravity = g.flying;
+    if (!g.flying) g.groundY = undefined;
+    return `FLY ${g.flying ? "ON" : "OFF"}`;
+  } });
   c.command("heal", { help: "heal - full health and mana", cheat: true, run: () => {
     g.player.stats.hp = g.player.stats.maxHp;
     if (g.player.stats.maxMana) g.player.stats.mana = g.player.stats.maxMana;
@@ -51,6 +58,37 @@ export function registerCommands(g) {
   c.command("killall", { help: "killall [creature] - kill all mobs (or one kind)", cheat: true, run: ([type]) => {
     let n = 0;
     for (const e of g.entities.list) if (e.alive && e.kind === "mob" && !e.remote && (!type || e.type === type)) { e.damage(e.stats.hp); n++; }
+    return `KILLED ${n}`;
+  } });
+  // kill [-r радиус] [-m моб] [-e] [-n]: убить существ. -r — только ближе радиуса (м) к герою; -m — только этот вид
+  // (spawn без имени — список); -e — врагов, -n — нейтральных (звери, стража, светлячки); без -e/-n — и тех и других.
+  // Героев (свой, гости) и своих (маунт, питомцы) не трогает
+  c.command("kill", { help: "kill [-r radius] [-m mob] [-e] [-n] - kill creatures: in radius / one kind / enemies / neutral", cheat: true, run: (a) => {
+    let radius = Infinity, type = null, enemies = false, neutral = false;
+    for (let i = 0; i < a.length; i++) {
+      const f = String(a[i]).toLowerCase();
+      if (f === "-r") radius = num(a[++i], "radius");
+      else if (f === "-m") {
+        type = String(a[++i] || "").toLowerCase();
+        if (!CREATURES[type] && type !== "firefly") throw new Error(`no creature "${type}"`);
+      } else if (f === "-e") enemies = true;
+      else if (f === "-n") neutral = true;
+      else throw new Error(`unknown flag "${a[i]}" (use -r, -m, -e, -n)`);
+    }
+    if (!enemies && !neutral) enemies = neutral = true;
+    const p = g.player, me = p.position;
+    let n = 0;
+    for (const e of [...g.entities.list]) {
+      if (!e.alive || e === p || e.remote || e.type === "player") continue;
+      if (e.owner === p || e.followOf === p || e === p.mount || e === g.waitingSteed) continue; // свои
+      if (type && e.type !== type) continue;
+      const enemy = e.kind === "mob" || e.isHostileTo?.(p);
+      if (enemy ? !enemies : !neutral) continue;
+      if (Math.hypot(e.position.x - me.x, e.position.y - me.y, e.position.z - me.z) > radius) continue;
+      e.invulnerable = false;
+      e.damage(e.stats.hp);
+      n++;
+    }
     return `KILLED ${n}`;
   } });
   c.command("xp", { help: "xp <amount> - gain experience", cheat: true, run: ([n]) => { g.gainXp(num(n, "amount")); return `LEVEL ${g.experience.level}`; } });

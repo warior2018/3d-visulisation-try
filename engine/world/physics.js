@@ -87,7 +87,7 @@ export class Physics {
     // Тяжесть — половину до движения и половину после. Если вычесть всю сразу,
     // прыжок получится ниже задуманного (1.14 вместо 1.2): мы бы «тормозили» слишком рано.
     // С половинками путь за кадр точный: v·t − g·t²/2, как в школьной формуле.
-    const half = this.gravity * dt * 0.5;
+    const half = e.noGravity ? 0 : this.gravity * dt * 0.5; // noGravity — летает (консоль: fly)
     e.velocity.y = Math.max(e.velocity.y - half, -MAX_FALL);
 
     const v = e.velocity;
