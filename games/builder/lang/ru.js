@@ -1072,7 +1072,7 @@ export const RU = {
   "RECORD REPLAY (DEV)": "ЗАПИСЬ ПОВТОРА (РАЗРАБОТКА)",
   "RECORDING REPLAY - F7 TO STOP": "ИДЁТ ЗАПИСЬ ПОВТОРА - F7, ЧТОБЫ ОСТАНОВИТЬ",
   "RECORDS": "РЕКОРДЫ",
-  "RED CROSS - WORLD CENTER (0, 0). PURPLE SKULL - BOSS": "КРАСНЫЙ КРЕСТ - ЦЕНТР МИРА (0, 0). ФИОЛЕТОВЫЙ ЧЕРЕП - БОСС",
+  "RED CROSS - WORLD CENTER (0, 0). PURPLE SKULL - BOSS. GREEN SKULL - MINIBOSS. PURPLE DOT - PORTAL": "КРАСНЫЙ КРЕСТ - ЦЕНТР МИРА (0, 0). ФИОЛЕТОВЫЙ ЧЕРЕП - БОСС. ЗЕЛЁНЫЙ ЧЕРЕП - МИНИБОСС. ФИОЛЕТОВАЯ ТОЧКА - ПОРТАЛ",
   "RED STEEL FOR A RED NIGHT": "КРАСНАЯ СТАЛЬ ДЛЯ КРАСНОЙ НОЧИ",
   "REFLECT": "ОТРАЖЕНИЕ",
   "REFLEX TRAP": "ЛОВУШКА-РЕФЛЕКС",

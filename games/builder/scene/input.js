@@ -20,7 +20,7 @@ export class InputPart {
     if (has("inventory")) return this.openInventory();
     if (has("talents")) return this.openTalents();
     if (has("map")) this.hints?.event("map");
-    if (has("map")) return this.pushLive(new MapScene({ map: () => this.mapData(), radius: 60, info: () => this.coordsText(), legend: "RED CROSS - WORLD CENTER (0, 0). PURPLE SKULL - BOSS" }));
+    if (has("map")) return this.pushLive(new MapScene({ map: () => this.mapData(), radius: 60, info: () => this.coordsText(), legend: "RED CROSS - WORLD CENTER (0, 0). PURPLE SKULL - BOSS. GREEN SKULL - MINIBOSS. PURPLE DOT - PORTAL" }));
     if (has("save")) this.save();
     if (has("autoLoot")) this.toggleAutoLoot(); // V — автоподбор вкл/выкл (вид камеры — только в настройках)
     if (has("interact")) this.interact();

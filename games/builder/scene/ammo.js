@@ -133,8 +133,11 @@ export class AmmoPart {
       fog: this.fog, // туман войны: не разведано — темно, далеко — серым, враги видны только рядом
       markers: [
         ...this.entities.list
-          .filter((e) => e !== this.player && e.alive && this.mobOnMap(e))
-          .map((e) => ({ x: e.position.x, z: e.position.z, ...markerFor(e), ...(e.kind === "mob" && !e.boss ? { scale: MAP_MOBS.scale } : {}) })),
+          .filter((e) => e !== this.player && e.alive && (e.miniboss || this.mobOnMap(e)))
+          // минибосс — виден всегда (и в тумане), крупнее, с именем
+          .map((e) => ({ x: e.position.x, z: e.position.z, ...markerFor(e), ...(e.miniboss ? { label: this.tr(e.name), always: true, scale: 1.2 } : e.kind === "mob" && !e.boss ? { scale: MAP_MOBS.scale } : {}) })),
+        // фиолетовые порталы (scene/portals.js) — видны всегда; врата небесных островов — нет
+        ...(this.inMain() ? this.portals || [] : []).map((o) => ({ x: o.x, z: o.z, icon: "dot", color: [190, 90, 255], scale: 1.6, always: true })),
         // Камни и прочее на земле — маленькие серые точки
         ...this.pickups.list.map((p) => ({ x: p.position.x, z: p.position.z, icon: "pebble", color: [150, 150, 158] })),
         // Боссы: где живут (логово / площадка) — видно всегда, за краем карты — прижато к краю;

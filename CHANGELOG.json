@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.106.10",
+    "date": "2026-11-19",
+    "title": "Map: minibosses and portals",
+    "changes": [
+      "Minibosses are always shown on the map with their name; purple portals are always shown"
+    ]
+  },
+  {
     "version": "0.106.9",
     "date": "2026-11-19",
     "title": "More boss lairs on big worlds",
