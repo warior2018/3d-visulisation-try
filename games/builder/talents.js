@@ -21,7 +21,7 @@
 import { SUBCLASS, HAMMER, FALL_DAMAGE, DEMO, PARRY, KILL_BUFF, EVASION } from "./config.js";
 // Модификаторы движка — для новых талантов (пока не используются)
 import {
-  damageMultiplier, cooldownReduction, guaranteedCrit, withStatus, convertTo, bleed, stun, Slow,
+  damageMultiplier, cooldownReduction, lifesteal, guaranteedCrit, withStatus, convertTo, bleed, stun, Slow,
   vsStunned, headshotBonus, rampPerHit, onlyAttack, reachBonus, critical, Modifier, DamageOverTime,
 } from "../../engine/index.js";
 
@@ -160,6 +160,9 @@ function buildTree(mode) {
         ...chain(3, [
           { id: "m-venom", name: "VENOM", maxRank: 4, cost: 1, describe: (r) => `HITS POISON: ${pct(at([0.1, 0.1725, 0.245, 0.3175], r))} OF THE HIT PER S FOR 5 S (UP TO 3 STACKS)`,
             modifiers: (r) => [venom(at([0.1, 0.1725, 0.245, 0.3175], r))] },
+        ]),
+        // кровотечение — отдельно от яда (действует по-другому и на разных врагов по-разному)
+        ...chain(4, [
           { id: "m-bleed", name: "BLEED", maxRank: 3, cost: GENERAL, describe: (r) => `HITS BLEED ${pct(at([0.08, 0.12, 0.16], r))} MAX HP IN 3 S (UP TO 3 STACKS)`,
             modifiers: (r) => [withStatus(bleed(at([0.08, 0.12, 0.16], r)))] },
         ]),
@@ -195,12 +198,15 @@ function buildTree(mode) {
           { id: "v-regen", name: "REGEN", maxRank: 4, cost: 1, describe: (r) => `+${1.25 * r}% MAX HP PER SECOND`, stats: (r) => ({ regenPct: 0.0125 * r }) },
           { id: "trophies", name: "TROPHIES", maxRank: 1, cost: 4, describe: () => `+${TROPHY.hpPerKill} MAX HP PER KILL (NOW +${Math.floor(TROPHY.hp)} HP)` },
         ]),
-        ...chain(1, [
+        // LIFESTEAL — ответвление от REGEN (половина его рангов)
+        { id: "v-lifesteal", name: "LIFESTEAL", maxRank: 3, cost: 2, col: 1, row: 2, requires: ["v-regen"], requiresRank: 2,
+          describe: (r) => `${5 * r}% OF DMG DEALT AS HEALTH`, modifiers: (r) => [lifesteal(0.05 * r)] },
+        ...chain(2, [
           { id: "v-speed", name: "SPEED", maxRank: 4, cost: 1, describe: (r) => `+${pct(0.075 * r)} SPEED`, stats: (r) => ({ speed: 0.075 * r }) },
           { id: "v-jump", name: "JUMP", maxRank: 2, cost: 1, describe: (r) => `JUMP +${15 * r}% HIGHER (FALL DMG STARTS HIGHER TOO)`, stats: (r) => ({ jumpMult: 0.15 * r }) },
           { id: "v-double", name: "DOUBLE JUMP", maxRank: 1, cost: 3, describe: () => "ONE MORE JUMP IN THE AIR (80% HEIGHT)", stats: () => ({ extraJumps: 1 }) },
         ]),
-        ...chain(2, [
+        ...chain(3, [
           { id: "v-fortune", name: "FORTUNE", maxRank: 4, cost: 1, describe: (r) => `+${12.5 * r}% LUCK: RARE GEAR FROM MOBS AND BOSSES MORE OFTEN`, stats: (r) => ({ luck: 0.125 * r }) },
           { id: "v-evasion", name: "EVASION", maxRank: 4, cost: 2, describe: (r) => `${10 * r}% CHANCE TO DODGE A HIT: UP TO ${EVASION.cap * 100}% MAX HP OF IT IS IGNORED`, stats: (r) => ({ evasion: 0.1 * r }) },
         ]),

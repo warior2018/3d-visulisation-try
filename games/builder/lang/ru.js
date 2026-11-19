@@ -13,6 +13,7 @@ export const RU = {
   " XP": " XP",
   " x${A.pellets} PELLETS": " x${A.pellets} ДРОБИНОК",
   "${10 * r}% CHANCE TO DODGE A HIT: UP TO ${EVASION.cap * 100}% MAX HP OF IT IS IGNORED": "${10 * r}% ШАНС УВЕРНУТЬСЯ: ДО ${EVASION.cap * 100}% МАКС. ЗДОРОВЬЯ УДАРА НЕ ПРОХОДИТ",
+  "${5 * r}% OF DMG DEALT AS HEALTH": "${5 * r}% УРОНА - В ЗДОРОВЬЕ",
   "${A.handGrenade.damage} DMG TO ALL WITHIN ${A.handGrenade.radius} BLOCKS WHERE IT HITS. ENDLESS": "${A.handGrenade.damage} УРОНА ВСЕМ В ${A.handGrenade.radius} БЛОКАХ ОТ МЕСТА ВЗРЫВА. БЕСКОНЕЧНЫЕ",
   "${A.katana.damage} DMG TO ALL AHEAD (UP TO ${A.katana.maxTargets})": "${A.katana.damage} УРОНА ВСЕМ ВПЕРЕДИ (ДО ${A.katana.maxTargets})",
   "${A.machete.damage} DMG, UP TO ${A.machete.maxTargets} ENEMIES IN FRONT": "${A.machete.damage} УРОНА, ДО ${A.machete.maxTargets} ВРАГОВ ВПЕРЕДИ",
