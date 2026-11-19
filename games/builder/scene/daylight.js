@@ -90,6 +90,7 @@ export class DaylightPart {
   updateDaylight(dt) {
     this.updateTorch(dt);
     this.updateFlashes?.(dt); // вспышки света: выстрелы, взрывы, снаряды (scene/effects.js)
+    this.statusFx?.(dt); //   горение (огонь, дым) и кровотечение (капли) — видно на существах
     const on = this.settings.general.dayNight !== false;
     if (on) this.dayTime = ((this.dayTime ?? DAY.start) + dt / DAY.length) % 1;
     const r = this.engine.renderer;

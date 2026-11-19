@@ -97,7 +97,7 @@ export class MobKindsPart {
     const p = e.position;
     if (lightAt(this.world, Math.floor(p.x), Math.floor(p.y + e.height * 0.8), Math.floor(p.z)).sky < S.sky) return; // в тени / в пещере
     e.receive(new Damage({ amount: e.stats.maxHp * S.pct, type: "pure", kind: "magic", tags: ["dot", "sun"] }));
-    this.fx?.burst({ x: p.x, y: p.y + e.height * 0.8, z: p.z }, { count: 3, speed: 0.6, color: [255, 170, 60], size: 0.07, life: 0.5, gravity: -2, drag: 2 });
+    e.sunBurnT = S.every + 0.15; // горит на солнце — огонь и дым (scene/effects.js → statusFx)
   }
 
   shamanTick(e, dt, S) {

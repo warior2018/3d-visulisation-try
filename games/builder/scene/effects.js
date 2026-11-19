@@ -4,6 +4,7 @@
 // ============================================================
 
 import { FX, FLASH, TORCH } from "../config.js";
+import { skinFx } from "../skins.js";
 
 export class EffectsPart {
   // Попали по существу: брызги его «крови» (у скелета — костяная крошка) от удара
@@ -58,6 +59,43 @@ export class EffectsPart {
     if (cam && list.length > 8) list.sort((a, b) => Math.hypot(a.x - cam.x, a.y - cam.y, a.z - cam.z) - Math.hypot(b.x - cam.x, b.y - cam.y, b.z - cam.z));
     this.activeLights = list.slice(0, 8);
     this.engine.renderer?.setLights?.(this.settings.graphics?.lighting === false ? [] : this.activeLights);
+  }
+
+  // Каждый кадр: видно состояние существ. Горит (горение от оружия / талантов — цвет скина оружия, без скина —
+  // жёлто-оранжевый; солнце — e.sunBurnT) — языки огня вверх и серо-белый дым; кровотечение — капли крови
+  // падают с тела вниз (ускоряясь) и ложатся у ног
+  statusFx(dt) {
+    const fx = this.fx;
+    if (!fx || dt <= 0) return;
+    const chance = (perSec) => Math.random() < perSec * dt;
+    for (const e of this.entities.list) {
+      if (!e.alive || e.firefly) continue;
+      const h = e.height || 1.6, r = Math.max(0.15, (e.radius || 0.3) * 0.9), p = e.position;
+      const onBody = (lo, hi) => ({ x: p.x + (Math.random() * 2 - 1) * r, y: p.y + h * (lo + Math.random() * (hi - lo)), z: p.z + (Math.random() * 2 - 1) * r });
+      const burnSt = e.statuses.find((s) => s.id === "burn");
+      if (e.sunBurnT > 0) e.sunBurnT -= dt;
+      if (burnSt || e.sunBurnT > 0) {
+        // цвет: скин оружия героя, который поджёг (запоминаем на статусе при первом кадре); иначе — базовый
+        if (burnSt && burnSt.fxColor === undefined) burnSt.fxColor = burnSt.source === this.player ? skinFx(this.settings, this.abilities?.current?.id) || null : null;
+        const base = burnSt?.fxColor || null;
+        const big = Math.min(2.5, h / 1.6);
+        for (let i = 0; i < 2; i++) if (chance(14 * big)) {
+          const hot = Math.random() < 0.45;
+          const color = base ? base.map((c) => Math.min(255, c * (hot ? 1.25 : 1))) : hot ? [255, 225, 90] : [255, 140, 40];
+          fx.emit({ at: onBody(0.1, 0.9), vel: { x: (Math.random() - 0.5) * 0.4, y: 0.8 + Math.random() * 0.8, z: (Math.random() - 0.5) * 0.4 }, life: 0.35 + Math.random() * 0.25, size: 0.05 + Math.random() * 0.04, color, gravity: -2.5, drag: 1.5, grow: 0.3 });
+        }
+        if (chance(5 * big)) {
+          const g = 120 + Math.random() * 110; // от серого до почти белого
+          fx.emit({ at: onBody(0.7, 1.05), vel: { x: (Math.random() - 0.5) * 0.3, y: 0.6 + Math.random() * 0.5, z: (Math.random() - 0.5) * 0.3 }, life: 1 + Math.random() * 0.6, size: 0.08 + Math.random() * 0.05, color: [g, g, g + 5], alpha: 0.7, gravity: -0.8, drag: 1, grow: 2.2 });
+        }
+      }
+      // кровотечение: капли (стопки — чаще)
+      const stacks = e.statuses.filter((s) => s.id === "bleed").length;
+      if (stacks && chance(4 + 3 * stacks)) {
+        const dark = Math.random() < 0.4;
+        fx.emit({ at: onBody(0.25, 0.85), vel: { x: (Math.random() - 0.5) * 0.3, y: 0, z: (Math.random() - 0.5) * 0.3 }, life: 1.2, size: 0.035 + Math.random() * 0.02, color: dark ? [120, 10, 12] : [190, 20, 24], gravity: 14, ground: p.y + 0.02, bounce: 0, fade: true });
+      }
+    }
   }
 
   // Свет вспышек в точке (модели: lightHere)
