@@ -705,8 +705,8 @@ export class GameScene extends Scene {
       const wildBoar = e.type === "boar";
       const gone = e.boss || e.guardOf || this.slowTick ? false : // (главный мир, пока герой в комнате портала, — не чистим) // босс и охрана сундука не пропадают
         e.kind === "mob"
-        ? (!e.aggro && (dist > SPAWN.despawnDistance || (e.age > LIFETIME.mob && dist > LIFETIME.keep))) || (dist > SPAWN.huntDespawn && !this.invasion.active)
-        : wildBoar && dist > SPAWN.despawnDistance;
+        ? (!e.aggro && (dist > (this.despawnDist || SPAWN.despawnDistance) || (e.age > LIFETIME.mob && dist > LIFETIME.keep))) || (dist > (this.huntDespawn || SPAWN.huntDespawn) && !this.invasion.active)
+        : wildBoar && dist > (this.despawnDist || SPAWN.despawnDistance);
       if (gone) {
         this.engine.log(`${e.name} ушёл далеко (${dist.toFixed(0)} м) — исчез`);
         this.removeEntity(e);

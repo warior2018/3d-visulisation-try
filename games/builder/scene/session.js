@@ -31,7 +31,13 @@ export class SessionPart {
     this.setupLights(); // светящиеся блоки (LIGHTS) — до загрузки: лампы из сохранения сразу светят (scene/daylight.js)
     this.cheats = info.cheats !== false; // читы консоли (галочка при создании мира; у старых миров — включены)
     this.worldgen = worldgenFor(info.size || 3, !!info.floating);
-    this.mobMax = WORLD_SIZES[info.size]?.mobs || SPAWN.max; // предел мобов — от размера мира (старые миры — SPAWN.max)
+    // мобы — от размера мира (старые миры — как в SPAWN): предел, где появляются, когда исчезают
+    const WS = WORLD_SIZES[info.size];
+    this.mobMax = WS?.mobs || SPAWN.max;
+    this.spawnMin = WS?.spawn[0] || SPAWN.minPlayerDistance;
+    this.spawnMaxR = WS?.spawn[1] || VIEW_DISTANCE;
+    this.despawnDist = WS?.despawn || SPAWN.despawnDistance;
+    this.huntDespawn = Math.max(SPAWN.huntDespawn, this.despawnDist + 25);
     const saved = this.match ? null : loadGame(this.world); // блоки — сразу в мир; null — нового мира ещё нет
     // Рельеф: по зерну из сохранения (кубики уже в blocks — только высота земли для расчётов)
     // Параметры рельефа — из сохранения (старые миры — TERRAIN_V1: тогда остров был меньше)
@@ -164,14 +170,14 @@ export class SessionPart {
     if (!this.duel) for (const d of RESIDENTS) if (!this.entities.list.some((e) => e.type === d.type)) this.spawn(d.type, d);
 
     // Мобы появляются сами вокруг героя, в пределах прорисовки (правила — в config.js → SPAWN, MOB_MIX)
-    const view = VIEW_DISTANCE; // где появляются мобы — не от настройки графики (DRAW DISTANCE), у всех одинаково
+    const view = this.spawnMaxR; // где появляются мобы — от размера мира, не от настройки графики (DRAW DISTANCE), у всех одинаково
     // вокруг случайного из героев (сетевая игра: у гостя далеко от хоста тоже появляются)
     const around = () => {
       const list = this.heroes();
       return list.length ? list[Math.floor(Math.random() * list.length)].position : this.player.position;
     };
     // Не у героя под носом и не внутри построек (иначе физика вытолкнет моба на крышу)
-    const far = (x, z) => this.heroes().some((h) => Math.hypot(x - h.position.x, z - h.position.z) < SPAWN.minPlayerDistance) || this.onStructure(x, z)
+    const far = (x, z) => this.heroes().some((h) => Math.hypot(x - h.position.x, z - h.position.z) < this.spawnMin) || this.onStructure(x, z)
       || (!this.world.floor && !this.world.topBlock(Math.floor(x), Math.floor(z))) // летающие острова: не над бездной
       || this.tooHighOrLow(x, z); // по высоте далеко от героев (в пещере / на горе) — реже
     this.spawnRate = this.match ? MULTIPLAYER.spawn : 1; // матч: мобов больше (×1.3 чаще)
@@ -179,7 +185,7 @@ export class SessionPart {
       ...SPAWN,
       interval: SPAWN.interval / this.spawnRate,
       max: this.mobMax,
-      around, radius: view, minRadius: SPAWN.minPlayerDistance,
+      around, radius: view, minRadius: this.spawnMin,
       count: () => this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length, // босс логова не в счёт
       avoid: far,
       spawn: (x, z, index) => {
@@ -212,7 +218,7 @@ export class SessionPart {
     // Кабаны — редко (BOARS.chance), и не больше BOARS.max диких
     this.boarSpawner = new Spawner({
       ...BOARS,
-      around, radius: view, minRadius: SPAWN.minPlayerDistance,
+      around, radius: view, minRadius: this.spawnMin,
       count: () => this.entities.list.filter((e) => e.type === "boar").length,
       avoid: far,
       spawn: (x, z) => {

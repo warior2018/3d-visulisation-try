@@ -554,12 +554,13 @@ export const CLOUDS = { y: [40, 100], size: [20, 50], height: [6, 20], speed: [2
 // (оба постоянные, в обе стороны). trees — деревьев на острове; gateCooldown — с между прыжками порталом
 export const SKY_ISLANDS = { radius: [9, 14], lift: [40, 50], distance: [0.25, 0.55], trees: [2, 5], gateCooldown: 2 };
 // radius — радиус главного острова; islands — сколько маленьких; mountains / plateaus — сколько гор и плато;
-// castles — замков [от, до]; mobs — сколько мобов самое большее (вместо SPAWN.max); lairs — логов боссов самое большее (одно — всегда, лишние — с шансом bossChance); sky — небесных островов над главным (SKY_ISLANDS); построек и деревьев — по площади (WORLDGEN — на радиус 75, здесь пересчитываются)
+// castles — замков [от, до]; mobs — сколько мобов самое большее (вместо SPAWN.max);
+// spawn — где появляются мобы вокруг героя [от, до] м; despawn — дальше скольки м спокойный исчезает (злой — на 25 м дальше, не ближе SPAWN.huntDespawn); lairs — логов боссов самое большее (одно — всегда, лишние — с шансом bossChance); sky — небесных островов над главным (SKY_ISLANDS); построек и деревьев — по площади (WORLDGEN — на радиус 75, здесь пересчитываются)
 export const WORLD_SIZES = {
-  1: { name: "TINY", radius: 30, islands: [1, 2], mountains: 1, plateaus: 1, castles: [0, 0], sky: 0, lairs: 1, mobs: 30 },
-  2: { name: "SMALL", radius: 50, islands: [2, 3], mountains: 1, plateaus: 2, castles: [0, 0], sky: 0, lairs: 1, mobs: 45 },
-  3: { name: "MEDIUM", radius: 100, islands: [3, 5], mountains: 2, plateaus: 4, castles: [1, 1], sky: 1, lairs: 2, mobs: 60 },
-  4: { name: "LARGE", radius: 150, islands: [4, 6], mountains: 3, plateaus: 6, castles: [1, 4], sky: 2, lairs: 3, mobs: 75 },
+  1: { name: "TINY", radius: 30, islands: [1, 2], mountains: 1, plateaus: 1, castles: [0, 0], sky: 0, lairs: 1, mobs: 30, spawn: [10, 45], despawn: 55 },
+  2: { name: "SMALL", radius: 50, islands: [2, 3], mountains: 1, plateaus: 2, castles: [0, 0], sky: 0, lairs: 1, mobs: 45, spawn: [12, 66], despawn: 75 },
+  3: { name: "MEDIUM", radius: 100, islands: [3, 5], mountains: 2, plateaus: 4, castles: [1, 1], sky: 1, lairs: 2, mobs: 60, spawn: [14, 80], despawn: 90 },
+  4: { name: "LARGE", radius: 150, islands: [4, 6], mountains: 3, plateaus: 6, castles: [1, 4], sky: 2, lairs: 3, mobs: 75, spawn: [16, 95], despawn: 110 },
 };
 // voidY — ниже этого (бездна под летающими островами) — падение: voidDamage макс. HP и обратно наверх
 // bottom — до какой высоты (y) уходит острый каменный конус под каждым островом

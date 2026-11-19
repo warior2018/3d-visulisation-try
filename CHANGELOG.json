@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.107.4",
+    "date": "2026-11-19",
+    "title": "Spawn radius by world size",
+    "changes": [
+      "Mobs spawn 10-45 / 12-66 / 14-80 / 16-95 m around you and calm ones despawn beyond 55 / 75 / 90 / 110 m (tiny / small / medium / large)"
+    ]
+  },
+  {
     "version": "0.107.3",
     "date": "2026-11-19",
     "title": "Mob cap by world size",
