@@ -120,12 +120,15 @@ export class WorldgenPart {
       }
     }
 
+    // 2в. Озёра — на ровных местах (scene/water.js)
+    this.generateLakes(rnd, W);
+
     // 3. Деревья — на свободной земле (не на постройках, не у места появления, не на снегу и скалах)
     let trees = 0;
     for (let t = 0; t < W.trees * 20 && trees < W.trees; t++) {
       const x = Math.floor((rnd() * 2 - 1) * (W.terrain.radius - 6));
       const z = Math.floor((rnd() * 2 - 1) * (W.terrain.radius - 6));
-      if (Math.hypot(x, z) < W.keepClear + 3 || this.onStructure(x, z)) continue;
+      if (Math.hypot(x, z) < W.keepClear + 3 || this.onStructure(x, z) || this.inLake(x, z)) continue;
       if (arenaAvoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue; // не на площадке лича
       if (this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue; // не на скалах и не за краем острова
       if ([-1, 1].some((dx) => this.onStructure(x + dx, z) || this.onStructure(x, z + dx))) continue; // не вплотную к стенам
@@ -139,7 +142,7 @@ export class WorldgenPart {
       for (let t = 0, n = 0; t < want * 20 && n < want; t++) {
         const a = rnd() * Math.PI * 2, r = rnd() * (d.r - d.edge);
         const x = Math.floor(d.x + Math.sin(a) * r), z = Math.floor(d.z + Math.cos(a) * r);
-        if (this.onStructure(x, z) || this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue;
+        if (this.onStructure(x, z) || this.inLake(x, z) || this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue;
         if ([-1, 1].some((dx) => this.onStructure(x + dx, z) || this.onStructure(x, z + dx))) continue;
         if (this.terrain.lairs.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + 2)) continue; // не над логовом
         if (this.nearLairTunnel(x, z)) continue; //                                               не у прохода к логову

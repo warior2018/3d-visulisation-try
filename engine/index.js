@@ -61,7 +61,8 @@ export { Entity, EntityManager } from "./world/entity.js";
 export { SpatialGrid } from "./world/spatial-grid.js";
 export { Inventory } from "./world/inventory.js";
 export { Charge } from "./world/charge.js"; // разбег (копьё наперевес): бег вперёд, поворот взглядом, разгон
-export { Physics } from "./world/physics.js";
+export { Physics, WATER_PHYS } from "./world/physics.js";
+export { Water, WATER } from "./world/water.js";
 export { Stamina } from "./world/stamina.js";
 export { CameraShake } from "./graphics/camera-shake.js";
 export { CharacterController, dash, streamline, unstreamline } from "./world/character-controller.js";

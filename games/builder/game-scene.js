@@ -38,6 +38,7 @@ import { MobKindsPart } from "./scene/mob-kinds.js";
 import { AchievementsPart } from "./scene/achievements.js";
 import { CavesPart } from "./scene/caves.js";
 import { PortalsPart } from "./scene/portals.js";
+import { WaterPart } from "./scene/water.js";
 import { InteractPart } from "./scene/interact.js";
 import { CoopPart } from "./scene/coop.js";
 import { DuelPart } from "./scene/duel.js";
@@ -491,6 +492,7 @@ export class GameScene extends Scene {
     this.abilities.update(dt, this, this.onReins ? NO_INPUT : input); // с input — зажатая ЛКМ повторяет удар/выстрел (на поводьях — нет)
     player.speedBonuses.weapon = this.abilities.current?.moveSpeed || 0; // оружие в руках
     player.speedBonuses.aim = this.aiming ? AIM.moveSpeed : 0; //            прицеливание
+    this.updateBreath(dt); // в воде: медленнее, дыхание и утопление (scene/water.js)
     this.actionLock.update(dt);
     player.speedBonuses.lock = this.actionLock.moveSpeed;
     this.updateStance(dt); //  катана в руках — стойка: ниже рост и глаза
@@ -589,6 +591,7 @@ export class GameScene extends Scene {
     profiler.end(PROF.items);
     profiler.begin(PROF.projectiles);
     this.tickProjectiles(dt);
+    this.tickWater(dt); // вода растекается; в воде — медленнее, живые на плаву (scene/water.js)
     profiler.end(PROF.projectiles);
     profiler.begin(PROF.traps);
     this.traps.update(dt, this.combatContext()); // ловушки ловят
@@ -878,6 +881,7 @@ export class GameScene extends Scene {
   drawUI(ui) {
     profiler.begin(PROF.hudDraw);
     this.hud.draw(ui, this);
+    this.drawWater(ui); // под водой — пелена и пузырьки воздуха (scene/water.js)
     const fade = this.fadeAlpha?.() || 0; // переход через портал — затемнение
     if (fade > 0) ui.rect(0, 0, ui.width, ui.height, [0, 0, 0], Math.round(fade * 255));
     profiler.end(PROF.hudDraw);
@@ -930,4 +934,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [PortalsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);
+mixParts(GameScene, [PortalsPart, WaterPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);

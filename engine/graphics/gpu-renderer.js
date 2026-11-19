@@ -61,6 +61,7 @@ fn sil_alert_fs(in: SkinOut) -> @location(0) vec4f {
 
 const DEPTH_FORMAT = "depth24plus";
 import { PARTICLE_SHADER, FLOATS_PER_PARTICLE } from "./particles.js";
+import { WATER_SHADER, FLOATS_PER_WATER, buildWater } from "./water-mesh.js";
 import { FLOATS_PER_CUBE, LIGHT, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js"; // x, y, z, r, g, b на кубик
 const MAX_JOINTS = 64; //     столько костей помещается в шейдер (array<mat4x4f, 64>)
 // Буфер одного существа: матрица модели (64 байта) + оттенок vec4 (16) + матрицы костей
@@ -106,6 +107,7 @@ export class GPURenderer {
     }
     step("видеокарта: частицы");
     await renderer.initParticles(); // частицы с глубиной — если шейдер не собрался, без них (эффекты — плоские)
+    await renderer.initWater(); //     вода (world.water) — не собралось: воды не видно, игра идёт
     step("видеокарта: небо, свет, тени");
     await renderer.initWorldFx(); //   небо с солнцем, луной и облаками, свет ламп — не собралось: как раньше
     step("видеокарта: размытие");
@@ -422,6 +424,77 @@ export class GPURenderer {
       this.particleError = e.message;
       console.warn("Частицы в 3D недоступны:", e.message);
     }
+  }
+
+  // Конвейер воды (engine/graphics/water-mesh.js): полупрозрачные коробки, глубину не пишут. Не собрался — null
+  async initWater() {
+    const device = this.device;
+    try {
+      device.pushErrorScope?.("validation");
+      const module = device.createShaderModule({ code: WATER_SHADER });
+      const pipeline = device.createRenderPipeline({
+        layout: "auto",
+        vertex: {
+          module, entryPoint: "water_vs",
+          buffers: [
+            { arrayStride: 6 * 4, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }, { shaderLocation: 1, offset: 12, format: "float32x3" }] },
+            {
+              arrayStride: FLOATS_PER_WATER * 4, stepMode: "instance",
+              attributes: [
+                { shaderLocation: 2, offset: 0, format: "float32x3" },
+                { shaderLocation: 3, offset: 12, format: "float32x3" },
+                { shaderLocation: 4, offset: 24, format: "float32x4" },
+              ],
+            },
+          ],
+        },
+        fragment: {
+          module, entryPoint: "water_fs",
+          targets: [{ format: this.output.getPreferredFormat(), blend: {
+            color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" },
+            alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" },
+          } }],
+        },
+        primitive: { topology: "triangle-list", cullMode: "none" }, // изнутри (под водой) — тоже видно
+        depthStencil: { format: DEPTH_FORMAT, depthWriteEnabled: false, depthCompare: "less" },
+      });
+      const bind = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: this.uniformBuffer } }] });
+      const err = device.popErrorScope ? await device.popErrorScope() : null;
+      if (err) throw new Error(err.message || String(err));
+      this.waterPipeline = pipeline;
+      this.waterBind = bind;
+      this.waterCapacity = 0;
+    } catch (e) {
+      this.waterPipeline = null;
+      this.waterError = e.message;
+      console.warn("Вода не рисуется:", e.message);
+    }
+  }
+
+  // Вода вокруг камеры: список коробок пересобираем, когда вода поменялась или камера ушла на 8 м
+  drawWater(pass, camera, world) {
+    const W = world?.water;
+    if (!camera || !W?.size || !this.waterPipeline) return;
+    const key = `${W.version}|${Math.floor(camera.position.x / 8)}|${Math.floor(camera.position.z / 8)}`;
+    if (key !== this.waterKey) {
+      this.waterKey = key;
+      const b = buildWater(W, camera.position.x, camera.position.z, this.waterData);
+      this.waterData = b.data;
+      this.waterCount = b.count;
+      if (b.count > this.waterCapacity) {
+        if (this.waterBuffer) this.retire(this.waterBuffer);
+        this.waterCapacity = Math.ceil(b.count * 1.5);
+        this.waterBuffer = this.device.createBuffer({ size: this.waterCapacity * FLOATS_PER_WATER * 4, usage: gpu.GPUBufferUsage.VERTEX | gpu.GPUBufferUsage.COPY_DST });
+      }
+      if (b.count) this.device.queue.writeBuffer(this.waterBuffer, 0, b.data.buffer, b.data.byteOffset, b.count * FLOATS_PER_WATER * 4);
+    }
+    if (!this.waterCount) return;
+    pass.setPipeline(this.waterPipeline);
+    pass.setBindGroup(0, this.waterBind);
+    pass.setVertexBuffer(0, this.cubeVertexBuffer);
+    pass.setVertexBuffer(1, this.waterBuffer);
+    pass.draw(this.cubeVertexCount, this.waterCount);
+    this.worldStats.water = this.waterCount;
   }
 
   // Карта теней этого кадра. Камера — далеко в сторону солнца (sun × D), смотрит на героя, узкий угол: лучи
@@ -950,6 +1023,9 @@ export class GPURenderer {
       pass.draw(this.cubeVertexCount, n);
       this.worldStats.particles = n;
     }
+
+    t?.("вода");
+    this.drawWater(pass, camera, world); // вода — полупрозрачная, после блоков, существ и частиц
 
     // призрак нового блока
     if (ghost) {

@@ -15,6 +15,10 @@
 const EPS = 1e-3; //      зазор между коробкой и стеной, чтобы не «касаться» её
 const MAX_STEP = 0.25; // самый длинный шаг за раз (меньше блока — не проскочим)
 const MAX_FALL = 50; //   быстрее падать нельзя (м/с)
+// Вода (world.water): тонешь медленно с разгоном (sink м/с², не быстрее maxSink), всплываешь (e.swimUp) с разгоном
+// swim м/с² до maxUp; drag — вязкость по вертикали: влетел с разгону — тормозит постепенно (уходишь глубже)
+// (тонет не быстрее ~sink / drag м/с — само: тяжесть в воде против вязкости)
+export const WATER_PHYS = { sink: 4, swim: 9, maxUp: 2.6, drag: 2.2 };
 
 // Высота ступеньки, на которую шагаем без прыжка (полблока); у сущности своя — e.stepHeight
 export const STEP_HEIGHT = 0.5;
@@ -25,8 +29,9 @@ export class Physics {
   // гаснет, когда сошли на обычную опору)
   // cellTop(x, y, z) — высота верха клетки (1 — целый блок, 0.5 — полублок); не передали — все целые
   // cellBottom(x, y, z) — низ клетки (0.5 — полублок сверху: под ним проходят); не передали — 0
-  constructor({ isSolid, cellTop = null, cellBottom = null, surfaceAt = null, hasSurfaces = null, gravity = 22, slip = { accel: 14, max: 6, drag: 12 } }) {
+  constructor({ isSolid, cellTop = null, cellBottom = null, surfaceAt = null, hasSurfaces = null, waterAt = null, gravity = 22, slip = { accel: 14, max: 6, drag: 12 } }) {
     this.isSolid = isSolid; // (x, y, z) -> true/false
+    this.waterAt = waterAt; // (x, y, z) -> есть ли вода в клетке (world.water) или null — воды нет
     this.cellTop = cellTop;
     this.cellBottom = cellBottom;
     this.surfaceAt = surfaceAt;
@@ -87,7 +92,18 @@ export class Physics {
     // Тяжесть — половину до движения и половину после. Если вычесть всю сразу,
     // прыжок получится ниже задуманного (1.14 вместо 1.2): мы бы «тормозили» слишком рано.
     // С половинками путь за кадр точный: v·t − g·t²/2, как в школьной формуле.
-    const half = e.noGravity ? 0 : this.gravity * dt * 0.5; // noGravity — летает (консоль: fly)
+    // В воде: ноги / середина тела / голова (e.inWater, e.headInWater — игре: дыхание, скорость, плавание)
+    if (this.waterAt) {
+      const p = e.position, fx = Math.floor(p.x), fz = Math.floor(p.z), h = e.height || 1.8;
+      e.inWater = this.waterAt(fx, Math.floor(p.y + 0.1), fz) || this.waterAt(fx, Math.floor(p.y + h * 0.5), fz);
+      e.headInWater = this.waterAt(fx, Math.floor(p.y + h * 0.88), fz);
+    } else e.inWater = e.headInWater = false;
+    const W = WATER_PHYS;
+    const half = e.noGravity ? 0 : e.inWater ? W.sink * dt * 0.5 : this.gravity * dt * 0.5; // noGravity — летает (консоль: fly)
+    if (e.inWater && !e.noGravity) {
+      e.velocity.y *= Math.exp(-W.drag * dt); // вязкость: разгон гаснет постепенно
+      if (e.swimUp) e.velocity.y = Math.min(W.maxUp, e.velocity.y + W.swim * dt);
+    }
     e.velocity.y = Math.max(e.velocity.y - half, -MAX_FALL);
 
     const v = e.velocity;

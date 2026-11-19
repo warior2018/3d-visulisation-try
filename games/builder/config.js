@@ -179,6 +179,19 @@ export const FLASH = {
   items: { lichbolt: [170, 90, 255], magma: [255, 120, 40], fireball: [255, 130, 40], spore: [140, 240, 100] },
 };
 
+// Вода (движок: engine/world/water.js, physics.js → WATER_PHYS; игра: scene/water.js)
+// BREATH — дыхание героя: bubbles пузырьков по bubble с; вынырнул — воздух обратно в refill раз быстрее;
+//   кончился — damage макс. HP в секунду, по частям hits раз в секунду
+export const BREATH = { bubbles: 7, bubble: 2, refill: 6, damage: 0.05, hits: 4 };
+// В воде все медленнее на столько (доля скорости)
+export const WATER_MOVE = -0.4;
+// Кто держится на плаву (живые); остальные (нежить: скелеты, зомби, мумии...) тонут и ходят по дну
+export const SWIMMERS = ["ghoul", "goblin", "troll", "boar", "steed"];
+// Озёра при создании мира: сколько — perRadius × радиус острова (±40 %); радиус чаши [мин, макс] — растёт с
+// островом на radiusGrow за блок радиуса; глубина так же (depthGrow); maxSlope — перепад земли под озером;
+// у края острова — сток наружу с шансом outletChance, если обрыв не дальше outlet блоков от берега
+export const LAKES = { perRadius: 0.025, radius: [3, 14], radiusGrow: 0.08, depth: [2, 5], depthGrow: 0.02, maxSlope: 1, outlet: 6, outletChance: 0.5 };
+
 // Порталы (scene/portals.js): раз в every с (если их меньше max) у героя (на distance м) — портал в свою комнату
 // (room: размер, высота, цвета); живёт life с. enterRadius — шагнуть ближе — вход; cooldown — с после перехода;
 // slowEvery — главный мир, пока герой в комнате, тикает раз в столько тиков; fade — с затемнения (туда и обратно).
@@ -203,7 +216,7 @@ export const PORTALS = {
 };
 
 export const LIGHTS = {
-  lamp: { color: [255, 214, 130], power: 1.5, radius: 9 }, //   (все источники ×1.5)
+  lamp: { color: [255, 214, 130], power: 1.8, radius: 9 }, //   (все источники ×1.5; лампы — ещё +20 %)
   torch: { color: [255, 160, 70], power: 1.35, radius: 7 },
   chest: { color: [196, 150, 60], power: 0.75, radius: 4 }, // крышка сундука (ISLANDS.chest.color) чуть светится
 };

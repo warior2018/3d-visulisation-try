@@ -402,7 +402,7 @@ export class HostNet {
         const surfaces = [];
         const chunks = [];
         for (const c of g.world.chunks.values()) if (c.blocks.size) chunks.push([c.cx, c.cz, encodeChunk(c, surfaces).toString("base64")]);
-        this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn });
+        this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn, water: (g.worlds?.get("main")?.voxels || g.world).water.sourcesJSON() });
         g.engine.log(`сеть: ${ghost ? "вернулся" : "подключился"} ${hero.name} (${peer.address}), отправлено кусков мира ${chunks.length}`);
         const said = `${hero.name} ${ghost ? "RECONNECTED" : "JOINED"}`;
         g.engine.toast(said, 3000);
@@ -666,6 +666,7 @@ export class ClientNet {
     g.entities.update(dt); // часы: вспышка от удара, падение павших
     g.tickProjectiles(dt); // свои брошенные снаряды летят (мир считает хост, а их — мы)
     g.updateFuses(dt); //      свой брошенный динамит догорает и взрывается
+    g.world.water.tick(dt); // вода растекается и у гостя (источники — от хоста при входе)
     // автоподбор: попросить хоста (предмет — тому, кто первый)
     if (g.settings.general.autoLoot !== false && g.player.alive) g.pickups.autoCollect(g.player, PICKUP_AUTO_RADIUS, (p) => this.take(p));
     g.fog.reveal(g.player.position);
@@ -689,6 +690,7 @@ export class ClientNet {
         w.clear();
         const surfaces = Array.isArray(msg.surfaces) ? msg.surfaces : [];
         for (const [cx, cz, data] of msg.chunks || []) decodeChunk(Buffer.from(data, "base64"), cx, cz, w, surfaces);
+        w.water.loadSources(msg.water); // вода хоста: источники, текучая растечётся сама
         w.quiet = false;
         for (const e of [...g.entities.list]) if (e !== g.player) g.removeEntity(e);
         this.copies.clear(); // (переподключение) старые копии — заново из снимков

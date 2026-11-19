@@ -38,6 +38,8 @@ export const HALF = "half";
 export const HALF_TOP = "half-top";
 export const isHalf = (b) => !!b && (b.surface === HALF || b.surface === HALF_TOP);
 
+import { Water } from "./water.js";
+
 export class VoxelWorld {
   constructor() {
     this.blocks = new Map(); // key(x, y, z) -> { x, y, z, color: [r, g, b] }
@@ -61,6 +63,7 @@ export class VoxelWorld {
     this.lights = new Map();
     this.lightCount = 0;
     this.minY = 0; //  самый низкий блок (не выше 0): поиск верхнего блока столбика идёт до него
+    this.water = new Water(this); // вода — свой слой поверх блоков (engine/world/water.js)
     this.maxY = 0; //  самый высокий блок (миникарте — откуда искать верхний блок столбика) // растёт при каждом изменении — рендерер по нему понимает, что пора обновиться
   }
 
@@ -242,6 +245,7 @@ export class VoxelWorld {
     if (this.emitters.size && this.emitterOf(b)) this.addLight(b);
     if (y > this.maxY) this.maxY = y;
     if (this.onChange && !this.quiet) this.onChange(x, y, z, b);
+    if (this.water.size) this.water.blockChanged(x, y, z); // в клетке блока воды нет
     const k = (x + 524288) * 1048576 + (z + 524288), top = this.tops.get(k);
     if (top !== undefined && (!top || y > top.y)) this.tops.set(k, b); // стал верхним (не знали — узнаем при спросе)
     this.version++;
@@ -259,6 +263,7 @@ export class VoxelWorld {
       this.chunkAt(x, z)?.blocks.delete(b);
       this.touch(x, y, z);
       if (this.onChange && !this.quiet) this.onChange(x, y, z, null);
+      if (this.water.size) this.water.blockChanged(x, y, z); // убрали — вода потечёт в дыру
       this.version++;
       const k = (x + 524288) * 1048576 + (z + 524288);
       if (this.tops.get(k)?.y === y) this.tops.delete(k); // сломали верхний — найдём новый при спросе
@@ -292,6 +297,7 @@ export class VoxelWorld {
     this.lightCount = 0;
     this.surfaces = 0;
     this.tops.clear();
+    this.water.clear();
     this.version++;
   }
 

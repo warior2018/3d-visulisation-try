@@ -196,7 +196,15 @@ export class CharacterController {
     const want = jumpPressed || this.jumpBuffer > 0;
     // «Койот»: только что сошёл с края (не прыжком) — это ещё обычный прыжок, двойной не тратится
     const coyote = !entity.onGround && !this.jumped && this.sinceGround < COYOTE_TIME;
-    if (this.jumpBlocked || dashing) {
+    if (entity.inWater && !entity.noGravity) {
+      // В воде: прыжок — всплывать (с разгоном, engine/world/physics.js → WATER_PHYS); у берега (упёрся) — выпрыгнуть
+      entity.swimUp = jumpDown;
+      if (jumpDown && entity.blocked && !entity.headInWater) entity.velocity.y = Math.max(entity.velocity.y, jumpV * 0.8);
+      this.jumpBuffer = 0;
+      this.airJumps = 0;
+      this.jumped = true;
+    } else if (this.jumpBlocked || dashing) {
+      entity.swimUp = false;
       // не прыгаем (рывок сам ведёт по вертикали — нажатие не тратим, оно останется «про запас»)
     } else if ((jumpDown || want) && (entity.onGround || coyote)) {
       // На земле — по зажатию (держишь — прыгаешь снова, как в Minecraft) или по нажатию: короткое касание
@@ -221,7 +229,10 @@ export class CharacterController {
     this.physics.step(entity, dt);
     entity.forgive = null;
     // Полёт и приземление: в воздухе (или на скользком — тоже не стоим) копим самую высокую точку
-    if (!entity.onGround) {
+    if (entity.inWater) {
+      this.peakY = null; // в воде — не падение (урона от падения в воду нет)
+      this.fallSpeed = 0;
+    } else if (!entity.onGround) {
       this.peakY = Math.max(this.peakY ?? entity.position.y, entity.position.y);
       this.fallSpeed = Math.max(0, -entity.velocity.y);
     } else {

@@ -36,9 +36,10 @@ export class World {
       cellBottom: (x, y, z) => v.cellBottom(x, y, z),
       surfaceAt: (x, y, z) => v.surfaceAt(x, y, z),
       hasSurfaces: () => v.surfaces > 0,
+      waterAt: (x, y, z) => v.water.size > 0 && v.water.has(x, y, z),
     });
     // Для поиска пути: те же твёрдые клетки + «номер версии» (поставили блок — пересчитать путь)
-    this.nav = { isSolid: this.physics.isSolid, cellTop: (x, y, z) => v.cellTop(x, y, z), version: () => v.version, maxDrop };
+    this.nav = { isSolid: this.physics.isSolid, cellTop: (x, y, z) => v.cellTop(x, y, z), version: () => v.version, maxDrop, isWater: (x, y, z) => v.water.size > 0 && v.water.has(x, y, z) };
     this.pickups = new Pickups({ ...pickups, physics: this.physics }); //                       предметы на земле
     this.projectiles = new Projectiles({ ...projectiles, world: v, entities: this.entities }); // снаряды
     this.traps = new Traps(traps); //                                                             ловушки

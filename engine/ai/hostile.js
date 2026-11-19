@@ -134,7 +134,15 @@ export class HostileBrain extends Brain {
         for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if (base(x + dx, y, z + dz)) return true;
         return false;
       } : base;
-      e.nav = new Navigator({ ...ctx.navWorld, isSolid, height: Math.ceil(e.height - 1e-6) });
+      // вода: обходит (клетка с водой — как стена), пока цель сама не в воде (e.avoidWater)
+      const wet = ctx.navWorld.isWater;
+      const solid = wet ? (x, y, z) => isSolid(x, y, z) || (e.avoidWater && wet(x, y, z)) : isSolid;
+      e.nav = new Navigator({ ...ctx.navWorld, isSolid: solid, height: Math.ceil(e.height - 1e-6) });
+    }
+    const avoid = !e.aggro?.inWater;
+    if (avoid !== e.avoidWater) {
+      e.avoidWater = avoid;
+      e.nav.reset();
     }
     let alerted = NONE;
 
