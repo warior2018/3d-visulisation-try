@@ -402,7 +402,7 @@ export class HostNet {
         const surfaces = [];
         const chunks = [];
         for (const c of g.world.chunks.values()) if (c.blocks.size) chunks.push([c.cx, c.cz, encodeChunk(c, surfaces).toString("base64")]);
-        this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn, water: (g.worlds?.get("main")?.voxels || g.world).water.sourcesJSON() });
+        this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn, water: (g.worlds?.get("main")?.voxels || g.world).water.sourcesJSON(), gates: g.gates || [] });
         g.engine.log(`сеть: ${ghost ? "вернулся" : "подключился"} ${hero.name} (${peer.address}), отправлено кусков мира ${chunks.length}`);
         const said = `${hero.name} ${ghost ? "RECONNECTED" : "JOINED"}`;
         g.engine.toast(said, 3000);
@@ -691,6 +691,7 @@ export class ClientNet {
         const surfaces = Array.isArray(msg.surfaces) ? msg.surfaces : [];
         for (const [cx, cz, data] of msg.chunks || []) decodeChunk(Buffer.from(data, "base64"), cx, cz, w, surfaces);
         w.water.loadSources(msg.water); // вода хоста: источники, текучая растечётся сама
+        g.gates = Array.isArray(msg.gates) ? msg.gates : []; // врата небесных островов
         w.quiet = false;
         for (const e of [...g.entities.list]) if (e !== g.player) g.removeEntity(e);
         this.copies.clear(); // (переподключение) старые копии — заново из снимков

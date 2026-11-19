@@ -27,7 +27,7 @@ export class Terrain {
   constructor({ seed = 1, radius = 50, center = { x: 0, z: 0 }, edge = 14, flatCenter = 8, base = 1,
     hills = { amp: 3, scale: 22 }, plateaus = { count: 2, radius: [6, 9], height: [4, 6], edge: 4 },
     mountains = { count: 1, radius: [14, 18], height: [13, 18], distance: [24, 34] },
-    islands = null, bossChance = 0, minLairs = 0, maxLairs = Infinity } = {}) {
+    islands = null, sky = null, bossChance = 0, minLairs = 0, maxLairs = Infinity } = {}) {
     this.seed = seed;
     this.radius = radius;
     this.center = center;
@@ -82,11 +82,24 @@ export class Terrain {
     chosen = chosen.slice(0, maxLairs);
     for (const m of this.mountains) m.boss = chosen.includes(m);
     this.lairs = this.mountains.filter((m) => m.boss).map((m) => ({ x: Math.round(m.x), y: 1 + (m.lift || 0), z: Math.round(m.z), r: Math.max(4, Math.round(m.r * 0.28)), mountain: m })); // не меньше 4: босс ростом ~2.5 м
+    // Небесные острова (sky: { count, radius, lift, distance }): высоко над главным (lift), только холмики — без гор
+    // и плато, под ними — небольшой корень. Своя случайность — остальной мир по зерну тот же
+    if (sky?.count) {
+      const r2 = seededRandom(seed * 17 + 3), b2 = ([a, b]) => a + r2() * (b - a);
+      for (let i = 0, tries = 0; i < sky.count && tries < 40; tries++) {
+        const a = r2() * Math.PI * 2, dist = b2(sky.distance), r = b2(sky.radius);
+        const d = { x: center.x + Math.sin(a) * dist, z: center.z + Math.cos(a) * dist, r, edge: Math.max(3, r * 0.3), main: false, sky: true, amp: 1.5, lift: Math.round(b2(sky.lift)) };
+        if (this.discs.some((o) => o.sky && Math.hypot(o.x - d.x, o.z - d.z) < o.r + d.r + 6)) continue;
+        this.discs.push(d);
+        i++;
+      }
+    }
   }
 
   // Верх земли в столбике (x, z) — с подъёмом острова (lift): 0 — нет земли (пол мира / пустота)
   height(x, z) {
     for (const disc of this.discs) {
+      if (disc.sky) continue; // небесные острова — над землёй, не «земля» столбика
       const h = this.discHeight(disc, x, z);
       if (h > 0) return h + (disc.lift || 0);
     }
@@ -96,7 +109,7 @@ export class Terrain {
   // Высота рельефа самого острова в столбике (без подъёма lift): 0 — не на острове
   relHeight(x, z) {
     let best = 0;
-    for (const disc of this.discs) best = Math.max(best, this.discHeight(disc, x, z));
+    for (const disc of this.discs) if (!disc.sky) best = Math.max(best, this.discHeight(disc, x, z));
     return best;
   }
 
@@ -111,8 +124,8 @@ export class Terrain {
       const pd = Math.hypot(x - p.x, z - p.z);
       h = Math.max(h, p.h * smoothstep(p.r + p.edge, p.r, pd));
     }
-    // Горы: к вершине круче, у подножья — плавно; немного неровностей
-    for (const m of this.mountains) {
+    // Горы: к вершине круче, у подножья — плавно; немного неровностей (на небесном острове гор нет)
+    for (const m of disc.sky ? [] : this.mountains) {
       const md = Math.hypot(x - m.x, z - m.z);
       if (md >= m.r) continue;
       const k = 1 - md / m.r;
@@ -138,7 +151,7 @@ export class Terrain {
       const r = Math.ceil(disc.r);
       const cx = Math.round(disc.x), cz = Math.round(disc.z);
       for (let x = cx - r; x <= cx + r; x++) for (let z = cz - r; z <= cz + r; z++) {
-        const key = x + "," + z;
+        const key = x + "," + z + (disc.sky ? "s" : ""); // небесный остров — над главным: свои столбики
         if (done.has(key)) continue;
         const h = this.discHeight(disc, x + 0.5, z + 0.5); // свой остров (подъём — lift)
         if (h <= 0) continue;
@@ -155,7 +168,7 @@ export class Terrain {
           const d = Math.hypot(x + 0.5 - disc.x, z + 0.5 - disc.z) / disc.r;
           // неровный низ: глубина по параболе от центра + шум (по координатам — одинаково при каждой постройке)
           const noise = ((Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1 + 1) % 1;
-          const depth = undersideBottom !== null
+          const depth = undersideBottom !== null && !disc.sky
             ? Math.max(1, Math.floor(((disc.lift || 0) - undersideBottom) * (1 - Math.min(1, d)) ** 1.6 + noise * 2)) // острый конус до undersideBottom
             : Math.max(1, Math.floor((1 - Math.min(1, d) ** 2) * disc.r * underside + noise * 3));
           for (let y = -1; y >= -depth; y--) if (world.place(x, lift + y, z, y > -3 ? dirt : rock)) placed++;

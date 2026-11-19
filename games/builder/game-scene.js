@@ -39,6 +39,7 @@ import { AchievementsPart } from "./scene/achievements.js";
 import { CavesPart } from "./scene/caves.js";
 import { PortalsPart } from "./scene/portals.js";
 import { WaterPart } from "./scene/water.js";
+import { SkyPart } from "./scene/sky.js";
 import { InteractPart } from "./scene/interact.js";
 import { CoopPart } from "./scene/coop.js";
 import { DuelPart } from "./scene/duel.js";
@@ -378,6 +379,7 @@ export class GameScene extends Scene {
 
     const frozen = this.match && this.teamPaused; // матч: кто-то выбирает класс / второе оружие — мир стоит у всех
     this.updateFade(dt); // затемнение перехода через портал (scene/portals.js)
+    this.updateGates(dt); // врата небесных островов: встал — перенос (scene/sky.js)
     if (this.pull) this.updatePull(dt); //  портал закрывается — затягивает к выходу (вместо управления)
     else if (!this.downed && !frozen) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
     // 2. Мир: существа, предметы, снаряды, ловушки, события. Клиент сетевой игры мир не считает —
@@ -934,4 +936,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [PortalsPart, WaterPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);
+mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);

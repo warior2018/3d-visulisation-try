@@ -44,6 +44,7 @@ export class SessionPart {
     }
     this.caves = saved?.worldgen?.caves || null; // пещеры: комнаты и что в них уже было (scene/caves.js)
     if (saved?.worldgen?.water) this.world.water.loadSources(saved.worldgen.water); // вода: источники (текучая растечётся)
+    this.gates = saved?.worldgen?.gates || []; // врата небесных островов (scene/sky.js)
     this.bossDown = !!saved?.worldgen?.bossDown; //   повержен ли босс (порталы — scene/portals.js)
     this.portalTime = saved?.worldgen?.portalTime || 0; // сколько с прожито в мире (первый портал — не раньше)
     this.treasure = saved?.worldgen?.treasure || null; // сундук на дальнем острове (scene/islands.js)
@@ -355,7 +356,7 @@ export class SessionPart {
       if (toast) this.engine.toast(ok ? "PROGRESS SAVED" : "NO OWN SAVE - PROGRESS NOT SAVED");
       return;
     }
-    const r = saveGame({ background, world: this.world, player: this.player, look: this.look, creatures, progression, spawned: this.spawner.spawned, pickups: this.pickups.toJSON(), traps: this.traps.toJSON(), fog: this.fog.toJSON(), worldgen: this.terrain ? { seed: this.terrain.seed, terrain: this.terrainParams || TERRAIN_V1, ...(this.arena ? { arena: this.arena } : {}), ...(this.treasure ? { treasure: this.treasure } : {}), ...(this.bossDown ? { bossDown: true } : {}), ...(this.world.water.size ? { water: this.world.water.sourcesJSON() } : {}), portalTime: Math.round(this.portalTime || 0), ...(this.houseChests?.length ? { houseChests: this.houseChestsJSON() } : {}), ...(this.caves ? { caves: this.cavesJSON() } : {}) } : null });
+    const r = saveGame({ background, world: this.world, player: this.player, look: this.look, creatures, progression, spawned: this.spawner.spawned, pickups: this.pickups.toJSON(), traps: this.traps.toJSON(), fog: this.fog.toJSON(), worldgen: this.terrain ? { seed: this.terrain.seed, terrain: this.terrainParams || TERRAIN_V1, ...(this.arena ? { arena: this.arena } : {}), ...(this.treasure ? { treasure: this.treasure } : {}), ...(this.bossDown ? { bossDown: true } : {}), ...(this.gates?.length ? { gates: this.gates } : {}), ...(this.world.water.size ? { water: this.world.water.sourcesJSON() } : {}), portalTime: Math.round(this.portalTime || 0), ...(this.houseChests?.length ? { houseChests: this.houseChestsJSON() } : {}), ...(this.caves ? { caves: this.cavesJSON() } : {}) } : null });
     const what = `${r.blocks} блоков, записано кусков ${r.chunks} (${(r.bytes / 1024).toFixed(0)} КБ)${r.removed ? `, убрано ${r.removed}` : ""}${background ? ", в фоне" : ""}`;
     if (!background) console.log(`Сохранено: ${what} -> ${SAVE_DIR}`);
     this.engine.log(`сохранено${background ? " (авто)" : ""}: ${what}, уровень ${this.experience.level}, ${this.talentsSummary()}`);

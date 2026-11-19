@@ -55,7 +55,7 @@ export class BossesPart {
     if (!T) return null;
     const A = (this.worldgen || WORLDGEN).arena;
     const rnd = seededRandom(T.seed * 7 + 3);
-    const flat = T.discs.filter((d) => !d.main && d.r - d.edge >= A.radius && !T.mountains.some((m) => Math.hypot(m.x - d.x, m.z - d.z) < 1));
+    const flat = T.discs.filter((d) => !d.main && !d.sky && d.r - d.edge >= A.radius && !T.mountains.some((m) => Math.hypot(m.x - d.x, m.z - d.z) < 1));
     let x, z;
     if (flat.length) {
       const d = flat[Math.floor(rnd() * flat.length)];

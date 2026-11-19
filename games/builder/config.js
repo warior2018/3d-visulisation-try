@@ -534,13 +534,17 @@ export const WORLDGEN = {
 
 // Размер мира (окно создания: 1 / 2 / 3): острова одного размера, от размера — сколько их вокруг главного
 // (маленький — 2: босс / просто остров / сундук; каждый следующий размер — ещё +1–2). Пробно, карта не утверждена
+// Небесные острова: высоко над главным (lift блоков), радиус [от, до], от центра — distance × радиус главного.
+// Попасть — только порталом: он стоит в комнате большого дома или в замке на земле, второй — на острове
+// (оба постоянные, в обе стороны). trees — деревьев на острове; gateCooldown — с между прыжками порталом
+export const SKY_ISLANDS = { radius: [9, 14], lift: [40, 50], distance: [0.25, 0.55], trees: [2, 5], gateCooldown: 2 };
 // radius — радиус главного острова; islands — сколько маленьких; mountains / plateaus — сколько гор и плато;
-// castles — замков [от, до]; построек и деревьев — по площади (WORLDGEN — на радиус 75, здесь пересчитываются)
+// castles — замков [от, до]; sky — небесных островов над главным (SKY_ISLANDS); построек и деревьев — по площади (WORLDGEN — на радиус 75, здесь пересчитываются)
 export const WORLD_SIZES = {
-  1: { name: "TINY", radius: 30, islands: [1, 2], mountains: 1, plateaus: 1, castles: [0, 0] },
-  2: { name: "SMALL", radius: 50, islands: [2, 3], mountains: 1, plateaus: 2, castles: [0, 0] },
-  3: { name: "MEDIUM", radius: 100, islands: [3, 5], mountains: 2, plateaus: 4, castles: [1, 1] },
-  4: { name: "LARGE", radius: 150, islands: [4, 6], mountains: 3, plateaus: 6, castles: [1, 4] },
+  1: { name: "TINY", radius: 30, islands: [1, 2], mountains: 1, plateaus: 1, castles: [0, 0], sky: 0 },
+  2: { name: "SMALL", radius: 50, islands: [2, 3], mountains: 1, plateaus: 2, castles: [0, 0], sky: 0 },
+  3: { name: "MEDIUM", radius: 100, islands: [3, 5], mountains: 2, plateaus: 4, castles: [1, 1], sky: 1 },
+  4: { name: "LARGE", radius: 150, islands: [4, 6], mountains: 3, plateaus: 6, castles: [1, 4], sky: 2 },
 };
 // voidY — ниже этого (бездна под летающими островами) — падение: voidDamage макс. HP и обратно наверх
 // bottom — до какой высоты (y) уходит острый каменный конус под каждым островом
@@ -560,7 +564,9 @@ export function worldgenFor(size = 3, floating = false) {
       hills: { amp: R >= 140 ? 2 : R >= 90 ? 2.4 : 3, scale: Math.max(22, Math.round(R * 0.35)) },
       plateaus: { count: S.plateaus, radius: sc(T.plateaus.radius), height: T.plateaus.height, edge: Math.round(T.plateaus.edge * s + 2) },
       mountains: { ...T.mountains, count: S.mountains, radius: sc(T.mountains.radius, Math.max(0.6, s)), distance: [Math.round(R * 0.5), Math.round(R * 0.72)] },
-      islands: { ...T.islands, count: S.islands, radius: R <= 40 ? [9, 13] : T.islands.radius, distance: [R + 27, R + 51] },
+      // маленькие острова растут с миром (на большом — и большие постройки на них, worldgen.js)
+      islands: { ...T.islands, count: S.islands, radius: R <= 40 ? [9, 13] : sc(T.islands.radius, Math.max(1, s)), distance: [R + 27 + Math.round(T.islands.radius[1] * (Math.max(1, s) - 1)), R + 51 + Math.round(T.islands.radius[1] * (Math.max(1, s) - 1))] },
+      sky: { ...SKY_ISLANDS, count: S.sky || 0, distance: [Math.round(R * SKY_ISLANDS.distance[0]), Math.round(R * SKY_ISLANDS.distance[1])] },
     },
     area: [-(R - 9), -(R - 9), R - 9, R - 9],
     houses: per(W.houses, 2), bigHouses: per(W.bigHouses), ruins: per(W.ruins), towers: per(W.towers, 1), piles: per(W.piles, 2), trees: per(W.trees, 10),

@@ -15,7 +15,7 @@ export class IslandsPart {
   buildIslands(rnd = Math.random) {
     const T = this.terrain;
     const main = T?.discs.find((d) => d.main);
-    const small = T?.discs.filter((d) => !d.main) || [];
+    const small = T?.discs.filter((d) => !d.main && !d.sky) || []; // небесные — без мостов (к ним — порталы)
     if (!main || !small.length || this.world.floor) return; // острова на полу мира — мосты не нужны
     const dist = (d) => Math.hypot(d.x - main.x, d.z - main.z) - d.r;
     const far = small.reduce((a, b) => (dist(b) > dist(a) ? b : a));

@@ -103,16 +103,21 @@ export class WorldgenPart {
       count: queue.length, area: W.area, gap: W.gap, avoid: blockedAll, size: () => queue.shift(), random: rnd, tries: 120,
       accept: (x, z, s) => fits(s.kind === "castle" ? C.maxSlope : W.maxSlope)(x, z, s),
     });
+    for (const s of spots) s.main = true; // на главном острове (порталы на небесные острова — в его больших домах)
     // 2б. Маленькие острова — свои постройки (WORLDGEN.islandStuff): пара домиков, куча коробок, иногда башня.
+    // Остров побольше (большой мир) — построек больше и крупнее: большие дома, на самом большом — замок.
     // Ставим на ровной части острова (не у края и не на его горке)
     const I = W.islandStuff;
-    const islands = this.terrain.discs.filter((d) => !d.main);
+    const islands = this.terrain.discs.filter((d) => !d.main && !d.sky); // небесные — отдельно (generateSky)
     const hillOf = (d) => this.terrain.mountains.find((m) => Math.hypot(m.x - d.x, m.z - d.z) < 1);
     for (const d of islands) {
       const inner = d.r - d.edge;
       const hill = hillOf(d);
+      const big = Math.max(0, Math.floor((d.r - 14) / 6)); // на сколько остров крупнее обычного
       const q = [
-        ...Array.from({ length: range(I.houses) }, () => ({ kind: rnd() < 0.25 ? "ruin" : "house", w: range(W.house.w), d: range(W.house.d) })),
+        ...(d.r >= 26 && rnd() < 0.5 ? [(() => { const s = range(C.size); return { kind: "castle", w: s, d: s }; })()] : []),
+        ...Array.from({ length: big }, () => ({ kind: "big", w: range(W.bigHouse.w), d: range(W.bigHouse.d) })),
+        ...Array.from({ length: range(I.houses) + big }, () => ({ kind: rnd() < 0.25 ? "ruin" : "house", w: range(W.house.w), d: range(W.house.d) })),
         ...(rnd() < I.towerChance ? [(() => { const s = range(W.tower.size); return { kind: "tower", w: s, d: s }; })()] : []),
         ...Array.from({ length: range(I.piles) }, () => ({ kind: "pile", w: range(W.pile.w), d: range(W.pile.d) })),
       ];
@@ -122,7 +127,7 @@ export class WorldgenPart {
         accept: (x, z, s) => {
           const far = Math.hypot(x + s.w / 2 - d.x, z + s.d / 2 - d.z) + Math.hypot(s.w, s.d) / 2;
           if (far > inner + 1) return false; //  вся постройка — на ровной части острова
-          return fits(W.maxSlope)(x, z, s);
+          return fits(s.kind === "castle" ? C.maxSlope : W.maxSlope)(x, z, s);
         },
       }));
     }
@@ -130,7 +135,7 @@ export class WorldgenPart {
     const walls = [WOOD, STONE, BRICK];
     for (const s of spots) {
       // Площадку под постройку выравниваем (срезать / досыпать) до средней высоты земли
-      const y = Math.round(ground(s.x, s.z, s.w, s.d).avg);
+      const y = (s.y = Math.round(ground(s.x, s.z, s.w, s.d).avg));
       flattenArea(this.world, { x: s.x, z: s.z, w: s.w, d: s.d, y, top: W.colors.grass, fill: W.colors.dirt });
       const wall = pick(walls), trim = wall === WOOD ? STONE : WOOD, roof = pick([WOOD, BRICK, STONE]);
       if (s.kind === "house" && s.l) {
@@ -188,6 +193,7 @@ export class WorldgenPart {
     }
     this.generateCaves(rnd); // пещеры: комнаты, туннели, проходы наверх (scene/caves.js)
     this.buildSpawnLights(); //  столбы с факелами у места появления (scene/islands.js)
+    this.generateSky(rnd, spots); // небесные острова и порталы к ним (scene/sky.js)
     const count = (k) => spots.filter((s) => s.kind === k).length;
     this.engine.log(`новый мир: размер ${W.size || "?"}, радиус ${W.terrain.radius}, замков ${count("castle")}, больших домов ${count("big")}, руин ${count("ruin")}; рельеф ${terrainBlocks} кубиков (зерно ${this.terrain.seed}), ${count("house")} домиков, ${count("tower")} башен, ${count("pile")} куч, ${trees} деревьев; всего ${this.world.blocks.size} блоков`);
   }

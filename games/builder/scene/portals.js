@@ -504,7 +504,7 @@ export class PortalsPart {
 
   // ---------- Вид ----------
   visiblePortals() {
-    if (this.inMain()) return this.portals || [];
+    if (this.inMain()) return [...(this.portals || []), ...(this.gatePoints?.() || [])]; // + врата небесных островов (scene/sky.js)
     return (this.portals || []).filter((o) => o.room === this.activeWorld && o.exit).map((o) => o.exit);
   }
 
@@ -518,15 +518,15 @@ export class PortalsPart {
       for (let i = 0; i <= n; i++) {
         const a = (i / n) * Math.PI * 2 + t * 0.6;
         const pt = { x: cx + sx * Math.cos(a) * 0.8, y: cy + Math.sin(a) * 1.15, z: cz + sz * Math.cos(a) * 0.8 };
-        if (prev) this.beams.add({ from: prev, to: pt, color: PURPLE, core: CORE, life: 0.05, width: 6 });
+        if (prev) this.beams.add({ from: prev, to: pt, color: o.color || PURPLE, core: CORE, life: 0.05, width: 6 });
         prev = pt;
       }
-      if (Math.random() < 0.4) this.fx?.burst({ x: cx, y: cy, z: cz }, { count: 1, speed: 0.6, color: PURPLE, size: 0.05, life: 0.6, drag: 1 });
+      if (Math.random() < 0.4) this.fx?.burst({ x: cx, y: cy, z: cz }, { count: 1, speed: 0.6, color: o.color || PURPLE, size: 0.05, life: 0.6, drag: 1 });
     }
   }
 
   // Свет порталов (вспышки движка: scene/effects.js → updateFlashes)
   portalLights() {
-    return [...this.visiblePortals().map((o) => ({ x: o.x, y: o.y + 1.2, z: o.z, radius: PORTALS.light.radius, power: PORTALS.light.power, color: PURPLE.map((c) => c / 255) })), ...this.fireflyLights()];
+    return [...this.visiblePortals().map((o) => ({ x: o.x, y: o.y + 1.2, z: o.z, radius: PORTALS.light.radius, power: PORTALS.light.power, color: (o.color || PURPLE).map((c) => c / 255) })), ...this.fireflyLights()];
   }
 }
