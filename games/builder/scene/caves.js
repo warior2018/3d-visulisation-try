@@ -20,7 +20,9 @@ export class CavesPart {
     if (!T) return;
     const rooms = [];
     for (const disc of T.discs) {
-      const n = disc.main ? between(rnd, C.rooms) : rnd() < C.islandRoom ? 1 : 0;
+      // комнаты — под главным островом и под островом с логовом тролля (вход в пещеры — только через логово)
+      const lairHere = T.lairs.some((l) => Math.hypot(l.x - disc.x, l.z - disc.z) < disc.r);
+      const n = disc.main ? between(rnd, C.rooms) : lairHere && rnd() < C.islandRoom ? 1 : 0;
       for (let k = 0, tries = 0; k < n && tries < 40; tries++) {
         const w = between(rnd, C.size.w), d = between(rnd, C.size.d), h = between(rnd, C.size.h);
         // глубина: пол на depth ниже травы острова, но не ниже C.floor; конус под островом к низу сужается —
@@ -75,14 +77,20 @@ export class CavesPart {
       this.carveTunnel(back, near);
       reached.add(near.disc);
     }
-    // Проходы наверх — нечасто: у острова, куда нет хода из логова, — один обязательный; дальше — с шансом exitChance
-    const seen = new Set(reached);
-    for (const room of rooms) {
-      const need = !seen.has(room.disc);
-      if (!need && rnd() >= C.exitChance) continue;
-      seen.add(room.disc);
-      this.carveExit(room, rnd);
+    // Вход в пещеры — один: через логово тролля. Логова нет — один проход наверх из комнаты главного острова,
+    // не ближе exitFrom × радиуса острова к центру (дальняя от центра, если такой нет)
+    const main = T.discs.find((d) => d.main);
+    const lairOnMain = T.lairs.some((l) => main && Math.hypot(l.x - main.x, l.z - main.z) < main.r);
+    // логово на маленьком острове — до комнат главного из него не дойти (между островами пустота): тогда у
+    // главного острова тоже один вход
+    if (!lairOnMain) {
+      const R = main?.r || 50;
+      const own = rooms.filter((r) => T.discs[r.disc] === main);
+      const far = own.filter((r) => Math.hypot(r.x - main.x, r.z - main.z) >= C.exitFrom * R);
+      const room = far.length ? far[Math.floor(rnd() * far.length)] : own.reduce((a, b) => (Math.hypot(b.x, b.z) > Math.hypot(a.x, a.z) ? b : a), own[0]);
+      if (room) this.carveExit(room, rnd);
     }
+    // все комнаты — одной сетью (комнаты одного острова и так связаны; под островом логова — через логово)
     this.repairPaths(rooms);
     for (const room of rooms) if (room.kind === "chest") room.chest = { x: room.x - 1, y: room.y, z: room.z, opened: false, tier: pickChestTier(CAVE_CHEST_TIERS, rnd) };
     this.caves = { rooms };

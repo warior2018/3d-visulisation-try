@@ -711,7 +711,7 @@ export class CreateWorldScene extends Scene {
     this.iconIds = iconIds;
     this.name = name;
     this.icon = iconIds[Math.floor(Math.random() * iconIds.length)] || "island";
-    this.size = 2;
+    this.size = 3;
     this.cheats = false; // читы консоли в этом мире (выдать, призвать, бессмертие...) — только с галочкой
     this.onCreate = onCreate;
   }
@@ -741,7 +741,7 @@ export class CreateWorldScene extends Scene {
     ui.button("icon:1", ">", cx + 110, cy, 50, 50, 3);
     // размер
     ui.text("SIZE", x + 30, y + 305, 2, th.muted);
-    for (const k of [1, 2, 3]) ui.button("size:" + k, `${k} ${WORLD_SIZES[k].name}`, x + 30 + (k - 1) * 190 + 90, y + 345, 180, 44, 2, this.size === k);
+    for (const k of [1, 2, 3, 4]) ui.button("size:" + k, `${k} ${WORLD_SIZES[k].name}`, x + 30 + (k - 1) * 145 + 68, y + 345, 136, 44, 2, this.size === k);
     ui.text("FLOATING ISLANDS: DON'T FALL OFF THE EDGE", ui.width / 2, y + 378, 1, th.muted, "center");
     ui.button("cheats", this.cheats ? "[X] CONSOLE CHEATS" : "[ ] CONSOLE CHEATS", ui.width / 2, y + 404, 300, 34, 2, this.cheats);
     ui.button("create", "CREATE", ui.width / 2 - 110, y + H - 40, 200, 48, 3, true);

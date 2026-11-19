@@ -72,7 +72,7 @@ export { Projectiles, aimArc } from "./world/projectiles.js";
 export { Traps } from "./world/traps.js";
 export { World } from "./world/world.js"; // одно пространство: блоки + сущности + физика + предметы/снаряды/ловушки
 export { Zones } from "./world/zones.js";
-export { buildBox, buildHouse, buildCratePile, buildTower, scatter, seededRandom, randomInt } from "./world/structures.js";
+export { buildBox, buildHouse, buildBigHouse, buildRuins, buildCastle, buildCratePile, buildTower, scatter, seededRandom, randomInt } from "./world/structures.js";
 export { Terrain, flattenArea, buildTree } from "./world/terrain.js";
 export { valueNoise2D, fbm, smoothstep } from "./math/noise.js";
 export { chase, pursue, turnTowards, separate, neighbors, melee } from "./world/behaviors.js";

@@ -92,8 +92,9 @@ export function buildHouse(world, { x, y = 0, z, w, d, h = 3, wall, roof = wall,
       }
     }
   }
-  // Крыша: над стенами — целая, свес по краю — тонкий (полублок сверху), над серединой — второй ярус полублоком
-  for (let i = -1; i <= w; i++)
+  // Крыша: над стенами — целая, свес по краю — тонкий (полублок сверху), над серединой — второй ярус полублоком.
+  // roof: false — без крыши (нижний этаж большого дома, руины)
+  if (roof !== false) for (let i = -1; i <= w; i++)
     for (let k = -1; k <= d; k++) {
       if (decay > 0 && random() < decay * 0.6) continue;
       const eave = i === -1 || i === w || k === -1 || k === d;
@@ -176,4 +177,60 @@ export function scatter({ count, area, size, gap = 2, avoid = [], accept = null,
     }
   }
   return placed;
+}
+
+// Большой дом: floors этажей (2) по h, внутри — стенка с проходом (комнаты, если дом широкий), лестница на
+// второй этаж вдоль западной стены (дыра в полу над ней). Остальное — как buildHouse
+export function buildBigHouse(world, { x, y = 0, z, w, d, h = 3, floors = 2, wall, roof = wall, trim = wall, floor = trim, decay = 0, random = Math.random }) {
+  const base = { x, z, w, d, h, wall, trim, floor, decay, random };
+  const first = buildHouse(world, { ...base, y, roof: floors > 1 ? false : roof });
+  // перегородка посередине (широкий дом): проход 1×2 посередине
+  if (w >= 8) {
+    const ix = x + Math.floor(w / 2), door = z + Math.floor(d / 2);
+    for (let k = 1; k < d - 1; k++) for (let j = 0; j < h; j++) if (!(k + z === door && j < 2)) world.place(ix, y + j, z + k, wall);
+  }
+  for (let f = 1; f < floors; f++) {
+    const fy = y + f * (h + 1);
+    // лестница: от пола этажа ниже вверх вдоль западной стены (x + 1), по ступеньке на клетку
+    const sx = x + 1, sz0 = z + 1, below = fy - h - 1;
+    for (let s = 0; s < h + 1; s++) world.place(sx, below + s, sz0 + 1 + s, trim);
+    buildHouse(world, { ...base, y: fy, roof: f === floors - 1 ? roof : false, foundation: 0, door: first.door });
+    // дыра в полу над лестницей (голова проходит)
+    for (let s = Math.max(0, h - 3); s < h + 1; s++) world.remove(sx, fy - 1, sz0 + 1 + s);
+  }
+  return first;
+}
+
+// Руины: стены дома, сильно выкрошенные, без крыши; внутри — обломки (полублоки)
+export function buildRuins(world, { x, y = 0, z, w, d, h = 3, wall, trim = wall, random = Math.random }) {
+  buildHouse(world, { x, y, z, w, d, h, wall, trim, floor: trim, roof: false, windows: false, decay: 0.45 + random() * 0.2, random });
+  const n = Math.round(w * d * 0.12);
+  for (let i = 0; i < n; i++) world.place(x + 1 + Math.floor(random() * (w - 2)), y, z + 1 + Math.floor(random() * (d - 2)), wall, HALF);
+}
+
+// Замок: квадрат size × size — стены высотой h с зубцами, башни по углам (выше стен), ворота 3 × 3 посередине
+// стороны gate, в середине двора — большой дом (keep)
+export function buildCastle(world, { x, y = 0, z, size = 24, h = 5, wall, top = wall, keepWall = wall, roof = top, gate = "south", random = Math.random }) {
+  const T = 5; // башня
+  const last = size - 1, mid = Math.floor(size / 2);
+  for (let i = 0; i < size; i++) for (let k = 0; k < size; k++) {
+    const edge = i === 0 || i === last || k === 0 || k === last;
+    if (!edge) continue;
+    const side = k === last ? "south" : k === 0 ? "north" : i === 0 ? "west" : "east";
+    const pos = side === "north" || side === "south" ? i : k;
+    for (let j = 0; j < h; j++) {
+      if (side === gate && Math.abs(pos - mid) <= 1 && j < 3) continue; // ворота
+      world.place(x + i, y + j, z + k, wall);
+    }
+    if ((i + k) % 2 === 0) world.place(x + i, y + h, z + k, top); // зубцы
+  }
+  // башни по углам (дверью во двор)
+  const corners = [[0, 0, "south"], [size - T, 0, "south"], [0, size - T, "north"], [size - T, size - T, "north"]];
+  for (const [i, k, door] of corners) {
+    for (let a = 0; a < T; a++) for (let b = 0; b < T; b++) for (let j = 0; j < h + 3; j++) world.remove(x + i + a, y + j, z + k + b);
+    buildTower(world, { x: x + i, y, z: z + k, size: T, h: h + 3, wall, top, door, random });
+  }
+  // главный дом во дворе
+  const kw = Math.max(7, size - 2 * T - 4), kd = Math.max(7, size - 2 * T - 6);
+  buildBigHouse(world, { x: x + Math.floor((size - kw) / 2), y, z: z + Math.floor((size - kd) / 2) - 1, w: kw, d: kd, h: 3, floors: 2, wall: keepWall, trim: wall, roof, random });
 }

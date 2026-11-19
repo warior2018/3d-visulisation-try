@@ -509,13 +509,17 @@ export const WORLDGEN = {
     minLairs: 1, maxLairs: 1, //                                   логово тролля — ровно одно в каждом мире (и всегда — площадка лича)
   },
   colors: { grass: [96, 160, 72], dirt: [130, 96, 62], stone: [140, 140, 146], snow: [236, 240, 246], rockLine: 10, snowLine: 14 },
-  houses: 11, //             сколько домиков (на главном острове)
+  houses: 8, //              сколько домиков (на главном острове; на радиус 75 — по площади пересчитывает worldgenFor)
+  bigHouses: 3, //           больших домов (2 этажа, комнаты)
+  ruins: 2, //               руин
   towers: 3, //              сторожевых башен
   piles: 12, //              куч коробок
   trees: 64, //              деревьев
   area: [-66, -66, 66, 66],
   maxSlope: 3, //            постройку ставим, если перепад под ней не больше (иначе — другое место)
-  house: { w: [5, 8], d: [5, 7], h: [3, 4], decay: [0, 0.18] }, // размеры: [от, до]; decay — сколько кубиков «выпало»
+  house: { w: [5, 8], d: [5, 7], h: [3, 4], decay: [0, 0.18], lShape: 0.3 }, // размеры: [от, до]; decay — сколько кубиков «выпало»; lShape — шанс Г-образного
+  bigHouse: { w: [8, 11], d: [8, 10], h: [3, 3] },
+  castle: { size: [22, 28], h: [5, 6], maxSlope: 4 }, // замок: сторона квадрата, высота стен; перепад земли под ним
   tower: { size: [3, 4], h: [6, 8] },
   pile: { w: [2, 4], d: [2, 4], count: [2, 5] },
   tree: { height: [3, 5], crown: [2, 2] },
@@ -530,20 +534,38 @@ export const WORLDGEN = {
 
 // Размер мира (окно создания: 1 / 2 / 3): острова одного размера, от размера — сколько их вокруг главного
 // (маленький — 2: босс / просто остров / сундук; каждый следующий размер — ещё +1–2). Пробно, карта не утверждена
+// radius — радиус главного острова; islands — сколько маленьких; mountains / plateaus — сколько гор и плато;
+// castles — замков [от, до]; построек и деревьев — по площади (WORLDGEN — на радиус 75, здесь пересчитываются)
 export const WORLD_SIZES = {
-  1: { name: "SMALL", islands: [2, 2] },
-  2: { name: "MEDIUM", islands: [3, 4] },
-  3: { name: "LARGE", islands: [4, 6] },
+  1: { name: "TINY", radius: 30, islands: [1, 2], mountains: 1, plateaus: 1, castles: [0, 0] },
+  2: { name: "SMALL", radius: 50, islands: [2, 3], mountains: 1, plateaus: 2, castles: [0, 0] },
+  3: { name: "MEDIUM", radius: 100, islands: [3, 5], mountains: 2, plateaus: 4, castles: [1, 1] },
+  4: { name: "LARGE", radius: 150, islands: [4, 6], mountains: 3, plateaus: 6, castles: [1, 4] },
 };
 // voidY — ниже этого (бездна под летающими островами) — падение: voidDamage макс. HP и обратно наверх
 // bottom — до какой высоты (y) уходит острый каменный конус под каждым островом
 export const FLOATING = { underside: 0.3, bottom: -30, voidY: -35, voidDamage: 0.35 };
+// Размер мира → параметры генерации: острова, рельеф (на больших — плавнее: холмы ниже и шире), постройки
+// и деревья — по площади острова
 export function worldgenFor(size = 3, floating = false) {
-  const W = WORLDGEN, T = W.terrain;
-  const count = WORLD_SIZES[size]?.islands ?? T.islands.count;
+  const W = WORLDGEN, T = W.terrain, S = WORLD_SIZES[size] || WORLD_SIZES[3];
+  const R = S.radius, s = Math.max(0.55, Math.min(1.6, R / 75)), area = (R / 75) ** 2;
+  const sc = ([a, b], k = s) => [Math.round(a * k), Math.round(b * k)];
+  const per = (n, min = 0) => Math.max(min, Math.round(n * area));
   return {
     ...W,
-    terrain: { ...T, islands: { ...T.islands, count } },
+    size,
+    terrain: {
+      ...T, radius: R, edge: Math.round(Math.max(9, Math.min(26, R * 0.24))),
+      hills: { amp: R >= 140 ? 2 : R >= 90 ? 2.4 : 3, scale: Math.max(22, Math.round(R * 0.35)) },
+      plateaus: { count: S.plateaus, radius: sc(T.plateaus.radius), height: T.plateaus.height, edge: Math.round(T.plateaus.edge * s + 2) },
+      mountains: { ...T.mountains, count: S.mountains, radius: sc(T.mountains.radius, Math.max(0.6, s)), distance: [Math.round(R * 0.5), Math.round(R * 0.72)] },
+      islands: { ...T.islands, count: S.islands, radius: R <= 40 ? [9, 13] : T.islands.radius, distance: [R + 27, R + 51] },
+    },
+    area: [-(R - 9), -(R - 9), R - 9, R - 9],
+    houses: per(W.houses, 2), bigHouses: per(W.bigHouses), ruins: per(W.ruins), towers: per(W.towers, 1), piles: per(W.piles, 2), trees: per(W.trees, 10),
+    castles: S.castles,
+    arena: { ...W.arena, distance: Math.round(R * 0.64) },
     colors: { ...W.colors, underside: floating ? FLOATING.underside : 0, undersideBottom: floating ? FLOATING.bottom : null },
   };
 }
@@ -924,7 +946,7 @@ export const FALL_DAMAGE = {
 export const CAVES = {
   rooms: [4, 6], islandRoom: 0.5, keepClear: 14,
   size: { w: [7, 11], d: [7, 11], h: [4, 6] }, depth: [6, 30], floor: -25, ledge: 0.4, // floor — ниже этого пол комнат не опускается (там конус узкий) // ledge — шанс уступа внутри комнаты (свой уровень)
-  bridgeIslands: 0.3, lampEvery: 7, exitChance: 0.15, //                 exitChance — шанс лишнего прохода наверх у комнаты
+  bridgeIslands: 0.3, lampEvery: 7, exitFrom: 0.3, //                    вход в пещеры — через логово; нет логова — один выход не ближе exitFrom × радиуса к центру
   boss: 0.05, chest: 0.35, guard: 0.15, trigger: 18,
   // форма комнаты (вес): коробка, купол (пол плоский), ловушка — яма с шипами поперёк (только без сундука и босса)
   shapes: { box: 45, dome: 35, trap: 20 },
@@ -964,7 +986,12 @@ export function pickChestTier(weights, rnd = Math.random) {
 }
 
 export const ISLANDS = {
-  bridge: { chance: 0.75, width: 3, post: 4, deck: [120, 84, 52], rail: [92, 64, 40] },
+  // Мосты — на КАЖДЫЙ маленький остров. Разные: ширина width [от, до], материал (materials: настил, перила),
+  // перила (rails: нет / столбики с факелами / сплошные), изгиб (curve — шанс, bend — до стольких блоков вбок),
+  // подъём плавный (полублоками, крутой — ступеньками); holes — доля выпавших досок (не по середине: пройти можно)
+  bridge: { width: [2, 4], post: 4, deck: [120, 84, 52], rail: [92, 64, 40],
+    materials: [{ deck: [120, 84, 52], rail: [92, 64, 40] }, { deck: [104, 74, 46], rail: [80, 56, 36] }, { deck: [150, 150, 156], rail: [112, 112, 118] }],
+    rails: ["none", "posts", "full"], curve: 0.5, bend: 4, holes: 0.05 },
   // мост от логова на маленьком острове к главному: ниже края главного на FALL_DAMAGE.from + below блоков
   // (спрыгнуть — с уроном), спуск / подъём — run клеток на блок
   lairBridge: { below: 2, run: 2 },

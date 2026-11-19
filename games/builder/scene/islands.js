@@ -5,7 +5,7 @@
 // ============================================================
 
 import { ISLANDS, LIGHTS, LOOT, FALL_DAMAGE, CHEST_TIERS, HOUSE_CHEST, ISLAND_CHEST_TIERS, pickChestTier } from "../config.js";
-import { Vec3, Inventory, InventoryScene, Input } from "../../../engine/index.js";
+import { Vec3, Inventory, InventoryScene, Input, HALF } from "../../../engine/index.js";
 import { rarityData, tierOf, rollRarities } from "./loot.js";
 import { ITEMS, isWeapon, isArmor, maxStack, itemInfo } from "../items.js";
 import { describeSlot } from "../item-info.js";
@@ -20,9 +20,9 @@ export class IslandsPart {
     const dist = (d) => Math.hypot(d.x - main.x, d.z - main.z) - d.r;
     const far = small.reduce((a, b) => (dist(b) > dist(a) ? b : a));
     let bridges = 0;
-    for (const d of small) {
-      if (d === far || rnd() >= ISLANDS.bridge.chance) continue;
-      this.buildBridge(main, d);
+    this.bridgeEnds = []; // где мосты выходят на сушу — там не строим и не сажаем деревья (worldgen.js)
+    for (const d of small) { // каждый остров — с мостом на главный
+      this.buildBridge(main, d, rnd);
       bridges++;
     }
     // логово на маленьком острове: проход выходит к обрыву — от выхода низкий мост на главный остров
@@ -34,38 +34,64 @@ export class IslandsPart {
     this.engine.log(`мосты: ${bridges}, сундук на острове (${Math.round(far.x)}, ${Math.round(far.z)})`);
   }
 
-  // Мост: прямая доска шириной width от ровной части главного до ровной части маленького; высота — плавно
-  // от одного края к другому (подъём — ступенькой в блок: впрыгнуть)
-  buildBridge(a, b) {
-    const B = ISLANDS.bridge;
+  // Мост с главного острова a на маленький b: от суши до суши. Каждый свой: ширина, материал, перила, изгиб;
+  // высота меняется плавно (smoothstep), по полблока — полублоками (крутой перепад — ступеньки); дыры в настиле
+  // (не по середине — пройти можно всегда)
+  buildBridge(a, b, rnd = Math.random) {
+    const B = ISLANDS.bridge, v = this.world;
+    const pick = (list) => list[Math.floor(rnd() * list.length)];
+    const width = B.width[0] + Math.floor(rnd() * (B.width[1] - B.width[0] + 1));
+    const mat = pick(B.materials), rails = pick(B.rails);
+    const bend = rnd() < B.curve ? (rnd() * 2 - 1) * B.bend : 0;
     const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
     const ux = dx / len, uz = dz / len, px = -uz, pz = ux;
     const t0 = a.r - a.edge * 0.6, t1 = len - (b.r - b.edge * 0.6); // от суши до суши (у края — склон вниз)
-    const at = (t) => ({ x: a.x + ux * t, z: a.z + uz * t });
+    const at = (t) => {
+      const k = (t - t0) / Math.max(1, t1 - t0), off = bend * Math.sin(Math.PI * Math.max(0, Math.min(1, k)));
+      return { x: a.x + ux * t + px * off, z: a.z + uz * t + pz * off };
+    };
     const h0 = this.groundHeight(Math.floor(at(t0).x), Math.floor(at(t0).z));
     const h1 = this.groundHeight(Math.floor(at(t1).x), Math.floor(at(t1).z));
-    const half = (B.width - 1) / 2;
+    this.bridgeEnds.push(at(t0), at(t1));
+    const half = (width - 1) / 2;
+    const done = new Set(), holes = new Set();
     let step = 0;
-    const deck = []; // клетки над настилом — потом подъёмы полублоками
     for (let t = t0; t <= t1; t += 0.4, step++) {
       const c = at(t), k = (t - t0) / Math.max(1, t1 - t0);
-      const v = Math.round(h0 + (h1 - h0) * k);
-      const y = this.world.floor ? Math.max(1, v) : v; // верх настила (летающие острова — бывает и ниже 0)
+      const sm = k * k * (3 - 2 * k); // у краёв — пологие, в середине — круче
+      const top = Math.round((h0 + (h1 - h0) * sm) * 2) / 2; // верх настила с шагом в полблока
+      const y = Math.floor(top), halfTop = top - y > 0.25; // полблока сверху — полублок в клетке y
       for (let w = -half - 1; w <= half + 1; w += 0.5) {
-        const x = Math.floor(c.x + px * w), z = Math.floor(c.z + pz * w);
-        if (this.groundHeight(x, z) >= y) continue; // там уже суша
+        const x = Math.floor(c.x + px * w), z = Math.floor(c.z + pz * w), key = `${x},${z}`;
+        if (this.groundHeight(x, z) >= top) continue; // там уже суша
         if (Math.abs(w) <= half) {
-          if (!this.world.get?.(x, y - 1, z)) this.world.place(x, y - 1, z, B.deck);
-          deck.push([x, y, z]);
-        } else if (step % Math.round(B.post / 0.4) === 0) {
-          this.world.place(x, y - 1, z, B.rail);
-          this.world.place(x, y, z, B.rail); // перила — столбик в блок над настилом
-          // через столбик — факел сверху (LIGHTS.torch): ночью мост видно
-          if ((step / Math.round(B.post / 0.4)) % 2 === 0) this.world.place(x, y + 1, z, LIGHTS.torch.color);
+          if (done.has(key)) continue;
+          done.add(key);
+          // дыра: выпавшая доска — не на средней линии и не рядом с другой дырой
+          if (Math.abs(w) >= 0.5 && rnd() < B.holes && ![...holes].some((h) => { const [hx, hz] = h.split(",").map(Number); return Math.abs(hx - x) + Math.abs(hz - z) <= 1; })) {
+            holes.add(key);
+            continue;
+          }
+          if (halfTop) v.place(x, y, z, mat.deck, HALF);
+          else v.place(x, y - 1, z, mat.deck);
+        } else if (rails !== "none" && !done.has(key)) {
+          const base = halfTop ? y : y - 1;
+          if (rails === "full") {
+            v.place(x, base, z, mat.rail);
+            v.place(x, base + 1, z, mat.rail, HALF); // низкие перила — полублок
+          } else if (step % Math.round(B.post / 0.4) === 0) {
+            v.place(x, base, z, mat.rail);
+            v.place(x, base + 1, z, mat.rail);
+            if ((step / Math.round(B.post / 0.4)) % 2 === 0) v.place(x, base + 2, z, LIGHTS.torch.color); // факел через столбик
+          }
         }
       }
     }
-    for (const [x, y, z] of deck) this.world.halfStep?.(x, y, z); // ступеньки настила — полублоками
+  }
+
+  // Рядом ли (x, z) с выходом моста на сушу (там не сажаем деревья)
+  nearBridge(x, z, r = 4) {
+    return (this.bridgeEnds || []).some((p) => Math.hypot(x - p.x, z - p.z) < r);
   }
 
   // Мост от выхода логова (маленький остров) к краю главного: низкий — спрыгнуть на него с главного острова
@@ -92,7 +118,8 @@ export class IslandsPart {
       if (t > span - up) return Math.round(low + (t - (span - up)) / L.run);
       return low;
     };
-    const half = (B.width - 1) / 2, deck = [];
+    const half = (3 - 1) / 2, deck = []; // мост логова — шириной 3
+    this.bridgeEnds?.push({ x: sx, z: sz }, { x: sx + ux * end, z: sz + uz * end });
     let step = 0;
     for (let t = 0; t <= end + 1; t += 0.4, step++) {
       const cx = sx + ux * t, cz = sz + uz * t, y = yAt(Math.min(t, end));

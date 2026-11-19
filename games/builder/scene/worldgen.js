@@ -5,7 +5,7 @@
 // ============================================================
 
 import { WORLDGEN, PALETTE } from "../config.js";
-import { randomInt, Terrain, scatter, flattenArea, buildHouse, buildTower, buildCratePile, buildTree } from "../../../engine/index.js";
+import { randomInt, Terrain, scatter, flattenArea, buildHouse, buildBigHouse, buildRuins, buildCastle, buildTower, buildCratePile, buildTree } from "../../../engine/index.js";
 import { DEFAULT_SPAWNS, RESIDENTS } from "../creatures.js";
 import { ITEMS, isWeapon, isArmor, itemName, isUsable } from "../items.js";
 
@@ -71,14 +71,37 @@ export class WorldgenPart {
       }
       return { min, max, avg: sum / (w * d) };
     };
+    // Мосты на маленькие острова — раньше построек: место, куда мост выходит на сушу, не застраиваем (scene/islands.js)
+    this.buildIslands(rnd);
+    const bridgeAvoid = (this.bridgeEnds || []).map((p) => ({ x: p.x, z: p.z, r: 5 }));
+    // Озёра — на ровных местах (scene/water.js); вокруг них тоже не строим
+    this.generateLakes(rnd, W);
+    const lakeAvoid = (this.lakes || []).map((o) => ({ x: o.x, z: o.z, r: o.r + 2 }));
+    const blockedAll = [...avoid, ...bridgeAvoid, ...lakeAvoid];
+    // Вся постройка (с запасом в клетку) — на суше острова (не на краевом склоне, не над пропастью) и ровно
+    const onLand = (x, z, w, d) => {
+      for (let i = x - 1; i <= x + w; i++) for (let k = z - 1; k <= z + d; k++) if (this.groundRel(i, k) < 1) return false;
+      return true;
+    };
+    const fits = (slope) => (x, z, s) => onLand(x, z, s.w, s.d) && (() => { const g = ground(x, z, s.w, s.d); return g.max - g.min <= slope; })();
+    const house = () => {
+      const w = range(W.house.w), d = range(W.house.d);
+      // Г-образный: к основному прямоугольнику пристройка — общий угол (place двигает её внутрь участка)
+      if (rnd() < W.house.lShape) return { kind: "house", l: true, w: w + 3, d: d + 3, w0: w, d0: d };
+      return { kind: "house", w, d };
+    };
+    const C = W.castle;
     const queue = [
-      ...Array.from({ length: W.houses }, () => ({ kind: "house", w: range(W.house.w), d: range(W.house.d) })),
+      ...Array.from({ length: range(W.castles || [0, 0]) }, () => { const s = range(C.size); return { kind: "castle", w: s, d: s }; }),
+      ...Array.from({ length: W.bigHouses || 0 }, () => ({ kind: "big", w: range(W.bigHouse.w), d: range(W.bigHouse.d) })),
       ...Array.from({ length: W.towers }, () => { const s = range(W.tower.size); return { kind: "tower", w: s, d: s }; }),
+      ...Array.from({ length: W.houses }, house),
+      ...Array.from({ length: W.ruins || 0 }, () => ({ kind: "ruin", w: range(W.house.w), d: range(W.house.d) })),
       ...Array.from({ length: W.piles }, () => ({ kind: "pile", w: range(W.pile.w), d: range(W.pile.d) })),
     ];
     const spots = scatter({
-      count: queue.length, area: W.area, gap: W.gap, avoid, size: () => queue.shift(), random: rnd,
-      accept: (x, z, s) => { const g = ground(x, z, s.w, s.d); return g.max - g.min <= W.maxSlope; },
+      count: queue.length, area: W.area, gap: W.gap, avoid: blockedAll, size: () => queue.shift(), random: rnd, tries: 120,
+      accept: (x, z, s) => fits(s.kind === "castle" ? C.maxSlope : W.maxSlope)(x, z, s),
     });
     // 2б. Маленькие острова — свои постройки (WORLDGEN.islandStuff): пара домиков, куча коробок, иногда башня.
     // Ставим на ровной части острова (не у края и не на его горке)
@@ -89,30 +112,44 @@ export class WorldgenPart {
       const inner = d.r - d.edge;
       const hill = hillOf(d);
       const q = [
-        ...Array.from({ length: range(I.houses) }, () => ({ kind: "house", w: range(W.house.w), d: range(W.house.d) })),
+        ...Array.from({ length: range(I.houses) }, () => ({ kind: rnd() < 0.25 ? "ruin" : "house", w: range(W.house.w), d: range(W.house.d) })),
         ...(rnd() < I.towerChance ? [(() => { const s = range(W.tower.size); return { kind: "tower", w: s, d: s }; })()] : []),
         ...Array.from({ length: range(I.piles) }, () => ({ kind: "pile", w: range(W.pile.w), d: range(W.pile.d) })),
       ];
       spots.push(...scatter({
         count: q.length, area: [Math.floor(d.x - inner), Math.floor(d.z - inner), Math.ceil(d.x + inner), Math.ceil(d.z + inner)],
-        gap: W.gap, avoid: [...(hill ? [{ x: d.x, z: d.z, r: hill.r * 0.85 }] : []), ...arenaAvoid, ...tunnelAvoid], size: () => q.shift(), random: rnd,
+        gap: W.gap, avoid: [...(hill ? [{ x: d.x, z: d.z, r: hill.r * 0.85 }] : []), ...arenaAvoid, ...tunnelAvoid, ...bridgeAvoid], size: () => q.shift(), random: rnd,
         accept: (x, z, s) => {
           const far = Math.hypot(x + s.w / 2 - d.x, z + s.d / 2 - d.z) + Math.hypot(s.w, s.d) / 2;
           if (far > inner + 1) return false; //  вся постройка — на ровной части острова
-          const g = ground(x, z, s.w, s.d);
-          return g.min >= 1 && g.max - g.min <= W.maxSlope;
+          return fits(W.maxSlope)(x, z, s);
         },
       }));
     }
     const [STONE, WOOD, , , BRICK] = PALETTE;
+    const walls = [WOOD, STONE, BRICK];
     for (const s of spots) {
       // Площадку под постройку выравниваем (срезать / досыпать) до средней высоты земли
       const y = Math.round(ground(s.x, s.z, s.w, s.d).avg);
       flattenArea(this.world, { x: s.x, z: s.z, w: s.w, d: s.d, y, top: W.colors.grass, fill: W.colors.dirt });
-      if (s.kind === "house") {
-        const wall = pick([WOOD, STONE, BRICK]);
-        buildHouse(this.world, { ...s, y, h: range(W.house.h), wall, trim: wall === WOOD ? STONE : WOOD, roof: pick([WOOD, BRICK, STONE]), decay: rnd() * W.house.decay[1], random: rnd });
+      const wall = pick(walls), trim = wall === WOOD ? STONE : WOOD, roof = pick([WOOD, BRICK, STONE]);
+      if (s.kind === "house" && s.l) {
+        // Г: основная часть в углу участка + пристройка, сдвинутая к противоположному углу (общий кусок стены)
+        const decay = rnd() * W.house.decay[1], h = range(W.house.h);
+        buildHouse(this.world, { x: s.x, z: s.z, w: s.w0, d: s.d0, y, h, wall, trim, roof, decay, random: rnd });
+        const w2 = Math.max(4, s.w - s.w0 + 2), d2 = Math.max(4, s.d - s.d0 + 2);
+        buildHouse(this.world, { x: s.x + s.w - w2, z: s.z + s.d - d2, w: w2, d: d2, y, h, wall, trim, roof, decay, random: rnd });
+        this.maybeHouseChest({ ...s, w: s.w0, d: s.d0 }, y, rnd);
+      } else if (s.kind === "house") {
+        buildHouse(this.world, { ...s, y, h: range(W.house.h), wall, trim, roof, decay: rnd() * W.house.decay[1], random: rnd });
         this.maybeHouseChest(s, y, rnd); // сундук в доме (scene/islands.js)
+      } else if (s.kind === "big") {
+        buildBigHouse(this.world, { ...s, y, h: range(W.bigHouse.h), floors: 2, wall, trim, roof, random: rnd });
+        this.maybeHouseChest(s, y, rnd);
+      } else if (s.kind === "ruin") {
+        buildRuins(this.world, { ...s, y, h: range(W.house.h), wall: pick([STONE, BRICK]), trim: STONE, random: rnd });
+      } else if (s.kind === "castle") {
+        buildCastle(this.world, { x: s.x, z: s.z, y, size: s.w, h: range(C.h), wall: STONE, top: STONE, keepWall: pick([BRICK, STONE]), roof: pick([WOOD, BRICK]), gate: pick(["north", "south", "east", "west"]), random: rnd });
       } else if (s.kind === "tower") {
         buildTower(this.world, { ...s, y, size: s.w, h: range(W.tower.h), wall: STONE, top: WOOD, door: pick(["north", "south", "east", "west"]), random: rnd });
       } else {
@@ -120,15 +157,12 @@ export class WorldgenPart {
       }
     }
 
-    // 2в. Озёра — на ровных местах (scene/water.js)
-    this.generateLakes(rnd, W);
-
     // 3. Деревья — на свободной земле (не на постройках, не у места появления, не на снегу и скалах)
     let trees = 0;
     for (let t = 0; t < W.trees * 20 && trees < W.trees; t++) {
       const x = Math.floor((rnd() * 2 - 1) * (W.terrain.radius - 6));
       const z = Math.floor((rnd() * 2 - 1) * (W.terrain.radius - 6));
-      if (Math.hypot(x, z) < W.keepClear + 3 || this.onStructure(x, z) || this.inLake(x, z)) continue;
+      if (Math.hypot(x, z) < W.keepClear + 3 || this.onStructure(x, z) || this.inLake(x, z) || this.nearBridge(x, z)) continue;
       if (arenaAvoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue; // не на площадке лича
       if (this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue; // не на скалах и не за краем острова
       if ([-1, 1].some((dx) => this.onStructure(x + dx, z) || this.onStructure(x, z + dx))) continue; // не вплотную к стенам
@@ -142,7 +176,7 @@ export class WorldgenPart {
       for (let t = 0, n = 0; t < want * 20 && n < want; t++) {
         const a = rnd() * Math.PI * 2, r = rnd() * (d.r - d.edge);
         const x = Math.floor(d.x + Math.sin(a) * r), z = Math.floor(d.z + Math.cos(a) * r);
-        if (this.onStructure(x, z) || this.inLake(x, z) || this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue;
+        if (this.onStructure(x, z) || this.inLake(x, z) || this.nearBridge(x, z) || this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue;
         if ([-1, 1].some((dx) => this.onStructure(x + dx, z) || this.onStructure(x, z + dx))) continue;
         if (this.terrain.lairs.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + 2)) continue; // не над логовом
         if (this.nearLairTunnel(x, z)) continue; //                                               не у прохода к логову
@@ -153,10 +187,9 @@ export class WorldgenPart {
       }
     }
     this.generateCaves(rnd); // пещеры: комнаты, туннели, проходы наверх (scene/caves.js)
-    this.buildIslands(rnd); // мосты на маленькие острова и сундук на дальнем (scene/islands.js)
     this.buildSpawnLights(); //  столбы с факелами у места появления (scene/islands.js)
     const count = (k) => spots.filter((s) => s.kind === k).length;
-    this.engine.log(`новый мир: рельеф ${terrainBlocks} кубиков (зерно ${this.terrain.seed}), ${count("house")} домиков, ${count("tower")} башен, ${count("pile")} куч, ${trees} деревьев; всего ${this.world.blocks.size} блоков`);
+    this.engine.log(`новый мир: размер ${W.size || "?"}, радиус ${W.terrain.radius}, замков ${count("castle")}, больших домов ${count("big")}, руин ${count("ruin")}; рельеф ${terrainBlocks} кубиков (зерно ${this.terrain.seed}), ${count("house")} домиков, ${count("tower")} башен, ${count("pile")} куч, ${trees} деревьев; всего ${this.world.blocks.size} блоков`);
   }
 
   // Разбросать камни вокруг места появления (новый мир)

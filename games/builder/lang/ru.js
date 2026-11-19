@@ -1241,6 +1241,7 @@ export const RU = {
   "TIER ${t} PRICE": "ЦЕНА ТИРА ${t}",
   "TIERS": "TIERS",
   "TIME ALIVE": "ПРОЖИЛ",
+  "TINY": "КРОШЕЧНЫЙ",
   "TIP": "СОВЕТ",
   "TIPS FOR NEWCOMERS": "ПОДСКАЗКИ НОВИЧКУ",
   "TOGETHER AGAINST THE MOBS": "ВМЕСТЕ ПРОТИВ МОБОВ",
