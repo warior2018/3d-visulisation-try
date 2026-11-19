@@ -53,6 +53,7 @@ export class MainMenu extends Scene {
   // actions: { play(), news(), settings(), quit(), host(), join(), update(), confirm(title, onYes), askName(title, value, onDone) }
   constructor({ game, actions, updater = null }) {
     super();
+    this.noTechPanel = true; // F3 (тех. панель) в главном меню выключена (engine.js)
     this.game = game;
     this.actions = actions;
     this.updater = updater;

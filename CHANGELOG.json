@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.106.4",
+    "date": "2026-11-19",
+    "title": "F3 off in the main menu",
+    "changes": [
+      "В главном меню тех. панель (F3) выключается и не включается"
+    ]
+  },
+  {
     "version": "0.106.3",
     "date": "2026-11-19",
     "title": "Loading screen",

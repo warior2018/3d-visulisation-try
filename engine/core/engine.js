@@ -337,6 +337,11 @@ export class Engine {
     this.log("сцена + " + scene.label);
     scene.engine = this;
     this.scenes.push(scene);
+    // сцена без тех. панели (главное меню: scene.noTechPanel) — F3 выключается
+    if (scene.noTechPanel && this.techPanel) {
+      this.techPanel = 0;
+      profiler.enabled = false;
+    }
     scene.enter();
     this.sceneChanged();
   }
@@ -658,7 +663,7 @@ export class Engine {
         this.dumpProfile(profiler.report("Shift+F3"));
         this.toast("PROFILE SAVED TO LOG.TXT", 1500);
       }
-    } else if (actions.includes("techPanel")) {
+    } else if (actions.includes("techPanel") && !scene.noTechPanel) { // в главном меню F3 не включается
       // F3 по кругу: выкл → тех. панель (кадры, память, мир) → ПРОИЗВОДИТЕЛЬНОСТЬ (профайлер) → выкл.
       // Профайлер работает только пока открыта его страница — иначе он ничего не стоит
       this.techPanel = ((this.techPanel || 0) + 1) % 3;
