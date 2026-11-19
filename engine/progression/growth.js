@@ -10,8 +10,9 @@
 //    growth(100, { pct: 0.004, flat: 1, every: 25 })    // { mult: 1.4, add: 4 } — сами множитель и прибавка
 // ============================================================
 
-export function growth(n, { pct = 0, flat = 0, every = 1 } = {}) {
-  return { mult: 1 + pct * n, add: flat * Math.floor(n / every) };
+// step — ещё +step (доля базы) за каждые every (рост ступеньками: +5 % за каждые 10)
+export function growth(n, { pct = 0, flat = 0, every = 1, step = 0 } = {}) {
+  return { mult: 1 + pct * n + step * Math.floor(n / every), add: flat * Math.floor(n / every) };
 }
 
 // Применить рост к числу или паре [от, до]; round — округлять до целых

@@ -369,7 +369,7 @@ export const MOB_KINDS = {
   mummy: { slow: { factor: 0.6, time: 2 }, burn: 2 },
   shaman: { heal: { every: 2, radius: 7, amount: 8 } },
   goblin: { trap: { every: 9, max: 3, lifetime: 45, root: 1.5 }, dodge: 0.2, flee: 0.4, fleeSpeed: 0.35 },
-  champion: { chance: 0.012, from: 25, summon: { every: 14, count: 3, max: 6 }, aura: { radius: 4, dps: 4 } },
+  champion: { chance: 0.012, from: 25, summon: { every: 14, count: 3, max: 6 }, aura: { radius: 4, dps: 6 } },
   // ЛЕТУЧАЯ МЫШЬ (bat) — только ночью, реже минибосса (chance на появление моба после from-го), не больше max;
   // пике — bite доли ТЕКУЩЕГО HP цели; пике и удар — кровотечение bleed доли макс. HP за bleedTime с
   bat: { chance: 0.008, from: 10, max: 2, bite: 0.1, bleed: 0.01, bleedTime: 3 },
@@ -393,7 +393,9 @@ export const BOARS = { interval: 30, chance: 0.3, max: 2 };
 //   hp — здоровье, damage — урон атаки, xp — опыт за победу.
 // Урон растёт в ПРОЦЕНТАХ (+0.4 % базы за каждого моба) и чуть-чуть цифрой (+1 за каждые 10) —
 // так мобы крепчают, но не становятся «убивающими с двух ударов»: к 300-му скелет бьёт 23–34 (было 65–70).
-const MOB_DAMAGE = { pct: 0.004, flat: 1, every: 10 };
+const MOB_DAMAGE = { step: 0.05, every: 10 }; // +5 % базового урона за каждых 10 мобов (у всех: мобы, боссы, страж, кабаны)
+// Весь урон мобов (их удары, броски, выстрелы, взрывы) — ×MOB_DAMAGE_SCALE к таблице ATTACKS (creatures.js)
+export const MOB_DAMAGE_SCALE = 1.5;
 // Страж растёт вместе с мобами: здоровье +4 % базы за каждого (300 → +12), урон — так же в процентах
 export const WARDEN_GROWTH = { hp: { flat: 12 }, damage: MOB_DAMAGE };
 
@@ -700,7 +702,7 @@ export const ATTACKS = {
   shamanStaff: { id: "shaman-staff", name: "BONE STAFF", damage: [4, 7], reach: PUNCH_REACH * 0.8, windup: 0.3, cooldown: 1.4 },
   shamanHex: { id: "shaman-hex", name: "HEX", damage: [8, 12], speed: 16, cooldown: 2.6 },
   goblinStab: { id: "goblin-stab", name: "RUSTY KNIFE", damage: [4, 7], reach: 0.65, lenience: 1.15, windup: 0.15, cooldown: 0.8, maxTargets: 1 },
-  goblinTrap: { id: "goblin-trap", name: "GOBLIN TRAP", damage: 18, radius: 0.6 },
+  goblinTrap: { id: "goblin-trap", name: "GOBLIN TRAP", damage: 27, radius: 0.6 },
   championCleave: { id: "champion-cleave", name: "PLAGUE CLEAVER", damage: [18, 26], reach: 1.5, lenience: 1.15, windup: 0.45, cooldown: 1.8, arc: 120, maxTargets: 3 },
   zombieClaw: { id: "zombie-claw", name: "ZOMBIE CLAW", damage: [6, 11], reach: 0.87, lenience: 1.15, windup: 0.45, cooldown: 1.5, arc: 100, maxTargets: 2 },
 };

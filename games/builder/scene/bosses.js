@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { BONE_CROWN, TROLL_HIDE, BOSS, WORLDGEN, LICH, ATTACKS, SHAKE, BLOATER, ZOMBIE_GRENADE } from "../config.js";
+import { BONE_CROWN, TROLL_HIDE, BOSS, WORLDGEN, LICH, ATTACKS, SHAKE, BLOATER, ZOMBIE_GRENADE, MOB_DAMAGE_SCALE } from "../config.js";
 import { seededRandom, flattenArea, grow, Vec3, MagicAttack } from "../../../engine/index.js";
 import { CREATURES, mobGrowth } from "../creatures.js";
 
@@ -113,8 +113,9 @@ export class BossesPart {
     const g = BOSS.growth;
     const def = CREATURES[e.type];
     e.setMaxHp(grow(def.maxHp, n, g.hp));
-    e.attack.damage = grow(ATTACKS[def.attack].damage, n, g.damage);
-    e.rangedDamage = grow(ATTACKS[def.rangedWeapon.attack].damage, n, g.damage);
+    const k = (d) => (Array.isArray(d) ? d.map((v) => v * MOB_DAMAGE_SCALE) : d * MOB_DAMAGE_SCALE); // мобы бьют сильнее таблицы
+    e.attack.damage = grow(k(ATTACKS[def.attack].damage), n, g.damage);
+    e.rangedDamage = grow(k(ATTACKS[def.rangedWeapon.attack].damage), n, g.damage);
   }
 
   // Тролль ударил о землю: пыльный круг, грохот, тряска экрана, если герой рядом

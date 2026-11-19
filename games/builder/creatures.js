@@ -6,7 +6,7 @@
 // ============================================================
 
 import { Vec3, Inventory, Player, Mob, NPC, MeleeAttack, SlamAttack, ThrowAttack, HostileBrain, KamikazeBrain, WanderBrain, GuardBrain, FollowBrain, Taming, Rideable, grow, growth } from "../../engine/index.js";
-import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER, MOB_SIZE } from "./config.js";
+import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER, MOB_SIZE, MOB_DAMAGE_SCALE } from "./config.js";
 import { maxStack } from "./items.js";
 import { BatBrain } from "./bat-brain.js";
 
@@ -266,6 +266,8 @@ export function pickRangedWeapon(saved) {
 export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, inventory, bonusHp = 0, damageMult = 1, bonusDamage = 0, bonusXp = 0, ranged = false } = {}) {
   const def = CREATURES[type];
   if (!def) return null; // неизвестный тип (например, из старого сохранения) — пропускаем
+  // мобы бьют сильнее таблицы (config.js); в сохранение — damageMult без этого множителя (иначе рос бы при каждой загрузке)
+  const dmgK = damageMult * ((def.kind || "mob") === "mob" ? MOB_DAMAGE_SCALE : 1);
   const weaponId = ranged && def.ranged ? pickRangedWeapon(ranged) : null;
   const weapon = def.rangedWeapon || (weaponId ? MOB_RANGED.weapons[weaponId] : null); // rangedWeapon — своё (босс)
   const maxHp = def.maxHp + bonusHp;
@@ -295,7 +297,7 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
   if (def.attack) {
     // Своя атака у каждого (свой кулдаун); урон — с прибавкой
     const a = ATTACKS[def.attack];
-    const scale = (d) => Math.round(d * damageMult) + bonusDamage;
+    const scale = (d) => Math.round(d * dmgK) + bonusDamage;
     const damage = Array.isArray(a.damage) ? a.damage.map(scale) : scale(a.damage);
     options.attack = new (a.slam ? SlamAttack : MeleeAttack)({ ...a, damage }); // slam — удар по земле (тролль)
   }
@@ -324,7 +326,7 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
     e.rangedWeapon = weaponId;
     e.name = MOB_RANGED.names[type]?.[weaponId] || e.name;
     e.rangedAttack = new ThrowAttack({ ...r, minDamage: 0, maxDamage: 0 });
-    e.rangedDamage = r.damage.map((d) => Math.round(d * damageMult) + bonusDamage);
+    e.rangedDamage = r.damage.map((d) => Math.round(d * dmgK) + bonusDamage);
   }
   if (def.boss) {
     e.boss = true; // босс логова: не исчезает, не считается в мобах, сам в нашествие не идёт
@@ -332,7 +334,7 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
     e.stunImmunity = BOSS.stunImmunity; // и после них — передышка
     e.percentDamageScale = BOSS.percentDamageScale; // горение / кровотечение / капкан (доля макс. HP) — слабее
   }
-  if (type === "bloater") e.blastDamage = BLOATER.damage.map((d) => Math.round(d * damageMult) + bonusDamage); // взрыв крепчает, как удары
+  if (type === "bloater") e.blastDamage = BLOATER.damage.map((d) => Math.round(d * dmgK) + bonusDamage); // взрыв крепчает, как удары
   e.bonusXp = bonusXp; // доля: 0.05 — опыта на 5 % больше
   if (def.regen) e.regen = def.regen;
   if ((def.kind || "mob") === "mob" && !def.boss) e.regenPct = MOB_REGEN.pct; // мобы зализывают раны: 1 % макс. HP/с (рана режет)
