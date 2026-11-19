@@ -5,6 +5,13 @@
 
 import { fileURLToPath } from "node:url";
 import { tone, noise, mix, ELEMENTS } from "../../engine/index.js";
+
+// Плавное начало звука за ms миллисекунд (48 000 сэмплов в секунду): без щелчка в начале
+function fadeIn(a, ms) {
+  const n = Math.round((48000 * ms) / 1000);
+  for (let i = 0; i < Math.min(n, a.length); i++) a[i] *= i / n;
+  return a;
+}
 import { SKIN_DEFAULTS } from "./skins.js";
 
 // Огонь (ОГНЕННЫЕ ПУЛИ) поджигает при КАЖДОМ попадании (в движке по умолчанию — с шансом 50 %)
@@ -758,8 +765,8 @@ export const SOUNDS = {
   snap: mix(tone(900, 300, 80, 8), noise(70, 10, 0.4)), //            капкан захлопнулся
   spike: mix(tone(600, 250, 70, 9), noise(50, 10, 0.5)), //           шипы укололи
   trapSet: mix(tone(300, 200, 90, 6), noise(40, 10, 0.6)), //         поставил ловушку
-  // шаг гиганта (scene/giant.js): глухой тяжёлый удар — низкий «бум», гул земли и треск
-  giantStep: mix(tone(48, 22, 900, 2.5), tone(80, 30, 450, 4), noise(700, 4, 0.985), noise(160, 9, 0.7)),
+  // шаг гиганта (scene/giant.js): глухой тяжёлый топот — только низкие частоты, мягкое начало (без щелчка)
+  giantStep: fadeIn(mix(tone(40, 18, 1200, 2.2), tone(62, 26, 700, 3.2)), 25),
 };
 
 // Музыка и окружение звука (scene/audio.js): раз в every с решаем трек; бой — моб охотится на героя ближе
