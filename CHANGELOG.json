@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.105.2",
+    "date": "2026-11-19",
+    "title": "Weapon talents back",
+    "changes": [
+      "Вкладки покупного оружия снова с прежними талантами (молот, катана, автомат, дробовик, снайперка, арбалет, лук, гранатомёт, динамит) и MASTERY"
+    ]
+  },
+  {
     "version": "0.105.1",
     "date": "2026-11-19",
     "title": "Fixes: big house stairs, clouds visible far away",
