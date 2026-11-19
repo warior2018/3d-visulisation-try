@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.100.14",
+    "date": "2026-11-19",
+    "title": "Smaller house foundations",
+    "changes": [
+      "Фундамент домов на неровной земле — не глубже 3 блоков под полом (было до 8)"
+    ]
+  },
+  {
     "version": "0.100.13",
     "date": "2026-11-19",
     "title": "Visible burning and bleeding",

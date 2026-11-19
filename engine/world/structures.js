@@ -49,10 +49,10 @@ export function buildBox(world, { x, y = 0, z, w, h, d, color, hollow = false, d
 // door — сторона двери: "north" | "south" | "east" | "west" (по умолчанию — случайная).
 // trim — цвет углов (столбов), по умолчанию как стены. windows — прорубить окна.
 // decay — доля выпавших кубиков стен и крыши (заброшенный дом).
-// floor — цвет пола (по умолчанию trim): пол во всю площадь на y − 1 и фундамент вниз до опоры (до 8 блоков) —
+// floor — цвет пола (по умолчанию trim): пол во всю площадь на y − 1 и фундамент вниз до опоры (до foundation блоков, 3) —
 // дом не висит над ямой / обрывом и в полу нет дыр. Детали полублоками: подоконники, свес крыши (полублок сверху),
 // второй ярус крыши (полублок) — крыша ступенькой
-export function buildHouse(world, { x, y = 0, z, w, d, h = 3, wall, roof = wall, trim = wall, floor = trim, door = null, windows = true, decay = 0, random = Math.random }) {
+export function buildHouse(world, { x, y = 0, z, w, d, h = 3, wall, roof = wall, trim = wall, floor = trim, door = null, windows = true, decay = 0, foundation = 3, random = Math.random }) {
   const sides = ["north", "south", "east", "west"];
   const doorSide = door || sides[Math.floor(random() * 4)];
   // Где дверь: посередине своей стены (±1 для разнообразия)
@@ -66,7 +66,7 @@ export function buildHouse(world, { x, y = 0, z, w, d, h = 3, wall, roof = wall,
   for (let i = 0; i < w; i++) for (let k = 0; k < d; k++) {
     world.remove(x + i, y - 1, z + k);
     put(x + i, y - 1, z + k, floor);
-    for (let j = y - 2; j >= y - 9 && !world.has(x + i, j, z + k); j--) put(x + i, j, z + k, trim);
+    for (let j = y - 2; j > y - 2 - foundation && !world.has(x + i, j, z + k); j--) put(x + i, j, z + k, trim);
   }
 
   for (let j = 0; j < h; j++) {
