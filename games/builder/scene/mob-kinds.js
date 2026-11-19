@@ -6,8 +6,8 @@
 //  Здесь же — общий «моб ранил кого-то» (mobOnHit: зовёт onDamage цели) и счётчик для боссов.
 // ============================================================
 
-import { Damage, Slow, TrapAttack, withStatus, bleed } from "../../../engine/index.js";
-import { MOB_KINDS, ATTACKS, MINION } from "../config.js";
+import { Damage, Slow, TrapAttack, withStatus, bleed, lightAt } from "../../../engine/index.js";
+import { MOB_KINDS, ATTACKS, MINION, SUN_BURN } from "../config.js";
 import { mobGrowth } from "../creatures.js";
 
 export class MobKindsPart {
@@ -83,7 +83,21 @@ export class MobKindsPart {
       if (e.type === "shaman") this.shamanTick(e, dt, K.shaman);
       else if (e.type === "goblin") this.goblinTick(e, dt, K.goblin);
       else if (e.type === "champion") this.championTick(e, dt, K.champion);
+      if (SUN_BURN.types.includes(e.type)) this.sunBurn(e, dt);
     }
+  }
+
+  // Солнце (SUN_BURN): днём под открытым небом ночные мобы горят — доля макс. HP раз в every с
+  sunBurn(e, dt) {
+    const S = SUN_BURN;
+    e.sunTimer = (e.sunTimer ?? S.every) - dt;
+    if (e.sunTimer > 0) return;
+    e.sunTimer = S.every;
+    if (this.settings.general.dayNight === false || this.isNight()) return;
+    const p = e.position;
+    if (lightAt(this.world, Math.floor(p.x), Math.floor(p.y + e.height * 0.8), Math.floor(p.z)).sky < S.sky) return; // в тени / в пещере
+    e.receive(new Damage({ amount: e.stats.maxHp * S.pct, type: "pure", kind: "magic", tags: ["dot", "sun"] }));
+    this.fx?.burst({ x: p.x, y: p.y + e.height * 0.8, z: p.z }, { count: 3, speed: 0.6, color: [255, 170, 60], size: 0.07, life: 0.5, gravity: -2, drag: 2 });
   }
 
   shamanTick(e, dt, S) {

@@ -117,6 +117,7 @@ export class AmmoPart {
   // только если он на поверхности своего острова (рельеф terrain.height уже с подъёмом острова; деревья, дома и
   // своды пещер в нём не считаются): выше и под землёй — в пещере над героем — не видно
   mobOnMap(e) {
+    if (e.noMap) return false; // светлячки — не на карте
     if (e.kind !== "mob" || e.boss) return true;
     const dy = e.position.y - this.player.position.y;
     if (dy < -MAP_MOBS.below) return false;

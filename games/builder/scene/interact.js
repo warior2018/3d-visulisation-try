@@ -24,6 +24,7 @@ export class InteractPart {
   // Существо погибло. Добыча, опыт и трофеи — только если добил герой (стража добивает «бесплатно»)
   // Добыча и опыт — и если добил не герой (страж), но герой нанёс хоть 1 урона (движок: entity.damagedBy)
   onDeath(e) {
+    if (e.boss) this.bossDown = true; // повержен босс — открываются порталы (scene/portals.js)
     if (e.selfDestructed) {
       this.engine.log(`${e.name} взорвался сам — без опыта и добычи`);
       return;

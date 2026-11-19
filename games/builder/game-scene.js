@@ -679,7 +679,7 @@ export class GameScene extends Scene {
       if (alerted.includes(e)) engine.sound.play("growl", { at: e.position, volume: 0.8 }); // рык того, кто разозлился
       this.applyKnock(e, dt); // отбросило ударом (scene/feel.js)
       profiler.begin(PROF.physics);
-      this.physics.step(e, dt); // стены, ступеньки, падение
+      if (!e.firefly) this.physics.step(e, dt); // стены, ступеньки, падение (светлячок висит сам)
       profiler.end(PROF.physics);
       // Шаги: пока идёт — раз в полшага (быстрее — чаще); слышно, кто и откуда подходит
       if (going && e.onGround) {
@@ -734,6 +734,7 @@ export class GameScene extends Scene {
     }
     player.renderYaw = this.look.yaw; // герой смотрит туда же, куда камера (мышь — каждый кадр)
     this.drawPortals(); // порталы: светящиеся овалы (scene/portals.js)
+    this.updateFireflies?.(dt); // светлячки в комнате портала
     // Покачивание головы: скорость по земле, на земле ли, бежим ли
     this.bob.update(dt, Math.hypot(player.velocity.x, player.velocity.z), player.onGround, !background && engine.input.isDown("run"));
     this.staminaFlash = Math.max(0, (this.staminaFlash || 0) - dt);

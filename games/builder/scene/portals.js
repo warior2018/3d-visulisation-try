@@ -12,8 +12,8 @@
 //  Сохраняться в комнате нельзя (сохраняется главный мир).
 // ============================================================
 
-import { Vec3, buildTree, dismount, HALF } from "../../../engine/index.js";
-import { PORTALS, LIGHTS, MOB_MIX, ELITE, CHEST_TIERS, ISLANDS, pickChestTier } from "../config.js";
+import { Vec3, buildTree, dismount, HALF, Entity } from "../../../engine/index.js";
+import { PORTALS, LIGHTS, MOB_MIX, ELITE, CHEST_TIERS, ISLANDS, TORCH, pickChestTier } from "../config.js";
 import { pickWeighted } from "./shared.js";
 import { mobGrowth, CREATURES } from "../creatures.js";
 
@@ -88,7 +88,9 @@ export class PortalsPart {
     const heroes = this.allHeroes();
     // появление: вокруг героя в главном мире
     const outside = heroes.filter((h) => h.alive && this.worldOf(h) === this.mainWorld);
-    if (outside.length) {
+    this.portalTime = (this.portalTime || 0) + dt;
+    // первый портал — не раньше firstAfter с в мире и после поверженного босса
+    if (outside.length && this.bossDown && this.portalTime >= P.firstAfter) {
       this.portalIn = (this.portalIn ?? rnd(P.every)) - dt;
       if (this.portalIn <= 0) {
         this.portalIn = rnd(P.every);
@@ -97,6 +99,11 @@ export class PortalsPart {
     }
     for (const portal of [...this.portals]) {
       const inside = heroes.filter((h) => portal.room && this.worldOf(h) === portal.room);
+      // комната зачищена (все сундуки опустошены, элиты повержены) — через cleared с закрывается
+      if (portal.room && portal.life > P.warn && this.roomCleared(portal)) {
+        portal.clearIn = (portal.clearIn ?? P.cleared) - dt;
+        if (portal.clearIn <= 0) portal.life = Math.min(portal.life, P.warn);
+      }
       // за warn с до конца — затягивает всех внутри; портал ждёт, пока все не вышли
       if (portal.life > P.warn || !inside.length) portal.life -= dt;
       if (portal.life <= P.warn) for (const h of inside) {
@@ -185,6 +192,7 @@ export class PortalsPart {
     // 2 сундука случайного тира (равные шансы) — по бокам на земле; 4 элиты вокруг дерева (только хост)
     portal.chests = PORTALS.chests.map(([x, z]) => ({ x: x - 1, y: y0 + 1, z: z - 0.5, opened: false, tier: pickChestTier(PORTALS.chestTiers) }));
     if (this.role !== "client") this.withWorld(w, () => this.roomElites(portal, y0));
+    this.withWorld(w, () => this.roomFireflies(y0)); // светлячки у дерева — свет в центре комнаты (у каждого свои)
     portal.exit = { x: 0.5, y: y0 + 1, z: -hz + 1.5, yaw: 0 }; //         выход — у дальней стены, на земле
     portal.spawn = { x: 0.5, y: y0 + 1, z: hz - 2, yaw: Math.PI }; //     вход — у ближней, лицом к дереву и выходу
     return w;
@@ -202,6 +210,84 @@ export class PortalsPart {
       e.guardOf = "portal:" + portal.id; // не пропадают
       this.makeElite(e, auras[Math.floor(Math.random() * auras.length)]);
     }
+  }
+
+  // Зачищена ли комната: сундуки открыты и пусты, живых элит нет
+  roomCleared(portal) {
+    const empty = (c) => c.opened && Array.isArray(c.items) && c.items.every((s) => !s || !s.count);
+    if (!(portal.chests || []).every(empty)) return false;
+    return !portal.room.entities.list.some((e) => e.alive && e.guardOf === "portal:" + portal.id);
+  }
+
+  // Светлячки (PORTALS.fireflies): висят у дерева, светят (70 % факела), иногда мигают; бьются, но без опыта,
+  // добычи, полоски здоровья и значка на карте. Вид — два кубика света (fireflySprites), свет — portalLights
+  roomFireflies(y0) {
+    const F = PORTALS.fireflies, n = Math.round(rnd(F.count));
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, r = 1.2 + Math.random() * (F.radius - 1.2);
+      const at = { x: 0.5 + Math.sin(a) * r, y: y0 + rnd(F.height), z: 0.5 + Math.cos(a) * r };
+      const e = new Entity({ type: "firefly", name: "FIREFLY", position: new Vec3(at.x, at.y, at.z), maxHp: F.hp, radius: 0.08, height: 0.1 });
+      e.kind = "critter";
+      e.faction = "neutral";
+      Object.assign(e, { firefly: { home: at, t: Math.random() * 10, blinkIn: rnd(F.blink), phase: null }, noBar: true, noMap: true, xp: 0 });
+      this.entities.add(e);
+    }
+  }
+
+  // Каждый кадр: светлячки активного мира летают у своего места и мигают; убитые — искры и исчезают
+  updateFireflies(dt) {
+    const F = PORTALS.fireflies;
+    for (const e of [...this.entities.list]) {
+      const f = e.firefly;
+      if (!f) continue;
+      if (!e.alive) {
+        this.fx?.burst({ x: e.position.x, y: e.position.y, z: e.position.z }, { count: 8, speed: 1, color: F.color, size: 0.04, life: 0.5, drag: 2 });
+        this.removeEntity(e);
+        continue;
+      }
+      f.t += dt;
+      e.position.x = f.home.x + Math.sin(f.t * 0.7) * 0.35 + Math.sin(f.t * 1.9) * 0.1;
+      e.position.y = f.home.y + Math.sin(f.t * 1.1) * 0.2;
+      e.position.z = f.home.z + Math.cos(f.t * 0.6) * 0.35 + Math.cos(f.t * 2.3) * 0.1;
+      e.yaw = Math.atan2(Math.cos(f.t * 0.7), -Math.sin(f.t * 0.6)); // нос — по полёту (примерно)
+      e.velocity.x = e.velocity.y = e.velocity.z = 0;
+      // мигание: гаснет (fade) → темно (dark) → зажигается (fade)
+      if (!f.phase) {
+        f.blinkIn -= dt;
+        if (f.blinkIn <= 0) f.phase = { out: rnd(F.fade), dark: rnd(F.dark), in: rnd(F.fade), t: 0 };
+        f.glow = 1;
+      } else {
+        const ph = f.phase;
+        ph.t += dt;
+        f.glow = ph.t < ph.out ? 1 - ph.t / ph.out : ph.t < ph.out + ph.dark ? 0 : Math.min(1, (ph.t - ph.out - ph.dark) / ph.in);
+        if (ph.t >= ph.out + ph.dark + ph.in) {
+          f.phase = null;
+          f.blinkIn = rnd(F.blink);
+        }
+      }
+    }
+  }
+
+  // Вид светлячков: 0.1 × 0.05 × 0.05 — два кубика по 0.05 вдоль тела; погас — тёмные
+  fireflySprites() {
+    const F = PORTALS.fireflies, out = [];
+    for (const e of this.entities.list) {
+      const f = e.firefly;
+      if (!f || !e.alive) continue;
+      const k = f.glow ?? 1, dx = Math.sin(e.yaw) * 0.025, dz = Math.cos(e.yaw) * 0.025;
+      const color = F.color.map((c) => 40 + (c * 1.6 - 40) * k); // ярче обычного (светится), погас — тёмный
+      for (const s of [-1, 1]) out.push({ x: e.position.x + dx * s, y: e.position.y + 0.05, z: e.position.z + dz * s, size: 0.05, color, alpha: 1 });
+    }
+    return out;
+  }
+
+  fireflyLights() {
+    const F = PORTALS.fireflies, color = F.color.map((c) => c / 255), out = [];
+    for (const e of this.entities.list) {
+      const k = e.firefly && e.alive ? e.firefly.glow ?? 1 : 0;
+      if (k > 0.02) out.push({ x: e.position.x, y: e.position.y + 0.05, z: e.position.z, radius: TORCH.radius * F.light, power: TORCH.power * F.light * k, color });
+    }
+    return out;
   }
 
   // Сундуки комнаты портала, в которой стоит герой (модели)
@@ -441,6 +527,6 @@ export class PortalsPart {
 
   // Свет порталов (вспышки движка: scene/effects.js → updateFlashes)
   portalLights() {
-    return this.visiblePortals().map((o) => ({ x: o.x, y: o.y + 1.2, z: o.z, radius: PORTALS.light.radius, power: PORTALS.light.power, color: PURPLE.map((c) => c / 255) }));
+    return [...this.visiblePortals().map((o) => ({ x: o.x, y: o.y + 1.2, z: o.z, radius: PORTALS.light.radius, power: PORTALS.light.power, color: PURPLE.map((c) => c / 255) })), ...this.fireflyLights()];
   }
 }

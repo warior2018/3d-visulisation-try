@@ -184,16 +184,22 @@ export const FLASH = {
 // slowEvery — главный мир, пока герой в комнате, тикает раз в столько тиков; fade — с затемнения (туда и обратно).
 // Закрытие: за warn с до конца того, кто в комнате, затягивает к выходу — pull (м/с: start, ×mult в секунду, до
 // max), камера — в конусе cone (° по горизонтали / вертикали), тряска shake; light — свет портала
+// every — раз во сколько с новый портал (в среднем ~7 мин, не чаще раза в минуту); life — живёт с (10 мин);
+// cleared — комната зачищена (сундуки пусты, элиты повержены) — закрывается через столько с
 export const PORTALS = {
-  // enabled — порталы появляются (false — выключены)
-  enabled: true,
-  every: [90, 150], max: 3, distance: [10, 25], life: [60, 120], enterRadius: 0.9, cooldown: 2, slowEvery: 4, fade: 0.5,
+  // enabled — порталы появляются (false — выключены); первый — не раньше firstAfter с в мире и только после
+  // первого поверженного босса (любого: логово, площадка, пещера)
+  enabled: true, firstAfter: 300,
+  // светлячки в комнате: count штук, в радиусе radius от дерева, на высоте height над полом; свет — light от факела
+  // (радиус и сила), цвет color; мигают раз в blink с: гаснут fade с, темно dark с, зажигаются fade с
+  fireflies: { count: [4, 8], radius: 4, height: [1, 3.5], light: 0.7, color: [255, 240, 110], blink: [8, 16], fade: [0.4, 0.5], dark: [0.1, 0.2], hp: 1 },
+  every: [60, 780], max: 3, distance: [10, 25], life: [600, 600], cleared: 15, enterRadius: 0.9, cooldown: 2, slowEvery: 4, fade: 0.5,
   // elites — элиты в комнате (вокруг дерева, eliteRadius), chests — сундуки (x, z), тир — по chestTiers
   elites: 4, eliteRadius: [4, 6], chests: [[-9, 0], [9, 0]], chestTiers: { wood: 1, steel: 1, gold: 1 }, coins: 40, coinsPerLevel: 4,
   // room: зал w × d × h (высота), пол на y; дерево посредине (tree), вокруг — камень, с радиуса ground[0] — земля
   // полублоком, с ground[1] — целым блоком (две ступени); лампы в потолке через lampStep и по стенам
   room: { w: 21, d: 21, h: 10, y: 100, wall: [70, 62, 92], stone: [128, 126, 132], dirt: [130, 96, 62], grass: [96, 160, 72], ground: [7, 8.5], tree: { height: 6, crown: 3 }, lampStep: 6 },
-  warn: 8, pull: { start: 0.1, mult: 2, max: 30 }, cone: [35, 25], shake: 0.4, light: { radius: 5, power: 1.3 },
+  warn: 8, pull: { start: 0.1, mult: 4, max: 30 }, cone: [35, 25], shake: 0.4, light: { radius: 5, power: 1.3 },
 };
 
 export const LIGHTS = {
@@ -372,9 +378,9 @@ export const BOARS = { interval: 30, chance: 0.3, max: 2 };
 
 // Рост по счёту появлений мобов (движок: grow — проценты от базы + прибавка цифрой каждые every):
 //   hp — здоровье, damage — урон атаки, xp — опыт за победу.
-// Урон растёт в ПРОЦЕНТАХ (+0.4 % базы за каждого моба) и чуть-чуть цифрой (+1 за каждые 25) —
+// Урон растёт в ПРОЦЕНТАХ (+0.4 % базы за каждого моба) и чуть-чуть цифрой (+1 за каждые 10) —
 // так мобы крепчают, но не становятся «убивающими с двух ударов»: к 300-му скелет бьёт 23–34 (было 65–70).
-const MOB_DAMAGE = { pct: 0.004, flat: 1, every: 25 };
+const MOB_DAMAGE = { pct: 0.004, flat: 1, every: 10 };
 // Страж растёт вместе с мобами: здоровье +4 % базы за каждого (300 → +12), урон — так же в процентах
 export const WARDEN_GROWTH = { hp: { flat: 12 }, damage: MOB_DAMAGE };
 
@@ -445,10 +451,11 @@ export const MOB_RANGED = {
 export const BOAR_SCALE = { hp: { flat: 3 }, damage: MOB_DAMAGE, xp: { pct: 0.025 } };
 
 export const SKELETON_GROWTH = { hp: { flat: 2 }, damage: MOB_DAMAGE, xp: { pct: 0.025 } }; // xp: +2.5 % за каждого следующего
-// Рост мобов замедляется: после soft-го появившегося здоровье и урон растут вдвое медленнее (иначе к 600-му
-// скелету он втрое опаснее героя на максимальном уровне — силы героя ограничены уровнем, а счёт мобов — нет).
-// Опыт за них растёт как раньше
-export const GROWTH_SOFTCAP = { soft: 400, after: 0.5 };
+// Рост мобов после soft-го появившегося: after — во сколько раз медленнее (1 — не замедляется: герой растёт
+// и трофеями — проценты урона и здоровья)
+export const GROWTH_SOFTCAP = { soft: 400, after: 1 };
+// Солнце жжёт ночных: types днём под открытым небом (свет неба в голове ≥ sky) теряют pct макс. HP раз в every с
+export const SUN_BURN = { types: ["ghoul", "shaman", "champion"], pct: 0.03, every: 1, sky: 0.9 };
 
 export const REACH = 8; // как далеко ставим блоки (метры)
 

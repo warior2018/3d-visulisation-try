@@ -222,7 +222,7 @@ export const HUD_PARTS = [
       // под прицелом рядом — или попал издалека: полоска на HIT_SHOW с (если не добил)
       const far = g.hitShow && g.hitShow.until > (g.combatClock || 0) && g.hitShow.e.alive ? g.hitShow.e : null;
       const t = g.lookTarget || far;
-      if (!t) return null;
+      if (!t || t.noBar) return null; // светлячок — без полоски
       if (t.boss && t.aggro?.type === "player") return null; // у босса уже есть своя полоса вверху (boss-bar) — вторую не рисуем
       const d = { name: t.name, hp: Math.ceil(t.stats.hp), max: Math.round(t.stats.maxHp), npc: t.kind === "npc", elite: t.elite || null };
       if (!d.npc) return d;
