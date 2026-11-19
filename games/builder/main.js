@@ -11,7 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { watchModule, Engine, MenuScene, SettingsScene, ModelLibrary, Input, ChangelogScene, TextInputScene, IntroScene, NetServer, NetClient, localAddresses, DEFAULT_PORT, makeTheme, loadPNG, widgets } from "../../engine/index.js";
+import { watchModule, Engine, LoadingScene, MenuScene, SettingsScene, ModelLibrary, Input, ChangelogScene, TextInputScene, IntroScene, NetServer, NetClient, localAddresses, DEFAULT_PORT, makeTheme, loadPNG, widgets } from "../../engine/index.js";
 import { GAME_DEFAULTS, GAME_ACTION_LABELS, GAMEPAD_ENABLED, CAMERA_MODES, SAVES, SOUNDS, THEME, THEMES, VIEW_DISTANCE, DRAW_DISTANCES } from "./config.js";
 import { GameScene } from "./game-scene.js";
 import { loadModels } from "./load-models.js";
@@ -298,6 +298,11 @@ async function hostGame() {
   if (process.platform === "win32") engine.log("сеть (Windows): если брандмауэр спросил про Node.js — разрешить доступ в частных сетях, иначе гости не подключатся");
 }
 
+// Войти в мир (новый — генерация, старый — загрузка с диска; матч): сначала экран загрузки, потом тяжёлая работа
+function enterWorld() {
+  engine.setScene(new LoadingScene({ text: "LOADING WORLD", load: () => engine.setScene(new GameScene(game)) }));
+}
+
 // Лобби (lobby.js): все READY — матч у всех (game.net.match); вышли — в главное меню
 function lobby(net) {
   return new LobbyScene({
@@ -306,7 +311,7 @@ function lobby(net) {
     onStart: (n) => {
       engine.profile?.add("matches"); // профиль: сыграно матчей
       game.net = n;
-      engine.setScene(new GameScene(game));
+      enterWorld();
     },
     onLeave: (reason) => {
       game.net = null;
@@ -355,7 +360,7 @@ function mainMenu() {
     game,
     updater: up,
     actions: {
-      play: () => engine.setScene(new GameScene(game)), // мир уже выбран (touchWorld)
+      play: () => enterWorld(), // мир уже выбран (touchWorld)
       news: () => engine.push(new ChangelogScene({ entries: up ? up.entries : [] })),
       settings: () => game.openSettings(),
       quit: () => engine.quit(),

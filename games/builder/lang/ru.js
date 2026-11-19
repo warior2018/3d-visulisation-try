@@ -795,6 +795,7 @@ export const RU = {
   "LMB - WHOLE SLOT, RMB - ONE BY ONE, SHIFT+LMB - MOVE ACROSS, ${this.equipKey} - EQUIP. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK": "ЛКМ - ВСЯ ЯЧЕЙКА, ПКМ - ПО ОДНОМУ, SHIFT+ЛКМ - НА ДРУГУЮ СТОРОНУ, ${this.equipKey} - НАДЕТЬ. ${this.dropKey} - ВЫБРОСИТЬ, SHIFT+${this.dropKey} - ВСЮ СТОПКУ",
   "LMB - WHOLE SLOT, RMB - ONE BY ONE. ${this.dropKey} - DROP, SHIFT+${this.dropKey} - WHOLE STACK": "ЛКМ - ВСЯ ЯЧЕЙКА, ПКМ - ПО ОДНОМУ. ${this.dropKey} - ВЫБРОСИТЬ, SHIFT+${this.dropKey} - ВСЮ СТОПКУ",
   "LMB DRAG - MOVE   WHEEL - ZOOM   SPACE / RMB - BACK TO YOU": "ЛКМ ТЯНУТЬ - ДВИГАТЬ   КОЛЕСО - МАСШТАБ   ПРОБЕЛ / ПКМ - К СЕБЕ",
+  "LOADING WORLD": "ЗАГРУЗКА МИРА",
   "LOBBY": "ЛОББИ",
   "LOBBY, THEN A NEW WORLD FOR THE MATCH (NOT SAVED)": "ЛОББИ, ПОТОМ НОВЫЙ МИР НА МАТЧ (НЕ СОХРАНЯЕТСЯ)",
   "LOCKED": "ЗАКРЫТ",
