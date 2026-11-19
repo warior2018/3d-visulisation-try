@@ -270,6 +270,7 @@ watchModule(new URL("./config.js", import.meta.url), {
 engine.onCrashMenu = () => {
   const world = engine.scenes.find((s) => s instanceof GameScene);
   try {
+    world?.leavePortalNow?.(); // в комнате портала — сначала в главный мир (в комнате не сохраняем)
     world?.save(false);
   } catch (e) {
     engine.log("после падения не сохранилось: " + (e.stack || e));

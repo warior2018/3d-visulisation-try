@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.100.11",
+    "date": "2026-11-19",
+    "title": "Fix: closing a chest in a portal room threw you out",
+    "changes": [
+      "Закрыл сундук (или магазин, таланты) в комнате портала — больше не выкидывает к порталу и не убивает"
+    ]
+  },
+  {
     "version": "0.100.10",
     "date": "2026-11-19",
     "title": "Sun burn, faster mob damage growth, portal rework, fireflies",

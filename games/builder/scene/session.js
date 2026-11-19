@@ -334,12 +334,10 @@ export class SessionPart {
   // Сохранение — с замером (профайлер F3: SAVE): самое тяжёлое из редкого.
   // background — в фоне (автосохранение: игра не ждёт диска); иначе — сразу до конца (выход, кнопка SAVE)
   save(toast = true, { background = false } = {}) {
-    // в комнате портала: автосохранение (фоном) — пропускаем; сохранение из меню / выход — сначала обратно в
-    // главный мир (сохраняется главный мир)
-    if (this.activeWorld && this.activeWorld !== this.worlds.get("main")) {
-      if (background) return false;
-      this.leavePortalNow();
-    }
+    // в комнате портала не сохраняем (сундук, магазин, таланты — сохранят потом, уже в главном мире); при выходе
+    // из игры (onQuit / exit) герой сначала возвращается в главный мир сам — тогда сохраняется как обычно.
+    // Раньше тут выкидывало из комнаты к порталу (закрыл сундук — и ты снаружи, иногда в блоках)
+    if (this.activeWorld && this.activeWorld !== this.worlds.get("main")) return false;
     return profiler.measure(PROF.save, () => this.saveNow(toast, { background }));
   }
 
