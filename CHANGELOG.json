@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.100.8",
+    "date": "2026-11-19",
+    "title": "Mobs slow down while winding up a hit",
+    "changes": [
+      "Во время замаха удара моб идёт со скоростью 30 % — от удара можно отойти"
+    ]
+  },
+  {
     "version": "0.100.7",
     "date": "2026-11-17",
     "title": "Network: reconnect instead of kick, lag protection",

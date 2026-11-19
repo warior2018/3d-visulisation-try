@@ -140,7 +140,7 @@ CREATURES.troll = {
   loot: [["coin", 160], ["troll-hide", 1]],
   // Валун: всегда (не случайный стрелок), с перезарядкой 4 с; пока перезаряжается — идёт на тебя (в пределах зала)
   rangedWeapon: { attack: "boulderThrow", item: "stone", scale: 3.5, range: 16, minRange: 5, advance: true, spread: 30 },
-  brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius, sightHeight: 2, leash: 250, stopDistance: 2.2, turnSpeed: 3, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase }),
+  brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius, sightHeight: 2, leash: 250, stopDistance: 2.2, turnSpeed: 3, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase, windupSlow: SKELETON_AI.windupSlow }),
 };
 
 // Лич — второй босс логова (LICH в config.js): высокий скелет-колдун (модель скелета ×1.35, фиолетовая)
@@ -150,7 +150,7 @@ CREATURES.lich = {
   loot: [["coin", 160], ["bone-crown", 1]],
   // Сгусток: стоит и стреляет, пока видит (не подходит ближе); прыжки по залу и подъём скелетов — игра
   rangedWeapon: { attack: "lichBolt", item: "lichbolt", scale: 1.6, range: 18, minRange: 0, straight: true, spread: 15 },
-  brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius + 1.5, sightHeight: 2, leash: 250, stopDistance: 1.4, turnSpeed: 4, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase }),
+  brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius + 1.5, sightHeight: 2, leash: 250, stopDistance: 1.4, turnSpeed: 4, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase, windupSlow: SKELETON_AI.windupSlow }),
 };
 
 // РАЗДУТЫЙ — моб-смертник (BLOATER): опухший зомби побольше; взрыв и запал — у игры (e.onBoom / e.onPrime)

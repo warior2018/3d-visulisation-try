@@ -314,7 +314,8 @@ export const INVASION = {
 
 // Поведение скелета: игрок ближе radius — поворачивается и идёт к нему
 // sightHeight — замечает, только если цель не выше / ниже этого (м): высоко на башне — не видят
-export const SKELETON_AI = { radius: 12, speed: 2.2, stopDistance: 1.1, turnSpeed: 4, jumpSpeed: 7.5, sightHeight: 4 };
+// windupSlow — доля скорости во время замаха удара (0.3 — 30 %: от удара можно отойти)
+export const SKELETON_AI = { radius: 12, speed: 2.2, stopDistance: 1.1, turnSpeed: 4, jumpSpeed: 7.5, sightHeight: 4, windupSlow: 0.3 };
 
 // Стадо: ударили скелета (хоть издалека) — он злится на обидчика, а с ним все скелеты
 // в радиусе radius, от них — их соседи, и так по цепочке. alertOnSight — так же,

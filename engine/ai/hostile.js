@@ -42,8 +42,9 @@ export class HostileBrain extends Brain {
   // wander: { radius, pause } — бродить без цели (null — стоять на месте); huntRadius — докуда идти на охоту
   // chase — с территорией: цель ушла из логова — не стоит, а идёт за ней (быстрее на chase.speed, прыгает
   // chase.jump м/с), по пути игра ломает блоки перед ним (ctx.dig); успокаивается, только если цель дальше leash
-  constructor({ aggroRadius = 12, leash = 45, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5, herd = null, wander = null, huntRadius = 150, ranged = null, territory = null, sightHeight = Infinity, chase = null } = {}) {
+  constructor({ aggroRadius = 12, leash = 45, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5, herd = null, wander = null, huntRadius = 150, ranged = null, territory = null, sightHeight = Infinity, chase = null, windupSlow = 0.3 } = {}) {
     super();
+    this.windupSlow = windupSlow; // во время замаха удара идёт с этой долей скорости (0 — стоит, 1 — как обычно)
     this.chase = chase;
     this.sightHeight = sightHeight; // замечает врага, только если тот не выше / ниже этого (тролль в пещере не видит тех, кто ходит по горе)
     this.territory = territory; // { x, z, radius } — не выходит из круга (логово босса) или null
@@ -228,6 +229,11 @@ export class HostileBrain extends Brain {
     if (e.attack) {
       if (target && !shooting) melee(e, target, dt, e.attack, ctx.combatFor?.(e) || {});
       else e.attack.update(dt); // кулдаун идёт и без цели
+      // замахивается — почти не идёт (от удара можно отойти)
+      if (e.attack.pending) {
+        e.velocity.x *= this.windupSlow;
+        e.velocity.z *= this.windupSlow;
+      }
     }
     e.rangedAttack?.update(dt);
     return { walking, alerted };
