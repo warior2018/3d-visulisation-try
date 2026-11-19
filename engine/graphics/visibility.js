@@ -143,7 +143,7 @@ function cameraFaces(world, p, s) {
   if (!s || s.conn.every((m) => m === ALL)) return ALL;
   const x0 = Math.floor(p.x / S) * S, y0 = Math.floor(p.y / S) * S, z0 = Math.floor(p.z / S) * S;
   const cx = Math.floor(p.x) - x0, cy = Math.floor(p.y) - y0, cz = Math.floor(p.z) - z0;
-  const solidAt = (x, y, z) => blocks(world.get(x0 + x, y0 + y, z0 + z));
+  const solidAt = (x, y, z) => blocks(world.idAt ? world.pal[world.idAt(x0 + x, y0 + y, z0 + z)] : world.get(x0 + x, y0 + y, z0 + z));
   if (solidAt(cx, cy, cz)) return ALL;
   const seen = new Uint8Array(S * S * S), queue = [cx + S * (cz + S * cy)];
   seen[queue[0]] = 1;

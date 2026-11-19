@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.108.0",
+    "date": "2026-11-19",
+    "title": "Compact world storage",
+    "changes": [
+      "World blocks are stored as 2-byte palette numbers per cell in each chunk instead of an object per block: the world takes about 50x less memory, block checks and world building are faster"
+    ]
+  },
+  {
     "version": "0.107.5",
     "date": "2026-11-19",
     "title": "Occlusion culling",

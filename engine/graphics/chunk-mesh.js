@@ -84,6 +84,8 @@ export function blockLightAt(world, x, y, z, lights) {
 //   лампы: от каждой лампы (world.lightsNear) — по воздуху на radius шагов: power × (1 − шаги / radius)².
 //          Сквозь стену не светит (путь — по воздуху, не по прямой).
 // Полублок свет пропускает. Сетка внутри куска сохраняется в chunk.light — по ней светятся модели (lightOf).
+// Что в клетке — без объектов: запись палитры мира ({ color, surface }) или null. Мир без палитры — get()
+const cellOf = (world) => (world.idAt ? (x, y, z) => world.pal[world.idAt(x, y, z)] || null : (x, y, z) => world.get?.(x, y, z) ?? (world.has(x, y, z) ? { color: [0, 0, 0] } : null));
 const isLeaf = (b) => !!LIGHT.leaves && LIGHT.leaves.includes(b.color[0] * 65536 + b.color[1] * 256 + b.color[2]);
 const opaque = (b) => !!b && !isHalf(b) && !isLeaf(b);
 
@@ -100,10 +102,11 @@ export function chunkLight(world, chunk) {
   // столбики: выше самого верхнего непрозрачного — открыто; листва над клеткой — слабее
   const queue = new Int32Array(n * 2);
   let qh = 0, qt = 0;
+  const cellAt = cellOf(world);
   for (let x = x0; x < x0 + sx; x++) for (let z = z0; z < z0 + sz; z++) {
     let leaves = 0, open = true;
     for (let y = Math.max(world.maxY, y1); y >= y0; y--) {
-      const b = world.get?.(x, y, z) ?? (world.has(x, y, z) ? { color: [0, 0, 0] } : null);
+      const b = cellAt(x, y, z);
       if (y <= y1) {
         const i = idx(x, y, z);
         if (opaque(b)) solid[i] = 1;
@@ -228,17 +231,18 @@ export function exposedFaces(world, chunk, out = null, light = false) {
   // открытые грани каждого кубика — сначала посчитать (сколько всего), потом разложить по 6 спискам
   const counts = [0, 0, 0, 0, 0, 0];
   const list = [];
+  const cellAt = cellOf(world);
   for (const b of chunk.blocks) {
     const { x, y, z } = b;
     let mask = 0;
     // полублок (HALF) закрывает соседу только свою половину: целому блоку грань рядом с ним — видна
     // (полублок сверху — HALF_TOP — так же: закрывает только свою половину; одинаковые половинки закрывают друг друга)
     const half = b.surface === HALF, top = b.surface === HALF_TOP;
-    const shut = (bx, by, bz) => { const n = world.get?.(bx, by, bz); return !!n && (!isHalf(n) || n.surface === b.surface); };
+    const shut = (bx, by, bz) => { const n = cellAt(bx, by, bz); return !!n && (!isHalf(n) || n.surface === b.surface); };
     if (!shut(x + 1, y, z)) mask |= 1;
     if (!shut(x - 1, y, z)) mask |= 2;
-    if (half || !world.has(x, y + 1, z) || world.get?.(x, y + 1, z)?.surface === HALF_TOP) mask |= 4; // верх полублока виден всегда; над нами полублок сверху — зазор
-    if (top || !world.isSolid(x, y - 1, z) || world.get?.(x, y - 1, z)?.surface === HALF) mask |= 8; // снизу — блок или пол (полублок низ не закрывает: зазор); низ полублока сверху — виден всегда
+    if (half || !world.has(x, y + 1, z) || cellAt(x, y + 1, z)?.surface === HALF_TOP) mask |= 4; // верх полублока виден всегда; над нами полублок сверху — зазор
+    if (top || !world.isSolid(x, y - 1, z) || cellAt(x, y - 1, z)?.surface === HALF) mask |= 8; // снизу — блок или пол (полублок низ не закрывает: зазор); низ полублока сверху — виден всегда
     if (!shut(x, y, z + 1)) mask |= 16;
     if (!shut(x, y, z - 1)) mask |= 32;
     if (!mask) continue;

@@ -3,34 +3,24 @@
 //  и какие в нём бывают блоки (цвета, палитра — это уже игра).
 //
 //  Клетка (x, y, z) занимает пространство от x до x+1 и т. д.
-//  Блоки хранятся в Map по числовому ключу клетки (key) — так мгновенно видно, занята ли клетка.
+//
+//  Хранение: мир поделён на куски (чанки) 16 × 16 клеток по X и Z. В куске — массив чисел Uint16Array на
+//  каждую клетку (по высоте — только там, где у куска есть блоки; растёт, когда ставят выше / ниже): 0 —
+//  пусто, иначе номер в палитре мира (цвет + поверхность). Клетка — 2 байта вместо отдельного объекта на блок
+//  (≈ 120 байт): мир в памяти в десятки раз меньше, а «есть ли тут блок» — просто число из массива.
+//  Снаружи — как раньше: get() отдаёт блок { x, y, z, color, surface? } (новый объект: хранить можно, менять —
+//  нет смысла), chunk.blocks и world.blocks — перебор блоков и size. Горячим местам (сборка граней, свет) —
+//  idAt() и pal[id] без объектов.
 // ============================================================
 
-// Ключ клетки — ОДНО ЧИСЛО, а не строка "x,y,z": физика и поиск пути спрашивают «твёрдо ли тут» сотни тысяч
-// раз в секунду, и каждая строка — новый мусор для сборщика (паузы-рывки в нашествие). Число собирается из
-// x, z (±524 288 блоков) и y (−2048…2047) без пересечений и точно помещается в double (2^52)
-const key = (x, y, z) => ((x + 524288) * 1048576 + (z + 524288)) * 4096 + (y + 2048);
-
-// Чанки — куски мира CHUNK × CHUNK клеток по X и Z (во всю высоту). Блоки лежат и в общем Map (быстро спросить
-// «есть ли тут блок»), и в своём чанке (быстро перебрать кусок). Каждый чанк знает свою version: поставили /
+// Чанки — куски мира CHUNK × CHUNK клеток по X и Z (во всю высоту). Каждый чанк знает свою version: поставили /
 // сломали блок — растёт version только у него (и у соседа, если блок на краю: у соседа поменялись открытые
 // грани). Рисовальщик пересобирает только изменившиеся чанки, сохранение — пишет только их
 export const CHUNK = 16;
+const AREA = CHUNK * CHUNK;
 const chunkKey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
 export const chunkOf = (v) => Math.floor(v / CHUNK); // координата клетки -> номер чанка
-
-export class Chunk {
-  constructor(cx, cz) {
-    this.cx = cx;
-    this.cz = cz;
-    this.key = chunkKey(cx, cz);
-    this.blocks = new Set(); // блоки этого куска (те же объекты, что в world.blocks)
-    this.version = 0; //       растёт при любом изменении (своём или открытых граней на краю) — рисовальщику
-    this.edits = 0; //         растёт, только когда поменялись блоки самого куска — сохранению
-    this.minY = Infinity; //   по высоте — где блоки (для отсечения: за кадром ли кусок); только растут
-    this.maxY = -Infinity;
-  }
-}
+const colKey = (x, z) => (x + 524288) * 1048576 + (z + 524288); // столбик (x, z) — для tops
 
 // Полублок: блок с поверхностью HALF — нижняя половина клетки (0.5 м). Хранится и передаётся как поверхность
 export const HALF = "half";
@@ -40,9 +30,97 @@ export const isHalf = (b) => !!b && (b.surface === HALF || b.surface === HALF_TO
 
 import { Water } from "./water.js";
 
+// Блоки куска — для перебора (for…of: { x, y, z, color, surface? }) и счёта (size)
+class ChunkBlocks {
+  constructor(chunk) {
+    this.chunk = chunk;
+  }
+
+  get size() {
+    return this.chunk.count;
+  }
+
+  *[Symbol.iterator]() {
+    const c = this.chunk, cells = c.cells, pal = c.world.pal, x0 = c.cx * CHUNK, z0 = c.cz * CHUNK;
+    if (!cells) return;
+    for (let i = 0; i < cells.length; i++) {
+      const id = cells[i];
+      if (!id) continue;
+      const lx = i % CHUNK, lz = ((i - lx) / CHUNK) % CHUNK, ly = (i - lx - lz * CHUNK) / AREA;
+      yield makeBlock(x0 + lx, c.y0 + ly, z0 + lz, pal[id]);
+    }
+  }
+}
+
+// Блок-объект для тех, кто спрашивает get() / перебирает (в мире хранятся только номера палитры)
+const makeBlock = (x, y, z, p) => (p.surface ? { x, y, z, color: p.color, surface: p.surface } : { x, y, z, color: p.color });
+
+export class Chunk {
+  constructor(cx, cz, world = null) {
+    this.cx = cx;
+    this.cz = cz;
+    this.key = chunkKey(cx, cz);
+    this.world = world;
+    this.cells = null; //  Uint16Array: клетки ((y − y0) · 16 + lz) · 16 + lx — номер палитры, 0 — пусто
+    this.y0 = 0; //        высота нижнего слоя массива
+    this.h = 0; //         сколько слоёв в массиве
+    this.count = 0; //     сколько блоков
+    this.blocks = new ChunkBlocks(this); // перебор блоков куска и size
+    this.version = 0; //       растёт при любом изменении (своём или открытых граней на краю) — рисовальщику
+    this.edits = 0; //         растёт, только когда поменялись блоки самого куска — сохранению
+    this.minY = Infinity; //   по высоте — где блоки (для отсечения: за кадром ли кусок); только растут
+    this.maxY = -Infinity;
+  }
+
+  // Номер палитры в клетке (x, y, z мира; клетка — в этом куске)
+  id(x, y, z) {
+    const ly = y - this.y0;
+    if (ly < 0 || ly >= this.h) return 0; // (пустой кусок: h = 0)
+    return this.cells[(ly << 8) | ((z & 15) << 4) | (x & 15)];
+  }
+
+  // Записать номер (массив растёт по высоте, если клетка за его краем — с запасом 8 слоёв)
+  setId(x, y, z, id) {
+    if (!this.cells || y < this.y0 || y >= this.y0 + this.h) {
+      if (!id) return;
+      const lo = this.cells ? Math.min(this.y0, y - 8) : y - 8, hi = this.cells ? Math.max(this.y0 + this.h, y + 9) : y + 9;
+      const cells = new Uint16Array((hi - lo) * AREA);
+      if (this.cells) cells.set(this.cells, (this.y0 - lo) * AREA);
+      this.cells = cells;
+      this.y0 = lo;
+      this.h = hi - lo;
+    }
+    this.cells[((y - this.y0) * CHUNK + (z - this.cz * CHUNK)) * CHUNK + (x - this.cx * CHUNK)] = id;
+  }
+}
+
+// Все блоки мира — для перебора (values()) и счёта (size): как раньше Map, только без get / set
+class WorldBlocks {
+  constructor(world) {
+    this.world = world;
+  }
+
+  get size() {
+    let n = 0;
+    for (const c of this.world.chunks.values()) n += c.count;
+    return n;
+  }
+
+  *values() {
+    for (const c of this.world.chunks.values()) yield* c.blocks;
+  }
+
+  [Symbol.iterator]() {
+    return this.values();
+  }
+}
+
 export class VoxelWorld {
   constructor() {
-    this.blocks = new Map(); // key(x, y, z) -> { x, y, z, color: [r, g, b] }
+    this.blocks = new WorldBlocks(this); // перебор всех блоков и size (хранятся — в кусках: Chunk.cells)
+    // Палитра: номер -> { color, surface, key }; 0 — пусто. palIndex: "r,g,b|поверхность" -> номер
+    this.pal = [null];
+    this.palIndex = new Map();
     // Неразрушимые: блоки с такой поверхностью remove не убирает (стены арены). Поверхность передаётся по сети
     // вместе с блоком — у гостя то же правило
     this.unbreakable = new Set();
@@ -50,21 +128,35 @@ export class VoxelWorld {
     // перерисовку, а искать сверху вниз — до maxY обращений на столбик. Поставили / сломали — поправляем
     this.tops = new Map();
     this.chunks = new Map(); // chunkKey(cx, cz) -> Chunk
+    this.lastChunk = null; //   последний спрошенный кусок (физика спрашивает соседние клетки подряд)
     this.floor = true; //       true — ниже y = 0 сплошной пол; false — пусто (летающие острова: падаем в бездну)
     // onChange(x, y, z, block | null) — поставили (block) или сломали (null) блок: сеть рассылает изменения.
     // Загрузка и clear() его не зовут
     this.onChange = null;
     this.quiet = false; // true — изменения не сообщать (применяем чужие: из сети)
-    this.version = 0;
+    this.version = 0; //   растёт при каждом изменении — рендерер по нему понимает, что пора обновиться
     this.surfaces = 0; // сколько блоков с особой поверхностью (нет ни одного — физике не нужно их искать)
     // Светящиеся блоки (факел, лампа): цвет «r,g,b» -> { power 0…1, radius блоков } — setEmitters. Такие блоки
-    // светят вокруг (chunk-mesh.js → blockLightAt), ночью — тоже. lights — где они: chunkKey -> Set(блок)
+    // светят вокруг (chunk-mesh.js → blockLightAt), ночью — тоже. lights — где они: chunkKey -> Map(клетка -> блок)
     this.emitters = new Map();
     this.lights = new Map();
     this.lightCount = 0;
     this.minY = 0; //  самый низкий блок (не выше 0): поиск верхнего блока столбика идёт до него
     this.water = new Water(this); // вода — свой слой поверх блоков (engine/world/water.js)
-    this.maxY = 0; //  самый высокий блок (миникарте — откуда искать верхний блок столбика) // растёт при каждом изменении — рендерер по нему понимает, что пора обновиться
+    this.maxY = 0; //  самый высокий блок (миникарте — откуда искать верхний блок столбика)
+  }
+
+  // Номер палитры для цвета и поверхности (нет такого — заводим)
+  palId(color, surface = null) {
+    const k = `${color[0]},${color[1]},${color[2]}|${surface || ""}`;
+    let id = this.palIndex.get(k);
+    if (id === undefined) {
+      id = this.pal.length;
+      if (id > 65535) throw new Error("палитра мира переполнена");
+      this.pal.push({ color: [color[0], color[1], color[2]], surface: surface || null, emit: this.emitters.get(`${color[0]},${color[1]},${color[2]}`) || null });
+      this.palIndex.set(k, id);
+    }
+    return id;
   }
 
   // Чанк по номеру (cx, cz); create — завести, если ещё нет. Чанк без блоков не удаляется (version помнит,
@@ -72,13 +164,29 @@ export class VoxelWorld {
   chunk(cx, cz, create = false) {
     const k = chunkKey(cx, cz);
     let c = this.chunks.get(k);
-    if (!c && create) this.chunks.set(k, (c = new Chunk(cx, cz)));
+    if (!c && create) this.chunks.set(k, (c = new Chunk(cx, cz, this)));
     return c || null;
+  }
+
+  // Кусок клетки (x, z) — с памятью последнего (без поиска в Map, если спрашивают рядом)
+  chunkOfCell(x, z) {
+    const cx = x >> 4, cz = z >> 4, l = this.lastChunk; // >> 4 — то же, что floor(x / 16), для целых
+    if (l !== null && l.cx === cx && l.cz === cz) return l; // (выгрузили / очистили — lastChunk сбрасывается)
+    const c = this.chunks.get(chunkKey(cx, cz)) || null;
+    if (c) this.lastChunk = c;
+    return c;
+  }
+
+  // Номер палитры в клетке (0 — пусто). Для горячих мест: без объектов
+  idAt(x, y, z) {
+    const c = this.chunkOfCell(x, z);
+    return c ? c.id(x, y, z) : 0;
   }
 
   // Какие цвета светятся: [{ color: [r, g, b], power: 0…1, radius }]. Уже стоящие блоки этих цветов — тоже
   setEmitters(list = []) {
     this.emitters = new Map(list.map((e) => [e.color.join(","), { power: e.power ?? 1, radius: e.radius ?? 7 }]));
+    for (const p of this.pal) if (p) p.emit = this.emitters.get(p.color.join(",")) || null;
     this.lights.clear();
     this.lightCount = 0;
     for (const b of this.blocks.values()) if (this.emitterOf(b)) this.addLight(b, false);
@@ -93,8 +201,10 @@ export class VoxelWorld {
   addLight(b, bumpAround = true) {
     const ck = chunkKey(chunkOf(b.x), chunkOf(b.z));
     let set = this.lights.get(ck);
-    if (!set) this.lights.set(ck, (set = new Set()));
-    set.add(b);
+    if (!set) this.lights.set(ck, (set = new Map()));
+    const k = colKey(b.x, b.z) * 4096 + b.y;
+    if (set.has(k)) return;
+    set.set(k, b);
     this.lightCount++;
     if (bumpAround) this.bumpLight(b);
   }
@@ -102,7 +212,7 @@ export class VoxelWorld {
   removeLight(b) {
     const ck = chunkKey(chunkOf(b.x), chunkOf(b.z));
     const set = this.lights.get(ck);
-    if (set?.delete(b)) {
+    if (set?.delete(colKey(b.x, b.z) * 4096 + b.y)) {
       this.lightCount--;
       if (!set.size) this.lights.delete(ck);
       this.bumpLight(b);
@@ -122,7 +232,7 @@ export class VoxelWorld {
     const out = [];
     for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
       const set = this.lights.get(chunkKey(cx + dx, cz + dz));
-      if (set) for (const b of set) out.push(b);
+      if (set) for (const b of set.values()) out.push(b);
     }
     return out.length ? out : null;
   }
@@ -152,22 +262,23 @@ export class VoxelWorld {
   }
 
   has(x, y, z) {
-    return this.blocks.has(key(x, y, z));
+    return this.idAt(x, y, z) !== 0;
   }
 
-  // Блок в клетке ({ x, y, z, color... }) или null
+  // Блок в клетке ({ x, y, z, color, surface? }) или null
   get(x, y, z) {
-    return this.blocks.get(key(x, y, z)) || null;
+    const id = this.idAt(x, y, z);
+    return id ? makeBlock(x, y, z, this.pal[id]) : null;
   }
 
   // Верхний блок столбика (x, z) — что видно сверху (для миникарты). null — пусто
   topBlock(x, z) {
-    const k = (x + 524288) * 1048576 + (z + 524288);
+    const k = colKey(x, z);
     const known = this.tops.get(k);
     if (known !== undefined) return known;
     let top = null;
-    const low = this.minY; // острова и пещеры бывают ниже 0
-    for (let y = this.maxY; y >= low && !top; y--) top = this.blocks.get(key(x, y, z)) || null;
+    const c = this.chunkOfCell(x, z);
+    if (c?.cells) for (let y = c.y0 + c.h - 1; y >= c.y0 && !top; y--) top = c.id(x, y, z) ? this.get(x, y, z) : null;
     this.tops.set(k, top);
     return top;
   }
@@ -180,30 +291,32 @@ export class VoxelWorld {
 
   // Поверхность клетки: "slip" и т. п. или null (обычная, пустая клетка, пол)
   surfaceAt(x, y, z) {
-    return this.blocks.get(key(x, y, z))?.surface || null;
+    const id = this.idAt(x, y, z);
+    return id ? this.pal[id].surface : null;
   }
 
   // Твёрдая ли клетка: блок или пол (всё, что ниже y = 0). Это спрашивает физика.
   // Высота верха клетки от её низа: 1 — целый блок, 0.5 — полублок (поверхность HALF), 0 — пусто
   cellTop(x, y, z) {
-    const b = this.blocks.get(key(x, y, z));
-    if (!b) return y < 0 && this.floor ? 1 : 0;
-    return b.surface === HALF ? 0.5 : 1;
+    const id = this.idAt(x, y, z);
+    if (!id) return y < 0 && this.floor ? 1 : 0;
+    return this.pal[id].surface === HALF ? 0.5 : 1;
   }
 
   // Высота низа клетки от её низа: 0.5 — полублок сверху (HALF_TOP), иначе 0
   cellBottom(x, y, z) {
-    return this.blocks.get(key(x, y, z))?.surface === HALF_TOP ? 0.5 : 0;
+    const id = this.idAt(x, y, z);
+    return id && this.pal[id].surface === HALF_TOP ? 0.5 : 0;
   }
 
   // Ступенька-полублок в пустую клетку над целым блоком, если рядом (4 соседа) — уступ в 1 блок, по которому
   // можно пройти (над соседом 2 клетки пусто). Цвет — блока снизу. Вернёт, поставили ли
   halfStep(x, y, z) {
     if (this.has(x, y, z)) return false;
-    const below = this.blocks.get(key(x, y - 1, z));
+    const below = this.get(x, y - 1, z);
     if (!below || isHalf(below)) return false;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const n = this.blocks.get(key(x + dx, y, z + dz));
+      const n = this.get(x + dx, y, z + dz);
       if (n && !isHalf(n) && !this.has(x + dx, y + 1, z + dz) && !this.has(x + dx, y + 2, z + dz)) return this.place(x, y, z, below.color, HALF);
     }
     return false;
@@ -213,62 +326,61 @@ export class VoxelWorld {
   // ниже — над проходом (под соседом 2 клетки пусто). Ставит полублок сверху; цвет — блока над ним
   halfStepTop(x, y, z) {
     if (this.has(x, y, z)) return false;
-    const above = this.blocks.get(key(x, y + 1, z));
+    const above = this.get(x, y + 1, z);
     if (!above || isHalf(above)) return false;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const n = this.blocks.get(key(x + dx, y, z + dz));
+      const n = this.get(x + dx, y, z + dz);
       if (n && !isHalf(n) && !this.has(x + dx, y - 1, z + dz) && !this.has(x + dx, y - 2, z + dz)) return this.place(x, y, z, above.color, HALF_TOP);
     }
     return false;
   }
 
   isSolid(x, y, z) {
-    return (y < 0 && this.floor) || this.blocks.has(key(x, y, z));
+    return (y < 0 && this.floor) || this.idAt(x, y, z) !== 0;
   }
 
   // surface — особая поверхность блока (null — обычная): "slip" — скользкая, на ней не устоять (физика:
   // Physics surfaceAt), как скаты и карнизы в Overwatch. Сохраняется вместе с блоком
   place(x, y, z, color, surface = null) {
     if (this.has(x, y, z)) return false;
-    const b = { x, y, z, color: [...color] };
-    if (surface) {
-      b.surface = surface;
-      this.surfaces++;
-    }
-    this.blocks.set(key(x, y, z), b);
+    const id = this.palId(color, surface);
+    if (surface) this.surfaces++;
     const c = this.chunkAt(x, z, true);
-    c.blocks.add(b);
+    c.setId(x, y, z, id);
+    c.count++;
     if (y < c.minY) c.minY = y;
     if (y > c.maxY) c.maxY = y;
     if (y < this.minY) this.minY = y;
     this.touch(x, y, z);
-    if (this.emitters.size && this.emitterOf(b)) this.addLight(b);
+    const p = this.pal[id];
+    const b = this.onChange || p.emit ? makeBlock(x, y, z, p) : null;
+    if (p.emit && this.emitters.size) this.addLight(b);
     if (y > this.maxY) this.maxY = y;
     if (this.onChange && !this.quiet) this.onChange(x, y, z, b);
     if (this.water.size) this.water.blockChanged(x, y, z); // в клетке блока воды нет
-    const k = (x + 524288) * 1048576 + (z + 524288), top = this.tops.get(k);
-    if (top !== undefined && (!top || y > top.y)) this.tops.set(k, b); // стал верхним (не знали — узнаем при спросе)
+    const k = colKey(x, z), top = this.tops.get(k);
+    if (top !== undefined && (!top || y > top.y)) this.tops.set(k, b || makeBlock(x, y, z, p)); // стал верхним (не знали — узнаем при спросе)
     this.version++;
     return true;
   }
 
   // Убрать блок. Вернёт true, если убрали (нет блока или неразрушимый — false)
   remove(x, y, z) {
-    const b = this.blocks.get(key(x, y, z));
-    if (b?.surface && this.unbreakable.has(b.surface)) return false;
-    const removed = this.blocks.delete(key(x, y, z));
-    if (removed) {
-      if (b.surface) this.surfaces--;
-      if (this.lightCount && this.emitterOf(b)) this.removeLight(b);
-      this.chunkAt(x, z)?.blocks.delete(b);
-      this.touch(x, y, z);
-      if (this.onChange && !this.quiet) this.onChange(x, y, z, null);
-      if (this.water.size) this.water.blockChanged(x, y, z); // убрали — вода потечёт в дыру
-      this.version++;
-      const k = (x + 524288) * 1048576 + (z + 524288);
-      if (this.tops.get(k)?.y === y) this.tops.delete(k); // сломали верхний — найдём новый при спросе
-    }
-    return removed;
+    const c = this.chunkOfCell(x, z), id = c ? c.id(x, y, z) : 0;
+    if (!id) return false;
+    const p = this.pal[id];
+    if (p.surface && this.unbreakable.has(p.surface)) return false;
+    c.setId(x, y, z, 0);
+    c.count--;
+    if (p.surface) this.surfaces--;
+    if (this.lightCount && p.emit) this.removeLight({ x, y, z, color: p.color });
+    this.touch(x, y, z);
+    if (this.onChange && !this.quiet) this.onChange(x, y, z, null);
+    if (this.water.size) this.water.blockChanged(x, y, z); // убрали — вода потечёт в дыру
+    this.version++;
+    const k = colKey(x, z);
+    if (this.tops.get(k)?.y === y) this.tops.delete(k); // сломали верхний — найдём новый при спросе
+    return true;
   }
 
   // Выгрузить кусок из памяти (подгрузка мира по частям: ChunkStore.stream). Блоки куска уходят из мира;
@@ -276,12 +388,12 @@ export class VoxelWorld {
   unloadChunk(c) {
     if (this.chunks.get(c.key) !== c) return false;
     for (const b of c.blocks) {
-      this.blocks.delete(key(b.x, b.y, b.z));
       if (b.surface) this.surfaces--;
       if (this.lightCount && this.emitterOf(b)) this.removeLight(b);
-      this.tops.delete((b.x + 524288) * 1048576 + (b.z + 524288));
+      this.tops.delete(colKey(b.x, b.z));
     }
     this.chunks.delete(c.key);
+    if (this.lastChunk === c) this.lastChunk = null;
     this.bump(c.cx - 1, c.cz);
     this.bump(c.cx + 1, c.cz);
     this.bump(c.cx, c.cz - 1);
@@ -291,8 +403,8 @@ export class VoxelWorld {
   }
 
   clear() {
-    this.blocks.clear();
     this.chunks.clear();
+    this.lastChunk = null;
     this.lights.clear();
     this.lightCount = 0;
     this.surfaces = 0;
