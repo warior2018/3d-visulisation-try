@@ -618,7 +618,7 @@ export class WarHammerAbility extends Ability {
   }
   primary(g) {
     if (g.player.mount) return void g.useAttack(this.swing, { anim: "Attack", bodyAnim: "MacheteSlash", sound: "swing", hitSound: "hit" });
-    g.useAttack(this.attack, { anim: "Attack", bodyAnim: "HammerSlam", sound: "swing", ctx: { radius: g.talentStats?.hammerSlam || ATTACKS.warHammer.radius, fallMultiplier: (fall) => g.slamFallMultiplier(fall), onSlam: (c, r, hits, info) => g.hammerSlam(c, r, hits, info) } });
+    g.useAttack(this.attack, { anim: "Attack", bodyAnim: "HammerSlam", sound: "swing", ctx: { radius: (g.talentStats?.hammerSlam || ATTACKS.warHammer.radius) * (1 + (g.talentStats?.reach || 0)), fallMultiplier: (fall) => g.slamFallMultiplier(fall), onSlam: (c, r, hits, info) => g.hammerSlam(c, r, hits, info) } });
   }
   drawIcon(ui, x, y, s) {
     ui.rect(x + s * 0.46, y + s * 0.3, s * 0.08, s * 0.58, [120, 80, 50]); // рукоять

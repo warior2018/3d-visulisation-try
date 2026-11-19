@@ -115,7 +115,7 @@ export class TalentScene extends Scene {
       for (const req of talent.requires || []) {
         const from = byId.get(req);
         if (!from) continue;
-        const color = t.rank(req) > 0 ? th.accent : LOCKED;
+        const color = t.rank(req) >= (talent.requiresRank || 1) ? th.accent : LOCKED;
         const x1 = Math.round(colX(from.col) + nodeW / 2), y1 = rowY(from.row) + nodeH;
         const x2 = Math.round(colX(talent.col) + nodeW / 2), y2 = rowY(talent.row);
         const mid = y2 - Math.round(rowGap / 2);

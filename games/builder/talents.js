@@ -18,11 +18,11 @@
 //  Трофеи (TROPHY): копятся за убийства, если выучен талант с id из TROPHY_TALENTS (или "trophies" — здоровье).
 // ============================================================
 
-import { SUBCLASS, HAMMER, FALL_DAMAGE, DEMO } from "./config.js";
+import { SUBCLASS, HAMMER, FALL_DAMAGE, DEMO, PARRY, KILL_BUFF, EVASION } from "./config.js";
 // Модификаторы движка — для новых талантов (пока не используются)
 import {
-  damageMultiplier, cooldownReduction, lifesteal, guaranteedCrit, withStatus, convertTo, bleed, stun, Slow,
-  firstHit, vsStunned, headshotBonus, rampPerHit, onlyAttack, reachBonus,
+  damageMultiplier, cooldownReduction, guaranteedCrit, withStatus, convertTo, bleed, stun, Slow,
+  vsStunned, headshotBonus, rampPerHit, onlyAttack, reachBonus, critical, Modifier, DamageOverTime,
 } from "../../engine/index.js";
 
 // ---------- Помощники для описаний и цен (для новых талантов) ----------
@@ -34,7 +34,7 @@ const faster = (x) => cooldownReduction(1 - 1 / (1 + x)); //  +x к скорос
 
 // Трофеи: сколько уже набрано за убитых. Игра обновляет и сохраняет, здесь — чтобы описания показывали цифры.
 // hpPerKill — +макс. HP за убийство (талант "trophies"); perKill — +% урона своего вида за убийство этим видом
-export const TROPHY = { hpPerKill: 1, hp: 0, perKill: 0.3, pct: { melee: 0, ranged: 0, blast: 0 } };
+export const TROPHY = { hpPerKill: 0.5, hp: 0, perKill: 0.3, pct: { melee: 0, ranged: 0, blast: 0 } };
 // Какой талант копит трофеи урона для какого вида атак
 export const TROPHY_TALENTS = { melee: "fighter-trophies", ranged: "marksman-trophies", blast: "demo-trophies" };
 export const trophyPct = (kind) => +TROPHY.pct[kind].toFixed(1);
@@ -112,20 +112,99 @@ const withMastery = (item, list) => {
     describe: (r) => `+${pct(at([0.1, 0.2, 0.3], r))} DMG WITH THE ${name}`, modifiers: (r) => [onlyAttack(attack, damageMultiplier(1 + at([0.1, 0.2, 0.3], r)))] }];
 };
 
+// ---------- Помощники новых веток ----------
+// Цепочка талантов в столбце col: сверху вниз; каждый следующий открывается, когда в предыдущем вложена
+// половина рангов (requiresRank — движок: engine/progression/talents.js)
+const chain = (col, list) => list.map((t, i) => ({ ...t, col, row: i, ...(i ? { requires: [list[i - 1].id], requiresRank: Math.ceil(list[i - 1].maxRank / 2) } : {}) }));
+const DMG = (id) => ({ id, name: "DAMAGE", maxRank: 4, cost: 1, describe: (r) => `+${10 * r}% DMG`, modifiers: (r) => [damageMultiplier(1 + 0.1 * r)] });
+const TROPHIES = (kind, name, how) => ({ id: TROPHY_TALENTS[kind], name, maxRank: 1, cost: 4,
+  describe: () => `+${TROPHY.perKill}% DMG PER KILL ${how} (NOW +${trophyPct(kind)}%)` });
+// Яд VENOM: каждый удар — отравление на 5 с: pct урона удара в секунду, стопками до 3
+const venom = (pct) => new Modifier({ id: "venom", name: "VENOM", priority: 65, apply: (d, ctx) => {
+  const per = d.amount * pct * 0.5; // за тик (раз в 0.5 с)
+  if (per > 0) d.statuses.push(new DamageOverTime({ id: "venom", name: "VENOM", duration: 5, interval: 0.5, damagePerTick: per, element: "poison", stackable: true, source: ctx.owner, icon: "VNM", color: [120, 200, 60] }));
+} });
+
 // ---------- Деревья по режимам ----------
 // Обычная игра — "classic", дуэль — "duel": те же таланты, MODE_TALENTS — поправки полей для режима
 // ({ "id": { maxRank, describe, modifiers, stats } }), MODE_REMOVED — каких талантов в режиме нет
 export const TALENT_MODES = ["classic", "duel"];
 export const MODE_TALENTS = { classic: {}, duel: {} };
-export const MODE_REMOVED = { classic: [], duel: [] };
+// дуэль: трофеи (копятся за мобов) и удача на добычу — не нужны
+export const MODE_REMOVED = { classic: [], duel: ["trophies", "fighter-trophies", "marksman-trophies", "demo-trophies", "v-fortune"] };
 
 function buildTree(mode) {
   const TALENT_TREE = {
     tabs: [
-      { id: "melee", name: "FIGHTER", kind: "melee", note: "BASE: MACHETE. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB", sections: [], talents: [] },
-      { id: "ranged", name: "RANGER", kind: "ranged", note: "BASE: PISTOL. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB", sections: [], talents: [] },
+      // ---------- БЛИЖНИЙ БОЙ ----------
+      { id: "melee", name: "MELEE", kind: "melee", note: "BASE: MACHETE. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB", sections: [], talents: [
+        ...chain(0, [
+          DMG("m-damage"),
+          { id: "m-crit", name: "CRIT", maxRank: 4, cost: 1, describe: (r) => `CRIT X${at([1.5, 2, 2.5, 3], r)} ONCE EVERY ${at([6, 5, 4, 3], r)} S`,
+            modifiers: (r) => [guaranteedCrit(at([1.5, 2, 2.5, 3], r), at([6, 5, 4, 3], r), "melee-crit")] },
+          TROPHIES("melee", "TROPHIES", "IN MELEE"),
+        ]),
+        ...chain(1, [
+          { id: "m-speed", name: "ATTACK SPEED", maxRank: 4, cost: 1, describe: (r) => `+${pct(0.0725 * r)} ATTACK SPEED`, modifiers: (r) => [faster(0.0725 * r)] },
+        ]),
+        ...chain(2, [
+          // REACH: дальность ударов и радиус удара молотом / по площади (stats.reach — abilities.js)
+          { id: "m-reach", name: "REACH", maxRank: 4, cost: 1, describe: (r) => `+${pct(0.125 * r)} MELEE REACH AND SLAM RADIUS`, modifiers: (r) => [reachBonus(0.125 * r)], stats: (r) => ({ reach: 0.125 * r }) },
+          // PARRY: блок (ПКМ) есть всегда — талант делает его сильнее и дольше (scene/input.js → tryBlock)
+          { id: "m-parry", name: "PARRY", maxRank: 4, cost: 1, describe: (r) => `BLOCK ABSORBS UP TO ${Math.round((PARRY.absorb + PARRY.absorbPer * r) * 100)}% OF WEAPON DMG, LASTS ${+(PARRY.window + PARRY.windowPer * r).toFixed(2)} S`,
+            stats: (r) => ({ parry: r }) },
+          // SLOW AURA: враги рядом медленнее ходят и бьют (scene/buffs.js → slowAura)
+          { id: "m-aura", name: "SLOW AURA", maxRank: 3, cost: 2, describe: (r) => `ENEMIES WITHIN ${at([4, 6, 8], r)} BLOCKS ${10 * r}% SLOWER (MOVE AND ATTACKS)`,
+            stats: (r) => ({ slowAura: { radius: at([4, 6, 8], r), k: 0.1 * r } }) },
+        ]),
+        ...chain(3, [
+          { id: "m-venom", name: "VENOM", maxRank: 4, cost: 1, describe: (r) => `HITS POISON: ${pct(at([0.1, 0.1725, 0.245, 0.3175], r))} OF THE HIT PER S FOR 5 S (UP TO 3 STACKS)`,
+            modifiers: (r) => [venom(at([0.1, 0.1725, 0.245, 0.3175], r))] },
+          { id: "m-bleed", name: "BLEED", maxRank: 3, cost: GENERAL, describe: (r) => `HITS BLEED ${pct(at([0.08, 0.12, 0.16], r))} MAX HP IN 3 S (UP TO 3 STACKS)`,
+            modifiers: (r) => [withStatus(bleed(at([0.08, 0.12, 0.16], r)))] },
+        ]),
+      ] },
+      // ---------- ДАЛЬНИЙ БОЙ ----------
+      { id: "ranged", name: "RANGED", kind: "ranged", note: "BASE: PISTOL. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB", sections: [], talents: [
+        ...chain(0, [
+          DMG("r-damage"),
+          // KILL BUFF: убийство — стопка на 35 с (каждая своя): +2.5 % урона и скорости атаки (scene/progression.js)
+          { id: "r-killbuff", name: "KILL BUFF", maxRank: 4, cost: 2, describe: (r) => `KILLS GIVE A STACK FOR ${KILL_BUFF.time} S: +${KILL_BUFF.per * 100}% DMG AND ATTACK SPEED, UP TO ${at(KILL_BUFF.max, r)} STACKS`,
+            stats: (r) => ({ killBuff: at(KILL_BUFF.max, r) }) },
+          TROPHIES("ranged", "TROPHIES", "AT RANGE"),
+        ]),
+        ...chain(1, [
+          { id: "r-speed", name: "ATTACK SPEED", maxRank: 4, cost: 1, describe: (r) => `+${10 * r}% ATTACK SPEED`, modifiers: (r) => [faster(0.1 * r)] },
+          { id: "r-crit", name: "CRIT", maxRank: 4, cost: 1, describe: (r) => `${pct(0.0725 * r)} CHANCE TO CRIT X${1 + 0.25 * r}`, modifiers: (r) => [critical(0.0725 * r, 1 + 0.25 * r)] },
+        ]),
+        ...chain(2, [
+          { id: "r-ammo", name: "AMMO", maxRank: 4, cost: 1, describe: (r) => `+${pct(0.125 * r)} MAGAZINE, ${5 * r}% FASTER RELOAD`, stats: (r) => ({ magBonus: 0.125 * r, reloadSpeed: 0.05 * r }) },
+          { id: "r-killammo", name: "AMMO ON KILL", maxRank: 4, cost: 1, describe: (r) => `A KILL REFILLS ${10 * r}% OF THE MAGAZINE`, stats: (r) => ({ killRefill: 0.1 * r }) },
+        ]),
+        ...chain(3, [
+          { id: "r-fire", name: "FIRE", maxRank: 2, cost: 1, describe: (r) => (r === 1 ? "FIRE: BURNS 7.5% HP/S, MAX 30% HP" : "FIRE: BURNS 15% HP/S, MAX 30% HP"),
+            modifiers: () => [convertTo("fire")], stats: (r) => ({ burnLevel: r }) },
+        ]),
+      ] },
+      // ---------- ПОДРЫВНИК (ветки — позже) ----------
       { id: "demo", name: "DEMOLITIONIST", kind: "blast", note: "BASE: GRENADES. LEVEL 10 - SECOND WEAPON WITH ITS OWN TAB", sections: [], talents: [] },
-      { id: "survival", name: "SURVIVAL", note: "ALWAYS ACTIVE", talents: [] },
+      // ---------- ЖИВУЧЕСТЬ (всем) ----------
+      { id: "survival", name: "VITALITY", note: "ALWAYS ACTIVE", talents: [
+        ...chain(0, [
+          { id: "v-health", name: "HEALTH", maxRank: 4, cost: 1, describe: (r) => `+${10 * r} MAX HP`, stats: (r) => ({ maxHp: 10 * r }) },
+          { id: "v-regen", name: "REGEN", maxRank: 4, cost: 1, describe: (r) => `+${1.25 * r}% MAX HP PER SECOND`, stats: (r) => ({ regenPct: 0.0125 * r }) },
+          { id: "trophies", name: "TROPHIES", maxRank: 1, cost: 4, describe: () => `+${TROPHY.hpPerKill} MAX HP PER KILL (NOW +${Math.floor(TROPHY.hp)} HP)` },
+        ]),
+        ...chain(1, [
+          { id: "v-speed", name: "SPEED", maxRank: 4, cost: 1, describe: (r) => `+${pct(0.075 * r)} SPEED`, stats: (r) => ({ speed: 0.075 * r }) },
+          { id: "v-jump", name: "JUMP", maxRank: 2, cost: 1, describe: (r) => `JUMP +${15 * r}% HIGHER (FALL DMG STARTS HIGHER TOO)`, stats: (r) => ({ jumpMult: 0.15 * r }) },
+          { id: "v-double", name: "DOUBLE JUMP", maxRank: 1, cost: 3, describe: () => "ONE MORE JUMP IN THE AIR (80% HEIGHT)", stats: () => ({ extraJumps: 1 }) },
+        ]),
+        ...chain(2, [
+          { id: "v-fortune", name: "FORTUNE", maxRank: 4, cost: 1, describe: (r) => `+${12.5 * r}% LUCK: RARE GEAR FROM MOBS AND BOSSES MORE OFTEN`, stats: (r) => ({ luck: 0.125 * r }) },
+          { id: "v-evasion", name: "EVASION", maxRank: 4, cost: 2, describe: (r) => `${10 * r}% CHANCE TO DODGE A HIT: UP TO ${EVASION.cap * 100}% MAX HP OF IT IS IGNORED`, stats: (r) => ({ evasion: 0.1 * r }) },
+        ]),
+      ] },
     ],
     tierPoints: [0, 2, 4, 6, 12], // очки во вкладке, нужные для яруса (для вкладок с tier)
   };

@@ -5,7 +5,7 @@
 // ============================================================
 
 import { toWorld, viewBasis, Vec3, Slow, TrapAttack, withStatus } from "../../../engine/index.js";
-import { SHAKE, DEMO, FALL_DAMAGE, TRAPS, ATTACKS, ROCKET_JUMP } from "../config.js";
+import { SHAKE, DEMO, FALL_DAMAGE, TRAPS, ATTACKS, ROCKET_JUMP, PLAYER } from "../config.js";
 import { skinFx } from "../skins.js";
 import { ITEM_OF_ATTACK, lighter } from "./throwers.js";
 
@@ -161,7 +161,7 @@ export class MagicPart {
   fallRules() {
     const F = FALL_DAMAGE;
     let from = F.from, mult = 1;
-    if (this.talents.rank("sniper-jump") > 0) { from += F.highGround.from; mult *= F.highGround.mult; }
+    from += PLAYER.jumpHeight * (this.talentStats?.jumpMult || 0); // JUMP: прыгаешь выше — и порог урона выше
     if (this.talentStats?.hammerLeap && this.abilities.current?.id === "war-hammer") { from += F.jumpSlam.from; mult *= F.jumpSlam.mult; }
     return { from, mult };
   }

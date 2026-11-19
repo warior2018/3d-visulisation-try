@@ -218,7 +218,7 @@ export class CharacterController {
       this.jumpBuffer = 0;
       // Двойной прыжок: полная сила прыжка + половина того, с чем ещё летим вверх — нажал рано, на взлёте, —
       // всё равно заметно выше (раньше скорость просто ставилась заново, и ранний второй прыжок почти не ощущался)
-      entity.velocity.y = jumpV + Math.max(0, entity.velocity.y) * 0.5;
+      entity.velocity.y = jumpV * Math.sqrt(this.airJumpHeight ?? 1) + Math.max(0, entity.velocity.y) * 0.5; // airJumpHeight — доля высоты обычного прыжка
     }
     this.jumpWasDown = jumpDown;
     // 3D-рывок: вертикаль — тоже его (и прыжок, и тяжесть на это время не действуют)

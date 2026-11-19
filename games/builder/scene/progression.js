@@ -5,9 +5,9 @@
 // ============================================================
 
 import { TROPHY_TALENTS, TROPHY, weaponTab } from "../talents.js";
-import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3, rarityOf } from "../../../engine/index.js";
+import { onlyFor, damageMultiplier, cooldownReduction, TalentScene, Input, ChoiceScene, Vec3, rarityOf, Modifier } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
-import { ARMOR, PLAYER, KATANA_IAI, MACHETE_LEAP, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, MULTIPLAYER, DUEL, subclassOptions } from "../config.js";
+import { KILL_BUFF, ARMOR, PLAYER, KATANA_IAI, MACHETE_LEAP, PROGRESSION, CLASSES, COMMON_TABS, BUILD, SUBCLASS, WEAPON_UPGRADES, MULTIPLAYER, DUEL, subclassOptions } from "../config.js";
 import { ITEMS, HOTBAR_SLOTS } from "../items.js";
 
 export class ProgressionPart {
@@ -47,10 +47,17 @@ export class ProgressionPart {
     if (full.attackSpeed) p.modifiers.push(cooldownReduction(1 - 1 / (1 + full.attackSpeed)));
     // Правила классов из талантов (не модификаторы урона) — читают оружие, ловушки, призыв
     this.talentStats = s;
-    // HIGH GROUND (снайпер): прыжок ×1.5 и двойной прыжок
+    // JUMP / DOUBLE JUMP (живучесть): прыжок выше, прыжок в воздухе — 80 % высоты обычного
     if (this.controller) {
       this.controller.jumpHeight = PLAYER.jumpHeight * (1 + (s.jumpMult || 0));
       this.controller.extraJumps = s.extraJumps || 0;
+      this.controller.airJumpHeight = 0.8;
+    }
+    p.evasion = s.evasion || 0; // EVASION — шанс увернуться (scene/session.js → onIncoming)
+    // KILL BUFF: стопки за убийства — урон и скорость атаки дальнего боя (стопки живут сами: tickKillStacks)
+    if (s.killBuff) {
+      const k = () => 1 + KILL_BUFF.per * (this.killStacks?.length || 0);
+      p.modifiers.push(onlyFor("ranged", new Modifier({ id: "kill-buff", name: "KILL BUFF", priority: 30, apply: (d) => (d.amount *= k()), cooldownMultiplier: () => 1 / k() })));
     }
     this.applyMagazines();
   }
@@ -86,6 +93,8 @@ export class ProgressionPart {
       if (!atk?.baseMagazine && !atk?.magazine) continue;
       atk.baseMagazine ||= atk.magazine;
       atk.magazine = Math.ceil(atk.baseMagazine * (1 + bonus));
+      atk.baseReload ||= atk.reloadTime; // AMMO: перезарядка быстрее
+      if (atk.reloadTime) atk.reloadTime = atk.baseReload / (1 + (this.talentStats?.reloadSpeed || 0));
       atk.ammo = Math.min(atk.ammo, atk.magazine);
     }
   }

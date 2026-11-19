@@ -4,9 +4,9 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_NIGHT_ONLY, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, MULTIPLAYER, subclassOptions, worldgenFor, WOUND } from "../config.js";
+import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_NIGHT_ONLY, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, MULTIPLAYER, subclassOptions, worldgenFor, WOUND, EVASION, PARRY } from "../config.js";
 import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../save.js";
-import { Entity, Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, Hints, profiler } from "../../../engine/index.js";
+import { Entity, Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, Hints, profiler, stun } from "../../../engine/index.js";
 import { HINTS } from "../hints.js";
 import { maxStack, hotbarAccepts, armorAccepts } from "../items.js";
 import { TROPHY, weaponTab } from "../talents.js";
@@ -93,9 +93,17 @@ export class SessionPart {
     // Попали в голову — шлем срезает часть урона (до брони; ARMOR: headshot)
     this.player.onIncoming = (d) => {
       if (d.part === "head") d.amount *= 1 - this.helmetHeadshot();
+      // EVASION: с шансом удар (не урон по времени) теряет до EVASION.cap макс. HP — «увернулся»
+      const ev = this.player.evasion || 0;
+      if (ev > 0 && d.amount > 0 && !d.tags?.has("dot") && Math.random() < ev) {
+        d.amount = Math.max(0, d.amount - this.player.stats.maxHp * EVASION.cap);
+        this.engine.sound.play("wind", { volume: 0.7 });
+      }
     };
     this.player.onBlock = (d, guard) => {
       this.engine.sound.play("parry");
+      // отбил удар ближнего боя — бивший оглушён (PARRY.stun × перезарядка атаки оружия)
+      if (d.kind === "melee" && d.source?.alive && d.source !== this.player && d.source.addStatus) d.source.addStatus(stun(this.parryStun || PARRY.stun)(this.player));
       this.reflectShot(d, guard); // отбили выстрел — отбитая доля летит туда, куда смотрим
       this.blockFlash = 0.6;
       this.engine.log(`блок: отбит удар ${d.source?.name || "?"} (${Math.round(d.amount)})`);

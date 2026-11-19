@@ -21,6 +21,7 @@
 //    }
 //
 //  Дерево-схема (вместо ярусов): requires: ["a", "b"] — сначала вложи хотя бы 1 ранг в каждый из них
+//  (requiresRank: N — не 1, а N рангов в каждом)
 //  (стрелки на схеме); col / row — где узел стоит на экране (столбец и ряд), у вкладки sections:
 //  [{ name, col }] — подписи разделов над столбцами. cost — число или (ранг) => сколько стоит ЭТОТ ранг
 //  (например, (r) => (r >= 3 ? 2 : 1): первые два по 1 очку, дальше по 2).
@@ -98,9 +99,10 @@ export class Talents {
     return tab ? tab.talents.reduce((sum, t) => sum + this.spentOn(t), 0) : 0;
   }
 
-  // Каких талантов не хватает, чтобы открыть этот (requires): список id без единого ранга
+  // Каких талантов не хватает, чтобы открыть этот (requires): список id, где рангов меньше requiresRank (по умолчанию 1)
   missing(talent) {
-    return (talent.requires || []).filter((id) => this.rank(id) <= 0);
+    const need = talent.requiresRank || 1;
+    return (talent.requires || []).filter((id) => this.rank(id) < need);
   }
 
   // Сколько очков во вкладке нужно для яруса
@@ -121,7 +123,8 @@ export class Talents {
       if (this.spentIn(tab.id) < need) return { ok: false, reason: `NEED ${need} PTS IN TAB` };
     }
     const miss = this.missing(talent);
-    if (miss.length) return { ok: false, reason: `NEED: ${miss.map((id) => this.byId.get(id)?.talent.name || id).join(" + ")}` };
+    const n = talent.requiresRank > 1 ? ` ${talent.requiresRank}` : "";
+    if (miss.length) return { ok: false, reason: `NEED: ${miss.map((id) => (this.byId.get(id)?.talent.name || id) + n).join(" + ")}` };
     const cost = this.cost(id);
     if (this.points < cost) return { ok: false, reason: cost > 1 ? `NEED ${cost} FREE PTS` : "NO POINTS" };
     return { ok: true };

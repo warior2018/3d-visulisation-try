@@ -496,6 +496,7 @@ export class GameScene extends Scene {
     player.speedBonuses.weapon = this.abilities.current?.moveSpeed || 0; // оружие в руках
     player.speedBonuses.aim = this.aiming ? AIM.moveSpeed : 0; //            прицеливание
     this.updateBreath(dt); // в воде: медленнее, дыхание и утопление (scene/water.js)
+    if (this.killStacks?.length) this.killStacks = this.killStacks.map((t) => t - dt).filter((t) => t > 0); // KILL BUFF: стопки гаснут
     this.actionLock.update(dt);
     player.speedBonuses.lock = this.actionLock.moveSpeed;
     this.updateStance(dt); //  катана в руках — стойка: ниже рост и глаза
@@ -691,6 +692,7 @@ export class GameScene extends Scene {
       const { walking: going, alerted } = !e.stunned && e.brain ? e.brain.update(e, ai, dt) : { walking: false, alerted: [] };
       profiler.end(PROF.ai);
       this.mobKindMove(e); // гоблин раненый — убегает (scene/mob-kinds.js)
+      this.slowAura(e, dt); // SLOW AURA героя: рядом — медленнее ходит и бьёт (scene/buffs.js)
       if (alerted.length > 1) engine.log(`стадо: разозлились ${alerted.length} (${e.name})`);
       if (alerted.includes(e)) engine.sound.play("growl", { at: e.position, volume: 0.8 }); // рык того, кто разозлился
       this.applyKnock(e, dt); // отбросило ударом (scene/feel.js)

@@ -6,7 +6,7 @@
 
 import { critCooldown, dash, MagicAttack, grow } from "../../../engine/index.js";
 import { signedPct } from "./shared.js";
-import { ARMOR, BLOCK, ATTACKS, HAMMER, PLAYER, SHAKE, BOAR_SCALE, WARDEN_GROWTH, OUT_OF_COMBAT, MOUNT } from "../config.js";
+import { ARMOR, ATTACKS, HAMMER, PLAYER, SHAKE, BOAR_SCALE, WARDEN_GROWTH, OUT_OF_COMBAT, MOUNT } from "../config.js";
 import { CREATURES } from "../creatures.js";
 
 export class BuffsPart {
@@ -59,7 +59,7 @@ export class BuffsPart {
       const total = Math.max(atk.cooldownLeft, atk.cooldown);
       if (total >= 0.8) list.push({ icon: "ATK", color: [220, 220, 230], progress: 1 - atk.cooldownLeft / total, left: atk.cooldownLeft, draw: cur.drawIcon ? (ui, x, y, s) => cur.drawIcon(ui, x, y, s, this) : null });
     }
-    if (cur?.blocks && this.blockCooldown > 0) list.push({ icon: "BLK", color: [150, 200, 255], progress: 1 - this.blockCooldown / BLOCK.cooldown, left: this.blockCooldown });
+    if (cur?.blocks && this.blockCooldown > 0) list.push({ icon: "BLK", color: [150, 200, 255], progress: 1 - this.blockCooldown / (this.blockCooldownMax || 1), left: this.blockCooldown });
     // Гарантированный крит бойца
     const crit = this.talents.rank("f-crit");
     const cl = crit && this.playerClass === "melee" ? critCooldown(p, "fighter-crit") : 0;
@@ -145,5 +145,13 @@ export class BuffsPart {
       e.setMaxHp(grow(CREATURES.warden.maxHp, n, g.hp));
       if (e.attack) e.attack.damage = grow(ATTACKS.wardenSword.damage, n, g.damage);
     }
+  }
+
+  // SLOW AURA (талант ближнего боя): враг ближе радиуса к герою — скорость −k, перезарядка удара идёт на k медленнее
+  slowAura(e, dt) {
+    const A = this.talentStats?.slowAura, p = this.player;
+    const inside = !!A && e.kind === "mob" && p?.alive && e.isHostileTo?.(p) && Math.hypot(e.position.x - p.position.x, e.position.y - p.position.y, e.position.z - p.position.z) <= A.radius;
+    e.speedBonuses.slowAura = inside ? -A.k : 0;
+    if (inside && e.attack?.cooldownLeft > 0) e.attack.cooldownLeft += dt * A.k; // часы удара — медленнее
   }
 }

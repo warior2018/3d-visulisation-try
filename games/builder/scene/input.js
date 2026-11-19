@@ -7,7 +7,7 @@
 import { MapScene, MenuScene, parry } from "../../../engine/index.js";
 import { ProfileScene } from "../profile-view.js";
 import { DIGIT_KEYS } from "./shared.js";
-import { PALETTE, BLOCK } from "../config.js";
+import { PALETTE, PARRY } from "../config.js";
 import { deleteSave, deleteWorld, currentWorld } from "../save.js";
 
 export class InputPart {
@@ -131,16 +131,17 @@ export class InputPart {
     this.engine.toast("VIEW: " + (g.cameraMode === "third" ? "THIRD PERSON" : "FIRST PERSON"));
   }
 
-  // Блок (ПКМ с оружием ближнего боя): на BLOCK.window секунд отбиваем удары спереди
-  // (движок: статус parry), потом перезарядка BLOCK.cooldown
+  // Парирование (PARRY): держится window с (+ талант), гасит урон до доли урона оружия в руке (+ талант);
+  // пока держишь — не бьёшь; перезарядка — после конца блока, PARRY.cooldown × перезарядка атаки оружия
   tryBlock(ability) {
     if (this.blockCooldown > 0) return false;
-    // Снимает долю урона оружия в руке: удары — BLOCK.weapon, выстрелы и взрывы — BLOCK.ranged (своя доля — BLOCK.weapons[id])
+    const P = PARRY, r = this.talentStats?.parry || 0;
     const a = ability?.attack, base = a ? (Array.isArray(a.damage) ? (a.damage[0] + a.damage[1]) / 2 : a.damage) : 0;
-    const own = BLOCK.weapons[ability?.id] ?? BLOCK.weapon;
-    const absorb = (d) => base * (d.kind === "melee" ? own : BLOCK.ranged);
-    this.player.addStatus(parry({ duration: BLOCK.window, kinds: ["melee", "blast"], shots: true, absorb })); // отражение — талант REFLECT (combat.js → reflectShot)
-    this.blockCooldown = this.duel ? BLOCK.duelCooldown : BLOCK.cooldown;
+    const share = P.absorb + P.absorbPer * r, window = P.window + P.windowPer * r, cd = a?.cooldown || 1;
+    this.player.addStatus(parry({ duration: window, kinds: ["melee", "blast"], shots: true, absorb: () => base * share })); // отражение — талант REFLECT (combat.js → reflectShot)
+    this.blockCooldown = this.blockCooldownMax = window + P.cooldown * cd;
+    if (a) a.cooldownLeft = Math.max(a.cooldownLeft || 0, window); // пока блок — удара нет
+    this.parryStun = P.stun * cd; // отбил удар — враг оглушён (session.js → onBlock)
     this.viewModel()?.play("Block");
     this.player.view?.animator.playOnce("Block");
     this.engine.sound.play("guard");

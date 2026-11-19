@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { PICKUP_REACH, ATTACKS } from "../config.js";
+import { PICKUP_REACH, ATTACKS, KILL_BUFF } from "../config.js";
 import { TROPHY, TROPHY_TALENTS } from "../talents.js";
 
 export class InteractPart {
@@ -90,5 +90,15 @@ export class InteractPart {
         if (add > 0) this.engine.toast(`+${add} AMMO`, 700);
       }
     }
+    if (e.lastHitBy !== this.player) return;
+    // KILL BUFF (дальний бой): стопка на KILL_BUFF.time с (у каждой своё время), не больше предела таланта
+    const maxStacks = this.talentStats.killBuff || 0;
+    if (maxStacks) {
+      (this.killStacks ||= []).push(KILL_BUFF.time);
+      if (this.killStacks.length > maxStacks) this.killStacks.sort((a, b) => b - a).length = maxStacks; // старые — вон
+    }
+    // AMMO ON KILL: убийство — в магазин оружия в руках доля его ёмкости (не больше полного)
+    const refill = this.talentStats.killRefill || 0, atk = this.abilities.current?.attack;
+    if (refill && atk?.magazine) atk.ammo = Math.min(atk.magazine, atk.ammo + Math.ceil(atk.magazine * refill));
   }
 }
