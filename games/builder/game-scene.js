@@ -791,7 +791,6 @@ export class GameScene extends Scene {
       air: !player.onGround && !player.mount, airTime: this.airTime, stance: this.lowStance, // присед — тоже стойка
       moving: move.moving, running: move.running, speed: move.speed,
     }, dt);
-    const walking = move.moving && player.onGround && this.aimT < 0.5; // в прыжке и в прицеле рука не качается
     const vm = this.viewModel();
     // Рука на ходу не машет своей анимацией — её покачивает HeadBob.hand (дугой, как в Minecraft)
     vm?.setBase(this.abilities.current?.drawing ? "Draw" : this.abilities.current?.using ? "Use" : this.aimT > 0.5 ? "Aim" : "Idle", 1);

@@ -81,7 +81,6 @@ export class InteractPart {
     // Свои трофеи класса: стрелку — патроны, магу — сфера души
     if (e.kind !== "mob") return;
     this.dropGear(e); // вещь с редкостью (удача, тиры) — scene/loot.js
-    const near = (k = 0.6) => ({ x: e.position.x + (Math.random() - 0.5) * k, y: e.position.y + 0.5, z: e.position.z + (Math.random() - 0.5) * k });
     // AMMO REFUND (стрелок): убийство из автомата — +15 патронов прямо в его магазин (не больше полного)
     if (this.talentStats.rifleRefund && e.lastHitBy === this.player && e.lastHitAttack === ATTACKS.auto.id) {
       const atk = this.abilityCache.get("auto")?.attack;

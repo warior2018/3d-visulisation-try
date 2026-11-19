@@ -9,7 +9,7 @@ import {
   GrenadesAbility, LauncherAbility, DynamiteAbility,
   drawHammer, drawBearTrap, drawSpikes, drawMedkit, drawTorch,
 } from "./abilities.js";
-import { PALETTE, ARMOR } from "./config.js";
+import { ARMOR } from "./config.js";
 
 // Значок оружия — тот же, что у способности в панели
 const iconOf = (Ability) => {

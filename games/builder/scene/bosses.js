@@ -195,7 +195,6 @@ export class BossesPart {
     this.beams.ring({ x: c.x, y: c.y + 0.05, z: c.z }, r, { color: [190, 170, 140], life: 0.35, width: 9 });
     this.beams.ring({ x: c.x, y: c.y + 0.05, z: c.z }, r * 0.55, { color: [150, 130, 100], life: 0.25, width: 6, segments: 14 });
     this.engine.sound.play("boom", { at: c });
-    const d = Math.hypot(this.player.position.x - c.x, this.player.position.z - c.z);
     this.shakeNear(c, SHAKE.bossSlam); // удар дубины — трясёт тем сильнее, чем ближе
   }
 

@@ -28,7 +28,6 @@ export class ShopPart {
       give: () => this.giveItem(id),
       drawIcon: (ui, x, y, s) => ITEMS[id].drawIcon(ui, x, y, s),
     });
-    const scene = this;
     // Расходники (ловушки, грибы, патроны): пачкой по count штук — если влезут
     const supply = (id, price, count, text) => ({
       id, name: count > 1 ? `${itemName(id)} X${count}` : itemName(id), price, describe: () => text, category: ITEMS[id].class || "utility",
