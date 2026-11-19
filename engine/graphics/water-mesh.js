@@ -67,9 +67,12 @@ fn water_vs(in: WIn) -> WOut {
 fn water_fs(in: WOut) -> @location(0) vec4f {
   let c = in.color.rgb * u.brightness;
   let lin = select(c, pow(c, vec3f(2.2, 2.2, 2.2)), u.srgb > 0.5);
-  // вдали — растворяется в дымке, как блоки
-  let fade = clamp(1.0 - (in.dist - u.fadeDist * 0.85) / max(u.fadeDist * 0.15, 1.0), 0.0, 1.0);
-  return vec4f(lin, in.color.a * fade);
+  // вдали — растворяется в дымке, как блоки. Прозрачность больше 1.5 — «не таять» (облака: высоко, видны
+  // дальше дымки), сама прозрачность — минус 2
+  let noFade = in.color.a > 1.5;
+  let a = select(in.color.a, in.color.a - 2.0, noFade);
+  let fade = select(clamp(1.0 - (in.dist - u.fadeDist * 0.85) / max(u.fadeDist * 0.15, 1.0), 0.0, 1.0), 1.0, noFade);
+  return vec4f(lin, a * fade);
 }
 `;
 
