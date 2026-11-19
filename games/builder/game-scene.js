@@ -15,6 +15,10 @@ import { talentTree } from "./talents.js";
 import { createHud, SCOPE } from "./hud.js";
 import { createCreature, modelFor } from "./creatures.js";
 import { NO_INPUT, PROF, CORPSE_TIME, mixParts } from "./scene/shared.js";
+
+// Мозги далёких мобов — реже (game-scene → fixedUpdate): дальше far м от героев и не злой — раз в every тиков
+const AI_LOD = { far: 48, every: 3 };
+const NO_ALERT = []; // «никто не разозлился» — один массив на все тики (без мусора)
 import { SAVE_DIR, SAVE_FILE, store as saveStore } from "./save.js";
 import { SessionPart } from "./scene/session.js";
 import { FeelPart } from "./scene/feel.js";
@@ -326,6 +330,26 @@ export class GameScene extends Scene {
     this.frameUpdate(dt, 1, opts);
   }
 
+  // Всё, что рисуется моделями в этом кадре — в один массив, который живёт всё время (без мусора каждый кадр)
+  drawables() {
+    const out = (this.drawOut ||= []);
+    out.length = 0;
+    const add = (list) => { for (const x of list) out.push(x); };
+    add(this.entities.list);
+    add(this.pickups.list);
+    add(this.projectiles.list);
+    add(this.traps.list);
+    if (this.netTraps) add(this.netTraps.values());
+    if (this.trapPreview) out.push(this.trapPreview);
+    if (this.inMain()) {
+      if (this.treasure?.model) { const c = this.chestEntity(); if (c) out.push(c); }
+      add(this.caveChestEntities());
+      add(this.houseChestEntities());
+    } else add(this.roomChestEntities());
+    add(this.urnList());
+    return out;
+  }
+
   // Что рисуется моделями (их сглаживаем между тиками). Один массив на всё время — без мусора
   drawnLists() {
     const l = (this.drawn ||= []);
@@ -629,6 +653,7 @@ export class GameScene extends Scene {
     const ai = {
       entities: this.entities.list,
       near: (e) => this.entities.near(e), //  соседи из сетки (separate)
+      nearR: (e, r) => this.entities.grid.near(e.position.x, e.position.z, r, (this.nearROut ||= [])), // кандидаты в радиусе r (поиск цели, стадо)
       navWorld: this.navWorld,
       hunt: this.invasion.active ? this.heroes() : null, // нашествие: каждый моб — на ближайшего героя (свой + гости)
       dig: (e, target, dt) => this.bossDig(e, target, dt), // босс в погоне ломает блоки перед собой (bosses.js)
@@ -695,7 +720,15 @@ export class GameScene extends Scene {
         e.attack?.update(dt);
       }
       profiler.begin(PROF.ai);
-      const { walking: going, alerted } = !e.stunned && e.brain ? e.brain.update(e, ai, dt) : { walking: false, alerted: [] };
+      // далёкий спокойный моб (дальше AI_LOD.far от героев, не злой) думает раз в AI_LOD.every тиков — со
+      // сложенным временем; между этим идёт как шёл (скорость та же, физика — каждый тик)
+      let think = dt;
+      if (e.brain && !e.aggro && !e.boss && dist > AI_LOD.far) {
+        e.aiWait = (e.aiWait || 0) + dt;
+        think = (e.aiTick = ((e.aiTick ?? Math.floor(Math.random() * AI_LOD.every)) + 1) % AI_LOD.every) === 0 ? e.aiWait : 0;
+        if (think) e.aiWait = 0;
+      } else e.aiWait = 0;
+      const { walking: going, alerted } = !e.stunned && e.brain && think ? (e.aiLast = e.brain.update(e, ai, think)) : !e.stunned && e.brain ? { walking: !!e.aiLast?.walking, alerted: NO_ALERT } : { walking: false, alerted: NO_ALERT };
       profiler.end(PROF.ai);
       this.mobKindMove(e); // гоблин раненый — убегает (scene/mob-kinds.js)
       this.slowAura(e, dt); // SLOW AURA героя: рядом — медленнее ходит и бьёт (scene/buffs.js)
@@ -891,7 +924,7 @@ export class GameScene extends Scene {
       camera,
       world: this.world,
       ghost: this.engine.scene === this ? this.ghost : null,
-      characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...(this.inMain() ? [...(this.treasure?.model ? [this.chestEntity()].filter(Boolean) : []), ...this.caveChestEntities(), ...this.houseChestEntities()] : this.roomChestEntities()), ...this.urnList()], firstPerson ? this.player : null),
+      characters: this.game.models.drawList(this.drawables(), firstPerson ? this.player : null),
       viewModels: [vm, tvm].filter(Boolean), // рука (и факел) — слой «для экрана», только от 1-го лица
       particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
       boxes: this.inMain() ? this.cloudBoxes() : null, // облака второго слоя (scene/clouds.js)

@@ -52,7 +52,7 @@ export const busy = (e) => !!e.aggro?.alive;
 // Злость хранится в e.aggro (на кого). filter(e) — кто считается «своим»
 // (по умолчанию — того же типа). Вернёт список тех, кто разозлился сейчас.
 // sees(a, b) — видит ли a соседа b (луч без стен): злость передаётся только тем, кого видно
-export function alertHerd(first, target, entities, { radius = 5.5, filter = (e) => e.type === first.type, sees = null } = {}) {
+export function alertHerd(first, target, entities, { radius = 5.5, filter = (e) => e.type === first.type, sees = null, near = null } = {}) {
   const alerted = [];
   if (!target?.alive) return alerted;
   const queue = [];
@@ -63,7 +63,8 @@ export function alertHerd(first, target, entities, { radius = 5.5, filter = (e) 
   queue.push(first);
   while (queue.length) {
     const a = queue.shift();
-    for (const b of entities) {
+    // near(a, r) — кандидаты из сетки соседей (быстро); нет — все
+    for (const b of near ? near(a, radius) : entities) {
       if (b === a || b === target || !b.alive || b.aggro === target || !filter(b)) continue;
       if (busy(b)) continue; // уже дерётся со своей целью — не переключается
       if (Math.hypot(b.position.x - a.position.x, b.position.y - a.position.y, b.position.z - a.position.z) > radius) continue; // по прямой (с высотой)

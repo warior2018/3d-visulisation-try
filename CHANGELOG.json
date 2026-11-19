@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.107.2",
+    "date": "2026-11-19",
+    "title": "AI and frame optimizations",
+    "changes": [
+      "Far calm mobs think every 3rd tick; target search and herd alerts use the neighbor grid",
+      "Less garbage per frame when collecting models to draw"
+    ]
+  },
+  {
     "version": "0.107.1",
     "date": "2026-11-19",
     "title": "Progressive chunk building",

@@ -65,7 +65,9 @@ export class HostileBrain extends Brain {
   nearestEnemy(e, entities, radius, only = null) {
     let best = null;
     let bestD = Infinity;
-    for (const o of entities) {
+    // есть сетка соседей (ctx.nearR) — только ближние кандидаты (заметность до ×1.5), иначе — все
+    const list = this.ctx?.nearR ? this.ctx.nearR(e, radius * 1.5) : entities;
+    for (const o of list) {
       if (!o.alive || !e.isHostileTo(o) || (only && !only(o))) continue;
       if (Math.abs(o.position.y - e.position.y) > this.sightHeight) continue;
       const d = dist3d(e, o); // радиус замечания — по прямой между телами (высота тоже считается)
@@ -116,7 +118,7 @@ export class HostileBrain extends Brain {
 
   // Разозлиться на target (со стадом — и соседи)
   anger(e, target, entities) {
-    if (this.herd) return alertHerd(e, target, entities, { ...this.herd, sees: (a, b) => !this.ctx?.combatFor?.(a)?.blocked?.(a, b) });
+    if (this.herd) return alertHerd(e, target, entities, { ...this.herd, near: this.ctx?.nearR, sees: (a, b) => !this.ctx?.combatFor?.(a)?.blocked?.(a, b) });
     if (e.aggro === target) return [];
     e.aggro = target;
     return [e];
