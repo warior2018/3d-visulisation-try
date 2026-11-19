@@ -427,8 +427,8 @@ export class GPURenderer {
   // Карта теней этого кадра. Камера — далеко в сторону солнца (sun × D), смотрит на героя, узкий угол: лучи
   // почти параллельны, квадрат 2R × 2R вокруг героя. Центр сдвигается шагами в точку карты — тени не «дрожат»
   renderShadowMap(encoder, camera, world, characters) {
-    const [sx, sy, sz] = this.sky.sun;
-    if (sy < 0.08) return; // солнце у горизонта или ночь — без настоящих теней
+    const [sx, sy, sz] = this.lightDir(); // ночью — от луны
+    if (sy < 0.08) return; // солнце (луна) у горизонта — без настоящих теней
     const R = Math.min(this.shadowRadius, this.viewDistance), D = 1500;
     const pitch = Math.asin(-sy), yaw = Math.atan2(-sx, -sz);
     const cy = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
@@ -691,9 +691,15 @@ export class GPURenderer {
     }
   }
 
-  // Тени под это солнце: ключ — направление шагами; поменялся — все куски в очередь на перезапекание
-  updateShadows(world) {
+  // Откуда свет: днём — солнце, ночью — луна (ровно напротив солнца). Тени и освещённые грани — от него
+  lightDir() {
     const [x, y, z] = this.sky.sun;
+    return y > 0 ? [x, y, z] : [-x, -y, -z];
+  }
+
+  // Тени под это солнце (ночью — луну): ключ — направление шагами; поменялся — все куски в очередь на перезапекание
+  updateShadows(world) {
+    const [x, y, z] = this.lightDir();
     const realOk = this.realShadows && this.worldFx && this.fxEnabled !== false; // настоящие тени рисуются
     const on = (this.shadowMode === "simple" || (this.shadowMode === "real" && !realOk)) && this.lighting && y > 0.12;
     const step = 0.07;

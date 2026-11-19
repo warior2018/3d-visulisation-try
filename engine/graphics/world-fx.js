@@ -193,7 +193,7 @@ fn shadowVis(world: vec3f, n: vec3f) -> f32 {
   // полосками (shadow acne — те самые линии на траве)
   // Пробы вокруг (PCF) берут глубину дальше от точки — сдвиг растёт с их числом (иначе чем выше качество
   // света, тем больше полос)
-  let sunN = max(dot(n, normalize(u.sunDir)), 0.0);
+  let sunN = max(dot(n, select(-normalize(u.sunDir), normalize(u.sunDir), u.sunDir.y > 0.0)), 0.0); // ночью — луна
   let kr = clamp(u.sPcf, 0.0, 2.0);
   let d = world + n * (0.1 + 0.11 * kr + 0.3 * (1.0 - sunN)) - u.sCamPos;
   let cy = cos(u.sYaw);
@@ -227,21 +227,27 @@ fn shadowVis(world: vec3f, n: vec3f) -> f32 {
   return sum / cnt;
 }
 
+// Луна: сила её света (тени, освещённые грани) от солнечного (0…1)
+const MOON_LIGHT: f32 = 0.55;
+
 @fragment
 fn cube_fx_fs(in: CubeFxOut) -> @location(0) vec4f {
   let sun = normalize(u.sunDir);
   let lightDir = select(-sun, sun, sun.y > 0.0); // днём — солнце, ночью — луна
   let light = 0.45 + 0.55 * max(dot(in.normal, lightDir), 0.0);
   var color = (in.color / max(in.center, 0.01)) * light; // чистый цвет (в данных — × небо в середине)
-  // тень: только на гранях к солнцу (обратные и так темнее), мягко к краю; ночью — нет
+  // тень: только на гранях к солнцу / луне (обратные и так темнее), мягко к краю; ночью — от луны, слабее (MOON_LIGHT)
   let vis = shadowVis(in.worldPos, in.normal);
-  let facing = smoothstep(0.0, 0.25, dot(in.normal, sun));
-  color = color * mix(1.0, mix(0.6, 1.0, vis), facing * clamp(u.day, 0.0, 1.0));
-  // освещённое солнцем — чуть теплее (на закате — заметно), в тени — чуть голубее от неба
+  let facing = smoothstep(0.0, 0.25, dot(in.normal, lightDir));
+  let day = clamp(u.day, 0.0, 1.0);
+  let strength = mix(MOON_LIGHT, 1.0, day);
+  color = color * mix(1.0, mix(0.6, 1.0, vis), facing * strength);
+  // освещённое солнцем — чуть теплее (на закате — заметно), луной — холодно-голубое; в тени — чуть голубее от неба
   let duskK = clamp(1.0 - abs(sun.y) * 3.0, 0.0, 1.0);
   let sunTint = mix(vec3f(1.04, 1.0, 0.94), vec3f(1.18, 0.92, 0.72), duskK);
-  let lit = facing * vis * clamp(u.day, 0.0, 1.0);
-  color = color * mix(vec3f(0.96, 0.98, 1.04), sunTint, lit);
+  let moonTint = vec3f(0.88, 0.95, 1.14);
+  let lit = facing * vis * strength;
+  color = color * mix(vec3f(0.96, 0.98, 1.04), mix(moonTint, sunTint, day), lit);
   color = color * (1.0 - 0.35 * edgeness(in.local));
   // свет = небо (с днём / ночью: u.brightness) + лампы и факел героя (тёплые, не темнеют ночью)
   var torchL = 0.0;
