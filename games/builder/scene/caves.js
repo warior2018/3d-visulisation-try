@@ -388,7 +388,7 @@ export class CavesPart {
       room.timer = C.spawn.every;
       const inside = this.entities.list.filter((e) => e.kind === "mob" && e.alive && this.roomOf(e.position) === room).length;
       const all = this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length;
-      if (inside >= C.spawn.max || all >= SPAWN.max) continue;
+      if (inside >= C.spawn.max || all >= (this.mobMax || SPAWN.max)) continue;
       this.caveMob(room, pickWeighted(MOB_MIX), {}, { minDist: C.spawn.minDist }); // не вплотную к герою
     }
   }

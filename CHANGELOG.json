@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.107.3",
+    "date": "2026-11-19",
+    "title": "Mob cap by world size",
+    "changes": [
+      "Max mobs: tiny 30, small 45, medium 60, large 75"
+    ]
+  },
+  {
     "version": "0.107.2",
     "date": "2026-11-19",
     "title": "AI and frame optimizations",

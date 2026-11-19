@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_NIGHT_ONLY, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, MULTIPLAYER, subclassOptions, worldgenFor, WOUND, EVASION, PARRY } from "../config.js";
+import { VIEW_DISTANCE, HEARING, TERRAIN_V1, MAP_FOG, ULTIMATE, PLAYER, STAMINA, CLASSES, SPAWN, MOB_MIX, MOB_NIGHT_ONLY, MOB_RANGED, TRAPS, BOARS, INVASION, AUTOSAVE, SUBCLASS, MOVEMENT, MULTIPLAYER, subclassOptions, worldgenFor, WORLD_SIZES, WOUND, EVASION, PARRY } from "../config.js";
 import { loadGame, saveGame, saveGuestProgress, SAVE_DIR, worldInfo } from "../save.js";
 import { Entity, Terrain, FogOfWar, UltimateCharge, CharacterController, Stamina, Inventory, Spawner, RandomEvent, Hints, profiler, stun } from "../../../engine/index.js";
 import { HINTS } from "../hints.js";
@@ -31,6 +31,7 @@ export class SessionPart {
     this.setupLights(); // светящиеся блоки (LIGHTS) — до загрузки: лампы из сохранения сразу светят (scene/daylight.js)
     this.cheats = info.cheats !== false; // читы консоли (галочка при создании мира; у старых миров — включены)
     this.worldgen = worldgenFor(info.size || 3, !!info.floating);
+    this.mobMax = WORLD_SIZES[info.size]?.mobs || SPAWN.max; // предел мобов — от размера мира (старые миры — SPAWN.max)
     const saved = this.match ? null : loadGame(this.world); // блоки — сразу в мир; null — нового мира ещё нет
     // Рельеф: по зерну из сохранения (кубики уже в blocks — только высота земли для расчётов)
     // Параметры рельефа — из сохранения (старые миры — TERRAIN_V1: тогда остров был меньше)
@@ -177,6 +178,7 @@ export class SessionPart {
     this.spawner = new Spawner({
       ...SPAWN,
       interval: SPAWN.interval / this.spawnRate,
+      max: this.mobMax,
       around, radius: view, minRadius: SPAWN.minPlayerDistance,
       count: () => this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length, // босс логова не в счёт
       avoid: far,
@@ -225,7 +227,7 @@ export class SessionPart {
       ...INVASION,
       id: "invasion",
       // мобов и так много (≥ blockAt от предела спавна) — нашествия не будет
-      canStart: () => this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length < SPAWN.max * INVASION.blockAt,
+      canStart: () => this.entities.list.filter((e) => e.kind === "mob" && e.alive && !e.boss).length < this.mobMax * INVASION.blockAt,
       onStart: () => {
         this.spawner.interval = this.spawnInterval();
         this.spawner.max = INVASION.max;
@@ -239,7 +241,7 @@ export class SessionPart {
       },
       onEnd: () => {
         this.spawner.interval = this.spawnInterval();
-        this.spawner.max = SPAWN.max;
+        this.spawner.max = this.mobMax;
         for (const e of this.entities.list) delete e.speedBonuses.invasion; // быстрое нашествие кончилось — обычная скорость
         this.engine.sound.play("levelup");
         this.engine.toast("INVASION REPELLED", 2500);
