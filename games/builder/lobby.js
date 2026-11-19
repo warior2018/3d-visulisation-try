@@ -12,7 +12,7 @@
 // ============================================================
 
 import { Scene, Camera, Vec3, localAddresses } from "../../engine/index.js";
-import { LOBBY } from "./config.js";
+import { LOBBY, WORLD_SIZES } from "./config.js";
 
 const HERO_GAP = 1.5; // метров между героями в ряду
 
@@ -39,6 +39,8 @@ export class LobbyScene extends Scene {
     this.mode = "classic"; // режим матча (выбирает хост): "classic" | "duel"
     this.dedicated = !!net.dedicated; // выделенный сервер (tools/server.mjs): хоста в составе нет, режим — его
     if (net.mode === "duel") this.mode = "duel";
+    // размер мира матча (выбирает хост): 1…4 (config: WORLD_SIZES)
+    this.size = WORLD_SIZES[net.size] ? net.size : 2;
     if (this.role === "host") {
       this.players = this.dedicated ? [] : [{ id: 0, name: this.myName, ready: false, host: true }];
       if (this.dedicated) this.me = -1;
@@ -68,7 +70,7 @@ export class LobbyScene extends Scene {
   // Хост: состав — всем (каждому — его id)
   broadcast() {
     const s = this.net.server;
-    for (const peer of s.peers.values()) s.send(peer, { t: "lobby", players: this.players, you: peer.id, countdown: this.countdown, mode: this.mode });
+    for (const peer of s.peers.values()) s.send(peer, { t: "lobby", players: this.players, you: peer.id, countdown: this.countdown, mode: this.mode, size: this.size });
   }
 
   handle(peer, msg) {
@@ -100,8 +102,10 @@ export class LobbyScene extends Scene {
       this.me = msg.you;
       this.countdown = msg.countdown ?? null;
       this.mode = msg.mode === "duel" ? "duel" : "classic";
+      if (WORLD_SIZES[msg.size]) this.size = msg.size;
     } else if (msg.t === "start") {
       this.mode = msg.mode === "duel" ? "duel" : "classic";
+      if (WORLD_SIZES[msg.size]) this.size = msg.size;
       this.begin(msg.matchId);
     } else if (msg.t === "bye" || msg.t === "closed") {
       this.leave(msg.reason || "host left");
@@ -128,7 +132,7 @@ export class LobbyScene extends Scene {
     if (this.started) return;
     this.started = true;
     this.engine.log(`лобби: матч ${matchId} начался, игроков ${this.players.length}`);
-    this.onStart({ ...this.net, match: true, mode: this.mode, matchId, roster: this.players.map((x) => x.name), name: this.players.find((x) => x.id === this.me)?.name || this.myName });
+    this.onStart({ ...this.net, match: true, mode: this.mode, size: this.size, matchId, roster: this.players.map((x) => x.name), name: this.players.find((x) => x.id === this.me)?.name || this.myName });
   }
 
   leave(reason = "") {
@@ -159,7 +163,7 @@ export class LobbyScene extends Scene {
         if (Math.ceil(this.countdown) !== before) this.broadcast();
         if (this.countdown <= 0) {
           const matchId = Date.now().toString(36);
-          this.net.server.broadcast({ t: "start", matchId, mode: this.mode });
+          this.net.server.broadcast({ t: "start", matchId, mode: this.mode, size: this.size });
           this.begin(matchId);
           return;
         }
@@ -228,6 +232,10 @@ export class LobbyScene extends Scene {
       ui.button("mode:classic", "CLASSIC", ui.width / 2 - 110, my, 200, 44, 2, this.mode === "classic");
       ui.button("mode:duel", "DUEL", ui.width / 2 + 110, my, 200, 44, 2, this.mode === "duel");
     } else ui.text(`MODE: ${this.mode === "duel" ? "DUEL" : "CLASSIC"}`, ui.width / 2, my - 8, 3, th.text, "center");
+    // размер мира: хост выбирает, гости видят
+    const sy = my - 60;
+    if (this.role === "host") for (const k of [1, 2, 3, 4]) ui.button("size:" + k, `${k} ${WORLD_SIZES[k].name}`, ui.width / 2 + (k - 2.5) * 145, sy, 136, 40, 2, this.size === k);
+    else ui.text(`WORLD SIZE: ${WORLD_SIZES[this.size].name}`, ui.width / 2, sy - 8, 2, th.text, "center");
     ui.text(this.mode === "duel" ? "EVERYONE FOR THEMSELVES, FIRST TO 3 WINS (UP TO 5 ROUNDS)" : "TOGETHER AGAINST THE MOBS", ui.width / 2, my + 30, 1, th.muted, "center");
     // своя статистика (профиль движка: engine.profile)
     const pr = this.engine.profile;
@@ -238,6 +246,11 @@ export class LobbyScene extends Scene {
   }
 
   onButton(id) {
+    if (id.startsWith("size:") && this.role === "host" && WORLD_SIZES[+id.slice(5)]) {
+      this.size = +id.slice(5);
+      this.countdown = null;
+      this.broadcast();
+    }
     if (id.startsWith("mode:") && this.role === "host") {
       this.mode = id.slice(5) === "duel" ? "duel" : "classic";
       this.countdown = null;

@@ -74,6 +74,11 @@ export class IslandsPart {
           }
           if (halfTop) v.place(x, y, z, mat.deck, HALF);
           else v.place(x, y - 1, z, mat.deck);
+          // у концов моста — опора до земли (настил не висит над склоном у края острова)
+          const gh = this.groundHeight(x, z), bottom = halfTop ? y : y - 1;
+          if ((t - t0 < B.support || t1 - t < B.support) && this.groundRel(x, z) >= 1 && bottom - gh <= B.support) {
+            for (let yy = Math.floor(gh); yy < bottom; yy++) if (!v.isSolid(x, yy, z)) v.place(x, yy, z, mat.deck);
+          }
         } else if (rails !== "none" && !done.has(key)) {
           const base = halfTop ? y : y - 1;
           if (rails === "full") {

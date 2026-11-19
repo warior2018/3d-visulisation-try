@@ -208,7 +208,7 @@ export const HUD_PARTS = [
       const bw = drawBadges(ui, d.badges, { x: L.statsX, y: ui.height - 130, r: 26 });
       if (d.perm.length) drawStatuses(ui, d.perm, { x: L.statsX + bw + (bw ? 14 : 0), y: ui.height - 130 - 17, size: 34, gap: 6 });
       if (d.points > 0) {
-        const ty = d.badges.length ? ui.height - 130 - 26 - 30 : L.heroY - 22;
+        const ty = d.badges.length || d.perm.length ? ui.height - 130 - 26 - 30 : L.heroY - 22; // над трофеями и значками
         ui.text(`+${d.points} TALENT PTS: ${key(g, "talents")}`, L.heroX, ty, 2, GOLD);
       }
     },

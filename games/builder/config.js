@@ -173,7 +173,7 @@ export const FLASH = {
   // выстрел: у ствола (radius, power) и впереди по линии выстрела (на ahead блоков: cone — радиус, conePower) —
   // свет конусом перед героем. Время (половина — полная сила, половина — гаснет): time[0] + (урон − 10) × perDamage,
   // в пределах time (автомат 0.15, пистолет ~0.7, снайперка 0.8)
-  muzzle: { radius: 4, power: 3.9, ahead: 5, cone: 6.5, conePower: 2.1, time: [0.15, 0.8], perDamage: 0.0306, color: [255, 205, 130] },
+  muzzle: { radius: 3, power: 1.6, ahead: 4, cone: 5, conePower: 0.9, time: [0.15, 0.8], perDamage: 0.0306, color: [255, 205, 130] },
   boom: { radius: 6, perRadius: 2, power: 3, life: 0.45, color: [255, 150, 60] },
   projectile: { radius: 3.5, power: 1.2 },
   items: { lichbolt: [170, 90, 255], magma: [255, 120, 40], fireball: [255, 130, 40], spore: [140, 240, 100] },
@@ -368,7 +368,7 @@ export const MOB_KINDS = {
   ghoul: { bleed: 0.06, lifesteal: 0.5 },
   mummy: { slow: { factor: 0.6, time: 2 }, burn: 2 },
   shaman: { heal: { every: 2, radius: 7, amount: 8 } },
-  goblin: { trap: { every: 9, max: 3, lifetime: 45, root: 1.5 }, dodge: 0.2, flee: 0.4, fleeSpeed: 0.35 },
+  goblin: { trap: { every: 9, max: 3, lifetime: 45, root: 1.5, range: 6, spread: 0.8 }, dodge: 0.2, flee: 0.4, fleeSpeed: 0.35 },
   champion: { chance: 0.012, from: 25, summon: { every: 14, count: 3, max: 6 }, aura: { radius: 4, dps: 6 } },
   // ЛЕТУЧАЯ МЫШЬ (bat) — только ночью, реже минибосса (chance на появление моба после from-го), не больше max;
   // пике — bite доли ТЕКУЩЕГО HP цели; пике и удар — кровотечение bleed доли макс. HP за bleedTime с
@@ -413,7 +413,7 @@ export const WARDEN_GROWTH = { hp: { flat: 12 }, damage: MOB_DAMAGE };
 export const BOSS = {
   respawn: 180, // в логове в горе — ТРОЛЛЬ, на жёлтой площадке (WORLDGEN.arena) — ЛИЧ
   aggroRadius: 5.5, territory: 1.5,
-  growth: { hp: { flat: 40 }, damage: MOB_DAMAGE },
+  growth: { hp: { pct: 0.02 }, damage: MOB_DAMAGE }, // здоровье: +2 % базы за каждого появившегося моба
   // leave — назад в логово: не ранили calm с и (нет героя ближе radius м или сам не ранил никого calm с)
   leave: { calm: 10, radius: 10 },
   stunResist: 0.6, stunImmunity: 5, enrageAt: 0.5, enrage: { cooldown: 0.7, speed: 0.25 }, regen: 0.04,
@@ -465,7 +465,7 @@ export const MOB_RANGED = {
 // +3 HP за каждого появившегося моба (~4 % от 80), бивни — как урон мобов (проценты), опыт +2.5 %
 export const BOAR_SCALE = { hp: { flat: 3 }, damage: MOB_DAMAGE, xp: { pct: 0.025 } };
 
-export const SKELETON_GROWTH = { hp: { flat: 2 }, damage: MOB_DAMAGE, xp: { pct: 0.025 } }; // xp: +2.5 % за каждого следующего
+export const SKELETON_GROWTH = { hp: { pct: 0.02 }, damage: MOB_DAMAGE, xp: { pct: 0.025 } }; // hp: +2 % базового здоровья за каждого следующего // xp: +2.5 % за каждого следующего
 // Рост мобов после soft-го появившегося: after — во сколько раз медленнее (1 — не замедляется: герой растёт
 // и трофеями — проценты урона и здоровья)
 export const GROWTH_SOFTCAP = { soft: 400, after: 1 };
@@ -511,11 +511,11 @@ export const WORLDGEN = {
     minLairs: 1, maxLairs: 1, //                                   логово тролля — ровно одно в каждом мире (и всегда — площадка лича)
   },
   colors: { grass: [96, 160, 72], dirt: [130, 96, 62], stone: [140, 140, 146], snow: [236, 240, 246], rockLine: 10, snowLine: 14 },
-  houses: 8, //              сколько домиков (на главном острове; на радиус 75 — по площади пересчитывает worldgenFor)
-  bigHouses: 3, //           больших домов (2 этажа, комнаты)
-  ruins: 2, //               руин
-  towers: 3, //              сторожевых башен
-  piles: 12, //              куч коробок
+  houses: 5, //              сколько домиков (на главном острове; на радиус 75 — по площади пересчитывает worldgenFor)
+  bigHouses: 2, //           больших домов (2 этажа, комнаты)
+  ruins: 1, //               руин
+  towers: 2, //              сторожевых башен
+  piles: 8, //              куч коробок
   trees: 64, //              деревьев
   area: [-66, -66, 66, 66],
   maxSlope: 3, //            постройку ставим, если перепад под ней не больше (иначе — другое место)
@@ -665,16 +665,16 @@ export const ATTACKS = {
   grenade: { id: "grenade", name: "GRENADE", damage: 16, radius: 2.5, every: 15, speed: 22, cooldown: 0, cost: 0 },
   // Скелет: достаёт на 30 % ближе игрока (2.5 × 0.7), урон 5–10, замах 0.35 с (успел отойти — промах)
   // Ближний бой мобов (кроме особых: тролль, лич, шаман, раздутый, мышь). Эталон — скелет (рост 1.62): радиус
-  // удара 1 м. У остальных — пропорционально росту (рост / 1.62). reach — с какого расстояния НАЧИНАЕТ замах
+  // удара 1 м × 1.5. У остальных — пропорционально росту (рост / 1.62). reach — с какого расстояния НАЧИНАЕТ замах
   // (на 15 % меньше), lenience 1.15 — докуда долетает удар (= радиус удара): начал — запас, чтобы попасть.
-  // Посчитано заранее (числа — вручную):  моб      рост   ×      удар   начинает
-  //                                      скелет   1.62   1.00   1.00   0.87
-  //                                      зомби    1.62   1.00   1.00   0.87
-  //                                      упырь    1.58   0.97   0.97   0.84
-  //                                      мумия    1.76   1.08   1.08   0.94
-  //                                      гоблин   1.22   0.75   0.75   0.65
-  //                                      чемпион  2.79   1.72   1.72   1.50
-  skeletonClaw: { id: "claw", name: "SKELETON CLAW", damage: [5, 10], reach: 0.87, lenience: 1.15, windup: 0.35, cooldown: 1.3, arc: 90, maxTargets: 2 },
+  // Всё ×1.5 (дальше достают). Посчитано вручную:  моб      рост   ×      удар   начинает
+  //                                               скелет   1.62   1.00   1.50   1.30
+  //                                               зомби    1.62   1.00   1.50   1.30
+  //                                               упырь    1.58   0.97   1.46   1.26
+  //                                               мумия    1.76   1.08   1.62   1.41
+  //                                               гоблин   1.22   0.75   1.13   0.98
+  //                                               чемпион  2.79   1.72   2.58   2.25
+  skeletonClaw: { id: "claw", name: "SKELETON CLAW", damage: [5, 10], reach: 1.3, lenience: 1.15, windup: 0.35, cooldown: 1.3, arc: 90, maxTargets: 2 },
   // Летучая мышь: урон как у скелета, замах быстрее, бьёт по кругу (вплотную — достаёт всех вокруг)
   batClaw: { id: "bat-claw", name: "BAT CLAW", damage: [5, 10], reach: PUNCH_REACH * 0.7, windup: 0.2, cooldown: 1, arc: 360, maxTargets: 2 },
   // Страж: меч — бьёт мобов, которые подошли к нему или к его дому
@@ -697,14 +697,14 @@ export const ATTACKS = {
   // Лич: костлявое касание вплотную и сгусток (летит прямо, без дуги)
   lichTouch: { id: "lich-touch", name: "BONE TOUCH", damage: [16, 22], reach: 1.8, windup: 0.3, cooldown: 1.4 },
   lichBolt: { id: "lich-bolt", name: "SOUL BOLT", damage: [18, 26], speed: 20, cooldown: 1.6 },
-  ghoulClaw: { id: "ghoul-claw", name: "GHOUL CLAW", damage: [5, 9], reach: 0.84, lenience: 1.15, windup: 0.2, cooldown: 0.9, arc: 90, maxTargets: 1 },
-  mummyGrasp: { id: "mummy-grasp", name: "WRAPPING GRASP", damage: [9, 14], reach: 0.94, lenience: 1.15, windup: 0.5, cooldown: 1.7, arc: 100, maxTargets: 2 },
+  ghoulClaw: { id: "ghoul-claw", name: "GHOUL CLAW", damage: [5, 9], reach: 1.26, lenience: 1.15, windup: 0.2, cooldown: 0.9, arc: 90, maxTargets: 1 },
+  mummyGrasp: { id: "mummy-grasp", name: "WRAPPING GRASP", damage: [9, 14], reach: 1.41, lenience: 1.15, windup: 0.5, cooldown: 1.7, arc: 100, maxTargets: 2 },
   shamanStaff: { id: "shaman-staff", name: "BONE STAFF", damage: [4, 7], reach: PUNCH_REACH * 0.8, windup: 0.3, cooldown: 1.4 },
   shamanHex: { id: "shaman-hex", name: "HEX", damage: [8, 12], speed: 16, cooldown: 2.6 },
-  goblinStab: { id: "goblin-stab", name: "RUSTY KNIFE", damage: [4, 7], reach: 0.65, lenience: 1.15, windup: 0.15, cooldown: 0.8, maxTargets: 1 },
+  goblinStab: { id: "goblin-stab", name: "RUSTY KNIFE", damage: [4, 7], reach: 0.98, lenience: 1.15, windup: 0.15, cooldown: 0.8, maxTargets: 1 },
   goblinTrap: { id: "goblin-trap", name: "GOBLIN TRAP", damage: 27, radius: 0.6 },
-  championCleave: { id: "champion-cleave", name: "PLAGUE CLEAVER", damage: [18, 26], reach: 1.5, lenience: 1.15, windup: 0.45, cooldown: 1.8, arc: 120, maxTargets: 3 },
-  zombieClaw: { id: "zombie-claw", name: "ZOMBIE CLAW", damage: [6, 11], reach: 0.87, lenience: 1.15, windup: 0.45, cooldown: 1.5, arc: 100, maxTargets: 2 },
+  championCleave: { id: "champion-cleave", name: "PLAGUE CLEAVER", damage: [18, 26], reach: 2.25, lenience: 1.15, windup: 0.45, cooldown: 1.8, arc: 120, maxTargets: 3 },
+  zombieClaw: { id: "zombie-claw", name: "ZOMBIE CLAW", damage: [6, 11], reach: 1.3, lenience: 1.15, windup: 0.45, cooldown: 1.5, arc: 100, maxTargets: 2 },
 };
 
 // Звуки игры (синтез — в движке)
@@ -929,7 +929,8 @@ export const ARMOR = {
 // сильнее — +perStep к множителю урона за каждые step блока падения (ступеньками: полблока — +0.5, целый
 // блок — +1), не больше ×maxMult (×10 — с высоты 9 блоков; с обычного прыжка JUMP SLAM — около ×3)
 // root — после удара о землю герой замирает на столько секунд (и камера стоит), как в конце рывка ИАЙ
-export const HAMMER = { slow: -0.4, fastFall: 30, leap: 0.8, step: 0.5, perStep: 0.5, maxMult: 10, root: 0.15 };
+// HAMMER.leap — JUMP SLAM: прыжок выше на столько (было 0.8: высота ×1.8 → ×1.2, в 1.5 раза ниже)
+export const HAMMER = { slow: -0.4, fastFall: 30, leap: 0.2, step: 0.5, perStep: 0.5, maxMult: 10, root: 0.15 };
 
 // Тряска камеры (движок: CameraShake) — только картинки, прицел не сдвигается (как в Overwatch). «Встряска» 0…1:
 // hammer — удар молотом о землю (с прыжка — сильнее: + jumpSlam за каждый «икс» множителя), bossSlam / bloater /
@@ -1004,7 +1005,9 @@ export const ISLANDS = {
   // подъём плавный (полублоками, крутой — ступеньками); holes — доля выпавших досок (не по середине: пройти можно)
   bridge: { width: [2, 4], post: 4, deck: [120, 84, 52], rail: [92, 64, 40],
     materials: [{ deck: [120, 84, 52], rail: [92, 64, 40] }, { deck: [104, 74, 46], rail: [80, 56, 36] }, { deck: [150, 150, 156], rail: [112, 112, 118] }],
-    rails: ["none", "posts", "full"], curve: 0.5, bend: 4, holes: 0.05 },
+    rails: ["none", "posts", "full"], curve: 0.5, bend: 4, holes: 0.05,
+    // опора у концов: на сколько клеток от суши и до какой глубины досыпается под настил
+    support: 4 },
   // мост от логова на маленьком острове к главному: ниже края главного на FALL_DAMAGE.from + below блоков
   // (спрыгнуть — с уроном), спуск / подъём — run клеток на блок
   lairBridge: { below: 2, run: 2 },
@@ -1039,7 +1042,8 @@ export const ELITE = {
   from: 25, chance: 0.05, invasion: 0.5, scale: 1.25, hp: 3, damage: 1.35, xp: 4, coins: 25,
   auras: {
     swift: { name: "SWIFT", color: [120, 220, 255], speed: 0.45 },
-    thorns: { name: "THORNS", color: [230, 120, 60], share: 0.3 },
+    // thorns: cap — не больше этой доли макс. HP героя за удар
+    thorns: { name: "THORNS", color: [230, 120, 60], share: 0.3, cap: 0.05 },
     healer: { name: "HEALER", color: [120, 240, 140], radius: 7, heal: 0.005, every: 1 }, // heal — доля макс. HP ЛЕКАРЯ в секунду всем рядом (и себе)
     frenzy: { name: "FRENZY", color: [240, 70, 90], radius: 7, damage: 0.3 },
   },

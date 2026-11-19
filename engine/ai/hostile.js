@@ -241,6 +241,8 @@ export class HostileBrain extends Brain {
       if (e.attack.pending) {
         e.velocity.x *= this.windupSlow;
         e.velocity.z *= this.windupSlow;
+        // во время замаха — лицом к цели (зашёл за спину — доворачивается); вплотную не крутится (угол скачет)
+        if (target && dist2d(e, target) > 0.35) turnTowards(e, Math.atan2(target.position.x - e.position.x, target.position.z - e.position.z), this.turnSpeed * 2, dt);
       }
     }
     e.rangedAttack?.update(dt);

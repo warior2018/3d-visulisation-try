@@ -444,6 +444,7 @@ export class GPURenderer {
                 { shaderLocation: 2, offset: 0, format: "float32x3" },
                 { shaderLocation: 3, offset: 12, format: "float32x3" },
                 { shaderLocation: 4, offset: 24, format: "float32x4" },
+                { shaderLocation: 5, offset: 40, format: "float32" }, // маска граней
               ],
             },
           ],

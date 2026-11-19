@@ -126,9 +126,17 @@ export class MobKindsPart {
     if (mine.length >= G.trap.max) this.traps.remove?.(mine[0]);
     const root = () => new Slow({ id: "trapped", name: "TRAPPED", duration: G.trap.root, factor: 0.05, icon: "TRP", color: [190, 190, 196] });
     const attack = new TrapAttack({ ...ATTACKS.goblinTrap, filter: (o) => o.alive && e.isHostileTo(o), modifiers: [withStatus(root, 1)] });
-    const t = this.traps.place({ type: "bear-trap", attack, position: { x: e.position.x, y: e.position.y, z: e.position.z }, owner: e, yaw: Math.random() * Math.PI * 2, lifetime: G.trap.lifetime });
+    // кидает капкан под ноги цели (с разбросом), не дальше G.trap.range; далеко — ближе к себе по пути к цели
+    const tg = e.aggro?.position ? e.aggro : this.player;
+    const dx = tg.position.x - e.position.x, dz = tg.position.z - e.position.z, d = Math.hypot(dx, dz) || 1;
+    const k = Math.min(1, G.trap.range / d), sp = G.trap.spread;
+    const x = e.position.x + dx * k + (Math.random() * 2 - 1) * sp, z = e.position.z + dz * k + (Math.random() * 2 - 1) * sp;
+    const y = Math.ceil(this.world.surfaceY(Math.floor(x), Math.floor(z)));
+    if (!Number.isFinite(y) || Math.abs(y - e.position.y) > 4) return;
+    this.fx?.burst({ x: e.position.x, y: e.position.y + 1, z: e.position.z }, { count: 4, speed: 1, color: [150, 150, 156], size: 0.06, life: 0.3, gravity: 4, drag: 1 });
+    const t = this.traps.place({ type: "bear-trap", attack, position: { x, y, z }, owner: e, yaw: Math.random() * Math.PI * 2, lifetime: G.trap.lifetime });
     t.noSave = true; // капканы гоблина не сохраняются
-    this.engine.sound.play("trapSet", { at: e.position });
+    this.engine.sound.play("trapSet", { at: t.position || { x, y, z } });
   }
 
   // После мозгов: гоблин убегает — скорость от цели (мозги гнали к ней)

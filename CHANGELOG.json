@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.106.6",
+    "date": "2026-11-19",
+    "title": "Fixes from the playtest lists",
+    "changes": [
+      "Fewer buildings (÷1.5); 2-wide stairs in big houses on the wall away from the door, ceiling lamps in structures",
+      "Mob melee reach and attack trigger ×1.5; mobs turn to you during the windup; mob HP +2% of base per spawned mob",
+      "Mobs jump out of water onto 1-block ledges; goblins throw traps at you",
+      "Thorns capped at 5% of your max HP per hit; talents window reopens on the last tab; effect icons no longer overlap",
+      "Water hides faces between water cells; lighter shadows far away and under islands; less muzzle light",
+      "Trees don't spawn on half-blocks; bridge ends get supports down to the island",
+      "Host picks the world size in the multiplayer lobby; JUMP talent 12.5% per rank; hammer leap height nerfed"
+    ]
+  },
+  {
     "version": "0.106.5",
     "date": "2026-11-19",
     "title": "Fix: endless loading screen",

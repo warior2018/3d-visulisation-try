@@ -4,7 +4,7 @@
 //  (mixParts). Вызываются как раньше: this.метод().
 // ============================================================
 
-import { WORLDGEN, PALETTE } from "../config.js";
+import { WORLDGEN, PALETTE, LIGHTS } from "../config.js";
 import { randomInt, Terrain, scatter, flattenArea, buildHouse, buildBigHouse, buildRuins, buildCastle, buildTower, buildCratePile, buildTree } from "../../../engine/index.js";
 import { DEFAULT_SPAWNS, RESIDENTS } from "../creatures.js";
 import { ITEMS, isWeapon, isArmor, itemName, isUsable } from "../items.js";
@@ -14,6 +14,17 @@ export class WorldgenPart {
 
   // Высота земли (рельефа) в столбике — без построек и того, что поставил герой. Плоский мир — 0
   // Высота рельефа острова без подъёма (lift): для «на скалах ли», «на острове ли»
+  // Лампы под потолком: в столбике (x, z) от пола y вверх — под каждым потолком, если до него ≥ 3 клеток воздуха
+  hangLamps(x, y, z) {
+    const v = this.world;
+    let air = 0;
+    for (let yy = y; yy < y + 24; yy++) {
+      if (!v.has(x, yy, z)) { air++; continue; }
+      if (air >= 3 && yy > y) v.place(x, yy - 1, z, LIGHTS.lamp.color);
+      air = 0;
+    }
+  }
+
   groundRel(x, z) {
     return this.terrain ? this.terrain.relHeight(Math.floor(x) + 0.5, Math.floor(z) + 0.5) : 0;
   }
@@ -145,18 +156,24 @@ export class WorldgenPart {
         const w2 = Math.max(4, s.w - s.w0 + 2), d2 = Math.max(4, s.d - s.d0 + 2);
         buildHouse(this.world, { x: s.x + s.w - w2, z: s.z + s.d - d2, w: w2, d: d2, y, h, wall, trim, roof, decay, random: rnd });
         this.maybeHouseChest({ ...s, w: s.w0, d: s.d0 }, y, rnd);
+        this.hangLamps(s.x + Math.floor(s.w0 / 2), y, s.z + Math.floor(s.d0 / 2));
       } else if (s.kind === "house") {
         buildHouse(this.world, { ...s, y, h: range(W.house.h), wall, trim, roof, decay: rnd() * W.house.decay[1], random: rnd });
         this.maybeHouseChest(s, y, rnd); // сундук в доме (scene/islands.js)
+        this.hangLamps(s.x + Math.floor(s.w / 2), y, s.z + Math.floor(s.d / 2));
       } else if (s.kind === "big") {
         buildBigHouse(this.world, { ...s, y, h: range(W.bigHouse.h), floors: 2, wall, trim, roof, random: rnd });
         this.maybeHouseChest(s, y, rnd);
+        // по лампе в каждой половине (у дальней от лестницы стены), на каждом этаже
+        for (const lx of [s.x + Math.floor(s.w / 4), s.x + s.w - 1 - Math.floor(s.w / 4)]) this.hangLamps(lx, y, s.z + s.d - 3);
       } else if (s.kind === "ruin") {
         buildRuins(this.world, { ...s, y, h: range(W.house.h), wall: pick([STONE, BRICK]), trim: STONE, random: rnd });
       } else if (s.kind === "castle") {
         buildCastle(this.world, { x: s.x, z: s.z, y, size: s.w, h: range(C.h), wall: STONE, top: STONE, keepWall: pick([BRICK, STONE]), roof: pick([WOOD, BRICK]), gate: pick(["north", "south", "east", "west"]), random: rnd });
+        this.hangLamps(s.x + Math.floor(s.w / 2) - 1, y, s.z + Math.floor(s.w / 2) - 1); // в главном доме двора
       } else if (s.kind === "tower") {
         buildTower(this.world, { ...s, y, size: s.w, h: range(W.tower.h), wall: STONE, top: WOOD, door: pick(["north", "south", "east", "west"]), random: rnd });
+        this.hangLamps(s.x + Math.floor(s.w / 2), y, s.z + Math.floor(s.w / 2));
       } else {
         buildCratePile(this.world, { ...s, y, colors: [WOOD, WOOD, STONE], count: range(W.pile.count), random: rnd });
       }
@@ -172,6 +189,7 @@ export class WorldgenPart {
       if (this.groundRel(x, z) > W.colors.rockLine || this.groundRel(x, z) < 1) continue; // не на скалах и не за краем острова
       if ([-1, 1].some((dx) => this.onStructure(x + dx, z) || this.onStructure(x, z + dx))) continue; // не вплотную к стенам
       if (this.nearLairTunnel(x, z)) continue; // не загораживать проход к логову
+      if (!Number.isInteger(this.world.surfaceY(x, z))) continue; // не на полублоке
       buildTree(this.world, { x, y: Math.ceil(this.world.surfaceY(x, z)), z, height: range(W.tree.height), crown: range(W.tree.crown), random: rnd });
       trees++;
     }
@@ -186,6 +204,7 @@ export class WorldgenPart {
         if (this.terrain.lairs.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + 2)) continue; // не над логовом
         if (this.nearLairTunnel(x, z)) continue; //                                               не у прохода к логову
         if (arenaAvoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue; //              не на площадке лича
+        if (!Number.isInteger(this.world.surfaceY(x, z))) continue; // не на полублоке
         buildTree(this.world, { x, y: Math.ceil(this.world.surfaceY(x, z)), z, height: range(W.tree.height), crown: range(W.tree.crown), random: rnd });
         trees++;
         n++;

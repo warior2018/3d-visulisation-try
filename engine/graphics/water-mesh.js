@@ -5,7 +5,8 @@
 //  ушла далеко (только клетки ближе RADIUS м).
 // ============================================================
 
-export const FLOATS_PER_WATER = 10; // центр xyz, размер xyz, цвет rgba
+// центр xyz, размер xyz, цвет rgba, маска граней (биты: +x 1, −x 2, +y 4, −y 8, +z 16, −z 32; 63 — все)
+export const FLOATS_PER_WATER = 11;
 export const WATER_LOOK = { radius: 72, color: [52, 110, 200], alpha: 0.5, surface: [90, 150, 230] };
 
 export const WATER_SHADER = /* wgsl */ `
@@ -42,6 +43,7 @@ struct WIn {
   @location(2) center: vec3f,
   @location(3) size: vec3f,
   @location(4) color: vec4f,
+  @location(5) mask: f32,
 };
 
 struct WOut {
@@ -60,6 +62,11 @@ fn water_vs(in: WIn) -> WOut {
   // верх — светлее (небо отражается), бока — темнее
   let shade = select(0.75, 1.0, in.normal.y > 0.5);
   out.color = vec4f(in.color.rgb * shade, in.color.a);
+  // грань скрыта маской (рядом вода) — вершина в одну точку вне экрана: треугольник не рисуется
+  let n = in.normal;
+  var bit = 0u;
+  if (n.x > 0.5) { bit = 1u; } else if (n.x < -0.5) { bit = 2u; } else if (n.y > 0.5) { bit = 4u; } else if (n.y < -0.5) { bit = 8u; } else if (n.z > 0.5) { bit = 16u; } else { bit = 32u; }
+  if ((u32(in.mask + 0.5) & bit) == 0u) { out.pos = vec4f(2.0, 2.0, 2.0, 1.0); }
   return out;
 }
 
@@ -86,11 +93,21 @@ export function buildWater(water, cx, cz, out = null) {
     const up = water.has(c.x, c.y + 1, c.z);
     const h = up ? 1 : water.height(c); // под водой — до потолка клетки (без щели между слоями)
     const top = !up;
+    // маска: грань к соседней воде не рисуем (вода не видна сквозь воду); бок — только если сосед не ниже
+    const hAt = (x, y, z) => { const n = water.at(x, y, z); return !n ? -1 : water.has(x, y + 1, z) ? 1 : water.height(n); };
+    let mask = 0;
+    if (hAt(c.x + 1, c.y, c.z) < h) mask |= 1;
+    if (hAt(c.x - 1, c.y, c.z) < h) mask |= 2;
+    if (!up) mask |= 4;
+    if (!water.has(c.x, c.y - 1, c.z)) mask |= 8;
+    if (hAt(c.x, c.y, c.z + 1) < h) mask |= 16;
+    if (hAt(c.x, c.y, c.z - 1) < h) mask |= 32;
+    if (!mask) continue;
     const col = top ? WATER_LOOK.surface : WATER_LOOK.color;
     const i = n * FLOATS_PER_WATER;
     data[i] = c.x + 0.5; data[i + 1] = c.y + h / 2; data[i + 2] = c.z + 0.5;
     data[i + 3] = 1; data[i + 4] = h; data[i + 5] = 1;
-    data[i + 6] = col[0] / 255; data[i + 7] = col[1] / 255; data[i + 8] = col[2] / 255; data[i + 9] = WATER_LOOK.alpha * (top ? 1 : 0.55);
+    data[i + 6] = col[0] / 255; data[i + 7] = col[1] / 255; data[i + 8] = col[2] / 255; data[i + 9] = WATER_LOOK.alpha * (top ? 1 : 0.55); data[i + 10] = mask;
     n++;
   }
   return { data, count: n };

@@ -24,8 +24,8 @@ export class SkyPart {
       for (let t = 0, n = 0; t < want * 20 && n < want; t++) {
         const a = rnd() * Math.PI * 2, r = 2.5 + rnd() * Math.max(0, d.r - d.edge - 2.5);
         const x = Math.floor(d.x + Math.sin(a) * r), z = Math.floor(d.z + Math.cos(a) * r);
-        const y = Math.ceil(v.surfaceY(x, z));
-        if (y < d.lift) continue;
+        const sy = v.surfaceY(x, z), y = Math.ceil(sy);
+        if (y < d.lift || !Number.isInteger(sy)) continue; // не на полублоке
         buildTree(v, { x, y, z, height: 3 + Math.floor(rnd() * 3), crown: 2, random: rnd });
         n++;
       }
@@ -51,7 +51,7 @@ export class SkyPart {
     return d.lift + 1;
   }
 
-  // Врата в доме: в углу комнаты (у восточной стены, у северной — подальше от лестницы и двери), лицом в комнату.
+  // Врата в доме: в углу комнаты (у стены без лестницы, у северной), лицом в комнату.
   // Замок — в главном доме двора (его место считается как в buildCastle)
   gateInHouse(s) {
     let x = s.x, z = s.z, w = s.w, d = s.d;
@@ -62,7 +62,8 @@ export class SkyPart {
       w = kw;
       d = kd;
     }
-    const gx = x + w - 2, gz = z + 2;
+    // лестница у западной стены (первая ступенька — x + 1, z + 2) — врата у восточной, иначе — у западной
+    const gx = this.world.has(x + 1, s.y, z + 2) ? x + w - 2 : x + 1, gz = z + 2;
     return { x: gx + 0.5, y: s.y, z: gz + 0.5, yaw: Math.atan2(x + w / 2 - (gx + 0.5), z + d / 2 - (gz + 0.5)) };
   }
 

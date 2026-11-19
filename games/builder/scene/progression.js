@@ -116,6 +116,8 @@ export class ProgressionPart {
     this.hints?.event("talents");
     this.pushLive(new TalentScene({
       talents: this.talents,
+      tab: this.talentTab, //          открыть там, где был в прошлый раз
+      onTab: (id) => { this.talentTab = id; },
       onLearn: (id) => {
         this.applyTalents();
         this.engine.sound.play("learn");

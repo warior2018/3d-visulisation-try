@@ -26,7 +26,7 @@ export class SessionPart {
     this.game.models.lightAt = (p, e) => this.lightHere(p, e); // свет на моделях: под крышей темнее (scene/daylight.js)
     // Мир из слота: размер и летающие острова (info.json; старые миры — с полом, большие)
     // матч: свой мир не трогаем — новый, летающие острова среднего размера, без читов, не сохраняется
-    const info = this.match ? { floating: true, size: 2, cheats: false } : this.role === "client" ? {} : worldInfo();
+    const info = this.match ? { floating: true, size: this.game.net?.size || 2, cheats: false } : this.role === "client" ? {} : worldInfo();
     this.world.floor = !info.floating;
     this.setupLights(); // светящиеся блоки (LIGHTS) — до загрузки: лампы из сохранения сразу светят (scene/daylight.js)
     this.cheats = info.cheats !== false; // читы консоли (галочка при создании мира; у старых миров — включены)
@@ -197,7 +197,7 @@ export class SessionPart {
         this.maybeBat(e, index); //      ещё реже — ЛЕТУЧАЯ МЫШЬ (ночью)
         this.scaleWardens(); // мобы крепчают — и страж тоже
         this.scaleBoars(); //   и кабаны
-        this.engine.log(`появился ${e.name} №${index + 1}: ${x.toFixed(1)}, ${z.toFixed(1)}, +${growth.bonusHp} HP, урон ×${growth.damageMult.toFixed(2)} +${growth.bonusDamage}, удар ${e.attack?.damage}${e.rangedDamage ? `, бросок ${e.rangedDamage}` : ""}`);
+        this.engine.log(`появился ${e.name} №${index + 1}: ${x.toFixed(1)}, ${z.toFixed(1)}, ${e.stats.maxHp} HP, урон ×${growth.damageMult.toFixed(2)} +${growth.bonusDamage}, удар ${e.attack?.damage}${e.rangedDamage ? `, бросок ${e.rangedDamage}` : ""}`);
       },
     });
     this.spawner.spawned = saved?.spawned || 0; // счёт продолжается после загрузки

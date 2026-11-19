@@ -29,7 +29,8 @@ export const FLOATS_PER_CUBE = 15;
 // minSky — небо в глубине пещеры (почти темно); skyReach — на сколько шагов по воздуху растекается свет неба;
 // leaf — сколько света пропускает слой листвы (leaves — цвета листвы: r × 65536 + g × 256 + b);
 // smooth — плавный свет: 4 угла грани (среднее клеток вокруг угла), false — один на грань (слабые настройки)
-export const LIGHT = { minSky: 0.12, ao: 0.07, shadow: 0.72, shadowRange: 18, rays: 2, skyReach: 6, leaf: 0.8, leaves: [70 * 65536 + 140 * 256 + 60], smooth: true };
+// under — свет снизу под островом (открыто в пустоту)
+export const LIGHT = { minSky: 0.12, ao: 0.07, shadow: 0.82, under: 0.6, shadowRange: 18, rays: 2, skyReach: 6, leaf: 0.8, leaves: [70 * 65536 + 140 * 256 + 60], smooth: true };
 
 // Доля тени у верха кубика 0…1: 4 луча к солнцу из четырёх точек грани (мягкий край: у края тени — частично)
 // Лучей — LIGHT.rays по стороне (1 — один луч, 2 — 4, 3 — 9: мягче край; качество графики)
@@ -111,6 +112,17 @@ export function chunkLight(world, chunk) {
       if (b && isLeaf(b)) leaves++;
       else if (opaque(b)) open = false;
       if (!open && y < y0) break;
+    }
+  }
+  // снизу: воздух под островом, открытый вниз (до низа куска или ≥ 10 клеток воздуха) — светлее (LIGHT.under; пещеры ниже 10 — нет)
+  const under = Math.round(L * LIGHT.under);
+  for (let x = x0; x < x0 + sx; x++) for (let z = z0; z < z0 + sz; z++) {
+    let run = 0, bottom = true;
+    for (let y = y0; y <= y1; y++) {
+      const i = idx(x, y, z);
+      if (solid[i]) { run = 0; bottom = false; continue; }
+      run++;
+      if ((bottom || run >= 10) && sky[i] < under) sky[i] = under;
     }
   }
   // растекание неба: от открытых клеток, у которых рядом есть закрытый воздух

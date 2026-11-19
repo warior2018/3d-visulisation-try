@@ -82,7 +82,8 @@ export class ElitesPart {
   // Урон по элите (зовёт onDamage): шипы — часть ближнего урона обратно герою
   eliteHurt(e, d, dealt) {
     if (e.elite !== "thorns" || dealt <= 0 || d?.source !== this.player || d.kind !== "melee" || d.tags?.has("reflect")) return;
-    const amount = Math.max(1, Math.round(dealt * ELITE.auras.thorns.share));
+    const T = ELITE.auras.thorns;
+    const amount = Math.max(1, Math.round(Math.min(dealt * T.share, this.player.stats.maxHp * T.cap))); // не больше cap макс. HP героя
     this.player.receive(new Damage({ amount, source: e, tags: ["reflect"] }));
   }
 }

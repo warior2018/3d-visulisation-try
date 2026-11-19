@@ -50,7 +50,7 @@ export class CloudsPart {
       const i = n * FLOATS_PER_WATER;
       D[i] = c.x; D[i + 1] = c.y + c.h / 2; D[i + 2] = c.z;
       D[i + 3] = c.w; D[i + 4] = c.h; D[i + 5] = c.d;
-      D[i + 6] = col[0] / 255; D[i + 7] = col[1] / 255; D[i + 8] = col[2] / 255; D[i + 9] = 2 + CLOUDS.alpha; // +2 — не таять вдали (water-mesh.js)
+      D[i + 6] = col[0] / 255; D[i + 7] = col[1] / 255; D[i + 8] = col[2] / 255; D[i + 9] = 2 + CLOUDS.alpha; D[i + 10] = 63; // +2 — не таять вдали (water-mesh.js)
     });
     return { data: D, count: list.length };
   }

@@ -57,7 +57,7 @@ const WEAPON_TALENTS = () => ({
     { id: "hammer-slam", name: "SPLASH SLAM", maxRank: 3, cost: SIDE, col: 1, row: 0,
       describe: (r) => `HAMMER SLAM RADIUS ${at([1.5, 2, 2.5], r)} BLOCKS (BASE 1)`, stats: (r) => ({ hammerSlam: at([1.5, 2, 2.5], r) }) },
     { id: "hammer-leap", name: "JUMP SLAM", maxRank: 1, cost: SIDE, col: 0.5, row: 1, requires: ["hammer-slam"],
-      describe: () => `WITH THE HAMMER: JUMP 80% HIGHER, SLAM X${HAMMER.perStep} DMG MORE PER ${HAMMER.step} BLOCK FALLEN (UP TO X${HAMMER.maxMult}). FALL DMG FROM +${FALL_DAMAGE.jumpSlam.from} BLOCKS HIGHER, X${FALL_DAMAGE.jumpSlam.mult}`, stats: () => ({ hammerLeap: true }) },
+      describe: () => `WITH THE HAMMER: JUMP ${Math.round(HAMMER.leap * 100)}% HIGHER, SLAM X${HAMMER.perStep} DMG MORE PER ${HAMMER.step} BLOCK FALLEN (UP TO X${HAMMER.maxMult}). FALL DMG FROM +${FALL_DAMAGE.jumpSlam.from} BLOCKS HIGHER, X${FALL_DAMAGE.jumpSlam.mult}`, stats: () => ({ hammerLeap: true }) },
   ],
   katana: [
     { id: "katana-iai", name: "IAI MULTIPLIER", maxRank: 3, cost: SIDE, col: 0, row: 0,
@@ -203,7 +203,7 @@ function buildTree(mode) {
           describe: (r) => `${5 * r}% OF DMG DEALT AS HEALTH`, modifiers: (r) => [lifesteal(0.05 * r)] },
         ...chain(2, [
           { id: "v-speed", name: "SPEED", maxRank: 4, cost: 1, describe: (r) => `+${pct(0.075 * r)} SPEED`, stats: (r) => ({ speed: 0.075 * r }) },
-          { id: "v-jump", name: "JUMP", maxRank: 2, cost: 1, describe: (r) => `JUMP +${15 * r}% HIGHER (FALL DMG STARTS HIGHER TOO)`, stats: (r) => ({ jumpMult: 0.15 * r }) },
+          { id: "v-jump", name: "JUMP", maxRank: 2, cost: 1, describe: (r) => `JUMP +${12.5 * r}% HIGHER (FALL DMG STARTS HIGHER TOO)`, stats: (r) => ({ jumpMult: 0.125 * r }) },
           { id: "v-double", name: "DOUBLE JUMP", maxRank: 1, cost: 3, describe: () => "ONE MORE JUMP IN THE AIR (80% HEIGHT)", stats: () => ({ extraJumps: 1 }) },
         ]),
         ...chain(3, [

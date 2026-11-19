@@ -191,12 +191,14 @@ export function buildBigHouse(world, { x, y = 0, z, w, d, h = 3, floors = 2, wal
   }
   for (let f = 1; f < floors; f++) {
     const fy = y + f * (h + 1);
-    // лестница: от пола этажа ниже вверх вдоль западной стены (x + 1), по ступеньке на клетку
-    const sx = x + 1, sz0 = z + 1, below = fy - h - 1;
-    for (let s = 0; s < h + 1; s++) world.place(sx, below + s, sz0 + 1 + s, trim);
+    // лестница шириной 2: от пола этажа ниже вверх вдоль западной стены (x + 1, x + 2), по ступеньке на клетку;
+    // дверь на западной стене — лестница у восточной (не загораживает вход)
+    const lanes = first.door === "west" ? [x + w - 2, x + w - 3] : [x + 1, x + 2];
+    const sz0 = z + 1, below = fy - h - 1;
+    for (const sx of lanes) for (let s = 0; s < h + 1; s++) world.place(sx, below + s, sz0 + 1 + s, trim);
     buildHouse(world, { ...base, y: fy, roof: f === floors - 1 ? roof : false, foundation: 0, door: first.door });
-    // дыра в полу над верхними ступеньками (голова проходит); над последней ступенькой — пол (сходишь на него)
-    for (let s = Math.max(0, h - 2); s < h; s++) world.remove(sx, fy - 1, sz0 + 1 + s);
+    // дыра в полу над всеми ступеньками (с прыжком голова не бьётся); над последней ступенькой — пол (сходишь на него)
+    for (const sx of lanes) for (let s = 0; s < h; s++) world.remove(sx, fy - 1, sz0 + 1 + s);
   }
   return first;
 }

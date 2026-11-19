@@ -234,14 +234,15 @@ const MOON_LIGHT: f32 = 0.55;
 fn cube_fx_fs(in: CubeFxOut) -> @location(0) vec4f {
   let sun = normalize(u.sunDir);
   let lightDir = select(-sun, sun, sun.y > 0.0); // днём — солнце, ночью — луна
-  let light = 0.45 + 0.55 * max(dot(in.normal, lightDir), 0.0);
+  let light = 0.55 + 0.45 * max(dot(in.normal, lightDir), 0.0);
   var color = (in.color / max(in.center, 0.01)) * light; // чистый цвет (в данных — × небо в середине)
   // тень: только на гранях к солнцу / луне (обратные и так темнее), мягко к краю; ночью — от луны, слабее (MOON_LIGHT)
-  let vis = shadowVis(in.worldPos, in.normal);
+  // вдали тень слабеет (остров издалека не чёрный)
+  let vis = mix(shadowVis(in.worldPos, in.normal), 1.0, smoothstep(40.0, 110.0, distance(in.worldPos, u.camPos)));
   let facing = smoothstep(0.0, 0.25, dot(in.normal, lightDir));
   let day = clamp(u.day, 0.0, 1.0);
   let strength = mix(MOON_LIGHT, 1.0, day);
-  color = color * mix(1.0, mix(0.6, 1.0, vis), facing * strength);
+  color = color * mix(1.0, mix(0.72, 1.0, vis), facing * strength);
   // освещённое солнцем — чуть теплее (на закате — заметно), луной — холодно-голубое; в тени — чуть голубее от неба
   let duskK = clamp(1.0 - abs(sun.y) * 3.0, 0.0, 1.0);
   let sunTint = mix(vec3f(1.04, 1.0, 0.94), vec3f(1.18, 0.92, 0.72), duskK);

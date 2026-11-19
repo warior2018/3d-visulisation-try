@@ -17,7 +17,8 @@ import { measureText } from "../ui/font.js";
 const LOCKED = [70, 76, 92];
 
 export class TalentScene extends Scene {
-  constructor({ talents, title = "TALENTS", closeActions = ["talents", "pause"], onLearn = () => {} }) {
+  // tab — какую вкладку открыть (последнюю, где был); onTab(id) — сообщить игре, что вкладку сменили
+  constructor({ talents, title = "TALENTS", closeActions = ["talents", "pause"], onLearn = () => {}, tab = null, onTab = null }) {
     super();
     this.transparent = true;
     this.showToasts = false; // надписи вроде «НОВЫЙ УРОВЕНЬ» закрыли бы заголовок
@@ -25,7 +26,8 @@ export class TalentScene extends Scene {
     this.title = title;
     this.closeActions = closeActions;
     this.onLearn = onLearn;
-    this.tab = talents.visibleTabs()[0]?.id ?? talents.tree.tabs[0].id;
+    this.onTab = onTab;
+    this.tab = (tab && talents.visibleTabs().some((x) => x.id === tab) ? tab : null) ?? talents.visibleTabs()[0]?.id ?? talents.tree.tabs[0].id;
     this.message = null; // почему нельзя вложить очко (последняя попытка)
   }
 
@@ -171,6 +173,7 @@ export class TalentScene extends Scene {
     if (kind === "tab") {
       this.tab = arg;
       this.message = null;
+      this.onTab?.(arg);
     }
     if (kind === "talent") {
       const r = this.talents.learn(arg);

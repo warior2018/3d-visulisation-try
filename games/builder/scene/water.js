@@ -9,6 +9,9 @@
 
 import { BREATH, WATER_MOVE, SWIMMERS, LAKES } from "../config.js";
 
+// скорость выпрыгивания из воды на берег (м/с вверх): хватает на уступ в 1 блок
+const WATER_CLIMB = 5;
+
 export class WaterPart {
   // Каждый тик мира: вода растекается; существа в воде — медленнее, живые держатся на плаву
   tickWater(dt) {
@@ -18,6 +21,8 @@ export class WaterPart {
       e.speedBonuses.water = e.inWater ? WATER_MOVE : 0;
       // живые всплывают (голова под водой — гребут вверх), мёртвые тонут и идут по дну
       e.swimUp = !!(e.inWater && e.headInWater && SWIMMERS.includes(e.type));
+      // упёрся в берег в воде — выпрыгивает (уступ в 1 блок над водой; гоблины тоже)
+      if (e.inWater && e.blocked && e.velocity.y < WATER_CLIMB) e.velocity.y = WATER_CLIMB;
     }
   }
 
