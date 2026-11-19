@@ -497,6 +497,24 @@ export class GPURenderer {
     this.worldStats.water = this.waterCount;
   }
 
+  // Полупрозрачные коробки игры (облака): boxes = { data, count } — как у воды (water-mesh.js: FLOATS_PER_WATER
+  // на коробку: центр, размер, цвет rgba), каждый кадр заново
+  drawBoxes(pass, camera, boxes) {
+    if (!camera || !boxes?.count || !this.waterPipeline) return;
+    const n = boxes.count;
+    if (n > (this.boxCapacity || 0)) {
+      if (this.boxBuffer) this.retire(this.boxBuffer);
+      this.boxCapacity = Math.ceil(n * 1.5);
+      this.boxBuffer = this.device.createBuffer({ size: this.boxCapacity * FLOATS_PER_WATER * 4, usage: gpu.GPUBufferUsage.VERTEX | gpu.GPUBufferUsage.COPY_DST });
+    }
+    this.device.queue.writeBuffer(this.boxBuffer, 0, boxes.data.buffer, boxes.data.byteOffset, n * FLOATS_PER_WATER * 4);
+    pass.setPipeline(this.waterPipeline);
+    pass.setBindGroup(0, this.waterBind);
+    pass.setVertexBuffer(0, this.cubeVertexBuffer);
+    pass.setVertexBuffer(1, this.boxBuffer);
+    pass.draw(this.cubeVertexCount, n);
+  }
+
   // Карта теней этого кадра. Камера — далеко в сторону солнца (sun × D), смотрит на героя, узкий угол: лучи
   // почти параллельны, квадрат 2R × 2R вокруг героя. Центр сдвигается шагами в точку карты — тени не «дрожат»
   renderShadowMap(encoder, camera, world, characters) {
@@ -859,7 +877,7 @@ export class GPURenderer {
   //          strength — сила размытия в долях высоты (0.015 ≈ 11 пикселей на 720p), center — [0.5, 0.5].
   // particles — engine/graphics/particles.js (data, count): кубики-частицы с глубиной, после персонажей
   // target — нарисовать не в окно, а в свою картинку (снимок экрана: capture)
-  render({ camera, world, ghost, ui, characters = [], viewModels = [], blur = null, particles = null }, { target = null } = {}) {
+  render({ camera, world, ghost, ui, characters = [], viewModels = [], blur = null, particles = null, boxes = null }, { target = null } = {}) {
     const { device } = this;
     // Размер окна поменялся, а события об этом не было (так бывает на Маке при смене
     // полного экрана) — перенастраиваемся сами. Иначе картинка вывода, буфер глубины
@@ -883,7 +901,7 @@ export class GPURenderer {
       d[5] = Math.tan(camera.fov / 2);
     }
     d[6] = width / height;
-    d[7] = this.fadeDist;
+    d[7] = Math.min(this.fadeDist, this.fogLimit ?? Infinity); // fogLimit — игра сужает обзор (внутри облака)
     d[8] = this.gridStep;
     d[9] = this.srgb ? 1 : 0;
     d[10] = this.near;
@@ -1026,6 +1044,7 @@ export class GPURenderer {
 
     t?.("вода");
     this.drawWater(pass, camera, world); // вода — полупрозрачная, после блоков, существ и частиц
+    this.drawBoxes(pass, camera, boxes); //  полупрозрачные коробки игры (облака)
 
     // призрак нового блока
     if (ghost) {

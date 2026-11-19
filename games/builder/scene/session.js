@@ -305,6 +305,7 @@ export class SessionPart {
 
   exit() {
     this.leavePortalNow();
+    if (this.engine.renderer) this.engine.renderer.fogLimit = null; // облако сужало обзор — в меню обычный
     this.engine.sound.environment = null;
     this.game.models.lightAt = null;
     this.resetDaylight();

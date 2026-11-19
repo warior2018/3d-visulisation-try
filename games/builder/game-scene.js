@@ -40,6 +40,7 @@ import { CavesPart } from "./scene/caves.js";
 import { PortalsPart } from "./scene/portals.js";
 import { WaterPart } from "./scene/water.js";
 import { SkyPart } from "./scene/sky.js";
+import { CloudsPart } from "./scene/clouds.js";
 import { InteractPart } from "./scene/interact.js";
 import { CoopPart } from "./scene/coop.js";
 import { DuelPart } from "./scene/duel.js";
@@ -868,6 +869,7 @@ export class GameScene extends Scene {
     }
     const vm = firstPerson && playing && !this.scoped && !this.onReins ? arm?.draw(camera) : null; // на поводьях — рук с оружием нет
     this.updateSkyBodies(camera); // солнце и луна на небе (scene/daylight.js)
+    this.updateClouds(this.inMain() ? camera : null); // облака плывут; внутри — обзор меньше (scene/clouds.js)
     return {
       camera,
       world: this.world,
@@ -875,6 +877,7 @@ export class GameScene extends Scene {
       characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...(this.inMain() ? [...(this.treasure?.model ? [this.chestEntity()].filter(Boolean) : []), ...this.caveChestEntities(), ...this.houseChestEntities()] : this.roomChestEntities()), ...this.urnList()], firstPerson ? this.player : null),
       viewModels: vm ? [vm] : [], // рука — слой «для экрана», только от 1-го лица
       particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
+      boxes: this.inMain() ? this.cloudBoxes() : null, // облака второго слоя (scene/clouds.js)
       // Оптика: всё вне круга прицела размыто (круг — в hud.js → SCOPE)
       blur: this.scoped && playing ? { radius: SCOPE.size - SCOPE.blurInset, feather: 0.008, strength: 0.018, dim: 0.35 } : null,
     };
@@ -883,6 +886,7 @@ export class GameScene extends Scene {
   drawUI(ui) {
     profiler.begin(PROF.hudDraw);
     this.hud.draw(ui, this);
+    this.drawCloudVeil(ui); // внутри облака — белая пелена (scene/clouds.js)
     this.drawWater(ui); // под водой — пелена и пузырьки воздуха (scene/water.js)
     const fade = this.fadeAlpha?.() || 0; // переход через портал — затемнение
     if (fade > 0) ui.rect(0, 0, ui.width, ui.height, [0, 0, 0], Math.round(fade * 255));
@@ -936,4 +940,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);
+mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);

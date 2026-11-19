@@ -63,6 +63,7 @@ export { Inventory } from "./world/inventory.js";
 export { Charge } from "./world/charge.js"; // разбег (копьё наперевес): бег вперёд, поворот взглядом, разгон
 export { Physics, WATER_PHYS } from "./world/physics.js";
 export { Water, WATER } from "./world/water.js";
+export { FLOATS_PER_WATER, WATER_LOOK, buildWater } from "./graphics/water-mesh.js";
 export { Stamina } from "./world/stamina.js";
 export { CameraShake } from "./graphics/camera-shake.js";
 export { CharacterController, dash, streamline, unstreamline } from "./world/character-controller.js";
