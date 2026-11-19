@@ -355,7 +355,7 @@ export class SessionPart {
   saveNow(toast = true, { background = false } = {}) {
     if (this.dead) return; // погибли — мир уже удалён, сохранять нечего
     if (this.match) return; // матч — мир на один раз, ничего не пишем
-    const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && !e.elite && e.type !== "steed"); // элиту не сохраняем // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
+    const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && !e.elite && e.type !== "steed" && e.type !== "giant"); // элиту не сохраняем // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
     const progression = { class: this.playerClass, subclass: this.subclass || null, upgrades: { ...(this.upgrades || {}) }, run: this.runStatsJSON(), quests: this.questsJSON(), mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers, invasion: { active: this.invasion.active, left: this.invasion.timeLeft, rest: this.invasion.rest, count: this.invasion.count, kind: this.invasionKind?.id || null, wait: this.invasionWait || 0 } };
     this.autosaveIn = AUTOSAVE.every; // только что сохранились — следующее автосохранение отсчитываем заново
     if (this.role === "client") {

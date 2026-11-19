@@ -363,6 +363,8 @@ export class CavesPart {
       else if (i === 7) pts = p;
     }
     this.carvePath(pts);
+    const top = pts[pts.length - 1];
+    if (top) r.exit = { x: top[0] + 0.5, z: top[2] + 0.5 }; // выход наверх (гигант садится у него: scene/giant.js)
   }
 
   // ---------- Жизнь пещер ----------

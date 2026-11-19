@@ -15,6 +15,7 @@ export function loadModels(models) {
   models.load("hero-demo", path.join(ASSETS, "hero-demo.glb"), { mirrorX: true }); //     подрывник — комбинезон и каска
   models.load("zombie", path.join(ASSETS, "zombie.glb"), { mirrorX: true });
   models.load("boar", path.join(ASSETS, "boar.glb"), { mirrorX: true });
+  models.load("giant", path.join(ASSETS, "giant.glb"), { mirrorX: true }); // гигант-скример (tools/make-giant.js)
   models.load("troll", path.join(ASSETS, "troll.glb"), { mirrorX: true }); // босс логова (tools/make-troll.js)
   models.load("bat", path.join(ASSETS, "bat.glb")); // летучая мышь (tools/make-bat.js)
   // Лич (второй босс) — скелет, перекрашенный в бледно-фиолетовый (крупнее — scale у существа);

@@ -143,6 +143,12 @@ CREATURES.troll = {
   brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius, sightHeight: 2, leash: 250, stopDistance: 2.2, turnSpeed: 3, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase, windupSlow: SKELETON_AI.windupSlow }),
 };
 
+// Гигант-скример (scene/giant.js, GIANT): безвредный, неуязвимый, ни с кем не враждует; двигает игра (без мозгов)
+CREATURES.giant = {
+  kind: "npc", name: "???", maxHp: 1, speed: 9, radius: 1.6, height: 10, scale: 4, inventorySize: 0,
+  model: "giant", faction: "neutral", hostileTo: [], invulnerable: true,
+};
+
 // Лич — второй босс логова (LICH в config.js): высокий скелет-колдун (модель скелета ×1.35, фиолетовая)
 CREATURES.lich = {
   kind: "mob", name: "BONE LICH", boss: true, maxHp: 1200, speed: 2.2, radius: 0.4, height: 2.6, scale: 1.35, inventorySize: 4,

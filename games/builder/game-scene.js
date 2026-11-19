@@ -27,6 +27,7 @@ import { BuildingPart } from "./scene/building.js";
 import { WorldgenPart } from "./scene/worldgen.js";
 import { CombatPart } from "./scene/combat.js";
 import { ThrowersPart, lighter } from "./scene/throwers.js";
+import { GiantPart } from "./scene/giant.js";
 import { MagicPart } from "./scene/magic.js";
 import { AmmoPart } from "./scene/ammo.js";
 import { ProgressionPart } from "./scene/progression.js";
@@ -385,6 +386,7 @@ export class GameScene extends Scene {
     const frozen = this.match && this.teamPaused; // матч: кто-то выбирает класс / второе оружие — мир стоит у всех
     this.updateFade(dt); // затемнение перехода через портал (scene/portals.js)
     this.updateGates(dt); // врата небесных островов: встал — перенос (scene/sky.js)
+    this.updateGiant(dt); // гигант-скример: таймер, бег (scene/giant.js)
     if (this.pull) this.updatePull(dt); //  портал закрывается — затягивает к выходу (вместо управления)
     else if (!this.downed && !frozen) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
     // 2. Мир: существа, предметы, снаряды, ловушки, события. Клиент сетевой игры мир не считает —
@@ -653,7 +655,7 @@ export class GameScene extends Scene {
     };
     profiler.begin(PROF.creatures);
     for (const e of [...this.entities.list]) {
-      if (e === player) continue;
+      if (e === player || e.type === "giant") continue; // гиганта двигает scene/giant.js
       // гость сетевой игры: его двигает сеть (scene/net.js), не мозги и не физика
       if (e.remote) {
         e.view?.animator.setBase(baseClip(e.netWalk, e.netLow), 1); // присед / стойка — клипы стойки
@@ -813,6 +815,7 @@ export class GameScene extends Scene {
       vm.tilt = AIM.tilt[this.abilities.current?.id] || [0, 0]; //            и наклон (лук — наискосок)
     }
     vm?.update(dt);
+    this.giantFx(dt); // гигант: шаги, тряска, поза (scene/giant.js)
     this.updateTorchFx(dt, this.rig.camera); // факел в левой руке: пламя, искры (scene/daylight.js)
     profiler.end(PROF.player);
 
@@ -954,4 +957,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart]);
+mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart, GiantPart]);

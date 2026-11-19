@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.107.0",
+    "date": "2026-11-19",
+    "title": "Giant screamer",
+    "changes": [
+      "Every 4-8 minutes on islands of radius 50+ a harmless 10-block giant runs at you from behind, smashing everything in its way",
+      "Heavy footsteps and screen shake grow as it gets closer; it stops right next to you and vanishes when you look at it",
+      "In a cave it runs to the spot above you, then sits facing the nearest cave exit; everyone in multiplayer sees it"
+    ]
+  },
+  {
     "version": "0.106.10",
     "date": "2026-11-19",
     "title": "Map: minibosses and portals",
