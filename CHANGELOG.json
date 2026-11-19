@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.107.1",
+    "date": "2026-11-19",
+    "title": "Progressive chunk building",
+    "changes": [
+      "World chunks are built nearest-first: within 40 m at once, farther ones a few per frame, beyond the draw distance only when you get close - faster world entry, no freeze after big destruction"
+    ]
+  },
+  {
     "version": "0.107.0",
     "date": "2026-11-19",
     "title": "Giant screamer",

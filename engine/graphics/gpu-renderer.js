@@ -62,7 +62,12 @@ fn sil_alert_fs(in: SkinOut) -> @location(0) vec4f {
 const DEPTH_FORMAT = "depth24plus";
 import { PARTICLE_SHADER, FLOATS_PER_PARTICLE } from "./particles.js";
 import { WATER_SHADER, FLOATS_PER_WATER, buildWater } from "./water-mesh.js";
-import { FLOATS_PER_CUBE, LIGHT, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js"; // x, y, z, r, g, b на кубик
+// FLOATS_PER_CUBE — x, y, z, r, g, b на кубик
+import { FLOATS_PER_CUBE, LIGHT, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js";
+import { CHUNK } from "../world/voxel-world.js";
+
+// Сборка кусков мира (updateWorld): ближе near м — сразу, дальше — по budget мс за кадр, от ближних
+export const CHUNK_BUILD = { near: 40, budget: 4 };
 const MAX_JOINTS = 64; //     столько костей помещается в шейдер (array<mat4x4f, 64>)
 // Буфер одного существа: матрица модели (64 байта) + оттенок vec4 (16) + матрицы костей
 const SKIN_BYTES = 64 + 16 + MAX_JOINTS * 64;
@@ -346,8 +351,11 @@ export class GPURenderer {
     });
   }
 
-  // Мир поменялся: пересобрать изменившиеся чанки (у чанка своя version). Другой мир — забыть всё старое
-  updateWorld(world) {
+  // Мир поменялся: пересобрать изменившиеся чанки (у чанка своя version). Другой мир — забыть всё старое.
+  // Постепенно (CHUNK_BUILD): ближние (near м) — сразу все (ломаешь блок — видно в тот же кадр), дальше —
+  // от ближних к дальним, пока не кончилось budget мс кадра; за дальностью прорисовки (настройка DRAW
+  // DISTANCE) — не собираем вовсе, пока камера не подойдёт
+  updateWorld(world, camera = null) {
     if (world !== this.worldShown) {
       for (const m of this.chunkMeshes.values()) if (m.buffer) this.retire(m.buffer);
       this.chunkMeshes.clear();
@@ -360,15 +368,36 @@ export class GPURenderer {
       for (const m of this.rebake.splice(0, 3)) m.version = -1;
       this.worldVersion = -1;
     }
-    if (world.version === this.worldVersion) return;
-    this.worldVersion = world.version;
-    let rebuilt = 0;
+    const p = camera?.position;
+    const ck = p ? `${Math.floor(p.x / 64)},${Math.floor(p.z / 64)},${this.viewDistance}` : "";
+    if (world.version === this.worldVersion && ck === this.buildAround) return; // ничего не поменялось
+    const B = CHUNK_BUILD, reach = this.viewDistance + CHUNK, t0 = performance.now();
+    let rebuilt = 0, waiting = false;
+    const later = [];
     for (const c of world.chunks.values()) {
       const m = this.chunkMeshes.get(c);
       if (m && m.version === c.version) continue;
+      const d = p ? Math.hypot(c.cx * CHUNK + CHUNK / 2 - p.x, c.cz * CHUNK + CHUNK / 2 - p.z) : 0;
+      if (d <= B.near) {
+        this.buildChunk(world, c, m);
+        rebuilt++;
+      } else if (d <= reach) later.push([d, c, m]);
+      // дальше прорисовки — подождёт (соберём, когда камера подойдёт: buildAround поменяется)
+    }
+    later.sort((a, b) => a[0] - b[0]);
+    for (const [, c, m] of later) {
+      if (performance.now() - t0 > B.budget) {
+        waiting = true;
+        break;
+      }
       this.buildChunk(world, c, m);
       rebuilt++;
     }
+    // всё в обзоре собрано — до следующей правки мира или пока камера не уйдёт в другую клетку 64 × 64
+    if (!waiting) {
+      this.worldVersion = world.version;
+      this.buildAround = ck;
+    } else this.worldVersion = -1;
     // куски, которых в мире больше нет (мир очищали: clear) — освободить
     if (this.chunkMeshes.size > world.chunks.size) {
       for (const [c, m] of this.chunkMeshes) {
@@ -927,7 +956,7 @@ export class GPURenderer {
     device.queue.writeBuffer(this.uniformBuffer, 0, d);
 
     t?.("мир: чанки");
-    if (world) this.updateWorld(world);
+    if (world) this.updateWorld(world, camera);
     t?.("интерфейс: картинка " + (ui ? `${ui.fb?.width}x${ui.fb?.height}, окно ${width}x${height}` : "-"));
     if (ui) this.updateUI(ui);
     if (ghost) {
