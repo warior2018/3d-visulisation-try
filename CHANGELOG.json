@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.106.9",
+    "date": "2026-11-19",
+    "title": "More boss lairs on big worlds",
+    "changes": [
+      "Medium worlds can have up to 2 boss lairs, large up to 3 (one is guaranteed, extra ones by chance)"
+    ]
+  },
+  {
     "version": "0.106.8",
     "date": "2026-11-19",
     "title": "Shop: no weapon tabs",
