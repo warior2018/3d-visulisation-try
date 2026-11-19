@@ -7,7 +7,7 @@
 import { num } from "../../../engine/index.js";
 import { CREATURES } from "../creatures.js";
 import { ITEMS, isWeapon, isArmor } from "../items.js";
-import { CLASSES } from "../config.js";
+import { CLASSES, GIANT } from "../config.js";
 import { rarityData } from "./loot.js";
 import { SKIN_TARGETS, skinTarget, skinOf } from "../skins.js";
 
@@ -31,6 +31,17 @@ export function registerCommands(g) {
     g.player.noGravity = g.flying;
     if (!g.flying) g.groundY = undefined;
     return `FLY ${g.flying ? "ON" : "OFF"}`;
+  } });
+  // giant: гигант-скример сейчас (scene/giant.js) — со спины; уже бежит — убрать
+  c.command("giant", { help: "giant - the giant runs at you now (again - remove it)", cheat: true, run: () => {
+    if (g.net?.role === "client") return "only the host can call the giant";
+    if (g.giant) {
+      g.removeGiant(g.giant);
+      return "GIANT REMOVED";
+    }
+    if (!g.giantIsland(g.player)) return `no giant here: island radius must be ${GIANT.minIsland}+`;
+    g.spawnGiant(g.player);
+    return g.giant ? "GIANT IS COMING" : "no room behind you for the giant";
   } });
   c.command("heal", { help: "heal - full health and mana", cheat: true, run: () => {
     g.player.stats.hp = g.player.stats.maxHp;

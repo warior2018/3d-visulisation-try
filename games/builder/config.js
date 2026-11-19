@@ -1283,5 +1283,5 @@ export const COMMON_TABS = ["survival"];
 // spread — разброс направления «назад» (рад); speed — бег (м/с); stop — где останавливается от героя (м);
 // seat — как далеко от выхода из пещеры садится; look — в каком угле взгляда (°) «посмотрел»; life — исчезнет
 // сам через (с); stride — шаг (м пути); hear — с какого расстояния слышно шаги; shake — тряска вплотную;
-// radius / height — сколько сносит перед собой (ширина и высота)
-export const GIANT = { every: [240, 480], retry: 20, minIsland: 50, from: 70, minFrom: 30, spread: 0.6, speed: 9, stop: 4.5, seat: 6, look: 30, life: 150, stride: 4.5, hear: 110, shake: 0.85, radius: 1.6, height: 10 };
+// radius / height — сколько сносит перед собой (ширина и высота); volume — громкость шага [вдали, вплотную]
+export const GIANT = { every: [240, 480], retry: 20, minIsland: 50, from: 70, minFrom: 30, spread: 0.6, speed: 9, stop: 4.5, seat: 6, look: 30, life: 150, stride: 4.5, hear: 110, shake: 0.85, radius: 1.6, height: 10, volume: [0.4, 5.85] };

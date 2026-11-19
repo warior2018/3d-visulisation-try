@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.108.1",
+    "date": "2026-11-19",
+    "title": "Giant: louder steps, console command",
+    "changes": [
+      "Giant footsteps up close are 4.5x louder",
+      "Console command giant (cheats): the giant runs at you now; again - remove it"
+    ]
+  },
+  {
     "version": "0.108.0",
     "date": "2026-11-19",
     "title": "Compact world storage",

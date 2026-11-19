@@ -182,7 +182,7 @@ export class GiantPart {
       if (k <= 0) continue;
       // звук — с его стороны (точка на пути к нему, чтобы громкость задавали мы, а не затухание движка)
       const at = { x: me.position.x + (dx / d) * 4, y: me.position.y + 1, z: me.position.z + (dz / d) * 4 };
-      this.engine.sound.play("giantStep", { at, volume: 0.4 + 0.9 * k }); // громче — до клиппинга (пик звука ~0.9)
+      this.engine.sound.play("giantStep", { at, volume: GIANT.volume[0] + (GIANT.volume[1] - GIANT.volume[0]) * k }); // вдали — volume[0], вплотную — volume[1]
       this.shake.add(GIANT.shake * k);
       this.engine.pad?.rumble(Math.min(1, k), 160);
       this.fx?.burst({ x: e.position.x, y: e.position.y + 0.2, z: e.position.z }, { count: 10, speed: 2.5, color: [120, 104, 86], size: 0.25, life: 0.7, gravity: 3, drag: 2 });
