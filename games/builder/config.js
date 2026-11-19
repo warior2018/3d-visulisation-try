@@ -413,7 +413,8 @@ export const WARDEN_GROWTH = { hp: { flat: 12 }, damage: MOB_DAMAGE };
 export const BOSS = {
   respawn: 180, // в логове в горе — ТРОЛЛЬ, на жёлтой площадке (WORLDGEN.arena) — ЛИЧ
   aggroRadius: 5.5, territory: 1.5,
-  growth: { hp: { pct: 0.02 }, damage: MOB_DAMAGE }, // здоровье: +2 % базы за каждого появившегося моба
+  // здоровье: +5 % базы за каждого появившегося моба
+  growth: { hp: { pct: 0.05 }, damage: MOB_DAMAGE },
   // leave — назад в логово: не ранили calm с и (нет героя ближе radius м или сам не ранил никого calm с)
   leave: { calm: 10, radius: 10 },
   stunResist: 0.6, stunImmunity: 5, enrageAt: 0.5, enrage: { cooldown: 0.7, speed: 0.25 }, regen: 0.04,
@@ -462,10 +463,11 @@ export const MOB_RANGED = {
 };
 
 // Кабаны тоже крепчают по тому же счёту появлений мобов — и дикие, и приручённый:
-// +3 HP за каждого появившегося моба (~4 % от 80), бивни — как урон мобов (проценты), опыт +2.5 %
-export const BOAR_SCALE = { hp: { flat: 3 }, damage: MOB_DAMAGE, xp: { pct: 0.025 } };
+// +3 HP за каждого появившегося моба (~4 % от 80), бивни — как урон мобов (проценты), опыт +1 %
+export const BOAR_SCALE = { hp: { flat: 3 }, damage: MOB_DAMAGE, xp: { pct: 0.01 } };
 
-export const SKELETON_GROWTH = { hp: { pct: 0.02 }, damage: MOB_DAMAGE, xp: { pct: 0.025 } }; // hp: +2 % базового здоровья за каждого следующего // xp: +2.5 % за каждого следующего
+// hp: +5 % базового здоровья за каждого следующего моба; xp: +1 % за каждого следующего
+export const SKELETON_GROWTH = { hp: { pct: 0.05 }, damage: MOB_DAMAGE, xp: { pct: 0.01 } };
 // Рост мобов после soft-го появившегося: after — во сколько раз медленнее (1 — не замедляется: герой растёт
 // и трофеями — проценты урона и здоровья)
 export const GROWTH_SOFTCAP = { soft: 400, after: 1 };

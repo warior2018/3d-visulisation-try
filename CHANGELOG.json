@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.106.7",
+    "date": "2026-11-19",
+    "title": "Torch in the left hand",
+    "changes": [
+      "Lit torch is held in the left hand (new first-person model, flickering flame, sparks and smoke); one-handed weapons stay in the right",
+      "Two-handed weapons (subclass weapons except dynamite) can't be held with the torch: lighting it holds only the torch, pressing again puts it out",
+      "Mob HP +5% of base per spawned mob; XP growth per mob 2.5% -> 1%"
+    ]
+  },
+  {
     "version": "0.106.6",
     "date": "2026-11-19",
     "title": "Fixes from the playtest lists",

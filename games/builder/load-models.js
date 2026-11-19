@@ -47,7 +47,7 @@ export function loadModels(models) {
   models.load("fp-katana", path.join(ASSETS, "fp-katana.glb"));
   models.load("fp-auto", path.join(ASSETS, "fp-auto.glb"));
   models.load("fp-hammer", path.join(ASSETS, "fp-hammer.glb"));
-  for (const fp of ["staff", "wand", "bear-trap", "spikes", "war-hammer", "shotgun", "grenade", "dynamite", "launcher", "medkit"]) models.load(`fp-${fp}`, path.join(ASSETS, `fp-${fp}.glb`));
+  for (const fp of ["torch", "staff", "wand", "bear-trap", "spikes", "war-hammer", "shotgun", "grenade", "dynamite", "launcher", "medkit"]) models.load(`fp-${fp}`, path.join(ASSETS, `fp-${fp}.glb`));
   // Магма-камень в руке — тот же камень, только раскалённый (серое → оранжевое)
   const HOT = [{ from: [0.5, 0.5, 0.53], to: [0.85, 0.25, 0.06] }, { from: [0.64, 0.64, 0.67], to: [1, 0.6, 0.15] }];
   models.load("fp-magma", path.join(ASSETS, "fp-stone.glb"), { recolor: HOT });

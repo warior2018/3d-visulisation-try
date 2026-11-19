@@ -294,11 +294,15 @@ export class GameScene extends Scene {
     return this.rig.update(this.look, (o, d, max) => this.world.raycast(o, d, max)?.t ?? null);
   }
 
+  makeViewModel(name) {
+    return new ViewModel(this.game.models, name);
+  }
+
   // Модель «для экрана» текущей способности. Сменилась — рука поднимается снизу (Equip).
   viewModel() {
     const name = this.abilities.current?.viewModelName(this);
     if (!name) return null;
-    if (!this.viewModels.has(name)) this.viewModels.set(name, new ViewModel(this.game.models, name));
+    if (!this.viewModels.has(name)) this.viewModels.set(name, this.makeViewModel(name));
     const vm = this.viewModels.get(name);
     if (name !== this.viewModelName) {
       this.viewModelName = name;
@@ -492,7 +496,7 @@ export class GameScene extends Scene {
     const { player } = this;
     // 1. Герой: способность в руках, движение
     profiler.begin(PROF.player);
-    this.abilities.update(dt, this, this.onReins ? NO_INPUT : input); // с input — зажатая ЛКМ повторяет удар/выстрел (на поводьях — нет)
+    this.abilities.update(dt, this, this.onReins || this.torchOnly ? NO_INPUT : input); // с input — зажатая ЛКМ повторяет удар/выстрел (на поводьях — нет)
     player.speedBonuses.weapon = this.abilities.current?.moveSpeed || 0; // оружие в руках
     player.speedBonuses.aim = this.aiming ? AIM.moveSpeed : 0; //            прицеливание
     this.updateBreath(dt); // в воде: медленнее, дыхание и утопление (scene/water.js)
@@ -781,7 +785,7 @@ export class GameScene extends Scene {
 
     // 2. Анимации героя: тело «для мира» и рука «для экрана»
     // От 3-го лица: оружие в руке (или катана на бедре), руки держат его (слой поверх ходьбы)
-    const heldNow = this.onReins ? null : this.abilities.current?.held || null; // на поводьях — в руках ничего
+    const heldNow = this.onReins || this.torchOnly ? null : this.abilities.current?.held || null; // на поводьях — в руках ничего
     this.game.models.hold(player, heldNow?.model ?? null, heldNow || {});
     player.view?.animator.setOverlay(heldNow?.pose ?? null);
     player.roll = -this.look.roll;
@@ -809,6 +813,7 @@ export class GameScene extends Scene {
       vm.tilt = AIM.tilt[this.abilities.current?.id] || [0, 0]; //            и наклон (лук — наискосок)
     }
     vm?.update(dt);
+    this.updateTorchFx(dt, this.rig.camera); // факел в левой руке: пламя, искры (scene/daylight.js)
     profiler.end(PROF.player);
 
     // Анимации: дальние — реже, невидимые — не считаем (движок: models.update near / far)
@@ -869,7 +874,14 @@ export class GameScene extends Scene {
       arm.light = typeof L === "number" ? L : L.k;
       arm.warm = typeof L === "number" ? 0 : L.warm;
     }
-    const vm = firstPerson && playing && !this.scoped && !this.onReins ? arm?.draw(camera) : null; // на поводьях — рук с оружием нет
+    const vm = firstPerson && playing && !this.scoped && !this.onReins && !this.torchOnly ? arm?.draw(camera) : null; // на поводьях — рук с оружием нет
+    // факел в левой руке (scene/daylight.js); с двуручным — только он
+    const torch = this.torchLit && firstPerson && playing && !this.scoped && !this.onReins ? this.torchVm() : null;
+    if (torch) {
+      torch.light = arm?.light ?? 1;
+      torch.warm = 1;
+    }
+    const tvm = torch?.draw(camera);
     this.updateSkyBodies(camera); // солнце и луна на небе (scene/daylight.js)
     this.updateClouds(this.inMain() ? camera : null); // облака плывут; внутри — обзор меньше (scene/clouds.js)
     return {
@@ -877,7 +889,7 @@ export class GameScene extends Scene {
       world: this.world,
       ghost: this.engine.scene === this ? this.ghost : null,
       characters: this.game.models.drawList([...this.entities.list, ...this.pickups.list, ...this.projectiles.list, ...this.traps.list, ...(this.netTraps?.values() || []), ...(this.trapPreview ? [this.trapPreview] : []), ...(this.inMain() ? [...(this.treasure?.model ? [this.chestEntity()].filter(Boolean) : []), ...this.caveChestEntities(), ...this.houseChestEntities()] : this.roomChestEntities()), ...this.urnList()], firstPerson ? this.player : null),
-      viewModels: vm ? [vm] : [], // рука — слой «для экрана», только от 1-го лица
+      viewModels: [vm, tvm].filter(Boolean), // рука (и факел) — слой «для экрана», только от 1-го лица
       particles: this.fx, //          частицы с глубиной (engine/graphics/particles.js)
       boxes: this.inMain() ? this.cloudBoxes() : null, // облака второго слоя (scene/clouds.js)
       // Оптика: всё вне круга прицела размыто (круг — в hud.js → SCOPE)

@@ -4,7 +4,10 @@
 // ============================================================
 
 import { lightAt } from "../../../engine/index.js";
-import { DAY, LIGHTS, SKY_BODIES, HERO_LIGHT, TORCH } from "../config.js";
+import { DAY, LIGHTS, SKY_BODIES, HERO_LIGHT, TORCH, SUBCLASS_WEAPONS } from "../config.js";
+
+// одноручное — базовое оружие классов и динамит (C4); двуручное — остальное покупное (подклассы)
+const twoHanded = (item) => SUBCLASS_WEAPONS.has(item) && item !== "dynamite";
 
 export class DaylightPart {
   // Свет в точке p (у головы): { k — сколько (0…1+), warm — доля тёплого (лампы, факел) }; освещение выключено — 1
@@ -24,11 +27,25 @@ export class DaylightPart {
     return { k, warm: k > 0 ? lamp / k : 0 };
   }
 
-  // Факел (TORCH): зажечь / потушить
+  // Оружие в ячейке — двуручное (с факелом его не держат)
+  twoHandedWeapon() {
+    return twoHanded(this.player?.hotbar?.slots[0]?.item);
+  }
+
+  // Факел горит, а оружие двуручное: в руках только факел — оружием не бьём (input.js, game-scene.js)
+  get torchOnly() {
+    return !!this.torchLit && this.abilities?.index === 0 && this.twoHandedWeapon();
+  }
+
+  // Факел (TORCH): зажечь / потушить. Факел — в левой руке, одноручное оружие — в правой. Двуручное и факел
+  // вместе не держат: зажёг — в руках только факел; нажал ещё раз — факел погас, в руках снова оружие
   toggleTorch() {
     const s = this.player.hotbar.slots.find((x) => x?.item === "torch");
     if (!s) return;
+    if (!this.torchLit && this.abilities.index !== 0) this.backToWeapon(); // предмет в руке — убрать, взять факел
     this.torchLit = !this.torchLit;
+    if (this.torchLit) this.torchVm()?.play("Equip");
+    else if (this.twoHandedWeapon()) this.viewModel()?.play("Equip"); //       погас — двуручное снова в руках
     if (!this.torchLit) delete this.player.speedBonuses.torch;
     this.engine.sound.play("equip");
     this.engine.toast(this.tr(this.torchLit ? "TORCH LIT" : "TORCH PUT OUT"), 900);
@@ -65,6 +82,35 @@ export class DaylightPart {
       this.syncAbilities?.();
       this.engine.toast(this.tr("TORCH BURNED OUT"), 1500);
     }
+  }
+
+  // Модель факела в левой руке (от 1-го лица): fp-torch
+  torchVm() {
+    if (this.game.models.has && !this.game.models.has("fp-torch")) return null; // модель ещё не загружена
+    return (this.torchViewModel ||= this.makeViewModel("fp-torch"));
+  }
+
+  // Каждый кадр: факел в руке — пламя дрожит, вверх летят искры и дымок (от кончика факела, в мире)
+  updateTorchFx(dt, camera) {
+    const vm = this.torchLit ? this.torchVm() : null;
+    if (!vm) return;
+    vm.setBase("Idle", 1);
+    vm.sway = this.settings.general.headBob !== false ? this.bob.hand() : { x: 0, y: 0, z: 0, roll: 0 };
+    vm.update(dt);
+    if (!this.fx || !camera || this.rig.mode === "third") return;
+    this.torchFxT = (this.torchFxT || 0) - dt;
+    if (this.torchFxT > 0) return;
+    this.torchFxT = 0.07;
+    // кончик факела в осях камеры (вправо, вверх, вперёд) → в мир
+    const cy = Math.cos(camera.yaw), sy = Math.sin(camera.yaw), cp = Math.cos(camera.pitch), sp = Math.sin(camera.pitch);
+    const [rx, ux, fx] = [-0.2, -0.1, 0.62], c = camera.position;
+    const at = {
+      x: c.x + rx * cy + ux * -sy * sp + fx * sy * cp,
+      y: c.y + ux * cp + fx * sp,
+      z: c.z + rx * -sy + ux * -cy * sp + fx * cy * cp,
+    };
+    this.fx.burst(at, { count: 1, speed: 0.25, color: [255, 170 + Math.floor(Math.random() * 60), 60], size: 0.012, life: 0.5, gravity: -1.2, drag: 1.5, glow: true });
+    if (Math.random() < 0.3) this.fx.burst(at, { count: 1, speed: 0.1, color: [70, 64, 60], size: 0.02, life: 0.9, gravity: -0.6, drag: 2, alpha: 0.35 });
   }
 
   // Свет у героя сейчас: горит факел — его; иначе HERO_LIGHT (radius 0 — нет)

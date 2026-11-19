@@ -55,7 +55,7 @@ export class InputPart {
     if (has("item2")) this.toggleItem(2);
     // Q / E — скиллы оружия в руках (Ability.skills: ИАЙ катаны), их вызывает панель способностей.
     // Верхом на поводьях — ни ударов, ни выстрелов, ни скиллов (выбирать ячейки можно)
-    if (this.onReins) actions = actions.filter((a) => !["primary", "secondary", "skill1", "skill2", "reload"].includes(a));
+    if (this.onReins || this.torchOnly) actions = actions.filter((a) => !["primary", "secondary", "skill1", "skill2", "reload"].includes(a));
     this.abilities.handle(actions, this);
     if (this.abilities.index !== before) {
       this.onWeaponSwitch();
@@ -169,7 +169,9 @@ export class InputPart {
 
   // Взять предмет из ячейки i (1 или 2); он уже в руках — обратно оружие. Пустую ячейку не берём
   toggleItem(i) {
-    if (this.player.hotbar.slots[i]?.item === "torch") return this.toggleTorch(); // факел — в руки не берём
+    if (this.player.hotbar.slots[i]?.item === "torch") return this.toggleTorch(); // факел — в левую руку (daylight.js)
+    // в руках только факел (двуручное оружие) — другой предмет берём, факел гаснет
+    if (this.torchOnly && this.abilities.slots[i]) this.toggleTorch();
     if (this.abilities.index === i) return this.backToWeapon();
     if (!this.abilities.slots[i]) return;
     this.abilities.select(i, this);
