@@ -65,6 +65,7 @@ import { WATER_SHADER, FLOATS_PER_WATER, buildWater } from "./water-mesh.js";
 // FLOATS_PER_CUBE — x, y, z, r, g, b на кубик
 import { FLOATS_PER_CUBE, LIGHT, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js";
 import { CHUNK } from "../world/voxel-world.js";
+import { sectionInfo, visibleColumns } from "./visibility.js";
 
 // Сборка кусков мира (updateWorld): ближе near м — сразу, дальше — по budget мс за кадр, от ближних
 export const CHUNK_BUILD = { near: 40, budget: 4 };
@@ -843,6 +844,18 @@ export class GPURenderer {
     this.worldVersion = -1;
   }
 
+  // Какие куски может быть видно с камеры p (Set ключей кусков) — пересчёт, только когда камера перешла в
+  // другую клетку или мир поменялся. occlusion = false — выключено (рисуем всё в кадре, как раньше)
+  visibleSet(world, p) {
+    if (this.occlusion === false || !p) return null;
+    const k = `${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)},${world.version},${this.viewDistance}`;
+    if (k !== this.visKey) {
+      this.visKey = k;
+      this.visSet = visibleColumns(world, p, this.viewDistance, (c) => this.chunkMeshes.get(c)?.vis || null, this.visSet || new Set());
+    }
+    return this.visSet;
+  }
+
   // Собрать кусок: открытые грани, по 6 спискам (chunk-mesh.js → exposedFaces). Буфер — с запасом
   buildChunk(world, chunk, m) {
     const { data, starts, counts, total } = exposedFaces(world, chunk, this.chunkScratch, this.lighting);
@@ -850,6 +863,7 @@ export class GPURenderer {
     this.chunkScratch = data;
     if (!m) this.chunkMeshes.set(chunk, (m = { chunk, version: 0, buffer: null, capacity: 0, count: 0 }));
     m.version = chunk.version;
+    m.vis = this.occlusion !== false ? sectionInfo(world, chunk) : null; // секции: проходы и сплошные (visibility.js)
     m.count = count;
     m.starts = starts;
     m.counts = counts;
@@ -1030,9 +1044,10 @@ export class GPURenderer {
       pass.setBindGroup(0, fx ? this.cubeFxBind : this.cubeBind);
       pass.setVertexBuffer(0, this.cubeVertexBuffer);
       const v = viewOf(camera, width / height, this.viewDistance, this.cullView);
+      const seen = this.visibleSet(world, camera.position); // за горой / в пещере — не видно (visibility.js)
       let drawn = 0, faces = 0;
       for (const m of this.chunkMeshes.values()) {
-        if (!m.count || !chunkInView(v, m.chunk)) continue;
+        if (!m.count || !chunkInView(v, m.chunk) || (seen && !seen.has(m.chunk.key))) continue;
         const facing = facesFacing(v, m.chunk);
         pass.setVertexBuffer(1, m.buffer);
         for (let f = 0; f < 6; f++) {

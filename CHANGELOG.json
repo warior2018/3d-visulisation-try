@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.107.5",
+    "date": "2026-11-19",
+    "title": "Occlusion culling",
+    "changes": [
+      "Chunks hidden behind mountains and thick ground are not drawn; in caves only connected cavities are drawn"
+    ]
+  },
+  {
     "version": "0.107.4",
     "date": "2026-11-19",
     "title": "Spawn radius by world size",
