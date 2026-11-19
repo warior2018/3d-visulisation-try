@@ -23,7 +23,8 @@ export class ShopPart {
     const weapon = (id, price, text) => ({
       id, name: itemName(id), price: SUBCLASS_WEAPONS.has(id) ? WEAPON_UPGRADES.rebuy : price, describe: () => text, category: ITEMS[id].class || "utility",
       // покупное оружие класса — только выбранное на SUBCLASS.level уровне (выдаётся сразу; здесь — если потерял)
-      when: SUBCLASS_WEAPONS.has(id) ? () => this.subclass === id && !this.itemCount(id) : undefined,
+      // оружие больше не продаётся (вкладок оружия нет): слоты остаются — их описания нужны выбору на 10 уровне
+      when: ITEMS[id].weapon ? () => false : undefined,
       canGive: () => this.canTake(id, 1) || "NO ROOM IN INVENTORY",
       give: () => this.giveItem(id),
       drawIcon: (ui, x, y, s) => ITEMS[id].drawIcon(ui, x, y, s),
@@ -52,11 +53,8 @@ export class ShopPart {
       // Раздел класса виден только своему классу (до выбора класса — только «ПРОЧЕЕ»)
       categories: [
         // в дуэли разделов оружия и улучшений нет: броня и полезное (DUEL.shop), по ценам дуэли
-        ...["melee", "ranged", "demo"].map((id) => ({
-          id, name: CLASSES[id].name,
-          when: () => !this.duel && CLASSES[this.playerClass]?.shop === id,
-        })),
-        { id: "upgrades", name: "UPGRADES", when: () => !this.duel && !!this.playerClass },
+        // вкладок оружия нет: оружие — базовое с начала и выбранное на 10 уровне (выдаётся сразу)
+        { id: "upgrades", name: "UPGRADES", when: () => !this.duel && !!this.subclass },
         { id: "armor", name: "ARMOR", headers: armorSets.map((id) => ARMOR.sets[id].name), compact: true },
         { id: "utility", name: "UTILITY" }, // аптечка, ловушки, молоток-стройка, блоки, маунт
       ],
@@ -83,8 +81,9 @@ export class ShopPart {
         supply("spikes", SHOP.spikes, 1, `${SP.damage} DMG TO ALL EVERY ${SP.rearm} S. PERMANENT, UP TO ${TRAPS.spikes.max}`),
         weapon("builder", SHOP.builder, "LMB - BREAK, RMB - PLACE A BLOCK. G - COLOR"),
         { ...supply(BUILD.item, SHOP.block, BUILD.pack, "BLOCKS FOR BUILDING (HAMMER)"), category: "utility" },
-        // Улучшения оружия: базовое (50 / 100) и выбранное на 10 уровне (200 / 400 / 600) — +урон за уровень
-        ...["primary", "second"].map((track) => {
+        // Улучшения оружия: только выбранное на 10 уровне (200 / 400 / 600) — +урон за уровень; базовое до выбора
+        // не улучшается (выбрал на 10 базовое — улучшается как выбранное)
+        ...["second"].map((track) => {
           const U = WEAPON_UPGRADES[track];
           const item = () => (track === "primary" ? CLASSES[this.playerClass]?.starter[0] : this.subclass);
           const lvl = () => this.upgrades?.[track] || 0;

@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.106.8",
+    "date": "2026-11-19",
+    "title": "Shop: no weapon tabs",
+    "changes": [
+      "Weapon tabs removed from the shop",
+      "Weapon upgrades only for the weapon picked at level 10 (base weapon can't be upgraded before the pick)"
+    ]
+  },
+  {
     "version": "0.106.7",
     "date": "2026-11-19",
     "title": "Torch in the left hand",
