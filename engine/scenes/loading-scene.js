@@ -16,13 +16,14 @@ export class LoadingScene extends Scene {
     this.load = load;
     this.frames = 0;
     this.done = false;
+    this.realtime = true; // кадр за кадром: иначе движок не зовёт update (сцена «спит», пока ничего не нажали)
   }
 
   enter() {
     this.engine.redraw();
   }
 
-  frameUpdate() {
+  update() {
     this.engine.redraw();
     // 2 кадра — экран загрузки точно нарисован; дальше — тяжёлая работа (один раз)
     if (++this.frames < 3 || this.done) return;
