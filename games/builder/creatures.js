@@ -65,7 +65,7 @@ export const CREATURES = {
     kindResist: { melee: 0.33 }, // стоек к виду атаки: ближний бой −33 % (цифра урона серая)
     loot: [["bone", [0, 2]], ["coin", 5]], // с чем появляется (и что выпадет); [от, до] — случайно
     ranged: true, // может быть стрелком (MOB_RANGED: камень, нож или пистолет)
-    brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
+    brain: (w) => new HostileBrain({ ...SKELETON_AI, stopDistance: 0.72, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
   },
   // Зомби: крепче (75 HP), стоек к стрельбе, но медленнее; тянется дальше
   zombie: {
@@ -81,7 +81,7 @@ export const CREATURES = {
     kindResist: { ranged: 0.33 }, // стрельба −33 %
     loot: [["bone", [0, 1]], ["zombie-eye", 1], ["coin", 8]],
     ranged: true, // может быть стрелком (MOB_RANGED)
-    brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
+    brain: (w) => new HostileBrain({ ...SKELETON_AI, stopDistance: 0.72, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
   },
   // Кабан: мирный (НПС), низкий и широкий. Покормишь костями — приручишь и сможешь ездить.
   // Его можно ранить — но раненый герой кабан больше не приручается
@@ -169,7 +169,7 @@ CREATURES.ghoul = {
   model: "ghoul", attack: "ghoulClaw", hostileTo: ["player", "town"], xp: 40,
   kindResist: { ranged: 0.33, blast: -0.3 }, // стрелы и пули хуже, взрыв — больнее
   loot: [["bone", [0, 2]], ["ghoul-fang", 1], ["coin", 6]],
-  brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.2, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
+  brain: () => new HostileBrain({ ...SKELETON_AI, stopDistance: 0.69, aggroRadius: SKELETON_AI.radius * 1.2, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
 };
 
 // МУМИЯ (MOB_KINDS.mummy): медленная, крепкая; бинты замедляют, горение — вдвое
@@ -178,7 +178,7 @@ CREATURES.mummy = {
   model: "mummy", attack: "mummyGrasp", hostileTo: ["player", "town"], xp: 60,
   kindResist: { melee: 0.33 },
   loot: [["coin", 10], ["bone", [0, 1]], ["linen-roll", 1]],
-  brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
+  brain: () => new HostileBrain({ ...SKELETON_AI, stopDistance: 0.79, aggroRadius: SKELETON_AI.radius, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
 };
 
 // КОСТЯНОЙ ШАМАН (MOB_KINDS.shaman): порча издалека, лечит своих
@@ -197,7 +197,7 @@ CREATURES.goblin = {
   kind: "mob", name: "GOBLIN TRAPPER", maxHp: 35, speed: 3.15, scale: 0.7, height: 1.35, radius: 0.25, inventorySize: 4,
   model: "goblin", attack: "goblinStab", hostileTo: ["player", "town"], xp: 45,
   loot: [["coin", 8], ["bear-trap", [0, 1]]],
-  brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.2, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
+  brain: () => new HostileBrain({ ...SKELETON_AI, stopDistance: 0.5, aggroRadius: SKELETON_AI.radius * 1.2, leash: HERD.leash, herd: HERD, wander: MOB_WANDER }),
 };
 
 // ЧУМНОЙ ВОЖАК — минибосс (MOB_KINDS.champion): призывает упырей, чумная аура, богатая добыча
@@ -206,7 +206,7 @@ CREATURES.champion = {
   model: "champion", attack: "championCleave", hostileTo: ["player", "town"], xp: 400,
   kindResist: { melee: 0.2, ranged: 0.2 },
   loot: [["coin", 120], ["medkit", 1], ["skull", 2], ["champion-fang", 1]],
-  brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.5, leash: 90, stopDistance: 2, wander: MOB_WANDER }),
+  brain: () => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.5, leash: 90, stopDistance: 1.35, wander: MOB_WANDER }),
 };
 
 // ЛЕТУЧАЯ МЫШЬ (MOB_KINDS.bat): летает взмахами (bat-brain.js), кружит над целью; пике — откусывает долю

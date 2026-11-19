@@ -314,8 +314,8 @@ export const INVASION = {
 
 // Поведение скелета: игрок ближе radius — поворачивается и идёт к нему
 // sightHeight — замечает, только если цель не выше / ниже этого (м): высоко на башне — не видят
-// windupSlow — доля скорости во время замаха удара (0.3 — 30 %: от удара можно отойти)
-export const SKELETON_AI = { radius: 12, speed: 2.2, stopDistance: 1.1, turnSpeed: 4, jumpSpeed: 7.5, sightHeight: 4, windupSlow: 0.3 };
+// windupSlow — доля скорости во время замаха удара (0.2 — 20 %: от удара можно отойти)
+export const SKELETON_AI = { radius: 12, speed: 2.2, stopDistance: 1.1, turnSpeed: 4, jumpSpeed: 7.5, sightHeight: 4, windupSlow: 0.2 };
 
 // Стадо: ударили скелета (хоть издалека) — он злится на обидчика, а с ним все скелеты
 // в радиусе radius, от них — их соседи, и так по цепочке. alertOnSight — так же,
@@ -610,7 +610,17 @@ export const ATTACKS = {
   // Граната автомата (талант GRENADE): каждые every выстрелов — 200 % урона выстрела по площади
   grenade: { id: "grenade", name: "GRENADE", damage: 16, radius: 2.5, every: 15, speed: 22, cooldown: 0, cost: 0 },
   // Скелет: достаёт на 30 % ближе игрока (2.5 × 0.7), урон 5–10, замах 0.35 с (успел отойти — промах)
-  skeletonClaw: { id: "claw", name: "SKELETON CLAW", damage: [5, 10], reach: PUNCH_REACH * 0.7, windup: 0.35, cooldown: 1.3, arc: 90, maxTargets: 2 },
+  // Ближний бой мобов (кроме особых: тролль, лич, шаман, раздутый, мышь). Эталон — скелет (рост 1.62): радиус
+  // удара 1 м. У остальных — пропорционально росту (рост / 1.62). reach — с какого расстояния НАЧИНАЕТ замах
+  // (на 15 % меньше), lenience 1.15 — докуда долетает удар (= радиус удара): начал — запас, чтобы попасть.
+  // Посчитано заранее (числа — вручную):  моб      рост   ×      удар   начинает
+  //                                      скелет   1.62   1.00   1.00   0.87
+  //                                      зомби    1.62   1.00   1.00   0.87
+  //                                      упырь    1.58   0.97   0.97   0.84
+  //                                      мумия    1.76   1.08   1.08   0.94
+  //                                      гоблин   1.22   0.75   0.75   0.65
+  //                                      чемпион  2.79   1.72   1.72   1.50
+  skeletonClaw: { id: "claw", name: "SKELETON CLAW", damage: [5, 10], reach: 0.87, lenience: 1.15, windup: 0.35, cooldown: 1.3, arc: 90, maxTargets: 2 },
   // Летучая мышь: урон как у скелета, замах быстрее, бьёт по кругу (вплотную — достаёт всех вокруг)
   batClaw: { id: "bat-claw", name: "BAT CLAW", damage: [5, 10], reach: PUNCH_REACH * 0.7, windup: 0.2, cooldown: 1, arc: 360, maxTargets: 2 },
   // Страж: меч — бьёт мобов, которые подошли к нему или к его дому
@@ -633,14 +643,14 @@ export const ATTACKS = {
   // Лич: костлявое касание вплотную и сгусток (летит прямо, без дуги)
   lichTouch: { id: "lich-touch", name: "BONE TOUCH", damage: [16, 22], reach: 1.8, windup: 0.3, cooldown: 1.4 },
   lichBolt: { id: "lich-bolt", name: "SOUL BOLT", damage: [18, 26], speed: 20, cooldown: 1.6 },
-  ghoulClaw: { id: "ghoul-claw", name: "GHOUL CLAW", damage: [5, 9], reach: PUNCH_REACH * 0.75, windup: 0.2, cooldown: 0.9, arc: 90, maxTargets: 1 },
-  mummyGrasp: { id: "mummy-grasp", name: "WRAPPING GRASP", damage: [9, 14], reach: PUNCH_REACH * 0.85, windup: 0.5, cooldown: 1.7, arc: 100, maxTargets: 2 },
+  ghoulClaw: { id: "ghoul-claw", name: "GHOUL CLAW", damage: [5, 9], reach: 0.84, lenience: 1.15, windup: 0.2, cooldown: 0.9, arc: 90, maxTargets: 1 },
+  mummyGrasp: { id: "mummy-grasp", name: "WRAPPING GRASP", damage: [9, 14], reach: 0.94, lenience: 1.15, windup: 0.5, cooldown: 1.7, arc: 100, maxTargets: 2 },
   shamanStaff: { id: "shaman-staff", name: "BONE STAFF", damage: [4, 7], reach: PUNCH_REACH * 0.8, windup: 0.3, cooldown: 1.4 },
   shamanHex: { id: "shaman-hex", name: "HEX", damage: [8, 12], speed: 16, cooldown: 2.6 },
-  goblinStab: { id: "goblin-stab", name: "RUSTY KNIFE", damage: [4, 7], reach: PUNCH_REACH * 0.65, windup: 0.15, cooldown: 0.8, maxTargets: 1 },
+  goblinStab: { id: "goblin-stab", name: "RUSTY KNIFE", damage: [4, 7], reach: 0.65, lenience: 1.15, windup: 0.15, cooldown: 0.8, maxTargets: 1 },
   goblinTrap: { id: "goblin-trap", name: "GOBLIN TRAP", damage: 18, radius: 0.6 },
-  championCleave: { id: "champion-cleave", name: "PLAGUE CLEAVER", damage: [18, 26], reach: 2.8, windup: 0.45, cooldown: 1.8, arc: 120, maxTargets: 3 },
-  zombieClaw: { id: "zombie-claw", name: "ZOMBIE CLAW", damage: [6, 11], reach: PUNCH_REACH * 0.7 * 1.25, windup: 0.45, cooldown: 1.5, arc: 100, maxTargets: 2 },
+  championCleave: { id: "champion-cleave", name: "PLAGUE CLEAVER", damage: [18, 26], reach: 1.5, lenience: 1.15, windup: 0.45, cooldown: 1.8, arc: 120, maxTargets: 3 },
+  zombieClaw: { id: "zombie-claw", name: "ZOMBIE CLAW", damage: [6, 11], reach: 0.87, lenience: 1.15, windup: 0.45, cooldown: 1.5, arc: 100, maxTargets: 2 },
 };
 
 // Звуки игры (синтез — в движке)
