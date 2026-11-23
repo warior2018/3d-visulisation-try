@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.12",
+    "date": "2026-11-23",
+    "title": "Slide animation",
+    "changes": [
+      "Seen from outside, a sliding hero now has a slide pose: low, leaning back, one leg forward, a hand trailing on the ground"
+    ]
+  },
+  {
     "version": "0.114.11",
     "date": "2026-11-23",
     "title": "Dash can't be cancelled",

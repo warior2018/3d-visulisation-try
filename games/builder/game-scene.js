@@ -843,7 +843,7 @@ export class GameScene extends Scene {
     // Клип тела — автомат состояний (hero-anim.js): верхом, разбег, в воздухе, стойка, бег, шаг, стоим
     this.airTime = player.onGround || player.mount ? 0 : (this.airTime || 0) + dt;
     (this.heroAnim ||= heroAnimStates()).update(player.view?.animator, {
-      mounted: !!player.mount,
+      mounted: !!player.mount, sliding: !!this.sliding && player.onGround,
       air: !player.onGround && !player.mount, airTime: this.airTime, stance: this.lowStance, // присед — тоже стойка
       moving: move.moving, running: move.running, speed: move.speed,
     }, dt);
