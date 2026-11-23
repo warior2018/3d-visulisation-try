@@ -1,6 +1,6 @@
 // ============================================================
 //  Рывок и выносливость (DASH), как в Deadlock: выносливость — деления (DASH.pips, базово 3); рывок (Shift —
-//  skill3) тратит одно. Деления копятся по одному: каждое — за DASH.recharge секунд (базово 4), пока не полные.
+//  skill3) тратит одно. Деления копятся по одному: каждое — за DASH.recharge секунд (базово 5; талант STAMINA REGEN — быстрее), пока не полные.
 //  Во время рывка направление не меняется и сам рывок не отменить (кроме прыжка из рывка и приседа — скольжение);
 //  прерывают — оглушение, капкан. Прыжок из рывка: через DASH.jump[0] с после рывка шкала на DASH.jump[1] с синяя — прыжок в это окно тратит ещё
 //  деление и даёт ещё такой же толчок (туда же) с прыжком.
@@ -19,6 +19,11 @@ export class DashPart {
   // Сколько делений всего (база + таланты, если появятся: talentStats.stamina)
   get staminaMax() {
     return DASH.pips + (this.talentStats?.stamina || 0);
+  }
+
+  // Сколько секунд копится одно деление (база DASH.recharge, талант STAMINA REGEN — меньше)
+  get pipTime() {
+    return DASH.recharge * (1 - (this.talentStats?.staminaRegen || 0));
   }
 
   // Каждый тик: деления копятся по одному
@@ -43,14 +48,14 @@ export class DashPart {
     this.pips ??= max;
     if (this.pips > max) this.pips = max;
     if (this.pips >= max) return void (this.pipT = 0);
-    const before = Math.floor(((this.pipT || 0) / DASH.recharge) * 20);
+    const before = Math.floor(((this.pipT || 0) / this.pipTime) * 20);
     this.pipT = (this.pipT || 0) + dt;
-    if (this.pipT >= DASH.recharge) {
-      this.pipT -= DASH.recharge;
+    if (this.pipT >= this.pipTime) {
+      this.pipT -= this.pipTime;
       this.pips++;
     }
     // полоска растёт — перерисовать интерфейс (раз в 1/20 деления, не каждый тик)
-    if (Math.floor((this.pipT / DASH.recharge) * 20) !== before || this.pips >= max) this.engine.redraw();
+    if (Math.floor((this.pipT / this.pipTime) * 20) !== before || this.pips >= max) this.engine.redraw();
   }
 
   // Потратить деление (прыжок в воздухе и т. п.)
@@ -300,7 +305,7 @@ export class DashPart {
       if (i < have) ui.rect(x, y, w, h, this.dashJumpOpen ? [110, 190, 255] : [242, 242, 246], 240); // синие — окно прыжка из рывка
       else if (i === have) {
         ui.rect(x, y, w, h, [70, 70, 76], 200);
-        ui.rect(x, y, Math.round(w * Math.min(1, (this.pipT || 0) / DASH.recharge)), h, [165, 165, 172], 225);
+        ui.rect(x, y, Math.round(w * Math.min(1, (this.pipT || 0) / this.pipTime)), h, [165, 165, 172], 225);
       } else ui.rect(x, y, w, h, [70, 70, 76], 200);
     }
   }

@@ -206,6 +206,11 @@ function buildTree(mode) {
           { id: "v-jump", name: "JUMP", maxRank: 2, cost: 1, describe: (r) => `JUMP +${12.5 * r}% HIGHER (FALL DMG STARTS HIGHER TOO)`, stats: (r) => ({ jumpMult: 0.125 * r }) },
           { id: "v-double", name: "DOUBLE JUMP", maxRank: 1, cost: 3, describe: () => "ONE MORE AIR JUMP AND ONE MORE AIR DASH BEFORE LANDING", stats: () => ({ extraJumps: 1, airDashes: 1 }) },
         ]),
+        // ВЫНОСЛИВОСТЬ (scene/dash.js): быстрее копится → больше делений
+        ...chain(4, [
+          { id: "v-stamina-regen", name: "STAMINA REGEN", maxRank: 3, cost: 1, describe: (r) => `STAMINA RECHARGES ${10 * r}% FASTER`, stats: (r) => ({ staminaRegen: 0.1 * r }) },
+          { id: "v-stamina", name: "STAMINA", maxRank: 2, cost: 1, describe: (r) => `+${r} STAMINA`, stats: (r) => ({ stamina: r }) },
+        ]),
         ...chain(3, [
           { id: "v-fortune", name: "FORTUNE", maxRank: 4, cost: 1, describe: (r) => `+${12.5 * r}% LUCK: RARE GEAR FROM MOBS AND BOSSES MORE OFTEN`, stats: (r) => ({ luck: 0.125 * r }) },
           { id: "v-evasion", name: "EVASION", maxRank: 4, cost: 2, describe: (r) => `${10 * r}% CHANCE TO DODGE A HIT: UP TO ${EVASION.cap * 100}% MAX HP OF IT IS IGNORED`, stats: (r) => ({ evasion: 0.1 * r }) },

@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.114.22",
+    "date": "2026-11-23",
+    "title": "Stamina talents",
+    "changes": [
+      "Stamina recharges in 5 s per charge",
+      "New Vitality branch: STAMINA REGEN (3 ranks, 10% faster recharge each) -> STAMINA (2 ranks, +1 charge each), 1 point per rank"
+    ]
+  },
+  {
     "version": "0.114.21",
     "date": "2026-11-23",
     "title": "Wind effect",
