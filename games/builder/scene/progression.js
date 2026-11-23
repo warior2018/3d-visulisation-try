@@ -50,7 +50,7 @@ export class ProgressionPart {
     // JUMP / DOUBLE JUMP (живучесть): прыжок выше, прыжок в воздухе — 80 % высоты обычного
     if (this.controller) {
       this.controller.jumpHeight = PLAYER.jumpHeight * (1 + (s.jumpMult || 0));
-      this.controller.extraJumps = 1 + (s.extraJumps || 0); // прыжок в воздухе — у всех (1 деление), талант — ещё
+      this.controller.extraJumps = s.extraJumps || 0; // прыжок в воздухе — только с талантом DOUBLE JUMP (1 деление)
       this.controller.airJumpHeight = 1.6; // прыжок в воздухе — вдвое выше прежнего (1.6 высоты обычного)
     }
     p.evasion = s.evasion || 0; // EVASION — шанс увернуться (scene/session.js → onIncoming)

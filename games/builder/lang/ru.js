@@ -174,6 +174,7 @@ export const RU = {
   ": DAMAGE": ": УРОН",
   "A BLADE THAT HAS SEEN TOO MANY RAINS": "КЛИНОК, ПЕРЕЖИВШИЙ СЛИШКОМ МНОГО ДОЖДЕЙ",
   "A CRIMSON COAT FROM THE WANTED POSTER": "БАГРОВЫЙ ПЛАЩ С ПЛАКАТА \"РАЗЫСКИВАЕТСЯ\"",
+  "A JUMP IN THE AIR (COSTS 1 STAMINA) AND ONE MORE AIR DASH BEFORE LANDING": "ПРЫЖОК В ВОЗДУХЕ (СТОИТ 1 ВЫНОСЛИВОСТЬ) И ЕЩЁ ОДИН РЫВОК В ВОЗДУХЕ ДО ПРИЗЕМЛЕНИЯ",
   "A KILL BY THE IAI DASH RESETS ITS COOLDOWN": "УБИЙСТВО РЫВКОМ ИАЙ СБРАСЫВАЕТ ЕГО ПЕРЕЗАРЯДКУ",
   "A KILL REFILLS ${10 * r}% OF THE MAGAZINE": "УБИЙСТВО ВОЗВРАЩАЕТ ${10 * r}% МАГАЗИНА",
   "A PLAGUE CHAMPION HAS RISEN": "ВОССТАЛ ЧУМНОЙ ВОЖАК",

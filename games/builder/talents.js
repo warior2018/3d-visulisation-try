@@ -204,7 +204,7 @@ function buildTree(mode) {
         ...chain(2, [
           { id: "v-speed", name: "SPEED", maxRank: 4, cost: 1, describe: (r) => `+${pct(0.075 * r)} SPEED`, stats: (r) => ({ speed: 0.075 * r }) },
           { id: "v-jump", name: "JUMP", maxRank: 2, cost: 1, describe: (r) => `JUMP +${12.5 * r}% HIGHER (FALL DMG STARTS HIGHER TOO)`, stats: (r) => ({ jumpMult: 0.125 * r }) },
-          { id: "v-double", name: "DOUBLE JUMP", maxRank: 1, cost: 3, describe: () => "ONE MORE AIR JUMP AND ONE MORE AIR DASH BEFORE LANDING", stats: () => ({ extraJumps: 1, airDashes: 1 }) },
+          { id: "v-double", name: "DOUBLE JUMP", maxRank: 1, cost: 3, describe: () => "A JUMP IN THE AIR (COSTS 1 STAMINA) AND ONE MORE AIR DASH BEFORE LANDING", stats: () => ({ extraJumps: 1, airDashes: 1 }) },
         ]),
         // ВЫНОСЛИВОСТЬ (scene/dash.js): быстрее копится → больше делений
         ...chain(4, [

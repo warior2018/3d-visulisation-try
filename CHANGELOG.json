@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.26",
+    "date": "2026-11-23",
+    "title": "Air jump needs the talent",
+    "changes": [
+      "The air jump (double jump) is available only with the DOUBLE JUMP talent again; it costs 1 stamina"
+    ]
+  },
+  {
     "version": "0.114.25",
     "date": "2026-11-23",
     "title": "Movement tuning",
