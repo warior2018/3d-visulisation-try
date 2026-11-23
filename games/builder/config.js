@@ -1222,7 +1222,7 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // прыжка из рывка; airDashes — рывков в воздухе до приземления (талант — больше); wall — прыжок от стены
 // (бесплатно): push — от стены м/с, up — доля прыжка вверх, cooldown, max — за полёт (от той же стены подряд — нельзя); fall — быстрое падение: присед дважды за
 // double с в воздухе — вниз со скоростью speed (1 деление)
-export const DASH = { pips: 3, recharge: 4, burst: 14, impulse: 10, cooldown: 0.8, stick: 0.4, jump: [0.3, 0.25], airDashes: 1,
+export const DASH = { pips: 3, recharge: 4, burst: 9, impulse: 10, cooldown: 0.8, stick: 0.4, jump: [0.3, 0.25], airDashes: 1,
   wall: { push: 7, up: 0.9, cooldown: 0.35, max: 2 }, fall: { double: 0.3, speed: 26 } };
 // Скольжение (scene/slide.js), как в Deadlock: minSpeed — с какой скорости (м/с) присед становится скольжением;
 // slope — с какого уклона (перепад на метр) скользишь и без разгона; gravity — разгон под горку (м/с² на единицу
@@ -1230,7 +1230,7 @@ export const DASH = { pips: 3, recharge: 4, burst: 14, impulse: 10, cooldown: 0.
 // скольжение кончается; push — толчок, если стоял на склоне; maxMult — больше скольких шагов не разгоняет;
 // sample — на каком расстоянии мерить уклон под ногами
 // steep — склон круче (перепад на метр) — не устоять: съезжаешь и без приседа
-export const SLIDE = { minSpeed: 5.5, slope: 0.2, steep: 1.3, gravity: 11, friction: 6, steer: 1.1, endSpeed: 2.5, push: 2, maxMult: 6, sample: 0.9 };
+export const SLIDE = { minSpeed: 6, slope: 0.2, steep: 1.3, gravity: 11, friction: 6, steer: 1.1, endSpeed: 2.5, push: 2, maxMult: 6, sample: 0.9 };
 export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
 // Прыжок с мачете (Q): нож — обратным хватом (лезвием вниз), прыжок вперёд на distance м с замахом. Хитбокс — там,
 // где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся
