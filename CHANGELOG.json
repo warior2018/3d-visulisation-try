@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.5",
+    "date": "2026-11-23",
+    "title": "Wall jumps from tall walls only",
+    "changes": [
+      "Wall jumps work only off walls at least 1.6 m tall (not off low ledges and fences)"
+    ]
+  },
+  {
     "version": "0.114.4",
     "date": "2026-11-23",
     "title": "No ground speed from circling keys",

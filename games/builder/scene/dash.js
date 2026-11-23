@@ -137,7 +137,7 @@ export class DashPart {
     let nx = 0, nz = 0;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const cx = Math.floor(P.x + dx * r), cz = Math.floor(P.z + dz * r);
-      if (w.isSolid(cx, Math.floor(P.y + 0.3), cz) || w.isSolid(cx, Math.floor(P.y + 1.1), cz)) { nx -= dx; nz -= dz; }
+      if (this.wallHeight(cx, cz, P.y) >= DASH.wall.minHeight) { nx -= dx; nz -= dz; }
     }
     const nl = Math.hypot(nx, nz);
     if (!nl) return false;
@@ -158,6 +158,19 @@ export class DashPart {
     this.wallJumpCd = W.cooldown;
     this.engine.sound.play("dash", { volume: 0.6 });
     return true;
+  }
+
+  // Высота стены в столбике (cx, cz) у тела героя (ноги на y): сплошной кусок, задевающий тело (0.3…1.1 м над
+  // ногами), — от его низа до верха, в метрах (0 — стены нет). Низкий бортик / ступенька — не стена
+  wallHeight(cx, cz, y) {
+    const w = this.world;
+    let y0 = Math.floor(y + 0.3);
+    if (!w.isSolid(cx, y0, cz)) y0 = Math.floor(y + 1.1);
+    if (!w.isSolid(cx, y0, cz)) return 0;
+    let lo = y0, hi = y0;
+    while (lo - y0 > -40 && w.isSolid(cx, lo - 1, cz)) lo--;
+    while (hi - y0 < 40 && w.isSolid(cx, hi + 1, cz)) hi++;
+    return hi + w.cellTop(cx, hi, cz) - (lo + w.cellBottom(cx, lo, cz));
   }
 
   // Быстрое падение: присед дважды в воздухе (за DASH.fall.double с) — рывок вниз, 1 деление
