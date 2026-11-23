@@ -18,6 +18,7 @@ const HERO_HEAD = { ...HUMAN_HEAD, min: HUMAN_HEAD.min.map((v) => v * HERO_SCALE
 export const HITBOXES = {
   player: [HERO_HEAD],
   skeleton: [HUMAN_HEAD],
+  dummy: [HUMAN_HEAD], // манекен полигона — скелет: хедшоты как по скелету
   // Зомби: голова шире и выше (множитель хедшота — у оружия; каска — MOB_HELMET, не у всех)
   zombie: [{ id: "head", min: [-0.19, 1.6, -0.19], max: [0.19, 1.99, 0.19], multiplier: 2 }],
   warden: [HUMAN_HEAD],
@@ -37,7 +38,7 @@ export const HITBOXES = {
   bat: [{ id: "head", min: [-0.17, 0.85, -0.01], max: [0.17, 1.17, 0.33], multiplier: 2 }],
 };
 // Мобы мельче на MOB_SIZE — и головы (хитбоксы) тоже (координаты выше — для полного размера)
-for (const type of ["skeleton", "zombie", "troll", "lich", "bloater", "ghoul", "mummy", "shaman", "goblin", "champion", "bat"]) {
+for (const type of ["skeleton", "dummy", "zombie", "troll", "lich", "bloater", "ghoul", "mummy", "shaman", "goblin", "champion", "bat"]) {
   HITBOXES[type] = HITBOXES[type].map((h) => ({ ...h, min: h.min.map((v) => v * MOB_SIZE), max: h.max.map((v) => v * MOB_SIZE) }));
 }
 
