@@ -146,11 +146,38 @@ export class DashPart {
     if ((this.wallJumps || 0) >= DASH.wall.max) return false;
     this.wallJumps = (this.wallJumps || 0) + 1;
     const W = DASH.wall, jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 22) * (this.controller?.jumpHeight ?? 1.2));
-    // от стены: скорость в стену убираем, от стены — не меньше W.push (в стену не прыгнуть, только от неё)
-    const ux = nx / nl, uz = nz / nl, out = p.velocity.x * ux + p.velocity.z * uz;
-    const add = Math.max(W.push, out) - out;
-    p.velocity.x += ux * add;
-    p.velocity.z += uz * add;
+    // Куда: по клавишам движения, но не ближе W.angle° к стене (вдоль стены жмёшь «вперёд» — отлетаешь под
+    // W.angle° от неё вперёд, а не поперёк); клавиш нет или жмёшь в стену — прямо от стены. Скорость — не меньше
+    // W.push и не меньше той, с которой летел (разгон сохраняется, только поворачивает)
+    const ux = nx / nl, uz = nz / nl;
+    const input = this.engine.input;
+    let fwd = 0, side = 0;
+    if (input.isDown("forward")) fwd += 1;
+    if (input.isDown("back")) fwd -= 1;
+    if (input.isDown("right")) side += 1;
+    if (input.isDown("left")) side -= 1;
+    const yaw = this.look.yaw, sy = Math.sin(yaw), cy = Math.cos(yaw);
+    let ix = sy * fwd + cy * side, iz = cy * fwd - sy * side;
+    const il = Math.hypot(ix, iz);
+    let dx = ux, dz = uz;
+    if (il > 0) {
+      ix /= il;
+      iz /= il;
+      const outK = ix * ux + iz * uz, minOut = Math.sin((W.angle * Math.PI) / 180);
+      if (outK >= minOut) { dx = ix; dz = iz; } //                           и так достаточно от стены
+      else {
+        // вдоль стены (знак — как у клавиш), отклонение от стены — ровно angle°
+        const tx = ix - ux * outK, tz = iz - uz * outK, tl = Math.hypot(tx, tz);
+        if (tl > 1e-3) {
+          const c = Math.cos((W.angle * Math.PI) / 180);
+          dx = (tx / tl) * c + ux * minOut;
+          dz = (tz / tl) * c + uz * minOut;
+        }
+      }
+    }
+    const speed = Math.max(W.push, Math.hypot(p.velocity.x, p.velocity.z));
+    p.velocity.x = dx * speed;
+    p.velocity.z = dz * speed;
     p.velocity.y = Math.max(p.velocity.y, jumpV * W.up);
     this.wallJumpCd = W.cooldown;
     this.engine.sound.play("dash", { volume: 0.6 });

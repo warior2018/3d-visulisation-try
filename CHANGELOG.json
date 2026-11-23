@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.8",
+    "date": "2026-11-23",
+    "title": "Angled wall jumps",
+    "changes": [
+      "Wall jump goes where you press: pressing forward along a wall sends you forward at 30 degrees off the wall instead of straight away from it; your speed is kept"
+    ]
+  },
+  {
     "version": "0.114.7",
     "date": "2026-11-23",
     "title": "Wall jumps refresh",
