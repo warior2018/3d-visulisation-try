@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.20",
+    "date": "2026-11-23",
+    "title": "Higher air jump",
+    "changes": [
+      "Air jump is twice as high (1.6x a normal jump instead of 0.8x)"
+    ]
+  },
+  {
     "version": "0.114.19",
     "date": "2026-11-23",
     "title": "Dash and wall jump fixes",

@@ -51,7 +51,7 @@ export class ProgressionPart {
     if (this.controller) {
       this.controller.jumpHeight = PLAYER.jumpHeight * (1 + (s.jumpMult || 0));
       this.controller.extraJumps = 1 + (s.extraJumps || 0); // прыжок в воздухе — у всех (1 деление), талант — ещё
-      this.controller.airJumpHeight = 0.8;
+      this.controller.airJumpHeight = 1.6; // прыжок в воздухе — вдвое выше прежнего (1.6 высоты обычного)
     }
     p.evasion = s.evasion || 0; // EVASION — шанс увернуться (scene/session.js → onIncoming)
     // KILL BUFF: стопки за убийства — урон и скорость атаки дальнего боя (стопки живут сами: tickKillStacks)
