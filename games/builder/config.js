@@ -257,7 +257,7 @@ export const GAMEPAD_ENABLED = false;
 // (×шаг в секунду) и сколько м/с можно набрать ВДОЛЬ клавиш (повороты в полёте: air strafe); airSteer / airBrake —
 // на большой скорости в воздухе клавиши поворачивают разгон (рад/с) и тормозят, если жмёшь против (м/с за секунду)
 export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18, boostGround: 6, boostAir: 0.6, boostWater: 20, steer: 2.4, brake: 16, maxMult: 1000,
-  source: true, friction: 8, stopFriction: 30, stopSpeed: 2, groundAccel: 20, airAccel: 25, airCap: 1.6, airSteer: 2.2, airBrake: 9 };
+  source: true, friction: 8, stopFriction: 30, stopSpeed: 2, groundAccel: 20, airAccel: 25, airCap: 1.6, airSteer: 3.6, airBrake: 11 };
 // Маунт разгоняется дольше (тяжёлый зверь)
 export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
 
