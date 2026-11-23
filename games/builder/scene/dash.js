@@ -1,6 +1,8 @@
 // ============================================================
 //  Рывок и выносливость (DASH), как в Deadlock: выносливость — деления (DASH.pips, базово 3); рывок (Shift —
 //  skill3) тратит одно. Деления копятся по одному: каждое — за DASH.recharge секунд (базово 4), пока не полные.
+//  Прыжок из рывка: через DASH.jump[0] с после рывка шкала на DASH.jump[1] с синяя — прыжок в это окно тратит ещё
+//  деление и даёт ещё такой же толчок (туда же) с прыжком.
 //  Рывок с земли прилипает к полу (DASH.stick): пологие подъёмы и спуски — не отрываясь.
 //  Рывок — толчок (DASH.impulse м/с) туда, куда жмёшь клавиши движения (не жмёшь — вперёд, куда смотришь):
 //  прибавляется к скорости векторно, дальше гаснет сам (инерция: CharacterController.approach, MOVEMENT.boost*),
@@ -20,6 +22,13 @@ export class DashPart {
   // Каждый тик: деления копятся по одному
   updateDash(dt) {
     this.dashCd = Math.max(0, (this.dashCd || 0) - dt);
+    // окно прыжка из рывка: открылось / закрылось — перерисовать шкалу (синяя)
+    if (this.dashSince !== undefined) {
+      const was = this.dashJumpOpen;
+      this.dashSince += dt;
+      if (this.dashSince > DASH.jump[0] + DASH.jump[1]) this.dashSince = undefined;
+      if (was !== this.dashJumpOpen) this.engine.redraw();
+    }
     this.updateDashStick();
     const max = this.staminaMax;
     this.pips ??= max;
@@ -57,10 +66,37 @@ export class DashPart {
     p.velocity.x += (dx / l) * DASH.impulse;
     p.velocity.z += (dz / l) * DASH.impulse;
     this.dashCd = DASH.cooldown;
+    this.dashSince = 0; //                                 окно прыжка из рывка (dashJump)
+    this.dashDir = { x: dx / l, z: dz / l };
     if (p.onGround) this.groundDash = true; // с земли — прилипает к полу (updateDashStick)
     this.pips = (this.pips ?? this.staminaMax) - 1;
     this.engine.sound.play("dash");
     this.fx?.burst({ x: p.position.x, y: p.position.y + 0.3, z: p.position.z }, { count: 8, speed: 2, color: [210, 210, 220], size: 0.06, life: 0.35, gravity: 1, drag: 3 });
+    this.engine.redraw();
+  }
+
+  // Окно прыжка из рывка открыто (DASH.jump: через [0] с после рывка, на [1] с)
+  get dashJumpOpen() {
+    const t = this.dashSince;
+    return t !== undefined && t >= DASH.jump[0] && t <= DASH.jump[0] + DASH.jump[1];
+  }
+
+  // Нажали прыжок (scene/input.js): в окне — прыжок из рывка: деление, ещё толчок туда же, куда рывок, и прыжок
+  dashJump() {
+    const p = this.player;
+    if (!this.dashJumpOpen || !p?.alive || p.mount || (this.pips ?? 0) < 1) return;
+    if (p.speedMultiplier < 0.2 || p.stunned) return;
+    this.dashSince = undefined;
+    this.pips--;
+    p.velocity.x += this.dashDir.x * DASH.impulse;
+    p.velocity.z += this.dashDir.z * DASH.impulse;
+    const jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 20) * (this.controller?.jumpHeight ?? 1.25));
+    p.velocity.y = Math.max(p.velocity.y, jumpV);
+    p.onGround = false;
+    this.groundDash = false; // в прыжке — не прилипает
+    if (p.stepHeight === DASH.stick) delete p.stepHeight;
+    this.engine.sound.play("dash", { volume: 1.2 });
+    this.fx?.burst({ x: p.position.x, y: p.position.y + 0.1, z: p.position.z }, { count: 12, speed: 2.5, color: [150, 200, 255], size: 0.07, life: 0.4, gravity: 1, drag: 3 });
     this.engine.redraw();
   }
 
@@ -88,7 +124,7 @@ export class DashPart {
     for (let i = 0; i < max; i++) {
       const x = x0 + i * (w + gap);
       ui.rect(x - 1, y - 1, w + 2, h + 2, [10, 12, 16], 170);
-      if (i < have) ui.rect(x, y, w, h, [235, 225, 150], 235);
+      if (i < have) ui.rect(x, y, w, h, this.dashJumpOpen ? [110, 190, 255] : [235, 225, 150], 235); // синие — окно прыжка из рывка
       else if (i === have) {
         ui.rect(x, y, w, h, [70, 70, 76], 200);
         ui.rect(x, y, Math.round(w * Math.min(1, (this.pipT || 0) / DASH.recharge)), h, [150, 140, 90], 220);

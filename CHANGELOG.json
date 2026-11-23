@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.110.2",
+    "date": "2026-11-23",
+    "title": "Dash jump",
+    "changes": [
+      "0.4 s after a dash the stamina bar glows blue for 0.25 s: jump then to spend one more charge for another dash-strength push in the same direction plus a jump"
+    ]
+  },
+  {
     "version": "0.110.1",
     "date": "2026-11-23",
     "title": "Dash sticks to the ground",
