@@ -90,6 +90,7 @@ export class DashPart {
     p.dash.lockJump = true; // в рывке — ни прыжка, ни прыжка в воздухе / от стены (только прыжок из рывка, присед — скольжение)
     this.dashRun = { d: 0, x: dx / l, z: dz / l };
     this.dashFromGround = p.onGround; // прыжок из рывка — только у рывка с земли
+    this.windFx?.(1);
     if (!p.onGround) this.airDashes = (this.airDashes || 0) + 1;
     this.dashCd = DASH.cooldown;
     this.dashSince = 0; //                                 окно прыжка из рывка (dashJump)
@@ -161,6 +162,7 @@ export class DashPart {
     this.groundDash = false; // в прыжке — не прилипает
     if (p.stepHeight === DASH.stick) delete p.stepHeight;
     this.engine.sound.play("dash", { volume: 1.2 });
+    this.windFx?.(1.2);
     this.fx?.burst({ x: p.position.x, y: p.position.y + 0.1, z: p.position.z }, { count: 12, speed: 2.5, color: [150, 200, 255], size: 0.07, life: 0.4, gravity: 1, drag: 3 });
     this.engine.redraw();
     return true;

@@ -98,7 +98,7 @@ export class SessionPart {
     this.controller.canRun = () => this.stamina?.canRun ?? true;
     // прыжок в воздухе (талант DOUBLE JUMP) стоит деление выносливости (scene/dash.js); нет — не прыгнуть
     this.controller.canAirJump = () => (this.pips ?? this.staminaMax) >= 1;
-    this.controller.onAirJump = () => this.spendPip();
+    this.controller.onAirJump = () => { this.spendPip(); this.windFx?.(0.6); };
     // нажатие прыжка: сначала прыжок из рывка (в окно), в воздухе у стены — от стены (scene/dash.js); иначе — обычный
     // во время рывка — только прыжок из рывка (от стены и обычный — нет)
     // в рывке у стены — прыжок от стены (обрывает рывок)

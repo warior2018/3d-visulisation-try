@@ -8,7 +8,7 @@
 //  Движение считает CharacterController (entity.slide), здесь — когда начать / кончить и уклон под ногами.
 // ============================================================
 
-import { SLIDE } from "../config.js";
+import { SLIDE, WIND } from "../config.js";
 
 export class SlidePart {
   // Высота опоры под точкой (x, z) около ног (y): верх ближайшего твёрдого вниз (до 2.5 блоков), иначе null
@@ -81,6 +81,7 @@ export class SlidePart {
       p.velocity.z += slope.z * SLIDE.push;
     }
     this.engine.sound.play("dash", { volume: 0.5 });
+    if (Math.max(speed, Math.hypot(p.velocity.x, p.velocity.z)) >= WIND.slideFrom) this.windFx?.(0.7); // ветер — только быстрое скольжение
   }
 
   stopSlide() {

@@ -1330,3 +1330,13 @@ export const TRAINING = { radius: 22, dummies: [[0, 6], [-5, 11], [5, 11], [0, 1
   // остров с небоскрёбами (на восток, +x): мост bridge, остров half (полсторона), две башни side × side, высотой
   // height, между ними — щель gap блоков (прыжки от стен)
   towers: { bridge: 10, half: 15, side: 8, height: 40, gap: 3 } };
+
+// Ветер от приёмов движения (scene/wind.js): world — полосы позади героя (count, длина м, жизнь с, толщина, цвет);
+// screen — полосы по краям экрана (count, length — доля ширины экрана, thick px, alpha 0…255, time с)
+// slideFrom — скольжение с ветром только с такой скорости (м/с). Ветер: рывок, прыжок из рывка, прыжок в воздухе,
+// быстрое скольжение
+export const WIND = {
+  slideFrom: 8,
+  world: { count: 7, length: 1.4, life: 0.28, width: 3, color: [220, 230, 245] },
+  screen: { count: 10, length: 0.09, thick: 2, alpha: 120, time: 0.3 },
+};

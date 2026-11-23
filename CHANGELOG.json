@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.21",
+    "date": "2026-11-23",
+    "title": "Wind effect",
+    "changes": [
+      "Dash, dash jump, air jump and a fast slide now show a short gust: light streaks behind the hero (third person) and thin streaks at the screen edges"
+    ]
+  },
+  {
     "version": "0.114.20",
     "date": "2026-11-23",
     "title": "Higher air jump",
