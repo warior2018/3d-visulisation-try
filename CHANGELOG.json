@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.14",
+    "date": "2026-11-23",
+    "title": "Dash jump only from the ground",
+    "changes": [
+      "Dash jump works only for a dash started on the ground and while you are still on the ground: no dash jump from an air dash or after dashing off an edge"
+    ]
+  },
+  {
     "version": "0.114.13",
     "date": "2026-11-23",
     "title": "Dash into slide",

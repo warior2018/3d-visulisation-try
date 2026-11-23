@@ -88,6 +88,7 @@ export class DashPart {
     const l = Math.hypot(dx, dz) || 1;
     dash(p, dx, dz, DASH.speed[0], 60, p.onGround ? null : 0, { slide: DASH_SLIDE });
     this.dashRun = { d: 0, x: dx / l, z: dz / l };
+    this.dashFromGround = p.onGround; // прыжок из рывка — только у рывка с земли
     if (!p.onGround) this.airDashes = (this.airDashes || 0) + 1;
     this.dashCd = DASH.cooldown;
     this.dashSince = 0; //                                 окно прыжка из рывка (dashJump)
@@ -132,14 +133,19 @@ export class DashPart {
 
   // Окно прыжка из рывка открыто (DASH.jump: через [0] с после рывка, на [1] с)
   get dashJumpOpen() {
-    const t = this.dashSince;
-    return t !== undefined && t >= DASH.jump[0] && t <= DASH.jump[0] + DASH.jump[1];
+    const t = this.dashSince, p = this.player;
+    if (t === undefined || t < DASH.jump[0] || t > DASH.jump[0] + DASH.jump[1]) return false;
+    // рывок с земли и ты на земле (или только что сошёл с края) — иначе окна нет (и шкала не синеет)
+    return !!this.dashFromGround && !!p && (p.onGround || (this.controller?.sinceGround ?? 1) < 0.1);
   }
 
   // Нажали прыжок (scene/input.js): в окне — прыжок из рывка: деление, ещё толчок туда же, куда рывок, и прыжок
   dashJump() {
     const p = this.player;
     if (!this.dashJumpOpen || !p?.alive || p.mount || (this.pips ?? 0) < 1) return false;
+    // только рывок с земли и пока ты на земле (или только что сошёл с края — 0.1 с): рывок в воздухе и упавший
+    // с края — без прыжка из рывка (обычный прыжок / прыжок в воздухе)
+    if (!this.dashFromGround || !(p.onGround || (this.controller?.sinceGround ?? 1) < 0.1)) return false;
     if (p.speedMultiplier < 0.2 || p.stunned) return false;
     if (p.dash) { p.dash.left = 0; p.dash.keep = true; } // рывок ещё идёт — кончается, его скорость — в прыжке
     this.dashSince = undefined;
