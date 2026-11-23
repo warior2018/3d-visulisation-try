@@ -21,7 +21,9 @@ export class SlidePart {
   // Уклон под героем: { x, z } — куда вниз (единичный), m — крутизна (перепад на метр)
   slopeUnder(p) {
     const r = SLIDE.sample, y = p.position.y, P = p.position;
-    const h = (dx, dz) => this.groundAt(P.x + dx, P.z + dz, y) ?? y - 2.5;
+    // под точкой пусто (край острова, яма) — это не склон: берём высоту под ногами
+    const h0 = this.groundAt(P.x, P.z, y) ?? y;
+    const h = (dx, dz) => this.groundAt(P.x + dx, P.z + dz, y) ?? h0;
     const gx = (h(-r, 0) - h(r, 0)) / (2 * r), gz = (h(0, -r) - h(0, r)) / (2 * r);
     // ступеньки дают рваный уклон — сглаживаем во времени
     const s = (this.slopeSm ||= { x: 0, z: 0 });
