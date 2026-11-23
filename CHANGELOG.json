@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.13",
+    "date": "2026-11-23",
+    "title": "Dash into slide",
+    "changes": [
+      "Crouching during a dash again turns it into a slide with the dash speed"
+    ]
+  },
+  {
     "version": "0.114.12",
     "date": "2026-11-23",
     "title": "Slide animation",

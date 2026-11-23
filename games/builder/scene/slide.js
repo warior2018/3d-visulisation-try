@@ -46,8 +46,8 @@ export class SlidePart {
     const steep = p.onGround && slope.m >= SLIDE.steep; // слишком круто — не устоять (как в Source: съезжаешь сам)
     if (!this.sliding) {
       // присед с разгоном — скольжение; присед на склоне (хоть стоя) — тоже; крутой склон — всегда
-      // во время рывка скольжения нет: рывок сам не отменить (как в Deadlock — только прыжком из рывка)
-      if (!(p.dash?.left > 0) && (steep || (want && p.onGround && ((pressed && speed >= SLIDE.minSpeed) || onSlope)))) this.startSlide(p, slope, speed);
+      const dashing = p.dash?.left > 0 ? Math.hypot(p.dash.x, p.dash.z) : 0; // во время рывка — его скорость
+      if (steep || (want && p.onGround && ((pressed && Math.max(speed, dashing) >= SLIDE.minSpeed) || onSlope))) this.startSlide(p, slope, speed);
     } else {
       this.slideAir = p.onGround ? 0 : (this.slideAir || 0) + dt;
       if ((!want && !steep) || this.slideAir > 0.15 || (speed < SLIDE.endSpeed && !onSlope)) return this.stopSlide();
@@ -66,6 +66,11 @@ export class SlidePart {
   }
 
   startSlide(p, slope, speed) {
+    if (p.dash?.left > 0) { // присед во время рывка — рывок обрывается, скорость рывка — в скольжение (как в Deadlock)
+      p.velocity.x = p.dash.x;
+      p.velocity.z = p.dash.z;
+      p.dash = null;
+    }
     this.sliding = true;
     this.slideAir = 0;
     p.slide = { friction: SLIDE.friction, steer: SLIDE.steer, ax: 0, az: 0, cap: SLIDE.maxMult };
