@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.24",
+    "date": "2026-11-23",
+    "title": "Air control at high speed",
+    "changes": [
+      "At high speed in the air (after a dash, wall jump or while bunny hopping) the movement keys now steer you (about 125 degrees per second) and pressing back brakes - no more flying off into the void without control"
+    ]
+  },
+  {
     "version": "0.114.23",
     "date": "2026-11-23",
     "title": "Slash effects in the world",

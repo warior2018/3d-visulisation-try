@@ -254,9 +254,10 @@ export const GAMEPAD_ENABLED = false;
 // source — движение как в Source (CharacterController.sourceMove): friction — трение до шага (во сколько раз
 // скорости за секунду), stopFriction — то же, когда клавиши отпущены (останавливаешься сразу, не скользишь), stopSpeed — ниже неё трение как от этой скорости (останавливаешься, а не ползёшь);
 // groundAccel — разгон до шага на земле (×шаг в секунду: 20 — за 0.05 с без трения); airAccel / airCap — в воздухе: ускорение
-// (×шаг в секунду) и сколько м/с можно набрать ВДОЛЬ клавиш (повороты в полёте: air strafe)
+// (×шаг в секунду) и сколько м/с можно набрать ВДОЛЬ клавиш (повороты в полёте: air strafe); airSteer / airBrake —
+// на большой скорости в воздухе клавиши поворачивают разгон (рад/с) и тормозят, если жмёшь против (м/с за секунду)
 export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18, boostGround: 6, boostAir: 0.6, boostWater: 20, steer: 2.4, brake: 16, maxMult: 1000,
-  source: true, friction: 8, stopFriction: 30, stopSpeed: 2, groundAccel: 20, airAccel: 25, airCap: 1.6 };
+  source: true, friction: 8, stopFriction: 30, stopSpeed: 2, groundAccel: 20, airAccel: 25, airCap: 1.6, airSteer: 2.2, airBrake: 9 };
 // Маунт разгоняется дольше (тяжёлый зверь)
 export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
 

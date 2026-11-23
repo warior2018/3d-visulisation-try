@@ -145,6 +145,18 @@ export class CharacterController {
       v.z *= ns / s;
       s = ns;
     }
+    // Управляемость на большой скорости в воздухе (не как в Source — чтобы не улетать в бездну): клавиши
+    // поворачивают разгон на airSteer рад/с, жмёшь против — тормозит на airBrake м/с за секунду
+    if (air && wishspeed > 0 && s > walk && a.airSteer) {
+      let dx = v.x / s, dz = v.z / s;
+      const c0 = dx * wx + dz * wz;
+      if (c0 < -0.3) s = Math.max(walk, s - a.airBrake * dt); //  против движения — тормоз (не разворот)
+      const ang = c0 < -0.3 ? 0 : Math.atan2(dx * wz - dz * wx, c0), turn = Math.max(-a.airSteer * dt, Math.min(a.airSteer * dt, ang));
+      const c = Math.cos(turn), sn = Math.sin(turn);
+      [dx, dz] = [dx * c - dz * sn, dx * sn + dz * c];
+      v.x = dx * s;
+      v.z = dz * s;
+    }
     // ускорение по проекции (Source: Accelerate / AirAccelerate)
     if (wishspeed > 0) {
       const cap = air ? Math.min(wishspeed, a.airCap) : wishspeed;
