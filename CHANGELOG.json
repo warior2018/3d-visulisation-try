@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.114.18",
+    "date": "2026-11-23",
+    "title": "Wall jump speed",
+    "changes": [
+      "Wall jump adds a 6 m/s push to your current speed (including dash speed) instead of a fixed speed; near a wall it can also cancel a dash",
+      "The faster you move, the lower the wall jump: 65% of a normal jump when slow, down to 25% at 12 m/s"
+    ]
+  },
+  {
     "version": "0.114.17",
     "date": "2026-11-23",
     "title": "Chests in multiplayer",

@@ -169,7 +169,8 @@ export class DashPart {
   // Прыжок от стены (бесплатно): в воздухе у стены — вверх и от неё (DASH.wall). Вернёт, прыгнули ли
   wallJump() {
     const p = this.player;
-    if (!p?.alive || p.onGround || p.mount || p.inWater || (this.wallJumpCd || 0) > 0) return false;
+    const dashing = p?.dash?.left > 0; // в рывке у стены — прыжок от стены обрывает рывок (и на земле)
+    if (!p?.alive || (p.onGround && !dashing) || p.mount || p.inWater || (this.wallJumpCd || 0) > 0) return false;
     if (p.speedMultiplier < 0.2 || p.stunned) return false;
     // стены рядом: клетки сбоку на высоте ног и пояса — нормаль от стены
     const P = p.position, r = ((p.radius || 0.3) + 0.35) * DASH.wall.reach;
@@ -214,10 +215,27 @@ export class DashPart {
         }
       }
     }
-    const speed = Math.max(W.push, Math.hypot(p.velocity.x, p.velocity.z));
-    p.velocity.x = dx * speed;
-    p.velocity.z = dz * speed;
-    p.velocity.y = Math.max(p.velocity.y, jumpV * W.up);
+    // скорость: нынешняя (в рывке — скорость рывка; он обрывается) без части «в стену» + толчок W.push по
+    // направлению прыжка — складываются векторно
+    let vx = p.velocity.x, vz = p.velocity.z;
+    if (dashing) {
+      vx = p.dash.x;
+      vz = p.dash.z;
+      p.dash.left = 0;
+      p.dash.keep = true;
+      this.dashRun = null;
+    }
+    const into = vx * ux + vz * uz;
+    if (into < 0) { vx -= ux * into; vz -= uz * into; }
+    p.velocity.x = vx + dx * W.push;
+    p.velocity.z = vz + dz * W.push;
+    // высота: чем быстрее летишь, тем ниже — от W.up[0] (до W.upSpeed[0] м/с) до W.up[1] (от W.upSpeed[1] м/с) доли
+    // высоты обычного прыжка
+    const sp = Math.hypot(p.velocity.x, p.velocity.z), [s0, s1] = W.upSpeed;
+    const k = Math.max(0, Math.min(1, (sp - s0) / (s1 - s0)));
+    const frac = W.up[0] + (W.up[1] - W.up[0]) * k;
+    p.velocity.y = Math.max(p.velocity.y, jumpV * Math.sqrt(frac));
+    p.onGround = false;
     this.wallJumpCd = W.cooldown;
     this.engine.sound.play("dash", { volume: 0.6 });
     return true;

@@ -101,7 +101,8 @@ export class SessionPart {
     this.controller.onAirJump = () => this.spendPip();
     // нажатие прыжка: сначала прыжок из рывка (в окно), в воздухе у стены — от стены (scene/dash.js); иначе — обычный
     // во время рывка — только прыжок из рывка (от стены и обычный — нет)
-    this.controller.jumpOverride = () => this.dashJump() || (!(this.player.dash?.left > 0) && !this.player.onGround && this.wallJump());
+    // в рывке у стены — прыжок от стены (обрывает рывок)
+    this.controller.jumpOverride = () => this.dashJump() || this.wallJump();
     // Блок отбил удар (движок: статус parry → entity.onBlock) — «дзынь» и надпись
     // Попали в голову — шлем срезает часть урона (до брони; ARMOR: headshot)
     this.player.onIncoming = (d) => {
