@@ -800,7 +800,8 @@ export class GameScene extends Scene {
     this.drawPortals(); // порталы: светящиеся овалы (scene/portals.js)
     this.updateFireflies?.(dt); // светлячки в комнате портала
     // Покачивание головы: скорость по земле, на земле ли, бежим ли
-    this.bob.update(dt, Math.hypot(player.velocity.x, player.velocity.z), player.onGround, !background && engine.input.isDown("run"));
+    this.bob.update(dt, Math.hypot(player.velocity.x, player.velocity.z) * (this.sliding ? 0.12 : 1), player.onGround, // в скольжении оружие почти не качается
+      !background && engine.input.isDown("run"));
     this.staminaFlash = Math.max(0, (this.staminaFlash || 0) - dt);
     // Ступеньки / полублоки (физика: autoStep и шаг вниз — e.stepped): высота камеры плавно догоняет высоту героя
     // (а не «рывок + откат»: раньше откат шёл от сглаженной позиции и дёргался между тиками). Ещё stepTime с после
