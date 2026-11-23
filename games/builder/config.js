@@ -255,8 +255,8 @@ export const GAMEPAD_ENABLED = false;
 // скорости за секунду), stopSpeed — ниже неё трение как от этой скорости (останавливаешься, а не ползёшь);
 // groundAccel — разгон до шага на земле (×шаг в секунду: 20 — за 0.05 с без трения); airAccel / airCap — в воздухе: ускорение
 // (×шаг в секунду) и сколько м/с можно набрать ВДОЛЬ клавиш (повороты в полёте: air strafe)
-export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18, boostGround: 10, boostAir: 0.6, boostWater: 20, steer: 2.4, brake: 16, maxMult: 6,
-  source: true, friction: 10, stopSpeed: 2, groundAccel: 20, airAccel: 25, airCap: 1.6 };
+export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18, boostGround: 6, boostAir: 0.6, boostWater: 20, steer: 2.4, brake: 16, maxMult: 6,
+  source: true, friction: 8, stopSpeed: 2, groundAccel: 20, airAccel: 25, airCap: 1.6 };
 // Маунт разгоняется дольше (тяжёлый зверь)
 export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
 
@@ -1222,7 +1222,9 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // прыжка из рывка; airDashes — рывков в воздухе до приземления (талант — больше); wall — прыжок от стены
 // push — от стены м/с, up — доля прыжка вверх, cooldown; max — бесплатных за полёт, дальше — по делению выносливости; fall — быстрое падение: присед дважды за
 // double с в воздухе — вниз со скоростью speed (1 деление)
-export const DASH = { pips: 3, recharge: 4, burst: 9, impulse: 10, cooldown: 0.8, stick: 0.4, jump: [0.3, 0.25], airDashes: 1,
+// hold — сколько секунд бросок держит скорость (без трения); jumpSpeed — прыжок из рывка: скорость вдоль рывка не
+// меньше этой (impulse больше не используется)
+export const DASH = { pips: 3, recharge: 4, burst: 12, hold: 0.2, jumpSpeed: 15, impulse: 10, cooldown: 0.8, stick: 0.4, jump: [0.3, 0.25], airDashes: 1,
   wall: { push: 7, up: 0.9, cooldown: 0.4, max: 2 }, fall: { double: 0.3, speed: 26 } };
 // Скольжение (scene/slide.js), как в Deadlock: minSpeed — с какой скорости (м/с) присед становится скольжением;
 // slope — с какого уклона (перепад на метр) скользишь и без разгона; gravity — разгон под горку (м/с² на единицу

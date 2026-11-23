@@ -126,6 +126,7 @@ export class CharacterController {
   //           сверх шага — линейно boostGround м/с за секунду (разгон от рывка живёт ~секунду), в воде — boostWater;
   //   ускорение: на земле — до шага за groundAccel⁻¹ с; в воздухе — вдоль клавиш не больше airCap м/с
   //              (ускорение airAccel × шаг), в воздухе лишняя скорость гаснет на boostAir м/с за секунду;
+  //   entity.noFriction > 0 — трения нет (рывок держит скорость: игра);
   //   жмёшь против движения на земле — ещё brake; больше maxMult × шага не бывает; в капкане — стоп
   sourceMove(entity, wx, wz, wishspeed, dt, jumping) {
     const a = this.accel, v = entity.velocity, air = !entity.onGround;
@@ -136,7 +137,7 @@ export class CharacterController {
     if (s > 0.001) {
       let drop = 0;
       if (entity.inWater) drop = (s > walk ? a.boostWater : Math.max(s, a.stopSpeed) * a.friction) * dt;
-      else if (!air && !jumping) drop = (s > walk + 0.05 ? a.boostGround : Math.max(s, a.stopSpeed) * a.friction) * dt;
+      else if (!air && !jumping && !(entity.noFriction > 0)) drop = (s > walk + 0.05 ? a.boostGround : Math.max(s, a.stopSpeed) * a.friction) * dt;
       else if (air && s > walk) drop = a.boostAir * dt;
       if (!air && wishspeed > 0 && (v.x * wx + v.z * wz) < 0 && s > walk) drop += a.brake * dt; // против движения — тормоз
       const ns = Math.max(0, s - drop);

@@ -23,6 +23,7 @@ export class DashPart {
   updateDash(dt) {
     this.dashCd = Math.max(0, (this.dashCd || 0) - dt);
     this.wallJumpCd = Math.max(0, (this.wallJumpCd || 0) - dt);
+    if (this.player?.noFriction > 0) this.player.noFriction -= dt;
     if (this.player?.onGround) {
       this.airDashes = 0; // приземлился — рывки в воздухе и прыжки от стен снова есть
       this.wallJumps = 0;
@@ -86,6 +87,7 @@ export class DashPart {
     p.velocity.x = ux * sp + px * 0.5;
     p.velocity.z = uz * sp + pz * 0.5;
     if (!p.onGround) this.airDashes = (this.airDashes || 0) + 1;
+    p.noFriction = DASH.hold; // бросок держит скорость DASH.hold с (трения нет), потом гаснет
     this.dashCd = DASH.cooldown;
     this.dashSince = 0; //                                 окно прыжка из рывка (dashJump)
     this.dashDir = { x: dx / l, z: dz / l };
@@ -110,8 +112,10 @@ export class DashPart {
     this.engine.input.wasPressed?.("jump"); // нажатие — наше: управление героем его уже не увидит (не будет второго прыжка)
     this.dashSince = undefined;
     this.pips--;
-    p.velocity.x += this.dashDir.x * DASH.impulse;
-    p.velocity.z += this.dashDir.z * DASH.impulse;
+    // скорость вдоль рывка — не меньше DASH.jumpSpeed (не прибавляет сверху: быстрее уже — остаётся)
+    const along = p.velocity.x * this.dashDir.x + p.velocity.z * this.dashDir.z, add = Math.max(0, DASH.jumpSpeed - along);
+    p.velocity.x += this.dashDir.x * add;
+    p.velocity.z += this.dashDir.z * add;
     const jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 20) * (this.controller?.jumpHeight ?? 1.25));
     p.velocity.y = Math.max(p.velocity.y, jumpV);
     p.onGround = false;

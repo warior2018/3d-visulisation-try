@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.114.2",
+    "date": "2026-11-23",
+    "title": "Dash rebalance",
+    "changes": [
+      "Dash: 12 m/s that holds for 0.2 s, then fades; dash jump sets speed to at least 15 m/s instead of adding 10",
+      "Speed above walking fades slower on the ground (6 m/s per second instead of 10); a bit less ground friction"
+    ]
+  },
+  {
     "version": "0.114.1",
     "date": "2026-11-23",
     "title": "Training: skyscrapers, wall jump rules",
