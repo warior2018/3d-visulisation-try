@@ -316,7 +316,8 @@ export class CharacterController {
       this.jumped = true;
     } else if (this.jumpBlocked || dashing) {
       entity.swimUp = false;
-      // не прыгаем (рывок сам ведёт по вертикали — нажатие не тратим, оно останется «про запас»)
+      // не прыгаем; в рывке нажатие и не копится (иначе прыжок сработал бы сразу после рывка)
+      if (dashing && entity.dash?.lockJump) this.jumpBuffer = 0;
     } else if ((jumpDown || want) && (entity.onGround || coyote)) {
       // На земле — по зажатию (держишь — прыгаешь снова, как в Minecraft) или по нажатию: короткое касание
       // между кадрами (при низком FPS) тоже прыжок — раньше на земле смотрели только «зажат ли сейчас»

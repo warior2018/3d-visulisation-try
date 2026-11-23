@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.15",
+    "date": "2026-11-23",
+    "title": "Dash locks other moves",
+    "changes": [
+      "During a dash only a dash jump or a slide (crouch) is possible: no normal or air jump, no wall jump, no fast fall, and a jump pressed during the dash isn't saved for after it"
+    ]
+  },
+  {
     "version": "0.114.14",
     "date": "2026-11-23",
     "title": "Dash jump only from the ground",

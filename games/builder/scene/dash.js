@@ -87,6 +87,7 @@ export class DashPart {
     // дальше гаснет сама: на земле быстро (до шага), в воздухе медленно (MOVEMENT.boost*)
     const l = Math.hypot(dx, dz) || 1;
     dash(p, dx, dz, DASH.speed[0], 60, p.onGround ? null : 0, { slide: DASH_SLIDE });
+    p.dash.lockJump = true; // в рывке — ни прыжка, ни прыжка в воздухе / от стены (только прыжок из рывка, присед — скольжение)
     this.dashRun = { d: 0, x: dx / l, z: dz / l };
     this.dashFromGround = p.onGround; // прыжок из рывка — только у рывка с земли
     if (!p.onGround) this.airDashes = (this.airDashes || 0) + 1;
@@ -238,6 +239,7 @@ export class DashPart {
   // Быстрое падение: присед дважды в воздухе (за DASH.fall.double с) — рывок вниз, 1 деление
   crouchPressed() {
     const p = this.player, now = this.combatClock || 0;
+    if (p?.dash?.left > 0) return; // в рывке — не падение (присед в рывке — скольжение: scene/slide.js)
     const second = now - (this.lastCrouchAt ?? -9) < DASH.fall.double;
     this.lastCrouchAt = now;
     if (!second || !p?.alive || p.onGround || p.mount || (this.pips ?? this.staminaMax) < 1) return;
