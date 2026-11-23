@@ -122,7 +122,8 @@ export class DashPart {
     }
     const v = Math.hypot(D.x, D.z) || DASH.speed[0];
     r.d += v * dt;
-    const [v0, v1, v2] = DASH.speed, half = DASH.distance / 2;
+    // рывок в воздухе к концу почти не теряет (DASH.airEnd): долетаешь быстрым — приземлился с приседом — скольжение
+    const [v0, v1] = DASH.speed, v2 = this.dashFromGround ? DASH.speed[2] : DASH.airEnd, half = DASH.distance / 2;
     // направление — как сейчас у рывка (об стену он мог повернуть вдоль неё)
     const ux = D.x / v || r.x, uz = D.z / v || r.z;
     if (r.d >= DASH.distance) {

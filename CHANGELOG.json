@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.114.28",
+    "date": "2026-11-23",
+    "title": "Air dash into slide",
+    "changes": [
+      "An air dash keeps more speed at the end (8 m/s instead of 5.25)",
+      "Landing while holding crouch with enough speed starts a slide (air dash + crouch -> slide on landing)"
+    ]
+  },
+  {
     "version": "0.114.27",
     "date": "2026-11-23",
     "title": "No crouch slow in slides and air",

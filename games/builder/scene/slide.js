@@ -39,6 +39,9 @@ export class SlidePart {
     const want = !!this.crouchWanted?.();
     const pressed = want && !this.crouchWas;
     this.crouchWas = want;
+    // приземлился с зажатым приседом — как нажатие (рывок в воздухе + присед → скольжение при приземлении)
+    const landed = !!p?.onGround && this.slideWasAir;
+    this.slideWasAir = !!p && !p.onGround;
     if (!p?.alive || p.mount || this.flying || this.downed) return this.stopSlide();
     const speed = Math.hypot(p.velocity.x, p.velocity.z);
     const slope = this.slopeUnder(p);
@@ -47,7 +50,7 @@ export class SlidePart {
     if (!this.sliding) {
       // присед с разгоном — скольжение; присед на склоне (хоть стоя) — тоже; крутой склон — всегда
       const dashing = p.dash?.left > 0 ? Math.hypot(p.dash.x, p.dash.z) : 0; // во время рывка — его скорость
-      if (steep || (want && p.onGround && ((pressed && Math.max(speed, dashing) >= SLIDE.minSpeed) || onSlope))) this.startSlide(p, slope, speed);
+      if (steep || (want && p.onGround && (((pressed || landed) && Math.max(speed, dashing) >= SLIDE.minSpeed) || onSlope))) this.startSlide(p, slope, speed);
     } else {
       this.slideAir = p.onGround ? 0 : (this.slideAir || 0) + dt;
       if ((!want && !steep) || this.slideAir > 0.15 || (speed < SLIDE.endSpeed && !onSlope)) return this.stopSlide();
