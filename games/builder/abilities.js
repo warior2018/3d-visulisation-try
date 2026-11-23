@@ -659,7 +659,12 @@ export class ShotgunAbility extends Ability {
     if (!used) return;
     this.blastReadyAt = performance.now() / 1000 + B.cooldown;
     const d = g.look.lookDirection();
-    dash(g.player, -d.x, -d.z, B.push, B.pushTime, -d.y + B.lift, { slide: DASH_SLIDE }); // отдача: назад (и вверх, если стрелял вниз); по стенам — скользит
+    // отдача — толчок назад (и вверх, если стрелял вниз): прибавляется к скорости, дальше гаснет (инерция)
+    const n = { x: -d.x, y: -d.y + B.lift, z: -d.z }, nl = Math.hypot(n.x, n.y, n.z) || 1;
+    g.player.velocity.x += (n.x / nl) * B.push;
+    g.player.velocity.z += (n.z / nl) * B.push;
+    g.player.velocity.y = Math.max(g.player.velocity.y, (n.y / nl) * B.push * 0.6);
+    if (g.player.velocity.y > 0) g.player.onGround = false;
     // Дробь веером — несколько ярких полос из ствола по конусу залпа
     const eye = g.look.position, R = ATTACKS.shotgunBlast.reach;
     for (let i = 0; i < 9; i++) {

@@ -248,7 +248,10 @@ export const GAMEPAD_ENABLED = false;
 // остановиться, air / airStop — то же в воздухе (меньше — резче управление в полёте, как в Overwatch),
 // over — сбросить скорость сверх бега (после рывка / отброса). Пробный вариант — подбираем (консоль: move_*)
 // ещё ×1.3 быстрее (первая проба была 0.2 / 0.1 / 0.3 / 0.8 / 0.35, потом ×1.5)
-export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18 };
+// Инерция (сверх шага: рывок, взрыв, отдача) — boostGround / boostAir / boostWater: на сколько м/с гаснет за
+// секунду по земле / в воздухе / в воде; steer — как быстро клавиши поворачивают разгон (рад/с); brake — сколько
+// ещё гасит, если жмёшь против (и половину — если отпустил на земле); maxMult — больше скольких шагов не бывает
+export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18, boostGround: 10, boostAir: 2.5, boostWater: 20, steer: 2.4, brake: 16, maxMult: 6 };
 // Маунт разгоняется дольше (тяжёлый зверь)
 export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
 
@@ -1204,9 +1207,9 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // Прощение краёв у рывков: stepUp — задел край блока низом тела не глубже 0.5 — поднимает на него; stepDown —
 // задел головой край потолка не глубже 0.25 — проходишь под ним; corner — задел угол стены краешком до 0.25 м — огибаешь
 // Рывок и выносливость (scene/dash.js), как в Deadlock: pips — делений выносливости (рывок тратит одно);
-// recharge — за сколько секунд копится одно деление (по одному); speed — скорость рывка (м/с), time — сколько
-// длится (с): speed × time ≈ 4.4 м
-export const DASH = { pips: 2, recharge: 4, speed: 22, time: 0.2 };
+// recharge — за сколько секунд копится одно деление (по одному); impulse — сколько м/с рывок прибавляет к
+// скорости (векторно: в сторону клавиш движения), дальше гаснет (MOVEMENT.boost*); cooldown — пауза между рывками
+export const DASH = { pips: 2, recharge: 4, impulse: 10, cooldown: 0.8 };
 export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
 // Прыжок с мачете (Q): нож — обратным хватом (лезвием вниз), прыжок вперёд на distance м с замахом. Хитбокс — там,
 // где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся

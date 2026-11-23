@@ -124,6 +124,31 @@ export class CharacterController {
     const air = !entity.onGround;
     const want = Math.hypot(tx, tz), have = Math.hypot(v.x, v.z);
     const base = Math.max(0.1, this.speed);
+    // Инерция (accel.boostGround задан): скорость сверх шага (рывок, взрыв, отдача) гаснет сама — по земле
+    // boostGround м/с за секунду, в воздухе boostAir, в воде boostWater; клавиши её поворачивают (steer рад/с) и
+    // тормозят, если жмёшь против (brake); больше maxMult × шага не бывает; в капкане — сразу шаг
+    if (a.boostGround !== undefined) {
+      const walk = base * Math.max(1, entity.speedMultiplier);
+      const cap = walk * (a.maxMult ?? 6);
+      if (have > cap) { v.x *= cap / have; v.z *= cap / have; }
+      const fast = Math.min(have, cap);
+      if (fast > walk + 0.05 && entity.speedMultiplier >= 0.2) {
+        let dx = v.x / fast, dz = v.z / fast;
+        let decay = entity.inWater ? a.boostWater : air ? a.boostAir : a.boostGround;
+        if (want > 0.01) {
+          const ix = tx / want, iz = tz / want;
+          // повернуть направление к клавишам — не больше steer × dt
+          const ang = Math.atan2(dx * iz - dz * ix, dx * ix + dz * iz), turn = Math.max(-a.steer * dt, Math.min(a.steer * dt, ang));
+          const c = Math.cos(turn), s = Math.sin(turn);
+          [dx, dz] = [dx * c - dz * s, dx * s + dz * c];
+          if (dx * ix + dz * iz < 0) decay += a.brake; // жмёшь против — тормозишь
+        } else if (!air) decay += a.brake * 0.5; //       отпустил клавиши на земле — тормозит быстрее
+        const s2 = Math.max(want > 0.01 ? walk : 0, fast - decay * dt);
+        v.x = dx * s2;
+        v.z = dz * s2;
+        return;
+      }
+    }
     let time = want > 0.01 ? (air ? a.air : a.ground) : (air ? a.airStop : a.stop);
     if (have > Math.max(want, base * this.runMultiplier) + 0.05) time = Math.min(time, a.over ?? time); // лишняя скорость
     const rate = (base / Math.max(0.01, time)) * dt; // м/с за этот шаг
@@ -175,6 +200,11 @@ export class CharacterController {
       entity.velocity.x = entity.dash.x;
       entity.velocity.z = entity.dash.z;
       entity.dash.left -= dt;
+      // рывок способности (ИАЙ, прыжок мачете) кончился — его скорость не уносит дальше по инерции: обычный шаг
+      if (entity.dash.left <= 0 && !entity.dash.keep) {
+        entity.velocity.x = tx;
+        entity.velocity.z = tz;
+      }
     }
 
     // Прыжок. Какая нужна скорость, чтобы взлететь на h метров? Из физики: v² = 2·g·h

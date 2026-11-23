@@ -1,14 +1,14 @@
 // ============================================================
 //  Рывок и выносливость (DASH), как в Deadlock: выносливость — деления (DASH.pips, базово 2); рывок (Shift —
 //  skill3) тратит одно. Деления копятся по одному: каждое — за DASH.recharge секунд (базово 4), пока не полные.
-//  Рывок — коротко и быстро туда, куда жмёшь клавиши движения (не жмёшь — вперёд, куда смотришь); в воздухе —
-//  ровно по горизонтали (не падаешь, пока длится), по земле — по земле; в стену — скользит вдоль (DASH_SLIDE).
-//  Нельзя: верхом, в капкане / оглушён, лёжа (матч), уже в рывке. Шкала — под прицелом: деления, заполняемое
+//  Рывок — толчок (DASH.impulse м/с) туда, куда жмёшь клавиши движения (не жмёшь — вперёд, куда смотришь):
+//  прибавляется к скорости векторно, дальше гаснет сам (инерция: CharacterController.approach, MOVEMENT.boost*),
+//  клавиши его поворачивают. Между рывками — DASH.cooldown. Бега нет: шаг один, разгон — только так.
+//  Нельзя: верхом, в капкане / оглушён, лёжа (матч), в рывке способности. Шкала — под прицелом: деления, заполняемое
 //  сейчас — полоской.
 // ============================================================
 
-import { DASH, DASH_SLIDE } from "../config.js";
-import { dash } from "../../../engine/index.js";
+import { DASH } from "../config.js";
 
 export class DashPart {
   // Сколько делений всего (база + таланты, если появятся: talentStats.stamina)
@@ -18,6 +18,7 @@ export class DashPart {
 
   // Каждый тик: деления копятся по одному
   updateDash(dt) {
+    this.dashCd = Math.max(0, (this.dashCd || 0) - dt);
     const max = this.staminaMax;
     this.pips ??= max;
     if (this.pips > max) this.pips = max;
@@ -37,6 +38,7 @@ export class DashPart {
     const p = this.player;
     if (!p?.alive || this.downed || p.mount || p.dash || this.pull) return;
     if (p.speedMultiplier < 0.2 || p.stunned) return; // в капкане / оглушён — никуда
+    if ((this.dashCd || 0) > 0) return; //               пауза между рывками
     if ((this.pips ?? this.staminaMax) < 1) return this.noStamina?.();
     // куда: клавиши движения относительно взгляда; не жмёшь — вперёд
     const input = this.engine.input;
@@ -48,8 +50,11 @@ export class DashPart {
     if (!fwd && !side) fwd = 1;
     const yaw = this.look.yaw, s = Math.sin(yaw), c = Math.cos(yaw);
     const dx = s * fwd + c * side, dz = c * fwd - s * side;
-    const air = !p.onGround;
-    dash(p, dx, dz, DASH.speed, DASH.time, air ? 0 : null, { slide: DASH_SLIDE }); // в воздухе — ровно, без падения
+    // толчок: прибавляется к нынешней скорости векторно (дальше гаснет и не больше maxMult шагов — controller)
+    const l = Math.hypot(dx, dz) || 1;
+    p.velocity.x += (dx / l) * DASH.impulse;
+    p.velocity.z += (dz / l) * DASH.impulse;
+    this.dashCd = DASH.cooldown;
     this.pips = (this.pips ?? this.staminaMax) - 1;
     this.engine.sound.play("dash");
     this.fx?.burst({ x: p.position.x, y: p.position.y + 0.3, z: p.position.z }, { count: 8, speed: 2, color: [210, 210, 220], size: 0.06, life: 0.35, gravity: 1, drag: 3 });

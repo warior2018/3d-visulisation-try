@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.110.0",
+    "date": "2026-11-23",
+    "title": "Momentum movement",
+    "changes": [
+      "No sprint: one walk speed; speed above it is momentum that fades by itself - slowly in the air, faster on the ground, strongly in water, at once in a trap",
+      "Dash (Shift) adds speed in the direction you move and stacks as vectors; 0.8 s between dashes; up to 6x your walk speed",
+      "Movement keys steer the momentum smoothly, pressing against it brakes; shotgun recoil is now an impulse too"
+    ]
+  },
+  {
     "version": "0.109.0",
     "date": "2026-11-23",
     "title": "Dash and stamina",
