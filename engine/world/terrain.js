@@ -114,7 +114,8 @@ export class Terrain {
   }
 
   // Высота на одном острове (круг disc); вне его — 0
-  discHeight(disc, x, z) {
+  // raw — без округления до блока (для неполных блоков на склонах: build)
+  discHeight(disc, x, z, raw = false) {
     const d = Math.hypot(x - disc.x, z - disc.z);
     if (d >= disc.r) return 0;
     // Холмы: шум, только «плюс» (впадины ниже пола не бывают)
@@ -135,6 +136,7 @@ export class Terrain {
     // К краю круга — плавно в ноль; в центре главного — ровно (там появляется герой)
     h *= smoothstep(disc.r, disc.r - disc.edge, d);
     if (disc.main) h *= smoothstep(this.flatCenter * 0.5, this.flatCenter * 1.5, d);
+    if (raw) return Math.max(this.base, this.base + h);
     return Math.max(this.base, Math.round(this.base + h));
   }
 
@@ -143,7 +145,7 @@ export class Terrain {
   // underside — летающие острова: под каждым островом — каменный «корень» вниз (конус), глубина в центре —
   // underside × радиус острова (0 — нет: острова лежат на полу мира)
   // undersideBottom — конус до этой высоты (y) у каждого острова, сужается к низу (острый); null — как раньше (× радиус)
-  build(world, { grass = [96, 160, 72], dirt = [130, 96, 62], stone = [140, 140, 146], snow = [236, 240, 246], rockLine = 10, snowLine = 14, underside = 0, rock = [112, 104, 100], undersideBottom = null } = {}) {
+  build(world, { grass = [96, 160, 72], dirt = [130, 96, 62], stone = [140, 140, 146], snow = [236, 240, 246], rockLine = 10, snowLine = 14, underside = 0, rock = [112, 104, 100], undersideBottom = null, shapes = null } = {}) {
     let placed = 0;
     const tops = []; // верх каждого столбика — потом сгладить уступы в 1 блок полублоками
     const done = new Set(); // столбики, уже уложенные (острова не перекрываются, но на всякий случай)
@@ -157,7 +159,7 @@ export class Terrain {
         if (h <= 0) continue;
         done.add(key);
         const lift = disc.lift || 0;
-        tops.push([x, lift + h, z]);
+        tops.push([x, lift + h, z, disc]);
         for (let y = 0; y < h; y++) {
           const top = y === h - 1;
           let color = y >= h - 3 ? dirt : stone;
@@ -172,6 +174,24 @@ export class Terrain {
             ? Math.max(1, Math.floor(((disc.lift || 0) - undersideBottom) * (1 - Math.min(1, d)) ** 1.6 + noise * 2)) // острый конус до undersideBottom
             : Math.max(1, Math.floor((1 - Math.min(1, d) ** 2) * disc.r * underside + noise * 3));
           for (let y = -1; y >= -depth; y--) if (world.place(x, lift + y, z, y > -3 ? dirt : rock)) placed++;
+        }
+      }
+    }
+    // Склоны плавнее: на столбике у перепада (сосед другой высоты) верх — по настоящей высоте рельефа, с точностью
+    // до четверти блока: выше блока на 0.25 / 0.5 — четверть / полублок сверху; ниже на 0.25 / 0.5 — верхний блок
+    // становится 0.75 / полублоком (shapes — неполные блоки мира: { quarter, half, threeQ })
+    if (shapes) {
+      const H = new Map(tops.map(([x, y, z, d]) => [`${x},${z}${d.sky ? "s" : ""}`, y]));
+      for (const [x, y, z, disc] of tops) {
+        const s = disc.sky ? "s" : "";
+        if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => { const n = H.get(`${x + dx},${z + dz}${s}`); return n !== undefined && n !== y; })) continue;
+        const f = (disc.lift || 0) + this.discHeight(disc, x + 0.5, z + 0.5, true) - y; // −0.5…0.5: настоящая высота против блоков
+        const top = world.get(x, y - 1, z);
+        if (!top || world.has(x, y, z)) continue;
+        if (f >= 0.125) world.place(x, y, z, top.color, f >= 0.375 ? shapes.half : shapes.quarter);
+        else if (f <= -0.125) {
+          world.remove(x, y - 1, z);
+          world.place(x, y - 1, z, top.color, f <= -0.375 ? shapes.half : shapes.threeQ);
         }
       }
     }

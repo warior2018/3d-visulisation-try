@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.111.3",
+    "date": "2026-11-23",
+    "title": "Smoother slopes and bridges",
+    "changes": [
+      "New worlds: slopes follow the real terrain height to a quarter block (0.25 / 0.5 / 0.75 blocks)",
+      "Bridge decks go up and down in quarter-block steps"
+    ]
+  },
+  {
     "version": "0.111.2",
     "date": "2026-11-23",
     "title": "Smooth hero steps in third person",

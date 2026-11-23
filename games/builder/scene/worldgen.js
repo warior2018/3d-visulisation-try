@@ -5,7 +5,7 @@
 // ============================================================
 
 import { WORLDGEN, PALETTE, LIGHTS } from "../config.js";
-import { randomInt, Terrain, scatter, flattenArea, buildHouse, buildBigHouse, buildRuins, buildCastle, buildTower, buildCratePile, buildTree } from "../../../engine/index.js";
+import { randomInt, Terrain, scatter, flattenArea, buildHouse, buildBigHouse, buildRuins, buildCastle, buildTower, buildCratePile, buildTree , HALF, QUARTER, THREE_Q } from "../../../engine/index.js";
 import { DEFAULT_SPAWNS, RESIDENTS } from "../creatures.js";
 import { ITEMS, isWeapon, isArmor, itemName, isUsable } from "../items.js";
 
@@ -61,7 +61,7 @@ export class WorldgenPart {
     // 1. Рельеф
     this.terrain = new Terrain({ ...W.terrain, seed: 1 + Math.floor(rnd() * 1e9) });
     this.terrainParams = W.terrain; // в сохранение: рельеф пересчитывается по ним (а не по текущему config)
-    const terrainBlocks = this.terrain.build(this.world, W.colors);
+    const terrainBlocks = this.terrain.build(this.world, { ...W.colors, shapes: { quarter: QUARTER, half: HALF, threeQ: THREE_Q } }); // склоны — неполными блоками
     this.engine.log(`острова: ${this.terrain.discs.length - 1} маленьких, гор ${this.terrain.mountains.length}, логов боссов ${this.terrain.lairs.length}` +
       this.terrain.lairs.map((l) => ` (${l.x}, ${l.z})`).join(""));
 

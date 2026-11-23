@@ -5,7 +5,7 @@
 // ============================================================
 
 import { ISLANDS, LIGHTS, LOOT, FALL_DAMAGE, CHEST_TIERS, HOUSE_CHEST, ISLAND_CHEST_TIERS, pickChestTier } from "../config.js";
-import { Vec3, Inventory, InventoryScene, Input, HALF } from "../../../engine/index.js";
+import { Vec3, Inventory, InventoryScene, Input, HALF, QUARTER, THREE_Q } from "../../../engine/index.js";
 import { rarityData, tierOf, rollRarities } from "./loot.js";
 import { ITEMS, isWeapon, isArmor, maxStack, itemInfo } from "../items.js";
 import { describeSlot } from "../item-info.js";
@@ -59,8 +59,9 @@ export class IslandsPart {
     for (let t = t0; t <= t1; t += 0.4, step++) {
       const c = at(t), k = (t - t0) / Math.max(1, t1 - t0);
       const sm = k * k * (3 - 2 * k); // у краёв — пологие, в середине — круче
-      const top = Math.round((h0 + (h1 - h0) * sm) * 2) / 2; // верх настила с шагом в полблока
-      const y = Math.floor(top), halfTop = top - y > 0.25; // полблока сверху — полублок в клетке y
+      const top = Math.round((h0 + (h1 - h0) * sm) * 4) / 4; // верх настила с шагом в четверть блока
+      const y = Math.floor(top), part = top - y, halfTop = part > 0.1; // неполный верх — неполный блок в клетке y
+      const deckShape = part < 0.375 ? QUARTER : part < 0.625 ? HALF : THREE_Q;
       for (let w = -half - 1; w <= half + 1; w += 0.5) {
         const x = Math.floor(c.x + px * w), z = Math.floor(c.z + pz * w), key = `${x},${z}`;
         if (this.groundHeight(x, z) >= top) continue; // там уже суша
@@ -72,7 +73,7 @@ export class IslandsPart {
             holes.add(key);
             continue;
           }
-          if (halfTop) v.place(x, y, z, mat.deck, HALF);
+          if (halfTop) v.place(x, y, z, mat.deck, deckShape);
           else v.place(x, y - 1, z, mat.deck);
           // у концов моста — опора до земли (настил не висит над склоном у края острова)
           const gh = this.groundHeight(x, z), bottom = halfTop ? y : y - 1;
