@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.110.1",
+    "date": "2026-11-23",
+    "title": "Dash sticks to the ground",
+    "changes": [
+      "Stamina: 3 charges",
+      "A dash from the ground sticks to the floor while the momentum lasts: up and down slopes of up to 1 block without leaving the ground; bigger drops - you fly off"
+    ]
+  },
+  {
     "version": "0.110.0",
     "date": "2026-11-23",
     "title": "Momentum movement",

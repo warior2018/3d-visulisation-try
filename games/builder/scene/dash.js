@@ -1,6 +1,7 @@
 // ============================================================
-//  Рывок и выносливость (DASH), как в Deadlock: выносливость — деления (DASH.pips, базово 2); рывок (Shift —
+//  Рывок и выносливость (DASH), как в Deadlock: выносливость — деления (DASH.pips, базово 3); рывок (Shift —
 //  skill3) тратит одно. Деления копятся по одному: каждое — за DASH.recharge секунд (базово 4), пока не полные.
+//  Рывок с земли прилипает к полу (DASH.stick): пологие подъёмы и спуски — не отрываясь.
 //  Рывок — толчок (DASH.impulse м/с) туда, куда жмёшь клавиши движения (не жмёшь — вперёд, куда смотришь):
 //  прибавляется к скорости векторно, дальше гаснет сам (инерция: CharacterController.approach, MOVEMENT.boost*),
 //  клавиши его поворачивают. Между рывками — DASH.cooldown. Бега нет: шаг один, разгон — только так.
@@ -19,6 +20,7 @@ export class DashPart {
   // Каждый тик: деления копятся по одному
   updateDash(dt) {
     this.dashCd = Math.max(0, (this.dashCd || 0) - dt);
+    this.updateDashStick();
     const max = this.staminaMax;
     this.pips ??= max;
     if (this.pips > max) this.pips = max;
@@ -55,10 +57,25 @@ export class DashPart {
     p.velocity.x += (dx / l) * DASH.impulse;
     p.velocity.z += (dz / l) * DASH.impulse;
     this.dashCd = DASH.cooldown;
+    if (p.onGround) this.groundDash = true; // с земли — прилипает к полу (updateDashStick)
     this.pips = (this.pips ?? this.staminaMax) - 1;
     this.engine.sound.play("dash");
     this.fx?.burst({ x: p.position.x, y: p.position.y + 0.3, z: p.position.z }, { count: 8, speed: 2, color: [210, 210, 220], size: 0.06, life: 0.35, gravity: 1, drag: 3 });
     this.engine.redraw();
+  }
+
+  // Рывок с земли: пока разгон не погас — ступенька вверх и вниз до DASH.stick блоков (физика: stepHeight), то
+  // есть по пологому подъёму / спуску скользит по полу и считается на земле. Оторвался (большой перепад, прыжок),
+  // разгон погас — обычная ступенька
+  updateDashStick() {
+    const p = this.player;
+    if (!this.groundDash || !p) return;
+    const walk = (this.controller?.speed || 4) * Math.max(1, p.speedMultiplier) + 0.1;
+    const over = !p.alive || !p.onGround || p.velocity.y > 0.5 || Math.hypot(p.velocity.x, p.velocity.z) <= walk;
+    if (over) {
+      this.groundDash = false;
+      if (p.stepHeight === DASH.stick) delete p.stepHeight;
+    } else p.stepHeight = DASH.stick;
   }
 
   // Под прицелом: деления выносливости (полные — светлые, копящееся — полоской)

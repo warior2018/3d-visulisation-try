@@ -1209,7 +1209,9 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // Рывок и выносливость (scene/dash.js), как в Deadlock: pips — делений выносливости (рывок тратит одно);
 // recharge — за сколько секунд копится одно деление (по одному); impulse — сколько м/с рывок прибавляет к
 // скорости (векторно: в сторону клавиш движения), дальше гаснет (MOVEMENT.boost*); cooldown — пауза между рывками
-export const DASH = { pips: 2, recharge: 4, impulse: 10, cooldown: 0.8 };
+// stick — рывок с земли «прилипает» к полу: пока разгон не погас, подъёмы и спуски до stick блоков проходит,
+// не отрываясь (ступенька вверх / вниз); перепад больше — отрывается и летит
+export const DASH = { pips: 3, recharge: 4, impulse: 10, cooldown: 0.8, stick: 1.1 };
 export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
 // Прыжок с мачете (Q): нож — обратным хватом (лезвием вниз), прыжок вперёд на distance м с замахом. Хитбокс — там,
 // где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся
