@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.114.25",
+    "date": "2026-11-23",
+    "title": "Movement tuning",
+    "changes": [
+      "Wall jumps at least 0.6 s apart",
+      "Even stronger steering in the air at high speed (about 205 degrees per second), stronger braking when pressing back"
+    ]
+  },
+  {
     "version": "0.114.24",
     "date": "2026-11-23",
     "title": "Air control at high speed",
