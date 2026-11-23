@@ -53,6 +53,7 @@ export class DashPart {
   // Потратить деление (прыжок в воздухе и т. п.)
   spendPip() {
     this.pips = Math.max(0, (this.pips ?? this.staminaMax) - 1);
+    this.wallJumps = 0; // потратил выносливость — прыжки от стен снова есть
     this.engine.redraw();
   }
 
@@ -92,7 +93,7 @@ export class DashPart {
     this.dashSince = 0; //                                 окно прыжка из рывка (dashJump)
     this.dashDir = { x: dx / l, z: dz / l };
     if (p.onGround) this.groundDash = true; // с земли — прилипает к полу (updateDashStick)
-    this.pips = (this.pips ?? this.staminaMax) - 1;
+    this.spendPip();
     this.engine.sound.play("dash");
     this.fx?.burst({ x: p.position.x, y: p.position.y + 0.3, z: p.position.z }, { count: 8, speed: 2, color: [210, 210, 220], size: 0.06, life: 0.35, gravity: 1, drag: 3 });
     this.engine.redraw();
@@ -110,7 +111,7 @@ export class DashPart {
     if (!this.dashJumpOpen || !p?.alive || p.mount || (this.pips ?? 0) < 1) return false;
     if (p.speedMultiplier < 0.2 || p.stunned) return false;
     this.dashSince = undefined;
-    this.pips--;
+    this.spendPip();
     // скорость вдоль рывка — не меньше DASH.jumpSpeed (не прибавляет сверху: быстрее уже — остаётся)
     const along = p.velocity.x * this.dashDir.x + p.velocity.z * this.dashDir.z, add = Math.max(0, DASH.jumpSpeed - along);
     p.velocity.x += this.dashDir.x * add;
@@ -140,11 +141,9 @@ export class DashPart {
     }
     const nl = Math.hypot(nx, nz);
     if (!nl) return false;
-    // за полёт — wall.max бесплатных прыжков; дальше — каждый за деление выносливости (нет — не прыгнуть)
-    if ((this.wallJumps || 0) >= DASH.wall.max) {
-      if ((this.pips ?? this.staminaMax) < 1) return false;
-      this.spendPip();
-    }
+    // не больше wall.max подряд; потратил выносливость (рывок, прыжок в воздухе, прыжок из рывка…) или
+    // приземлился — снова wall.max
+    if ((this.wallJumps || 0) >= DASH.wall.max) return false;
     this.wallJumps = (this.wallJumps || 0) + 1;
     const W = DASH.wall, jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 22) * (this.controller?.jumpHeight ?? 1.2));
     // от стены: скорость в стену убираем, от стены — не меньше W.push (в стену не прыгнуть, только от неё)
