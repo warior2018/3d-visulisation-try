@@ -207,7 +207,7 @@ export class ModelLibrary {
       if (!e.alive && !e.silhouette) rotation = quatMultiply(rotation, fallRotation(e)); // призрак не падает — стоит
       const p = e.renderPosition || e.position;
       const k = e.scale ?? 1; // размер (маленький скелет — 0.6, большая турель — 2)
-      fromTRS([p.x, p.y + (e.drawOffsetY || 0), p.z], rotation, [(v.mirrorX ? -1 : 1) * k, k, k], v.modelMatrix);
+      fromTRS([p.x, p.y + (e.drawOffsetY || 0) + (e.stepOffsetY || 0), p.z], rotation, [(v.mirrorX ? -1 : 1) * k, k, k], v.modelMatrix);
 
       // Красная вспышка после удара: от 0.7 до 0
       const flash = e.hurtTime < HURT_FLASH ? 0.7 * (1 - e.hurtTime / HURT_FLASH) : 0;

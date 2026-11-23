@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.111.2",
+    "date": "2026-11-23",
+    "title": "Smooth hero steps in third person",
+    "changes": [
+      "Seen in third person, the hero now goes up steps and half blocks smoothly like mobs, not in jerks"
+    ]
+  },
+  {
     "version": "0.111.1",
     "date": "2026-11-23",
     "title": "Quarter blocks, dash tuning, training respawn",

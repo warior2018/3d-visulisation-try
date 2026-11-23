@@ -811,6 +811,7 @@ export class GameScene extends Scene {
     this.stepTime = Math.max(0, (this.stepTime || 0) - dt);
     if (this.camFootY === undefined || this.stepTime <= 0 || Math.abs(rp.y - this.camFootY) > 1.2) this.camFootY = rp.y;
     else this.camFootY += (rp.y - this.camFootY) * (1 - Math.exp(-dt * 16));
+    player.stepOffsetY = this.camFootY - rp.y; // модель героя (3-е лицо) — тоже плавно на ступеньку, как камера и мобы
     this.syncEye(new Vec3(rp.x, this.camFootY, rp.z));
     engine.sound.setListener(this.look.position, this.look.yaw); // «уши» — в глазах героя (объёмный звук)
     this.hitMarker = Math.max(0, this.hitMarker - dt);
