@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.4",
+    "date": "2026-11-23",
+    "title": "No ground speed from circling keys",
+    "changes": [
+      "Changing direction quickly on the ground (WASD in a circle) no longer builds speed above walking, so you don't slide after letting go"
+    ]
+  },
+  {
     "version": "0.114.3",
     "date": "2026-11-23",
     "title": "Sharp stop",

@@ -151,9 +151,16 @@ export class CharacterController {
       const cur = v.x * wx + v.z * wz;
       const add = cap - cur;
       if (add > 0) {
+        const before = Math.hypot(v.x, v.z);
         const acc = Math.min(add, (air ? a.airAccel : a.groundAccel) * wishspeed * dt);
         v.x += wx * acc;
         v.z += wz * acc;
+        // на земле клавиши разгоняют только до шага: смена направления (WASD по кругу) не набирает скорость
+        // сверх него (иначе — разгон без рывков и скольжение после); разгон от рывка не трогаем — не больше, чем был
+        if (!air) {
+          const after = Math.hypot(v.x, v.z), lim = Math.max(wishspeed, before);
+          if (after > lim) { v.x *= lim / after; v.z *= lim / after; }
+        }
       }
     }
     // предел
