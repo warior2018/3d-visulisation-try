@@ -46,7 +46,7 @@ export function standY(isSolid, x, y, z, { height = 2, maxDrop = 4 } = {}) {
 }
 
 // Куда можно шагнуть из клетки (x, y, z) — соседи с их «ценой» (длина шага)
-function neighbors(isSolid, x, y, z, { height, maxStep, maxDrop, gap = 0 }) {
+function neighbors(isSolid, x, y, z, { height, maxStep, maxDrop, gap = 0, gaps = null }) {
   const out = [];
   for (const [dx, dz] of DIRS) {
     const nx = x + dx;
@@ -76,22 +76,24 @@ function neighbors(isSolid, x, y, z, { height, maxStep, maxDrop, gap = 0 }) {
     if (found) continue;
     // Вниз (спрыгнуть): впереди пусто на высоту тела, ниже — пол
     if (!free(isSolid, nx, y, nz, height)) continue;
-    // Перепрыгнуть яму в gap клеток (gap 1: через одну): за ней — пол на той же высоте или на блок выше
-    // (тогда над нами и над ямой — место на подъём). Стоит столько же, сколько пройти это расстояние пешком
-    for (let g = 1; g <= gap; g++) {
-      const fx = x + dx * (g + 1), fz = z + dz * (g + 1);
+    // Перепрыгнуть яму в g клеток (до gap): за ней — пол на той же высоте или выше на u блоков, если прыжок
+    // существа достаёт (gaps[u] — самая широкая яма с подъёмом u; нет gaps — только на ту же высоту и на блок выше)
+    // и над нами и над ямой есть место на подъём. Стоит столько же, сколько пройти это расстояние пешком
+    let leapt = false;
+    for (let g = 1; g <= gap && !leapt; g++) {
       let open = true;
       for (let k = 1; k <= g && open; k++) if (!free(isSolid, x + dx * k, y, z + dz * k, height) || canStand(isSolid, x + dx * k, y, z + dz * k, height)) open = false;
       if (!open) break;
-      if (canStand(isSolid, fx, y, fz, height)) {
-        out.push([fx, y, fz, g + 1]);
-        break;
-      }
-      let roof = free(isSolid, x, y + height, z, 1);
-      for (let k = 1; k <= g && roof; k++) if (!free(isSolid, x + dx * k, y + height, z + dz * k, 1)) roof = false;
-      if (roof && canStand(isSolid, fx, y + 1, fz, height)) {
-        out.push([fx, y + 1, fz, g + 1]);
-        break;
+      const fx = x + dx * (g + 1), fz = z + dz * (g + 1);
+      for (let u = 0; u <= maxStep; u++) {
+        if (g > (gaps ? gaps[u] ?? 0 : u <= 1 ? gap : 0)) continue;
+        let roof = true;
+        for (let k = 0; k <= g && roof && u > 0; k++) if (!free(isSolid, x + dx * k, y + height, z + dz * k, u)) roof = false;
+        if (roof && canStand(isSolid, fx, y + u, fz, height)) {
+          out.push([fx, y + u, fz, g + 1]);
+          leapt = true;
+          break;
+        }
       }
     }
     for (let down = 1; down <= maxDrop; down++) {
@@ -167,9 +169,9 @@ export function findPath(isSolid, start, goal, opts) {
   }
 }
 
-function findPathRaw(isSolid, start, goal, { height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200, gap = 0 } = {}) {
+function findPathRaw(isSolid, start, goal, { height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200, gap = 0, gaps = null } = {}) {
   const key = (x, y, z) => ((x + 524288) * 1048576 + (z + 524288)) * 4096 + (y + 2048); // число, не строка: меньше мусора
-  const opts = { height, maxStep, maxDrop, gap };
+  const opts = { height, maxStep, maxDrop, gap, gaps };
   const open = new Heap();
   const nodes = new Map(); // ключ клетки -> { x, y, z, g, parent, closed }
   const first = { x: start[0], y: start[1], z: start[2], g: 0, parent: null, closed: false };
@@ -254,6 +256,32 @@ export function pathBudget(n) {
   budget.left = n;
 }
 
+// ---------- Докуда достаёт прыжок ----------
+// Существо прыгает вверх со скоростью jump (м/с), вперёд — leap (м/с), тяжесть gravity, полуширина radius.
+// Отрывается в 0.25 м за серединой клетки перед ямой (Navigator: leap). Возвращает maxStep — на сколько блоков
+// запрыгивает, gaps[u] — самая широкая яма (клеток), за которой пол выше на u блоков, gap — самая широкая вообще
+export function jumpReach({ jump = 7.5, leap = 3.2, gravity = 22, radius = 0.3, maxGap = 4 } = {}) {
+  const peak = (jump * jump) / (2 * gravity);
+  const maxStep = Math.max(1, Math.floor(peak - 0.1)); // с запасом: ноги выше края хоть на 0.1 м
+  const gaps = [];
+  for (let u = 0; u <= maxStep; u++) {
+    const lift = u + 0.05;
+    const d = jump * jump - 2 * gravity * lift;
+    let best = 0;
+    if (d >= 0) {
+      const up = (jump - Math.sqrt(d)) / gravity; //   когда ноги поднялись выше края
+      const down = (jump + Math.sqrt(d)) / gravity; // когда опустились на него
+      for (let g = 1; g <= maxGap; g++) {
+        const wall = g + 0.25 - radius; //   пролетели столько — грудью у края площадки
+        const land = g + 0.4 - radius; //    столько — уже над площадкой (с запасом)
+        if (leap * down >= land && (u === 0 || leap * up <= wall)) best = g;
+      }
+    }
+    gaps.push(best);
+  }
+  return { maxStep, gaps, gap: Math.max(0, ...gaps) };
+}
+
 // ---------- Штурман одного существа ----------
 export class Navigator {
   // version() — необязательно: число, которое меняется, когда меняется мир (поставили или убрали блок);
@@ -261,7 +289,9 @@ export class Navigator {
   // cellTop(x, y, z) — высота верха клетки (1 / 0.5 полублок / 0): на полублок не прыгают (шагают) и не
   // застревают у него (ноги на y − 0.5). Нет — как раньше (всё целое)
   // gap — через сколько клеток ямы перепрыгивает (на ту же высоту или на блок выше; 0 — не прыгает через ямы)
-  constructor({ isSolid, cellTop = null, version = null, height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200, repath = 0.6, reach = 0.35, gap = 1 } = {}) {
+  // gravity — тяжесть мира: из неё и прыжка существа (e.jumpPower, e.leapSpeed) — докуда достаёт (jumpReach)
+  constructor({ isSolid, cellTop = null, version = null, height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200, repath = 0.6, reach = 0.35, gap = 1, gravity = 22 } = {}) {
+    this.gravity = gravity;
     this.isSolid = isSolid;
     this.cellTop = cellTop;
     this.version = version;
@@ -288,6 +318,12 @@ export class Navigator {
 
   // Пересчитать путь от сущности до точки
   plan(e, goal) {
+    // свой прыжок у существа (поменялся — пересчитать, докуда достаёт)
+    const jump = e.jumpPower ?? 7.5, leap = e.leapSpeed ?? 3.2;
+    if (this.reachKey !== `${jump}|${leap}`) {
+      this.reachKey = `${jump}|${leap}`;
+      Object.assign(this.opts, jumpReach({ jump, leap, gravity: this.gravity, radius: e.radius || 0.3 }));
+    }
     const start = this.cellOf(e.position);
     this.goalCell = this.cellOf(goal);
     const r = findPath(this.isSolid, start, this.goalCell, this.opts);
