@@ -148,7 +148,7 @@ export class DashPart {
     const along = p.velocity.x * this.dashDir.x + p.velocity.z * this.dashDir.z, add = Math.max(0, DASH.jumpSpeed - along);
     p.velocity.x += this.dashDir.x * add;
     p.velocity.z += this.dashDir.z * add;
-    const jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 20) * (this.controller?.jumpHeight ?? 1.25));
+    const jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 22) * (this.controller?.jumpHeight ?? 1.2) * DASH.jumpHeight); // выше обычного на DASH.jumpHeight
     p.velocity.y = Math.max(p.velocity.y, jumpV);
     p.onGround = false;
     this.groundDash = false; // в прыжке — не прилипает

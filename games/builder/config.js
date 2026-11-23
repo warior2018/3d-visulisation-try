@@ -1224,8 +1224,9 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // double с в воздухе — вниз со скоростью speed (1 деление)
 // hold — сколько секунд бросок держит скорость (без трения); jumpSpeed — прыжок из рывка: скорость вдоль рывка не
 // меньше этой (impulse больше не используется)
-// distance — длина рывка (м); speed — скорость рывка [в начале, к середине пути, в конце] м/с (≈0.67 с на рывок)
-export const DASH = { pips: 3, recharge: 4, distance: 5, speed: [6.75, 9, 5.25], jumpSpeed: 11, cooldown: 0.8, stick: 0.4, jump: [0.2, 0.3], airDashes: 1,
+// distance — длина рывка (м); speed — скорость рывка [в начале, к середине пути, в конце] м/с (≈0.67 с на рывок);
+// jumpHeight — прыжок из рывка во столько раз выше обычного
+export const DASH = { pips: 3, recharge: 4, distance: 5, speed: [6.75, 9, 5.25], jumpSpeed: 11, jumpHeight: 1.125, cooldown: 0.8, stick: 0.4, jump: [0.2, 0.3], airDashes: 1,
   wall: { push: 7, up: 0.9, cooldown: 0.4, max: 2, minHeight: 1.6, reach: 1.2, angle: 50 }, fall: { double: 0.3, speed: 26 } };
 // Скольжение (scene/slide.js), как в Deadlock: minSpeed — с какой скорости (м/с) присед становится скольжением;
 // slope — с какого уклона (перепад на метр) скользишь и без разгона; gravity — разгон под горку (м/с² на единицу
