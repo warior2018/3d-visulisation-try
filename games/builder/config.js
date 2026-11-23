@@ -255,7 +255,7 @@ export const GAMEPAD_ENABLED = false;
 // скорости за секунду), stopFriction — то же, когда клавиши отпущены (останавливаешься сразу, не скользишь), stopSpeed — ниже неё трение как от этой скорости (останавливаешься, а не ползёшь);
 // groundAccel — разгон до шага на земле (×шаг в секунду: 20 — за 0.05 с без трения); airAccel / airCap — в воздухе: ускорение
 // (×шаг в секунду) и сколько м/с можно набрать ВДОЛЬ клавиш (повороты в полёте: air strafe)
-export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18, boostGround: 6, boostAir: 0.6, boostWater: 20, steer: 2.4, brake: 16, maxMult: 6,
+export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18, boostGround: 6, boostAir: 0.6, boostWater: 20, steer: 2.4, brake: 16, maxMult: 1000,
   source: true, friction: 8, stopFriction: 30, stopSpeed: 2, groundAccel: 20, airAccel: 25, airCap: 1.6 };
 // Маунт разгоняется дольше (тяжёлый зверь)
 export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
@@ -1224,8 +1224,8 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // double с в воздухе — вниз со скоростью speed (1 деление)
 // hold — сколько секунд бросок держит скорость (без трения); jumpSpeed — прыжок из рывка: скорость вдоль рывка не
 // меньше этой (impulse больше не используется)
-// distance / time — рывок: столько метров за столько секунд с постоянной скоростью (потом — обычный шаг)
-export const DASH = { pips: 3, recharge: 4, distance: 5, time: 0.3, jumpSpeed: 15, cooldown: 0.8, stick: 0.4, jump: [0.3, 0.25], airDashes: 1,
+// distance — длина рывка (м); speed — скорость рывка [в начале, к середине пути, в конце] м/с (≈0.67 с на рывок)
+export const DASH = { pips: 3, recharge: 4, distance: 5, speed: [6.75, 9, 5.25], jumpSpeed: 11, cooldown: 0.8, stick: 0.4, jump: [0.2, 0.3], airDashes: 1,
   wall: { push: 7, up: 0.9, cooldown: 0.4, max: 2, minHeight: 1.6, reach: 1.2, angle: 50 }, fall: { double: 0.3, speed: 26 } };
 // Скольжение (scene/slide.js), как в Deadlock: minSpeed — с какой скорости (м/с) присед становится скольжением;
 // slope — с какого уклона (перепад на метр) скользишь и без разгона; gravity — разгон под горку (м/с² на единицу
@@ -1233,7 +1233,7 @@ export const DASH = { pips: 3, recharge: 4, distance: 5, time: 0.3, jumpSpeed: 1
 // скольжение кончается; push — толчок, если стоял на склоне; maxMult — больше скольких шагов не разгоняет;
 // sample — на каком расстоянии мерить уклон под ногами
 // steep — склон круче (перепад на метр) — не устоять: съезжаешь и без приседа
-export const SLIDE = { minSpeed: 6, slope: 0.2, steep: 1.3, gravity: 11, friction: 6, steer: 1.1, endSpeed: 2.5, push: 2, maxMult: 6, sample: 0.9 };
+export const SLIDE = { minSpeed: 6, slope: 0.2, steep: 1.3, gravity: 11, friction: 6, steer: 1.1, endSpeed: 2.5, push: 2, maxMult: 1000, sample: 0.9 };
 export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
 // Прыжок с мачете (Q): нож — обратным хватом (лезвием вниз), прыжок вперёд на distance м с замахом. Хитбокс — там,
 // где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся

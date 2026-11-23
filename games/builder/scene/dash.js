@@ -23,6 +23,7 @@ export class DashPart {
   // Каждый тик: деления копятся по одному
   updateDash(dt) {
     this.dashCd = Math.max(0, (this.dashCd || 0) - dt);
+    this.updateDashRun(dt);
     this.wallJumpCd = Math.max(0, (this.wallJumpCd || 0) - dt);
     if (this.player?.noFriction > 0) this.player.noFriction -= dt;
     if (this.player?.onGround) {
@@ -80,11 +81,12 @@ export class DashPart {
     }
     const yaw = this.look.yaw, s = Math.sin(yaw), c = Math.cos(yaw);
     const dx = s * fwd + c * side, dz = c * fwd - s * side;
-    // рывок как в Deadlock: DASH.time с летишь с постоянной скоростью (DASH.distance за рывок), клавиши не
-    // действуют; кончился — снова обычный шаг (скорость рывка не уносит дальше). В воздухе — ровно по горизонтали.
-    // Разгон после рывка — только прыжком из рывка (dashJump) или скольжением (присед во время рывка)
+    // рывок как в Deadlock: DASH.distance м, скорость по пути — DASH.speed: [в начале, к середине пути, в конце]
+    // (updateDashRun), клавиши не действуют; в воздухе — ровно по горизонтали. Кончился — летишь со скоростью конца,
+    // дальше гаснет сама: на земле быстро (до шага), в воздухе медленно (MOVEMENT.boost*)
     const l = Math.hypot(dx, dz) || 1;
-    dash(p, dx, dz, DASH.distance / DASH.time, DASH.time, p.onGround ? null : 0, { slide: DASH_SLIDE });
+    dash(p, dx, dz, DASH.speed[0], 60, p.onGround ? null : 0, { slide: DASH_SLIDE });
+    this.dashRun = { d: 0, x: dx / l, z: dz / l };
     if (!p.onGround) this.airDashes = (this.airDashes || 0) + 1;
     this.dashCd = DASH.cooldown;
     this.dashSince = 0; //                                 окно прыжка из рывка (dashJump)
@@ -94,6 +96,31 @@ export class DashPart {
     this.engine.sound.play("dash");
     this.fx?.burst({ x: p.position.x, y: p.position.y + 0.3, z: p.position.z }, { count: 8, speed: 2, color: [210, 210, 220], size: 0.06, life: 0.35, gravity: 1, drag: 3 });
     this.engine.redraw();
+  }
+
+  // Скорость рывка по пройденному пути: растёт от speed[0] к speed[1] к середине, к концу — до speed[2]. Прошли
+  // DASH.distance — рывок кончился, остаётся скорость конца (дальше — инерция). Рывок оборвали (прыжок, скольжение)
+  // — забываем
+  updateDashRun(dt) {
+    const r = this.dashRun, p = this.player, D = p?.dash;
+    if (!r) return;
+    if (!D || !(D.left > 0)) return void (this.dashRun = null);
+    const v = Math.hypot(D.x, D.z) || DASH.speed[0];
+    r.d += v * dt;
+    const [v0, v1, v2] = DASH.speed, half = DASH.distance / 2;
+    // направление — как сейчас у рывка (об стену он мог повернуть вдоль неё)
+    const ux = D.x / v || r.x, uz = D.z / v || r.z;
+    if (r.d >= DASH.distance) {
+      D.left = 0;
+      D.keep = true; // скорость конца — остаётся (дальше гаснет сама)
+      p.velocity.x = ux * v2;
+      p.velocity.z = uz * v2;
+      this.dashRun = null;
+      return;
+    }
+    const s = r.d < half ? v0 + (v1 - v0) * (r.d / half) : v1 + (v2 - v1) * ((r.d - half) / half);
+    D.x = ux * s;
+    D.z = uz * s;
   }
 
   // Окно прыжка из рывка открыто (DASH.jump: через [0] с после рывка, на [1] с)
