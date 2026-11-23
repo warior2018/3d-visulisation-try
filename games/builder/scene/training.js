@@ -50,7 +50,6 @@ export class TrainingPart {
     const now = this.combatClock || 0;
     for (const e of this.dummies || []) {
       e.stats.hp = e.stats.maxHp;
-      e.alive = true;
       const h = e.dummy.hits;
       while (h.length && now - h[0].t > TRAINING.window) h.shift();
       const sum = h.reduce((a, x) => a + x.n, 0);
@@ -74,7 +73,6 @@ export class TrainingPart {
     p.position.y = this.world.surfaceY(0, 0) + 0.05;
     p.velocity.x = p.velocity.y = p.velocity.z = 0;
     p.stats.hp = p.stats.maxHp;
-    p.alive = true;
     this.groundY = undefined;
     this.engine.toast(this.tr("RESPAWNED"), 1200);
   }
