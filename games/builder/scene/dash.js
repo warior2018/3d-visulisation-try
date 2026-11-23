@@ -114,7 +114,8 @@ export class DashPart {
     } else p.stepHeight = DASH.stick;
   }
 
-  // Под прицелом: деления выносливости (полные — светлые, копящееся — полоской)
+  // Под прицелом: деления выносливости — отдельные полоски: полные — белые, пустые — тёмно-серые, копящаяся —
+  // заполняется светло-серым; в окно прыжка из рывка полные — синие
   drawStaminaPips(ui) {
     const p = this.player;
     if (!p?.alive) return;
@@ -124,10 +125,10 @@ export class DashPart {
     for (let i = 0; i < max; i++) {
       const x = x0 + i * (w + gap);
       ui.rect(x - 1, y - 1, w + 2, h + 2, [10, 12, 16], 170);
-      if (i < have) ui.rect(x, y, w, h, this.dashJumpOpen ? [110, 190, 255] : [235, 225, 150], 235); // синие — окно прыжка из рывка
+      if (i < have) ui.rect(x, y, w, h, this.dashJumpOpen ? [110, 190, 255] : [242, 242, 246], 240); // синие — окно прыжка из рывка
       else if (i === have) {
         ui.rect(x, y, w, h, [70, 70, 76], 200);
-        ui.rect(x, y, Math.round(w * Math.min(1, (this.pipT || 0) / DASH.recharge)), h, [150, 140, 90], 220);
+        ui.rect(x, y, Math.round(w * Math.min(1, (this.pipT || 0) / DASH.recharge)), h, [165, 165, 172], 225);
       } else ui.rect(x, y, w, h, [70, 70, 76], 200);
     }
   }
