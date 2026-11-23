@@ -215,8 +215,9 @@ export class DashPart {
         }
       }
     }
-    // скорость: нынешняя (в рывке — скорость рывка; он обрывается) без части «в стену» + толчок W.push по
-    // направлению прыжка — складываются векторно
+    // скорость: летишь туда, куда прыгнул (dx, dz); величина — W.push + та часть нынешней скорости (в рывке —
+    // скорости рывка; он обрывается), что смотрит в ту же сторону: прыгнул почти по ходу — сохранил почти всё,
+    // вбок — мало, назад — ничего (только толчок). Часть скорости «в стену» стена гасит
     let vx = p.velocity.x, vz = p.velocity.z;
     if (dashing) {
       vx = p.dash.x;
@@ -227,8 +228,9 @@ export class DashPart {
     }
     const into = vx * ux + vz * uz;
     if (into < 0) { vx -= ux * into; vz -= uz * into; }
-    p.velocity.x = vx + dx * W.push;
-    p.velocity.z = vz + dz * W.push;
+    const keep = Math.max(0, vx * dx + vz * dz); // проекция на направление прыжка
+    p.velocity.x = dx * (keep + W.push);
+    p.velocity.z = dz * (keep + W.push);
     // высота: чем быстрее летишь, тем ниже — от W.up[0] (до W.upSpeed[0] м/с) до W.up[1] (от W.upSpeed[1] м/с) доли
     // высоты обычного прыжка
     const sp = Math.hypot(p.velocity.x, p.velocity.z), [s0, s1] = W.upSpeed;
