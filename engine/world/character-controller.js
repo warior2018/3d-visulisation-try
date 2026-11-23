@@ -309,7 +309,8 @@ export class CharacterController {
       entity.velocity.y = jumpV;
       this.jumped = true;
       this.jumpBuffer = 0;
-    } else if (want && !entity.onGround && this.airJumps < this.extraJumps) {
+    } else if (want && !entity.onGround && this.airJumps < this.extraJumps && (this.canAirJump?.() ?? true)) {
+      this.onAirJump?.(); // игра: прыжок в воздухе чего-то стоит (выносливость)
       this.airJumps++;
       this.jumped = true;
       this.jumpBuffer = 0;

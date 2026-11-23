@@ -44,6 +44,12 @@ export class DashPart {
     if (Math.floor((this.pipT / DASH.recharge) * 20) !== before || this.pips >= max) this.engine.redraw();
   }
 
+  // Потратить деление (прыжок в воздухе и т. п.)
+  spendPip() {
+    this.pips = Math.max(0, (this.pips ?? this.staminaMax) - 1);
+    this.engine.redraw();
+  }
+
   // Shift: рывок, если есть деление
   tryDash() {
     const p = this.player;

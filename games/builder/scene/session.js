@@ -96,6 +96,9 @@ export class SessionPart {
     // STAMINA.enabled: false — выносливости нет (this.stamina = null): бег без предела, удары бесплатно
     this.stamina = STAMINA.enabled ? new Stamina(STAMINA) : null;
     this.controller.canRun = () => this.stamina?.canRun ?? true;
+    // прыжок в воздухе (талант DOUBLE JUMP) стоит деление выносливости (scene/dash.js); нет — не прыгнуть
+    this.controller.canAirJump = () => (this.pips ?? this.staminaMax) >= 1;
+    this.controller.onAirJump = () => this.spendPip();
     // Блок отбил удар (движок: статус parry → entity.onBlock) — «дзынь» и надпись
     // Попали в голову — шлем срезает часть урона (до брони; ARMOR: headshot)
     this.player.onIncoming = (d) => {

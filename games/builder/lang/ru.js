@@ -964,6 +964,7 @@ export const RU = {
   "ONE BACKGROUND FOR ALL PAGES": "ОДИН ФОН НА ВСЕ СТРАНИЦЫ",
   "ONE CUT": "ОДИН РАЗРЕЗ",
   "ONE MORE JUMP IN THE AIR (80% HEIGHT)": "ЕЩЁ ОДИН ПРЫЖОК В ВОЗДУХЕ (80% ВЫСОТЫ)",
+  "ONE MORE JUMP IN THE AIR (80% HEIGHT), COSTS 1 STAMINA": "ЕЩЁ ОДИН ПРЫЖОК В ВОЗДУХЕ (80% ВЫСОТЫ), СТОИТ 1 ВЫНОСЛИВОСТЬ",
   "ONLY ${ARMOR_SLOT_NAMES[i]} HERE": "СЮДА - ТОЛЬКО ${ARMOR_SLOT_NAMES[i]}",
   "ONLY A BEASTMASTER CAN TAME BOARS": "ПРИРУЧАТЬ КАБАНОВ МОЖЕТ ТОЛЬКО ЗВЕРОЛОВ",
   "ONLY A SUMMONER CAN GROW MUSHROOMS": "ВЫРАЩИВАТЬ ГРИБЫ МОЖЕТ ТОЛЬКО ПРИЗЫВАТЕЛЬ",

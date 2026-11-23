@@ -204,7 +204,7 @@ function buildTree(mode) {
         ...chain(2, [
           { id: "v-speed", name: "SPEED", maxRank: 4, cost: 1, describe: (r) => `+${pct(0.075 * r)} SPEED`, stats: (r) => ({ speed: 0.075 * r }) },
           { id: "v-jump", name: "JUMP", maxRank: 2, cost: 1, describe: (r) => `JUMP +${12.5 * r}% HIGHER (FALL DMG STARTS HIGHER TOO)`, stats: (r) => ({ jumpMult: 0.125 * r }) },
-          { id: "v-double", name: "DOUBLE JUMP", maxRank: 1, cost: 3, describe: () => "ONE MORE JUMP IN THE AIR (80% HEIGHT)", stats: () => ({ extraJumps: 1 }) },
+          { id: "v-double", name: "DOUBLE JUMP", maxRank: 1, cost: 3, describe: () => "ONE MORE JUMP IN THE AIR (80% HEIGHT), COSTS 1 STAMINA", stats: () => ({ extraJumps: 1 }) },
         ]),
         ...chain(3, [
           { id: "v-fortune", name: "FORTUNE", maxRank: 4, cost: 1, describe: (r) => `+${12.5 * r}% LUCK: RARE GEAR FROM MOBS AND BOSSES MORE OFTEN`, stats: (r) => ({ luck: 0.125 * r }) },

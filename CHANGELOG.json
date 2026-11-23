@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.113.2",
+    "date": "2026-11-23",
+    "title": "Air jump costs stamina",
+    "changes": [
+      "The double jump talent's air jump now costs 1 stamina charge; without charges you can't jump in the air"
+    ]
+  },
+  {
     "version": "0.113.1",
     "date": "2026-11-23",
     "title": "Training: square island and a mountain",
