@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.114.1",
+    "date": "2026-11-23",
+    "title": "Training: skyscrapers, wall jump rules",
+    "changes": [
+      "Training: a third island to the east with two 40-block skyscrapers and a 3-block gap between them",
+      "Wall jumps: 2 free per flight (0.4 s apart), each one after that costs 1 stamina"
+    ]
+  },
+  {
     "version": "0.114.0",
     "date": "2026-11-23",
     "title": "Deadlock-style dash and air moves",

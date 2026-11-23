@@ -1220,10 +1220,10 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // окно: ещё одно деление, ещё такой же толчок (туда же, куда рывок) и прыжок
 // burst — рывок как бросок: скорость вдоль рывка не меньше этой (уже быстрее — не прибавляет); impulse — толчок
 // прыжка из рывка; airDashes — рывков в воздухе до приземления (талант — больше); wall — прыжок от стены
-// (бесплатно): push — от стены м/с, up — доля прыжка вверх, cooldown, max — за полёт (от той же стены подряд — нельзя); fall — быстрое падение: присед дважды за
+// push — от стены м/с, up — доля прыжка вверх, cooldown; max — бесплатных за полёт, дальше — по делению выносливости; fall — быстрое падение: присед дважды за
 // double с в воздухе — вниз со скоростью speed (1 деление)
 export const DASH = { pips: 3, recharge: 4, burst: 9, impulse: 10, cooldown: 0.8, stick: 0.4, jump: [0.3, 0.25], airDashes: 1,
-  wall: { push: 7, up: 0.9, cooldown: 0.35, max: 2 }, fall: { double: 0.3, speed: 26 } };
+  wall: { push: 7, up: 0.9, cooldown: 0.4, max: 2 }, fall: { double: 0.3, speed: 26 } };
 // Скольжение (scene/slide.js), как в Deadlock: minSpeed — с какой скорости (м/с) присед становится скольжением;
 // slope — с какого уклона (перепад на метр) скользишь и без разгона; gravity — разгон под горку (м/с² на единицу
 // уклона); friction — трение (м/с за секунду); steer — поворот клавишами (рад/с); endSpeed — ниже (не на склоне)
@@ -1321,4 +1321,7 @@ export const GIANT = { every: [240, 480], retry: 20, minIsland: 50, from: 70, mi
 // плоский, потом круче), back — спуск за вершиной, width — полширины горы, height — высота вершины (блоков),
 // rock / snow — выше — камень / снег
 export const TRAINING = { radius: 22, dummies: [[0, 6], [-5, 11], [5, 11], [0, 18]], window: 10,
-  mountain: { bridge: 10, bridgeWidth: 2, length: 45, back: 12, width: 18, height: 26, rock: 14, snow: 22 } };
+  mountain: { bridge: 10, bridgeWidth: 2, length: 45, back: 12, width: 18, height: 26, rock: 14, snow: 22 },
+  // остров с небоскрёбами (на восток, +x): мост bridge, остров half (полсторона), две башни side × side, высотой
+  // height, между ними — щель gap блоков (прыжки от стен)
+  towers: { bridge: 10, half: 15, side: 8, height: 40, gap: 3 } };

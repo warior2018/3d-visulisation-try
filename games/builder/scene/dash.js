@@ -26,7 +26,6 @@ export class DashPart {
     if (this.player?.onGround) {
       this.airDashes = 0; // приземлился — рывки в воздухе и прыжки от стен снова есть
       this.wallJumps = 0;
-      this.lastWall = null;
     }
     // окно прыжка из рывка: открылось / закрылось — перерисовать шкалу (синяя)
     if (this.dashSince !== undefined) {
@@ -135,11 +134,12 @@ export class DashPart {
     }
     const nl = Math.hypot(nx, nz);
     if (!nl) return false;
-    // за полёт — не больше wall.max прыжков, и от той же стены дважды подряд нельзя (иначе лезешь по стене вверх)
-    const W0 = DASH.wall, nkx = Math.sign(nx), nkz = Math.sign(nz);
-    if ((this.wallJumps || 0) >= W0.max || (this.lastWall && this.lastWall.x === nkx && this.lastWall.z === nkz)) return false;
+    // за полёт — wall.max бесплатных прыжков; дальше — каждый за деление выносливости (нет — не прыгнуть)
+    if ((this.wallJumps || 0) >= DASH.wall.max) {
+      if ((this.pips ?? this.staminaMax) < 1) return false;
+      this.spendPip();
+    }
     this.wallJumps = (this.wallJumps || 0) + 1;
-    this.lastWall = { x: nkx, z: nkz };
     this.engine.input.wasPressed?.("jump"); // нажатие — наше (не прыжок в воздухе)
     const W = DASH.wall, jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 22) * (this.controller?.jumpHeight ?? 1.2));
     p.velocity.x += (nx / nl) * W.push;

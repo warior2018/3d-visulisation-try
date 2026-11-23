@@ -47,6 +47,28 @@ export class TrainingPart {
       v.place(x, full - 1, z, color);
       if (part >= 0.125) v.place(x, full, z, color, part < 0.375 ? QUARTER : part < 0.625 ? HALF : part < 0.875 ? THREE_Q : null);
     }
+    // остров на восток (+x) с двумя небоскрёбами рядом — щель между ними TRAINING.towers.gap
+    const B = T.towers, bx0 = R + 1, bx1 = R + B.bridge;
+    for (let x = bx0; x <= bx1; x++) {
+      for (let z = -2; z < 2; z++) v.place(x, 0, z, [120, 84, 52]);
+      if ((x - bx0) % 4 === 0) for (const z of [-3, 2]) { v.place(x, 0, z, WOOD); v.place(x, 1, z, WOOD); if ((x - bx0) % 8 === 0) v.place(x, 2, z, LIGHTS.torch.color); }
+    }
+    const icx = bx1 + 1 + B.half;
+    for (let x = icx - B.half; x <= icx + B.half; x++) for (let z = -B.half; z <= B.half; z++) {
+      for (let y = -4; y < 0; y++) v.place(x, y, z, y < -2 ? C.stone : C.dirt);
+      v.place(x, 0, z, C.grass);
+    }
+    const CONC = [150, 152, 158], GLASS = [70, 110, 140];
+    for (const sz of [-B.gap / 2 - B.side, B.gap / 2]) { // две башни по z, щель посередине
+      const x0 = icx - Math.floor(B.side / 2), z0 = Math.round(sz);
+      for (let y = 1; y <= B.height; y++) for (let i = 0; i < B.side; i++) for (let k = 0; k < B.side; k++) {
+        const edge = i === 0 || k === 0 || i === B.side - 1 || k === B.side - 1;
+        if (!edge && y < B.height) continue; // внутри пусто, крыша сплошная
+        const win = edge && y % 4 !== 0 && (i + k) % 2 === 1 && y < B.height; // окна полосами
+        v.place(x0 + i, y, z0 + k, win ? GLASS : CONC);
+      }
+      v.place(x0 + Math.floor(B.side / 2), B.height + 1, z0 + Math.floor(B.side / 2), LIGHTS.lamp.color);
+    }
     this.engine.log(`полигон: остров ${R * 2 + 1}×${R * 2 + 1}, мост ${M.bridge}, гора ${M.height} блоков`);
   }
 
