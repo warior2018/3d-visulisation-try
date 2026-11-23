@@ -73,7 +73,8 @@ export class PetsPart {
       this.crouched = low === 2;
       lowerBody(p, low, { height: false });
     }
-    if (this.crouched) p.speedBonuses.crouch = CROUCH.speed;
+    // замедление приседа — только когда идёшь присев по земле: в скольжении и в воздухе его нет (там — инерция)
+    if (this.crouched && !this.sliding && p.onGround) p.speedBonuses.crouch = CROUCH.speed;
     else delete p.speedBonuses.crouch;
     const goal = this.crouched ? CROUCH.eyeHeight : this.lowStance ? STANCE.eyeHeight : PLAYER.eyeHeight;
     this.eyeY ??= goal;

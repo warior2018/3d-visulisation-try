@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.27",
+    "date": "2026-11-23",
+    "title": "No crouch slow in slides and air",
+    "changes": [
+      "Crouching no longer slows you (and shows no speed debuff) while sliding or in the air - only when walking crouched on the ground"
+    ]
+  },
+  {
     "version": "0.114.26",
     "date": "2026-11-23",
     "title": "Air jump needs the talent",
