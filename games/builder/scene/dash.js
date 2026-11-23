@@ -11,7 +11,8 @@
 //  сейчас — полоской.
 // ============================================================
 
-import { DASH } from "../config.js";
+import { DASH, DASH_SLIDE } from "../config.js";
+import { dash } from "../../../engine/index.js";
 
 export class DashPart {
   // Сколько делений всего (база + таланты, если появятся: talentStats.stamina)
@@ -79,16 +80,12 @@ export class DashPart {
     }
     const yaw = this.look.yaw, s = Math.sin(yaw), c = Math.cos(yaw);
     const dx = s * fwd + c * side, dz = c * fwd - s * side;
-    // бросок (как в Deadlock): скорость вдоль рывка — не меньше DASH.burst (быстрее уже летишь — не прибавляет:
-    // цепочка рывков по прямой не разгоняет); поперёк — половина прежней. Дальше гаснет сама (инерция)
-    const l = Math.hypot(dx, dz) || 1, ux = dx / l, uz = dz / l;
-    const along = p.velocity.x * ux + p.velocity.z * uz;
-    const px = p.velocity.x - ux * along, pz = p.velocity.z - uz * along;
-    const sp = Math.max(along, DASH.burst);
-    p.velocity.x = ux * sp + px * 0.5;
-    p.velocity.z = uz * sp + pz * 0.5;
+    // рывок как в Deadlock: DASH.time с летишь с постоянной скоростью (DASH.distance за рывок), клавиши не
+    // действуют; кончился — снова обычный шаг (скорость рывка не уносит дальше). В воздухе — ровно по горизонтали.
+    // Разгон после рывка — только прыжком из рывка (dashJump) или скольжением (присед во время рывка)
+    const l = Math.hypot(dx, dz) || 1;
+    dash(p, dx, dz, DASH.distance / DASH.time, DASH.time, p.onGround ? null : 0, { slide: DASH_SLIDE });
     if (!p.onGround) this.airDashes = (this.airDashes || 0) + 1;
-    p.noFriction = DASH.hold; // бросок держит скорость DASH.hold с (трения нет), потом гаснет
     this.dashCd = DASH.cooldown;
     this.dashSince = 0; //                                 окно прыжка из рывка (dashJump)
     this.dashDir = { x: dx / l, z: dz / l };
@@ -110,6 +107,7 @@ export class DashPart {
     const p = this.player;
     if (!this.dashJumpOpen || !p?.alive || p.mount || (this.pips ?? 0) < 1) return false;
     if (p.speedMultiplier < 0.2 || p.stunned) return false;
+    if (p.dash) { p.dash.left = 0; p.dash.keep = true; } // рывок ещё идёт — кончается, его скорость — в прыжке
     this.dashSince = undefined;
     this.spendPip();
     // скорость вдоль рывка — не меньше DASH.jumpSpeed (не прибавляет сверху: быстрее уже — остаётся)

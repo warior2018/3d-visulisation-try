@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.114.9",
+    "date": "2026-11-23",
+    "title": "Deadlock dash",
+    "changes": [
+      "Dash: 5 m in 0.3 s at a constant speed, then back to walking (no long slide after a ground dash)",
+      "Dash jump ends the dash and gives at least 15 m/s; crouching during a dash cancels it into a slide with the dash speed"
+    ]
+  },
+  {
     "version": "0.114.8",
     "date": "2026-11-23",
     "title": "Angled wall jumps",
