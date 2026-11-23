@@ -6,7 +6,7 @@
 // ============================================================
 
 import { Vec3, Inventory, Player, Mob, NPC, MeleeAttack, SlamAttack, ThrowAttack, HostileBrain, KamikazeBrain, WanderBrain, GuardBrain, FollowBrain, Taming, Rideable, grow, growth } from "../../engine/index.js";
-import { GROWTH_SOFTCAP, SKELETON_AI, SHAMAN_BREAK_AURA, MOB_JUMP, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER, MOB_SIZE, MOB_DAMAGE_SCALE } from "./config.js";
+import { GROWTH_SOFTCAP, SKELETON_AI, SHAMAN_BREAK_AURA, MOB_JUMP, MOB_JUMP_LUCK, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER, MOB_SIZE, MOB_DAMAGE_SCALE } from "./config.js";
 import { maxStack } from "./items.js";
 import { BatBrain } from "./bat-brain.js";
 
@@ -332,6 +332,7 @@ export function createCreature(type, { x = 0, y = 0, z = 0, yaw = 0, hp, invento
   if (MOB_JUMP[type]) {
     e.jumpPower = MOB_JUMP[type].jump;
     e.leapSpeed = MOB_JUMP[type].leap;
+    e.jumpLuck = MOB_JUMP_LUCK;
   }
   e.xp = xp;
   e.bonusHp = bonusHp;

@@ -260,7 +260,7 @@ export function pathBudget(n) {
 // Существо прыгает вверх со скоростью jump (м/с), вперёд — leap (м/с), тяжесть gravity, полуширина radius.
 // Отрывается в 0.25 м за серединой клетки перед ямой (Navigator: leap). Возвращает maxStep — на сколько блоков
 // запрыгивает, gaps[u] — самая широкая яма (клеток), за которой пол выше на u блоков, gap — самая широкая вообще
-export function jumpReach({ jump = 7.5, leap = 3.2, gravity = 22, radius = 0.3, maxGap = 4 } = {}) {
+export function jumpReach({ jump = 7.5, leap = 3.5, gravity = 22, radius = 0.3, maxGap = 4 } = {}) {
   const peak = (jump * jump) / (2 * gravity);
   const maxStep = Math.max(1, Math.floor(peak - 0.1)); // с запасом: ноги выше края хоть на 0.1 м
   const gaps = [];
@@ -319,7 +319,7 @@ export class Navigator {
   // Пересчитать путь от сущности до точки
   plan(e, goal) {
     // свой прыжок у существа (поменялся — пересчитать, докуда достаёт)
-    const jump = e.jumpPower ?? 7.5, leap = e.leapSpeed ?? 3.2;
+    const jump = e.jumpPower ?? 7.5, leap = e.leapSpeed ?? 3.5;
     if (this.reachKey !== `${jump}|${leap}`) {
       this.reachKey = `${jump}|${leap}`;
       Object.assign(this.opts, jumpReach({ jump, leap, gravity: this.gravity, radius: e.radius || 0.3 }));
@@ -386,7 +386,9 @@ export class Navigator {
     // Следующая точка — за ямой (от предыдущей на 2+ клетки по прямой): дошли до края — прыжок с разбега (leap)
     const prev = this.index > 0 ? path[this.index - 1] : null;
     const span = prev ? Math.max(Math.abs(x - prev[0]), Math.abs(z - prev[2])) : 0;
-    const leap = span >= 2 && !this.isSolid(prev[0] + Math.sign(x - prev[0]), prev[1] - 1, prev[2] + Math.sign(z - prev[2])) && dist <= span - 0.25 && dist > 0.6;
+    // (только с края перед ямой: стоим в клетке отрыва на её высоте — а не уже перелетели и сели дальше)
+    const onTakeoff = prev && Math.hypot(prev[0] + 0.5 - p.x, prev[2] + 0.5 - p.z) < 0.95 && Math.abs(p.y - floorY(prev[0], prev[1], prev[2])) < 0.3;
+    const leap = span >= 2 && onTakeoff && !this.isSolid(prev[0] + Math.sign(x - prev[0]), prev[1] - 1, prev[2] + Math.sign(z - prev[2])) && dist <= span - 0.25 && dist > 0.6;
     if (leap) jump = true;
     const done = last && dist < this.reach;
     if (done) this.stuck = 0; // стоим, потому что пришли, — это не «застряли»

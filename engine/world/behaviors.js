@@ -72,10 +72,10 @@ export function melee(e, target, dt, attack, ctx = {}) {
 //   navigator — new Navigator({ isSolid }) у каждого существа свой.
 // Возвращает true, если сущность идёт.
 // Прыжок через яму: горизонтальная скорость (м/с), если у существа нет своей (e.leapSpeed)
-const LEAP = { speed: 3.2 };
+const LEAP = { speed: 3.5 };
 
 export function pursue(e, target, dt, { navigator, radius = 10, speed = 2.2, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5 } = {}) {
-  // В прыжке через яму — летим с разгоном прыжка, пока не приземлимся (клавиши «не жмём»)
+  // В прыжке — летим с разгоном прыжка, пока не приземлимся (направление не меняем)
   if (e.leap) {
     e.leap.t -= dt;
     if (e.leap.t <= 0 || (e.onGround && e.leap.t < e.leap.time - 0.15)) e.leap = null;
@@ -122,16 +122,24 @@ export function pursue(e, target, dt, { navigator, radius = 10, speed = 2.2, sto
     turnTowards(e, Math.atan2(mx, mz), turnSpeed, dt);
   }
   // Ступенька впереди (по пути) или упёрлись — прыжок
-  // свой прыжок у существа (e.jumpPower — вверх, e.leapSpeed — вперёд через яму), иначе — из настроек
-  const jump = e.jumpPower ?? jumpSpeed;
-  if (e.onGround && (step?.jump || (e.blocked && !step))) e.velocity.y = jump;
-  // Яма впереди (step.leap) — прыжок с разгоном к точке за ней (не меньше своей скорости); летим, пока не сядем
-  if (e.onGround && step?.leap && len > 1e-3 && e.speedMultiplier > 0.2) {
-    const v = Math.max(e.leapSpeed ?? LEAP.speed, speed * e.speedMultiplier);
+  // Прыжок: ступенька впереди, упёрлись или яма (step.leap). Свой прыжок у существа (e.jumpPower — вверх,
+  // e.leapSpeed — вперёд), иначе — из настроек. Иногда (e.jumpLuck: chance) прыжок сильнее на bonus [от, до]
+  // (вверх и вперёд). Пока летит — «лок»: направление не меняет, пока не приземлится
+  if (e.onGround && (step?.jump || step?.leap || (e.blocked && !step))) {
+    const L = e.jumpLuck, k = L && Math.random() < L.chance ? 1 + L.bonus[0] + Math.random() * (L.bonus[1] - L.bonus[0]) : 1;
+    const jump = (e.jumpPower ?? jumpSpeed) * k;
+    e.velocity.y = jump;
+    let vx = e.velocity.x, vz = e.velocity.z;
+    if (step?.leap && len > 1e-3 && e.speedMultiplier > 0.2) {
+      // яма — с разгоном к точке за ней (не меньше своей скорости)
+      const v = Math.max(e.leapSpeed ?? LEAP.speed, speed * e.speedMultiplier) * k;
+      vx = (mx / len) * v;
+      vz = (mz / len) * v;
+    }
     const time = (2 * jump) / (navigator.gravity || 22) + 0.15;
-    e.leap = { vx: (mx / len) * v, vz: (mz / len) * v, t: time, time };
-    e.velocity.x = e.leap.vx;
-    e.velocity.z = e.leap.vz;
+    e.leap = { vx, vz, t: time, time };
+    e.velocity.x = vx;
+    e.velocity.z = vz;
   }
   return true;
 }
