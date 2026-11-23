@@ -68,7 +68,7 @@ function neighbors(isSolid, x, y, z, { height, maxStep, maxDrop, gap = 0 }) {
     for (let up = 1; up <= maxStep; up++) {
       if (!free(isSolid, x, y + height, z, up)) break; // потолок над нами — не подпрыгнуть
       if (canStand(isSolid, nx, y + up, nz, height)) {
-        out.push([nx, y + up, nz, 1 + up]); // прыжок «дороже» шага: без нужды не прыгаем
+        out.push([nx, y + up, nz, 1]); // прыжок стоит как шаг: где прыжком короче — прыгает
         found = true;
         break;
       }
@@ -77,20 +77,20 @@ function neighbors(isSolid, x, y, z, { height, maxStep, maxDrop, gap = 0 }) {
     // Вниз (спрыгнуть): впереди пусто на высоту тела, ниже — пол
     if (!free(isSolid, nx, y, nz, height)) continue;
     // Перепрыгнуть яму в gap клеток (gap 1: через одну): за ней — пол на той же высоте или на блок выше
-    // (тогда над нами и над ямой — место на подъём). Дороже шагов: без нужды не прыгаем
+    // (тогда над нами и над ямой — место на подъём). Стоит столько же, сколько пройти это расстояние пешком
     for (let g = 1; g <= gap; g++) {
       const fx = x + dx * (g + 1), fz = z + dz * (g + 1);
       let open = true;
       for (let k = 1; k <= g && open; k++) if (!free(isSolid, x + dx * k, y, z + dz * k, height) || canStand(isSolid, x + dx * k, y, z + dz * k, height)) open = false;
       if (!open) break;
       if (canStand(isSolid, fx, y, fz, height)) {
-        out.push([fx, y, fz, 2.6 + g]);
+        out.push([fx, y, fz, g + 1]);
         break;
       }
       let roof = free(isSolid, x, y + height, z, 1);
       for (let k = 1; k <= g && roof; k++) if (!free(isSolid, x + dx * k, y + height, z + dz * k, 1)) roof = false;
       if (roof && canStand(isSolid, fx, y + 1, fz, height)) {
-        out.push([fx, y + 1, fz, 3.6 + g]);
+        out.push([fx, y + 1, fz, g + 1]);
         break;
       }
     }
@@ -146,11 +146,12 @@ class Heap {
   }
 }
 
-// Оценка «сколько ещё идти» — по прямой с диагоналями (не больше настоящего пути)
+// Оценка «сколько ещё идти» — по прямой с диагоналями (не больше настоящего пути). Высота не в счёт: подъём
+// прыжком стоит как шаг, иначе оценка вышла бы больше настоящего пути
 function estimate(x, y, z, g) {
   const dx = Math.abs(x - g[0]);
   const dz = Math.abs(z - g[2]);
-  return Math.max(dx, dz) + (Math.SQRT2 - 1) * Math.min(dx, dz) + Math.abs(y - g[1]) * 0.5; // (спуск стоит 0.5 за блок — оценка не больше настоящего)
+  return Math.max(dx, dz) + (Math.SQRT2 - 1) * Math.min(dx, dz);
 }
 
 // A*: путь от клетки start до клетки goal ([x, y, z] — клетка, где стоят ноги).
