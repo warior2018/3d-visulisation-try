@@ -983,6 +983,7 @@ export class GameScene extends Scene {
       `PICKUPS ${this.pickups.list.length}  PROJECTILES ${this.projectiles.list.length}  TRAPS ${this.traps.list.length}`,
       `SPAWNED ${this.spawner.spawned}  INVASION ${this.invasion.active ? `ON (${this.invasionKind?.id}) ${Math.ceil(this.invasion.timeLeft)} S` : "OFF"}`,
       `XYZ ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}  YAW ${Math.round((this.look.yaw * 180) / Math.PI) % 360}  PITCH ${Math.round((this.look.pitch * 180) / Math.PI)}`,
+      `MOVE ${Math.hypot(this.player.velocity.x, this.player.velocity.z).toFixed(2)} M/S  ${this.player.onGround ? "GROUND" : "AIR"}  ${this.player.slide ? "SLIDE" : this.controller?.accel?.source ? "SOURCE" : "OLD"}  WALK ${(this.controller?.speed ?? 0).toFixed(2)} x${this.player.speedMultiplier.toFixed(2)}`, // отладка движения
       `VIEW ${this.engine.renderer?.fadeDist ?? "-"} M  CAMERA ${this.rig.mode === "third" ? "THIRD" : "FIRST"}`,
       `DISK  SAVE ${kb(this.techDisk.save)} KB  LOG ${kb(this.techDisk.log)} KB`,
     ];
