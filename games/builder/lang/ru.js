@@ -963,6 +963,7 @@ export const RU = {
   "ONCE IN 30 S THE NEXT SPELL: 300% DMG, X2 RADIUS": "РАЗ В 30 С СЛЕДУЮЩЕЕ ЗАКЛИНАНИЕ: 300% УРОНА, X2 РАДИУС",
   "ONE BACKGROUND FOR ALL PAGES": "ОДИН ФОН НА ВСЕ СТРАНИЦЫ",
   "ONE CUT": "ОДИН РАЗРЕЗ",
+  "ONE MORE AIR JUMP AND ONE MORE AIR DASH BEFORE LANDING": "ЕЩЁ ОДИН ПРЫЖОК И ЕЩЁ ОДИН РЫВОК В ВОЗДУХЕ ДО ПРИЗЕМЛЕНИЯ",
   "ONE MORE JUMP IN THE AIR (80% HEIGHT)": "ЕЩЁ ОДИН ПРЫЖОК В ВОЗДУХЕ (80% ВЫСОТЫ)",
   "ONE MORE JUMP IN THE AIR (80% HEIGHT), COSTS 1 STAMINA": "ЕЩЁ ОДИН ПРЫЖОК В ВОЗДУХЕ (80% ВЫСОТЫ), СТОИТ 1 ВЫНОСЛИВОСТЬ",
   "ONLY ${ARMOR_SLOT_NAMES[i]} HERE": "СЮДА - ТОЛЬКО ${ARMOR_SLOT_NAMES[i]}",

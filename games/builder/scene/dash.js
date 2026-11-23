@@ -22,6 +22,8 @@ export class DashPart {
   // Каждый тик: деления копятся по одному
   updateDash(dt) {
     this.dashCd = Math.max(0, (this.dashCd || 0) - dt);
+    this.wallJumpCd = Math.max(0, (this.wallJumpCd || 0) - dt);
+    if (this.player?.onGround) this.airDashes = 0; // приземлился — рывки в воздухе снова есть
     // окно прыжка из рывка: открылось / закрылось — перерисовать шкалу (синяя)
     if (this.dashSince !== undefined) {
       const was = this.dashJumpOpen;
@@ -57,6 +59,8 @@ export class DashPart {
     if (p.speedMultiplier < 0.2 || p.stunned) return; // в капкане / оглушён — никуда
     if ((this.dashCd || 0) > 0) return; //               пауза между рывками
     if ((this.pips ?? this.staminaMax) < 1) return this.noStamina?.();
+    // в воздухе — не больше DASH.airDashes (+ талант) рывков до приземления
+    if (!p.onGround && (this.airDashes || 0) >= DASH.airDashes + (this.talentStats?.airDashes || 0)) return;
     // куда: клавиши движения относительно взгляда; не жмёшь — вперёд
     const input = this.engine.input;
     let fwd = 0, side = 0;
@@ -67,10 +71,15 @@ export class DashPart {
     if (!fwd && !side) fwd = 1;
     const yaw = this.look.yaw, s = Math.sin(yaw), c = Math.cos(yaw);
     const dx = s * fwd + c * side, dz = c * fwd - s * side;
-    // толчок: прибавляется к нынешней скорости векторно (дальше гаснет и не больше maxMult шагов — controller)
-    const l = Math.hypot(dx, dz) || 1;
-    p.velocity.x += (dx / l) * DASH.impulse;
-    p.velocity.z += (dz / l) * DASH.impulse;
+    // бросок (как в Deadlock): скорость вдоль рывка — не меньше DASH.burst (быстрее уже летишь — не прибавляет:
+    // цепочка рывков по прямой не разгоняет); поперёк — половина прежней. Дальше гаснет сама (инерция)
+    const l = Math.hypot(dx, dz) || 1, ux = dx / l, uz = dz / l;
+    const along = p.velocity.x * ux + p.velocity.z * uz;
+    const px = p.velocity.x - ux * along, pz = p.velocity.z - uz * along;
+    const sp = Math.max(along, DASH.burst);
+    p.velocity.x = ux * sp + px * 0.5;
+    p.velocity.z = uz * sp + pz * 0.5;
+    if (!p.onGround) this.airDashes = (this.airDashes || 0) + 1;
     this.dashCd = DASH.cooldown;
     this.dashSince = 0; //                                 окно прыжка из рывка (dashJump)
     this.dashDir = { x: dx / l, z: dz / l };
@@ -90,8 +99,9 @@ export class DashPart {
   // Нажали прыжок (scene/input.js): в окне — прыжок из рывка: деление, ещё толчок туда же, куда рывок, и прыжок
   dashJump() {
     const p = this.player;
-    if (!this.dashJumpOpen || !p?.alive || p.mount || (this.pips ?? 0) < 1) return;
-    if (p.speedMultiplier < 0.2 || p.stunned) return;
+    if (!this.dashJumpOpen || !p?.alive || p.mount || (this.pips ?? 0) < 1) return false;
+    if (p.speedMultiplier < 0.2 || p.stunned) return false;
+    this.engine.input.wasPressed?.("jump"); // нажатие — наше: управление героем его уже не увидит (не будет второго прыжка)
     this.dashSince = undefined;
     this.pips--;
     p.velocity.x += this.dashDir.x * DASH.impulse;
@@ -104,6 +114,43 @@ export class DashPart {
     this.engine.sound.play("dash", { volume: 1.2 });
     this.fx?.burst({ x: p.position.x, y: p.position.y + 0.1, z: p.position.z }, { count: 12, speed: 2.5, color: [150, 200, 255], size: 0.07, life: 0.4, gravity: 1, drag: 3 });
     this.engine.redraw();
+    return true;
+  }
+
+  // Прыжок от стены (бесплатно): в воздухе у стены — вверх и от неё (DASH.wall). Вернёт, прыгнули ли
+  wallJump() {
+    const p = this.player;
+    if (!p?.alive || p.onGround || p.mount || p.inWater || (this.wallJumpCd || 0) > 0) return false;
+    if (p.speedMultiplier < 0.2 || p.stunned) return false;
+    // стены рядом: клетки сбоку на высоте ног и пояса — нормаль от стены
+    const P = p.position, r = (p.radius || 0.3) + 0.35, w = this.world;
+    let nx = 0, nz = 0;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const cx = Math.floor(P.x + dx * r), cz = Math.floor(P.z + dz * r);
+      if (w.isSolid(cx, Math.floor(P.y + 0.3), cz) || w.isSolid(cx, Math.floor(P.y + 1.1), cz)) { nx -= dx; nz -= dz; }
+    }
+    const nl = Math.hypot(nx, nz);
+    if (!nl) return false;
+    this.engine.input.wasPressed?.("jump"); // нажатие — наше (не прыжок в воздухе)
+    const W = DASH.wall, jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 22) * (this.controller?.jumpHeight ?? 1.2));
+    p.velocity.x += (nx / nl) * W.push;
+    p.velocity.z += (nz / nl) * W.push;
+    p.velocity.y = Math.max(p.velocity.y, jumpV * W.up);
+    this.wallJumpCd = W.cooldown;
+    this.engine.sound.play("dash", { volume: 0.6 });
+    return true;
+  }
+
+  // Быстрое падение: присед дважды в воздухе (за DASH.fall.double с) — рывок вниз, 1 деление
+  crouchPressed() {
+    const p = this.player, now = this.combatClock || 0;
+    const second = now - (this.lastCrouchAt ?? -9) < DASH.fall.double;
+    this.lastCrouchAt = now;
+    if (!second || !p?.alive || p.onGround || p.mount || (this.pips ?? this.staminaMax) < 1) return;
+    this.lastCrouchAt = -9;
+    this.spendPip();
+    p.velocity.y = Math.min(p.velocity.y, -DASH.fall.speed);
+    this.engine.sound.play("dash", { volume: 0.8 });
   }
 
   // Рывок с земли: пока разгон не погас — ступенька вверх и вниз до DASH.stick блоков (физика: stepHeight), то

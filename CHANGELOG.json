@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.114.0",
+    "date": "2026-11-23",
+    "title": "Deadlock-style dash and air moves",
+    "changes": [
+      "Dash is now a burst: at least 14 m/s along the dash; dashing again in a straight line doesn't stack speed - dash jumps and slides do",
+      "One air dash and one air jump (1 stamina each) per flight for everyone; the DOUBLE JUMP talent adds one more of each",
+      "Wall jump: jump in the air next to a wall to kick off it (free)",
+      "Fast fall: press crouch twice in the air (1 stamina)"
+    ]
+  },
+  {
     "version": "0.113.2",
     "date": "2026-11-23",
     "title": "Air jump costs stamina",
