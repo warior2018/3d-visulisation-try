@@ -137,7 +137,7 @@ export class CharacterController {
     if (s > 0.001) {
       let drop = 0;
       if (entity.inWater) drop = (s > walk ? a.boostWater : Math.max(s, a.stopSpeed) * a.friction) * dt;
-      else if (!air && !jumping && !(entity.noFriction > 0)) drop = (s > walk + 0.05 ? a.boostGround : Math.max(s, a.stopSpeed) * a.friction) * dt;
+      else if (!air && !jumping && !(entity.noFriction > 0)) drop = (s > walk + 0.05 ? a.boostGround : Math.max(s, a.stopSpeed) * (wishspeed > 0 ? a.friction : a.stopFriction ?? a.friction)) * dt; // отпустил клавиши — тормозит резко (stopFriction)
       else if (air && s > walk) drop = a.boostAir * dt;
       if (!air && wishspeed > 0 && (v.x * wx + v.z * wz) < 0 && s > walk) drop += a.brake * dt; // против движения — тормоз
       const ns = Math.max(0, s - drop);
