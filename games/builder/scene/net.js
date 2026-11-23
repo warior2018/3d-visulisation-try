@@ -22,7 +22,7 @@
 //   fx — эффекты и звуки [[откуда (0 — хост, иначе номер гостя), вид, аргументы]] (гость шлёт свои: fx { list })
 // ============================================================
 
-import { encodeChunk, decodeChunk, Damage, Vec3 } from "../../../engine/index.js";
+import { encodeChunk, decodeChunk, Damage, Vec3, Terrain } from "../../../engine/index.js";
 import { isWeapon, isArmor } from "../items.js";
 import { PICKUP_AUTO_RADIUS, SUBCLASS } from "../config.js";
 import { lowerBody } from "./pets.js";
@@ -184,6 +184,31 @@ function hurtLocal(g, n, source, kind, shot, part = null) {
   d.shot = shot || null;
   d.part = part;
   g.player.receive(d);
+}
+
+// Что в мире хоста, кроме блоков (гостю в welcome): рельеф (сид и параметры — для высоты земли), сундуки в домах,
+// в пещерах и на дальнем острове, площадка лича, озёра. Раньше гость держал свои (сгенерированные у себя) — его
+// сундуки стояли «на улице» и хост их не видел, а сундуки хоста не видел гость
+function worldMeta(g) {
+  if (!g.terrain) return null;
+  return {
+    seed: g.terrain.seed, terrain: g.terrainParams || null, treasure: g.treasure || null, arena: g.arena || null, lakes: g.lakes || null,
+    houseChests: g.houseChestsJSON?.() || [], caves: g.cavesJSON?.() || null,
+  };
+}
+
+function applyWorldMeta(g, m) {
+  if (!m) return;
+  if (m.seed && m.terrain) {
+    g.terrainParams = m.terrain;
+    g.terrain = new Terrain({ ...m.terrain, seed: m.seed });
+  }
+  g.treasure = m.treasure || null;
+  g.chestEnt = null; // модель сундука дальнего острова — заново, на месте хоста
+  g.arena = m.arena || null;
+  g.lakes = m.lakes || null;
+  g.houseChests = Array.isArray(m.houseChests) ? m.houseChests : [];
+  g.caves = m.caves || null;
 }
 
 export class HostNet {
@@ -402,7 +427,7 @@ export class HostNet {
         const surfaces = [];
         const chunks = [];
         for (const c of g.world.chunks.values()) if (c.blocks.size) chunks.push([c.cx, c.cz, encodeChunk(c, surfaces).toString("base64")]);
-        this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn, water: (g.worlds?.get("main")?.voxels || g.world).water.sourcesJSON(), gates: g.gates || [] });
+        this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn, water: (g.worlds?.get("main")?.voxels || g.world).water.sourcesJSON(), gates: g.gates || [], wg: worldMeta(g) });
         g.engine.log(`сеть: ${ghost ? "вернулся" : "подключился"} ${hero.name} (${peer.address}), отправлено кусков мира ${chunks.length}`);
         const said = `${hero.name} ${ghost ? "RECONNECTED" : "JOINED"}`;
         g.engine.toast(said, 3000);
@@ -693,6 +718,7 @@ export class ClientNet {
         for (const [cx, cz, data] of msg.chunks || []) decodeChunk(Buffer.from(data, "base64"), cx, cz, w, surfaces);
         w.water.loadSources(msg.water); // вода хоста: источники, текучая растечётся сама
         g.gates = Array.isArray(msg.gates) ? msg.gates : []; // врата небесных островов
+        applyWorldMeta(g, msg.wg); // рельеф, сундуки (дом, пещеры, дальний остров), площадка лича, озёра — как у хоста
         w.quiet = false;
         for (const e of [...g.entities.list]) if (e !== g.player) g.removeEntity(e);
         this.copies.clear(); // (переподключение) старые копии — заново из снимков

@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.17",
+    "date": "2026-11-23",
+    "title": "Chests in multiplayer",
+    "changes": [
+      "Guests now get the host's chests (houses, caves, far island), terrain, lich arena and lakes: no more chests standing outside that only one of you can see"
+    ]
+  },
+  {
     "version": "0.114.16",
     "date": "2026-11-23",
     "title": "Slide pose in multiplayer",
