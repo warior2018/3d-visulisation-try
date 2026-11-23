@@ -1310,6 +1310,10 @@ export const COMMON_TABS = ["survival"];
 // radius / height — сколько сносит перед собой (ширина и высота); volume — громкость шага [вдали, вплотную]
 export const GIANT = { every: [240, 480], retry: 20, minIsland: 50, from: 70, minFrom: 30, spread: 0.6, speed: 9, stop: 4.5, seat: 6, look: 30, life: 150, stride: 4.5, hear: 110, shake: 0.85, radius: 1.6, height: 10, volume: [0.4, 5.85] };
 
-// Полигон (scene/training.js): radius — радиус плоского острова; dummies — где манекены [x, z] (герой — в 0, 0,
-// смотрит на +z); window — за сколько последних секунд урон над манекеном
-export const TRAINING = { radius: 22, dummies: [[0, 6], [-5, 11], [5, 11], [0, 18]], window: 10 };
+// Полигон (scene/training.js): radius — полсторона квадратного острова; dummies — где манекены [x, z] (герой — в
+// 0, 0, смотрит на +z); window — за сколько последних секунд урон над манекеном; mountain — мост на север (−z) и
+// гора за ним: bridge — длина моста, bridgeWidth — полширины; length — от моста до вершины (склон сначала почти
+// плоский, потом круче), back — спуск за вершиной, width — полширины горы, height — высота вершины (блоков),
+// rock / snow — выше — камень / снег
+export const TRAINING = { radius: 22, dummies: [[0, 6], [-5, 11], [5, 11], [0, 18]], window: 10,
+  mountain: { bridge: 10, bridgeWidth: 2, length: 45, back: 12, width: 18, height: 26, rock: 14, snow: 22 } };

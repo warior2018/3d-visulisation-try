@@ -1,31 +1,53 @@
 // ============================================================
-//  Полигон (TRAINING, главное меню → TRAINING): небольшой плоский остров, манекены-скелеты (TRAINING.dummies) —
+//  Полигон (TRAINING, главное меню → TRAINING): квадратный плоский остров, с севера мост на гору; манекены-скелеты (TRAINING.dummies) —
 //  не дерутся, не умирают (здоровье сразу обратно), над каждым — урон за последние TRAINING.window с и урон в
 //  секунду. Ни мобов, ни стража, ни гиганта, ни нашествий; читы консоли включены; мир не сохраняется; погиб —
 //  встаёшь на месте появления, все существа исчезают, манекены — заново.
 // ============================================================
 
 import { TRAINING, WORLDGEN, LIGHTS } from "../config.js";
+import { HALF, QUARTER, THREE_Q } from "../../../engine/index.js";
 
 export class TrainingPart {
-  // Новый полигон: круглый плоский остров (трава сверху, земля и камень ниже), фонари по краю, манекены
+  // Новый полигон: квадратный плоский остров (трава, под ней земля и камень), фонари по краю; с севера (−z) —
+  // мост на второй остров: склон с самого пологого начала плавно круче — в гору (TRAINING.mountain)
   buildTrainingWorld() {
-    const T = TRAINING, v = this.world, C = WORLDGEN.colors;
-    for (let x = -T.radius; x <= T.radius; x++) for (let z = -T.radius; z <= T.radius; z++) {
-      const d = Math.hypot(x, z);
-      if (d > T.radius) continue;
-      const depth = 3 + Math.round(Math.max(0, T.radius - d) * 0.25); // снизу — чуть конусом
-      for (let y = -depth; y < 0; y++) v.place(x, y, z, y < -2 ? C.stone : C.dirt);
+    const T = TRAINING, v = this.world, C = WORLDGEN.colors, R = T.radius, WOOD = [92, 64, 40];
+    for (let x = -R; x <= R; x++) for (let z = -R; z <= R; z++) {
+      for (let y = -4; y < 0; y++) v.place(x, y, z, y < -2 ? C.stone : C.dirt);
       v.place(x, 0, z, C.grass);
     }
-    // фонари по краю: столбик и лампа
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2, x = Math.round(Math.sin(a) * (T.radius - 2)), z = Math.round(Math.cos(a) * (T.radius - 2));
-      v.place(x, 1, z, [92, 64, 40]);
-      v.place(x, 2, z, [92, 64, 40]);
+    // фонари по краю (углы и середины сторон): столбик и лампа
+    for (const [x, z] of [[-R + 1, -R + 1], [R - 1, -R + 1], [-R + 1, R - 1], [R - 1, R - 1], [-R + 1, 0], [R - 1, 0], [0, R - 1]]) {
+      v.place(x, 1, z, WOOD);
+      v.place(x, 2, z, WOOD);
       v.place(x, 3, z, LIGHTS.lamp.color);
     }
-    this.engine.log(`полигон: остров радиусом ${T.radius}`);
+    // мост на север: настил на уровне травы, перила-столбики с фонарями
+    const M = T.mountain, z0 = -R - 1, z1 = -R - M.bridge, hw = M.bridgeWidth;
+    for (let z = z0; z >= z1; z--) {
+      for (let x = -hw; x < hw; x++) v.place(x, 0, z, [120, 84, 52]);
+      if ((z0 - z) % 4 === 0) for (const x of [-hw - 1, hw]) {
+        v.place(x, 0, z, WOOD);
+        v.place(x, 1, z, WOOD);
+        if ((z0 - z) % 8 === 0) v.place(x, 2, z, LIGHTS.torch.color);
+      }
+    }
+    // остров-гора: вдоль (от моста на север) высота растёт от 0 плавно круче — (t / L)², до вершины M.height;
+    // за вершиной — спуск круче; поперёк — к краям ниже. Верх — с точностью до четверти блока (неполные блоки)
+    const zs = z1 - 1, L = M.length, back = M.back, W = M.width;
+    for (let t = 0; t <= L + back; t++) for (let x = -W; x <= W; x++) {
+      const z = zs - t;
+      const along = t <= L ? (t / L) ** 2 : Math.max(0, 1 - ((t - L) / back) ** 1.5);
+      const across = Math.max(0, 1 - (Math.abs(x) / W) ** 2);
+      const top = 1 + M.height * along * across; // где стоять
+      const full = Math.floor(top), part = top - full;
+      const color = top > M.snow ? C.snow : top > M.rock ? C.stone : C.grass;
+      for (let y = -4; y < full - 1; y++) v.place(x, y, z, y < full - 4 ? C.stone : C.dirt);
+      v.place(x, full - 1, z, color);
+      if (part >= 0.125) v.place(x, full, z, color, part < 0.375 ? QUARTER : part < 0.625 ? HALF : part < 0.875 ? THREE_Q : null);
+    }
+    this.engine.log(`полигон: остров ${R * 2 + 1}×${R * 2 + 1}, мост ${M.bridge}, гора ${M.height} блоков`);
   }
 
   // Манекены: на линии перед местом появления, на разных расстояниях

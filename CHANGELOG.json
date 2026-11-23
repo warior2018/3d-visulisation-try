@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.113.1",
+    "date": "2026-11-23",
+    "title": "Training: square island and a mountain",
+    "changes": [
+      "The training island is square; to the north a bridge leads to a mountain island: the slope starts almost flat and gets steeper up to a 26-block peak (quarter-block smooth)"
+    ]
+  },
+  {
     "version": "0.113.0",
     "date": "2026-11-23",
     "title": "Source-style movement",
