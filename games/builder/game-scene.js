@@ -690,7 +690,7 @@ export class GameScene extends Scene {
       if (e === player || e.type === "giant" || e.dummy) continue; // манекен полигона стоит сам // гиганта двигает scene/giant.js
       // гость сетевой игры: его двигает сеть (scene/net.js), не мозги и не физика
       if (e.remote) {
-        e.view?.animator.setBase(baseClip(e.netWalk, e.netLow), 1); // присед / стойка — клипы стойки
+        e.view?.animator.setBase(e.netSlide ? "Slide" : baseClip(e.netWalk, e.netLow), 1); // скольжение; присед / стойка — клипы стойки
         continue;
       }
       if (!e.alive) {

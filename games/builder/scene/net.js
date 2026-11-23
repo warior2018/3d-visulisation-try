@@ -251,7 +251,7 @@ export class HostNet {
         if (!x.view && !x.remote) continue;
       if (x === g.player && g.dedicated) continue; // сервер: своего героя не показываем
       const walking = x === g.player ? !!g.move?.moving : !!x.netWalk;
-        e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.ceil(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow) | (x.diving ? 64 : 0) | ((x === g.player ? g.torchLit : x.netTorch) ? 128 : 0)]);
+        e.push([netId(x), x.type, r2(x.position.x), r2(x.position.y), r2(x.position.z), r2(x === g.player ? g.look.yaw : x.yaw), Math.ceil(x.stats.hp), Math.round(x.stats.maxHp), (x.alive ? 1 : 0) | (walking ? 2 : 0) | (x.netAttack ? 4 : 0) | (x.downed ? 8 : 0) | lowFlags(x === g.player ? myLow(g) : x.netLow) | (x.diving ? 64 : 0) | ((x === g.player ? g.torchLit : x.netTorch) ? 128 : 0) | ((x === g.player ? g.sliding && g.player.onGround : x.netSlide) ? 256 : 0)]);
       }
       return e;
     };
@@ -449,6 +449,7 @@ export class HostNet {
         if (!(guest.lockUntil > Date.now())) guest.target = { x: +msg.x || 0, y: +msg.y || 0, z: +msg.z || 0, yaw: +msg.yaw || 0 };
         h.netWalk = !!msg.w;
         h.netTorch = !!msg.tl; // факел гостя горит
+        h.netSlide = !!msg.sl; // гость скользит (поза Slide у копий)
         // присед / стойка гостя: рост и голова (хитбокс) ниже, клип стойки (game-scene.js)
         if ((+msg.cr || 0) !== (h.netLow || 0)) lowerBody(h, +msg.cr || 0);
         if (typeof msg.c === "string") guest.cls = msg.c || null;
@@ -672,7 +673,7 @@ export class ClientNet {
     g.fog.reveal(g.player.position);
     if (++this.ticks % SNAP_EVERY === 0) {
       const p = g.player.position;
-      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0, d: g.downed ? 1 : 0, cr: myLow(g), c: g.playerClass || "", s: g.subclass || "", hp: Math.ceil(g.player.stats.hp), mh: g.player.stats.maxHp, tl: g.torchLit ? 1 : 0 };
+      const st = { t: "state", x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(g.look.yaw), w: g.move?.moving ? 1 : 0, d: g.downed ? 1 : 0, cr: myLow(g), c: g.playerClass || "", s: g.subclass || "", hp: Math.ceil(g.player.stats.hp), mh: g.player.stats.maxHp, tl: g.torchLit ? 1 : 0, sl: g.sliding && g.player.onGround ? 1 : 0 };
       if (this.ticks % (SNAP_EVERY * 4) === 0) st.h = heldOf(g);
       this.client.send(st);
       const list = this.fx.take();
@@ -905,6 +906,7 @@ export class ClientNet {
       e.downed = !!(flags & 8); // погиб в матче: урна и призрак (scene/coop.js)
       e.diving = !!(flags & 64); //  летучая мышь в пике (крылья сложены)
       e.netTorch = !!(flags & 128); // у героя горит факел — светит и у нас (scene/effects.js)
+      e.netSlide = !!(flags & 256); //  герой скользит — поза Slide
       const low = flags & 32 ? 2 : flags & 16 ? 1 : 0; // присед / стойка: ниже рост и голова
       if (low !== (e.netLow || 0)) lowerBody(e, low);
       if (flags & 4) e.view?.animator.playOnce("Attack"); // замахнулся на хосте
