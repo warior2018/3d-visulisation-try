@@ -66,7 +66,7 @@ export const GAME_DEFAULTS = {
       item2: "key:2",
       skill1: "key:Q",
       skill2: "key:E",
-      skill3: "key:LSHIFT", // способность 3 (пока пусто; спринта нет — на Shift будет способность)
+      skill3: "key:LSHIFT", // рывок (scene/dash.js; спринта нет)
       run: "", //            спринта в игре нет
       ability1: "", // ячейки панели движка — не нужны: выбор ячеек — item1 / item2
       ability2: "",
@@ -102,7 +102,7 @@ export const GAME_ACTION_LABELS = {
   item2: "ITEM 2",
   skill1: "SKILL 1",
   skill2: "SKILL 2",
-  skill3: "SKILL 3",
+  skill3: "DASH",
   run: null, // спринта нет — в списке клавиш не показываем
   palette: "BLOCK COLOR",
   save: "SAVE",
@@ -766,6 +766,7 @@ export const SOUNDS = {
   snap: mix(tone(900, 300, 80, 8), noise(70, 10, 0.4)), //            капкан захлопнулся
   spike: mix(tone(600, 250, 70, 9), noise(50, 10, 0.5)), //           шипы укололи
   trapSet: mix(tone(300, 200, 90, 6), noise(40, 10, 0.6)), //         поставил ловушку
+  dash: mix(noise(170, 6, 0.55), tone(420, 220, 140, 6)), //            рывок: короткий «вжух»
   // шаг гиганта (scene/giant.js): глухой тяжёлый топот — только низкие частоты, мягкое начало (без щелчка)
   giantStep: fadeIn(mix(tone(40, 18, 1200, 2.2), tone(62, 26, 700, 3.2)), 25),
 };
@@ -1202,6 +1203,10 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // к перпендикуляру) — стоп, иначе рывок едет вдоль стены на keep своей скорости и, кончилась стена, — дальше
 // Прощение краёв у рывков: stepUp — задел край блока низом тела не глубже 0.5 — поднимает на него; stepDown —
 // задел головой край потолка не глубже 0.25 — проходишь под ним; corner — задел угол стены краешком до 0.25 м — огибаешь
+// Рывок и выносливость (scene/dash.js), как в Deadlock: pips — делений выносливости (рывок тратит одно);
+// recharge — за сколько секунд копится одно деление (по одному); speed — скорость рывка (м/с), time — сколько
+// длится (с): speed × time ≈ 4.4 м
+export const DASH = { pips: 2, recharge: 4, speed: 22, time: 0.2 };
 export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
 // Прыжок с мачете (Q): нож — обратным хватом (лезвием вниз), прыжок вперёд на distance м с замахом. Хитбокс — там,
 // где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся

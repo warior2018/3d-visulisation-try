@@ -32,6 +32,7 @@ import { WorldgenPart } from "./scene/worldgen.js";
 import { CombatPart } from "./scene/combat.js";
 import { ThrowersPart, lighter } from "./scene/throwers.js";
 import { GiantPart } from "./scene/giant.js";
+import { DashPart } from "./scene/dash.js";
 import { MagicPart } from "./scene/magic.js";
 import { AmmoPart } from "./scene/ammo.js";
 import { ProgressionPart } from "./scene/progression.js";
@@ -411,6 +412,7 @@ export class GameScene extends Scene {
     this.updateFade(dt); // затемнение перехода через портал (scene/portals.js)
     this.updateGates(dt); // врата небесных островов: встал — перенос (scene/sky.js)
     this.updateGiant(dt); // гигант-скример: таймер, бег (scene/giant.js)
+    this.updateDash(dt); // выносливость: деления копятся (scene/dash.js)
     if (this.pull) this.updatePull(dt); //  портал закрывается — затягивает к выходу (вместо управления)
     else if (!this.downed && !frozen) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
     // 2. Мир: существа, предметы, снаряды, ловушки, события. Клиент сетевой игры мир не считает —
@@ -938,6 +940,7 @@ export class GameScene extends Scene {
     this.hud.draw(ui, this);
     this.drawCloudVeil(ui); // внутри облака — белая пелена (scene/clouds.js)
     this.drawWater(ui); // под водой — пелена и пузырьки воздуха (scene/water.js)
+    if (this.engine.scene === this) this.drawStaminaPips(ui); // выносливость под прицелом (scene/dash.js)
     const fade = this.fadeAlpha?.() || 0; // переход через портал — затемнение
     if (fade > 0) ui.rect(0, 0, ui.width, ui.height, [0, 0, 0], Math.round(fade * 255));
     profiler.end(PROF.hudDraw);
@@ -990,4 +993,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart, GiantPart]);
+mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart, GiantPart, DashPart]);

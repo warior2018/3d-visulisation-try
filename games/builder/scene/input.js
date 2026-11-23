@@ -30,6 +30,10 @@ export class InputPart {
     if (has("ultimate")) this.useUltimate();
     if (has("mount")) this.toggleMount(); // Z — маунт (scene/mount.js)
     if (has("mountMode")) this.toggleMountMode(); // Alt — верхом: поводья / оружие
+    if (has("skill3")) {
+      this.tryDash(); // Shift — рывок (scene/dash.js)
+      actions = actions.filter((a) => a !== "skill3");
+    }
 
     // Панель цветов открыта: цифра — это цвет, а не смена способности
     const digit = DIGIT_KEYS.indexOf(event.scancode);

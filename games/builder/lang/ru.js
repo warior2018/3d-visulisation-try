@@ -444,6 +444,7 @@ export const RU = {
   "DAMAGE_DIR": "DAMAGE_DIR",
   "DARK AS A MOONLESS FOREST": "ТЁМНЫЙ, КАК ЛЕС БЕЗ ЛУНЫ",
   "DARK WOOD, WORN GRIP": "ТЁМНОЕ ДЕРЕВО, ПОТЁРТАЯ РУКОЯТЬ",
+  "DASH": "РЫВОК",
   "DASH ${IAI.distance} M FORWARD, X${IAI.damage} DMG TO ALL ON THE PATH. COOLDOWN ${IAI.cooldown} S": "РЫВОК НА ${IAI.distance} М ВПЕРЁД, X${IAI.damage} УРОНА ВСЕМ НА ПУТИ. ПЕРЕЗАРЯДКА ${IAI.cooldown} С",
   "DASH ${IAI.distance} M WHERE YOU LOOK (UP AND DOWN TOO), X${IAI.damage} DMG TO ALL ON THE PATH. COOLDOWN ${IAI.cooldown} S": "РЫВОК НА ${IAI.distance} М ТУДА, КУДА СМОТРИШЬ (И ВВЕРХ, И ВНИЗ), X${IAI.damage} УРОНА ВСЕМ НА ПУТИ. ПЕРЕЗАРЯДКА ${IAI.cooldown} С",
   "DAY / NIGHT": "ДЕНЬ И НОЧЬ",

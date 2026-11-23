@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.109.0",
+    "date": "2026-11-23",
+    "title": "Dash and stamina",
+    "changes": [
+      "Shift - dash in the direction you move (forward if you don't), like in Deadlock; in the air it goes straight, sliding along walls",
+      "Stamina: 2 charges, each recharges in 4 s one by one; shown under the crosshair"
+    ]
+  },
+  {
     "version": "0.108.1",
     "date": "2026-11-19",
     "title": "Giant: louder steps, console command",
