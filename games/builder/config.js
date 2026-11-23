@@ -1213,7 +1213,7 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // не отрываясь (ступенька вверх / вниз); перепад больше — отрывается и летит
 // jump — прыжок из рывка: через jump[0] с после рывка на jump[1] с шкала загорается синим — нажал прыжок в это
 // окно: ещё одно деление, ещё такой же толчок (туда же, куда рывок) и прыжок
-export const DASH = { pips: 3, recharge: 4, impulse: 10, cooldown: 0.8, stick: 1.1, jump: [0.4, 0.25] };
+export const DASH = { pips: 3, recharge: 4, impulse: 10, cooldown: 0.8, stick: 0.4, jump: [0.3, 0.25] };
 export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
 // Прыжок с мачете (Q): нож — обратным хватом (лезвием вниз), прыжок вперёд на distance м с замахом. Хитбокс — там,
 // где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся

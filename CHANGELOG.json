@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.111.1",
+    "date": "2026-11-23",
+    "title": "Quarter blocks, dash tuning, training respawn",
+    "changes": [
+      "New block shapes: 0.25 and 0.75 high, at the bottom or the top of the cell (like half blocks); steps up to the nearest quarter",
+      "Dash jump window opens 0.3 s after the dash (still 0.25 s long); a ground dash sticks to the floor on height changes up to 0.4",
+      "Training: when you die you respawn at the start, all creatures vanish and the dummies come back"
+    ]
+  },
+  {
     "version": "0.111.0",
     "date": "2026-11-23",
     "title": "Training polygon",

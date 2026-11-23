@@ -26,7 +26,21 @@ const colKey = (x, z) => (x + 524288) * 1048576 + (z + 524288); // столби�
 export const HALF = "half";
 // Полублок сверху (align — верх): верхняя половина клетки (потолок ступенькой). Снизу под ним — полклетки пусто
 export const HALF_TOP = "half-top";
-export const isHalf = (b) => !!b && (b.surface === HALF || b.surface === HALF_TOP);
+// Четверть и три четверти — так же: снизу (QUARTER — 0.25 м, THREE_Q — 0.75 м) и сверху (…_TOP)
+export const QUARTER = "quarter";
+export const QUARTER_TOP = "quarter-top";
+export const THREE_Q = "three-q";
+export const THREE_Q_TOP = "three-q-top";
+// Неполные блоки: какую часть клетки по высоте занимают (lo…hi от низа клетки) и метка для рисовальщика (code:
+// y кубика + code / 16 — шейдер по ней сжимает кубик; 4 и 12 — как раньше у полублоков: +0.25 / +0.75)
+export const SHAPES = {
+  [HALF]: { lo: 0, hi: 0.5, code: 4 }, [HALF_TOP]: { lo: 0.5, hi: 1, code: 12 },
+  [QUARTER]: { lo: 0, hi: 0.25, code: 2 }, [QUARTER_TOP]: { lo: 0.75, hi: 1, code: 10 },
+  [THREE_Q]: { lo: 0, hi: 0.75, code: 6 }, [THREE_Q_TOP]: { lo: 0.25, hi: 1, code: 14 },
+};
+export const shapeOf = (surface) => (surface && SHAPES[surface]) || null;
+// Неполный ли блок (полублок, четверть, три четверти — снизу или сверху)
+export const isHalf = (b) => !!b && !!shapeOf(b.surface);
 
 import { Water } from "./water.js";
 
@@ -153,7 +167,7 @@ export class VoxelWorld {
     if (id === undefined) {
       id = this.pal.length;
       if (id > 65535) throw new Error("палитра мира переполнена");
-      this.pal.push({ color: [color[0], color[1], color[2]], surface: surface || null, emit: this.emitters.get(`${color[0]},${color[1]},${color[2]}`) || null });
+      this.pal.push({ color: [color[0], color[1], color[2]], surface: surface || null, shape: shapeOf(surface), emit: this.emitters.get(`${color[0]},${color[1]},${color[2]}`) || null });
       this.palIndex.set(k, id);
     }
     return id;
@@ -286,7 +300,7 @@ export class VoxelWorld {
   // Высота поверхности столбика: где стоять (над верхним кубиком). 0 — пусто (пол мира)
   surfaceY(x, z) {
     const b = this.topBlock(Math.floor(x), Math.floor(z));
-    return b ? b.y + (b.surface === HALF ? 0.5 : 1) : 0;
+    return b ? b.y + (shapeOf(b.surface)?.hi ?? 1) : 0;
   }
 
   // Поверхность клетки: "slip" и т. п. или null (обычная, пустая клетка, пол)
@@ -296,17 +310,17 @@ export class VoxelWorld {
   }
 
   // Твёрдая ли клетка: блок или пол (всё, что ниже y = 0). Это спрашивает физика.
-  // Высота верха клетки от её низа: 1 — целый блок, 0.5 — полублок (поверхность HALF), 0 — пусто
+  // Высота верха клетки от её низа: 1 — целый блок (и неполный сверху), 0.25 / 0.5 / 0.75 — неполный снизу, 0 — пусто
   cellTop(x, y, z) {
     const id = this.idAt(x, y, z);
     if (!id) return y < 0 && this.floor ? 1 : 0;
-    return this.pal[id].surface === HALF ? 0.5 : 1;
+    return this.pal[id].shape?.hi ?? 1;
   }
 
-  // Высота низа клетки от её низа: 0.5 — полублок сверху (HALF_TOP), иначе 0
+  // Высота низа клетки от её низа: у неполного сверху — 0.25 / 0.5 / 0.75 (под ним пусто), иначе 0
   cellBottom(x, y, z) {
     const id = this.idAt(x, y, z);
-    return id && this.pal[id].surface === HALF_TOP ? 0.5 : 0;
+    return id ? this.pal[id].shape?.lo ?? 0 : 0;
   }
 
   // Ступенька-полублок в пустую клетку над целым блоком, если рядом (4 соседа) — уступ в 1 блок, по которому

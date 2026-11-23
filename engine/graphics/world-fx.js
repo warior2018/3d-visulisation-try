@@ -159,13 +159,21 @@ struct CubeFxOut {
 
 @vertex
 fn cube_fx_vs(in: CubeFxIn) -> CubeFxOut {
-  // полублок: y экземпляра с меткой +0.25 — кубик вдвое ниже (низ на месте)
-  // (метка +0.75 — полублок сверху: верхняя половина клетки)
-  let fr = fract(in.offset.y + 0.001);
-  let half = fr > 0.1;
-  let topHalf = fr > 0.5;
+  // неполные блоки (voxel-world.js → SHAPES): метка code / 16 в дробной части y — низ (lo) и верх (hi) в клетке
+  let code = u32(round(fract(in.offset.y + 0.001) * 16.0));
+  var lo = 0.0;
+  var hi = 1.0;
+  switch code {
+    case 2u: { hi = 0.25; }
+    case 4u: { hi = 0.5; }
+    case 6u: { hi = 0.75; }
+    case 10u: { lo = 0.75; }
+    case 12u: { lo = 0.5; }
+    case 14u: { lo = 0.25; }
+    default: {}
+  }
   let base = vec3f(in.offset.x, floor(in.offset.y + 0.001), in.offset.z);
-  let world = select(in.pos, vec3f(in.pos.x, in.pos.y * 0.5 + select(0.0, 0.5, topHalf), in.pos.z), half) + base;
+  let world = vec3f(in.pos.x, lo + in.pos.y * (hi - lo), in.pos.z) + base;
   var out: CubeFxOut;
   out.pos = project(toView(world));
   out.local = in.pos;

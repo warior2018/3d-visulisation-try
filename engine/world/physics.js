@@ -226,12 +226,13 @@ export class Physics {
   }
 
   // Шаг на ступеньку: упёрлись сбоку, стоя на земле, — пробуем подняться до e.stepHeight (по умолчанию
-  // STEP_HEIGHT = полблока): до ближайшей половинки или целой высоты. Над головой свободно — поднялись
+  // STEP_HEIGHT = полблока): до ближайшей четверти блока (неполные блоки). Над головой свободно — поднялись
   autoStep(e) {
     const sh = e.stepHeight ?? STEP_HEIGHT;
     if (!(sh > 0) || !e.wasOnGround) return false;
     const p = e.position;
-    for (const top of [Math.floor(p.y) + 0.5, Math.floor(p.y) + 1, Math.floor(p.y) + 1.5]) {
+    for (let q = 1; q <= 6; q++) { // до ближайшей четверти блока (неполные блоки: 0.25 / 0.5 / 0.75)
+      const top = Math.floor(p.y) + q * 0.25;
       const up = top - p.y + EPS;
       if (up <= EPS * 2 || up > sh + EPS * 2) continue;
       p.y += up;
