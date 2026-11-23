@@ -145,8 +145,11 @@ export class DashPart {
     this.wallJumps = (this.wallJumps || 0) + 1;
     this.engine.input.wasPressed?.("jump"); // нажатие — наше (не прыжок в воздухе)
     const W = DASH.wall, jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 22) * (this.controller?.jumpHeight ?? 1.2));
-    p.velocity.x += (nx / nl) * W.push;
-    p.velocity.z += (nz / nl) * W.push;
+    // от стены: скорость в стену убираем, от стены — не меньше W.push (в стену не прыгнуть, только от неё)
+    const ux = nx / nl, uz = nz / nl, out = p.velocity.x * ux + p.velocity.z * uz;
+    const add = Math.max(W.push, out) - out;
+    p.velocity.x += ux * add;
+    p.velocity.z += uz * add;
     p.velocity.y = Math.max(p.velocity.y, jumpV * W.up);
     this.wallJumpCd = W.cooldown;
     this.engine.sound.play("dash", { volume: 0.6 });
