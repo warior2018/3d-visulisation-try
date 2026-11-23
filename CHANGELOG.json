@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.114.19",
+    "date": "2026-11-23",
+    "title": "Dash and wall jump fixes",
+    "changes": [
+      "Fix: after the first dash you couldn't dash again",
+      "Wall jump keeps the part of your speed that goes the way you jump, plus a 6 m/s push",
+      "Ledges on slopes (1-1.25 blocks above your feet) no longer count as walls - you jump onto them instead of bouncing back"
+    ]
+  },
+  {
     "version": "0.114.18",
     "date": "2026-11-23",
     "title": "Wall jump speed",
