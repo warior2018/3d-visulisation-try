@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.11",
+    "date": "2026-11-23",
+    "title": "Dash can't be cancelled",
+    "changes": [
+      "A dash can't be steered or cancelled by yourself (no crouch-cancel into a slide) - only a dash jump ends it early; stuns and traps interrupt it"
+    ]
+  },
+  {
     "version": "0.114.10",
     "date": "2026-11-23",
     "title": "Dash speed curve",
