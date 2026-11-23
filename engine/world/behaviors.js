@@ -71,7 +71,20 @@ export function melee(e, target, dt, attack, ctx = {}) {
 // (стоит на столбе) — подходит как можно ближе и ждёт, а не прыгает в стену.
 //   navigator — new Navigator({ isSolid }) у каждого существа свой.
 // Возвращает true, если сущность идёт.
+// Прыжок через яму: горизонтальная скорость (м/с) и сколько самое большее длится полёт (с)
+const LEAP = { speed: 3.2, time: 0.9 };
+
 export function pursue(e, target, dt, { navigator, radius = 10, speed = 2.2, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5 } = {}) {
+  // В прыжке через яму — летим с разгоном прыжка, пока не приземлимся (клавиши «не жмём»)
+  if (e.leap) {
+    e.leap.t -= dt;
+    if (e.leap.t <= 0 || (e.onGround && e.leap.t < e.leap.time - 0.15)) e.leap = null;
+    else {
+      e.velocity.x = e.leap.vx;
+      e.velocity.z = e.leap.vz;
+      return true;
+    }
+  }
   const dx = target.position.x - e.position.x;
   const dz = target.position.z - e.position.z;
   const dist = Math.hypot(dx, dz);
@@ -110,6 +123,13 @@ export function pursue(e, target, dt, { navigator, radius = 10, speed = 2.2, sto
   }
   // Ступенька впереди (по пути) или упёрлись — прыжок
   if (e.onGround && (step?.jump || (e.blocked && !step))) e.velocity.y = jumpSpeed;
+  // Яма впереди (step.leap) — прыжок с разгоном LEAP.speed м/с к точке за ней (не меньше своей скорости)
+  if (e.onGround && step?.leap && len > 1e-3 && e.speedMultiplier > 0.2) {
+    const v = Math.max(LEAP.speed, speed * e.speedMultiplier);
+    e.leap = { vx: (mx / len) * v, vz: (mz / len) * v, t: LEAP.time, time: LEAP.time };
+    e.velocity.x = e.leap.vx;
+    e.velocity.z = e.leap.vz;
+  }
   return true;
 }
 

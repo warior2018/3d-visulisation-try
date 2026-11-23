@@ -46,7 +46,7 @@ export function standY(isSolid, x, y, z, { height = 2, maxDrop = 4 } = {}) {
 }
 
 // Куда можно шагнуть из клетки (x, y, z) — соседи с их «ценой» (длина шага)
-function neighbors(isSolid, x, y, z, { height, maxStep, maxDrop }) {
+function neighbors(isSolid, x, y, z, { height, maxStep, maxDrop, gap = 0 }) {
   const out = [];
   for (const [dx, dz] of DIRS) {
     const nx = x + dx;
@@ -76,6 +76,24 @@ function neighbors(isSolid, x, y, z, { height, maxStep, maxDrop }) {
     if (found) continue;
     // Вниз (спрыгнуть): впереди пусто на высоту тела, ниже — пол
     if (!free(isSolid, nx, y, nz, height)) continue;
+    // Перепрыгнуть яму в gap клеток (gap 1: через одну): за ней — пол на той же высоте или на блок выше
+    // (тогда над нами и над ямой — место на подъём). Дороже шагов: без нужды не прыгаем
+    for (let g = 1; g <= gap; g++) {
+      const fx = x + dx * (g + 1), fz = z + dz * (g + 1);
+      let open = true;
+      for (let k = 1; k <= g && open; k++) if (!free(isSolid, x + dx * k, y, z + dz * k, height) || canStand(isSolid, x + dx * k, y, z + dz * k, height)) open = false;
+      if (!open) break;
+      if (canStand(isSolid, fx, y, fz, height)) {
+        out.push([fx, y, fz, 2.6 + g]);
+        break;
+      }
+      let roof = free(isSolid, x, y + height, z, 1);
+      for (let k = 1; k <= g && roof; k++) if (!free(isSolid, x + dx * k, y + height, z + dz * k, 1)) roof = false;
+      if (roof && canStand(isSolid, fx, y + 1, fz, height)) {
+        out.push([fx, y + 1, fz, 3.6 + g]);
+        break;
+      }
+    }
     for (let down = 1; down <= maxDrop; down++) {
       if (canStand(isSolid, nx, y - down, nz, height)) {
         out.push([nx, y - down, nz, 1 + down * 0.5]);
@@ -148,9 +166,9 @@ export function findPath(isSolid, start, goal, opts) {
   }
 }
 
-function findPathRaw(isSolid, start, goal, { height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200 } = {}) {
+function findPathRaw(isSolid, start, goal, { height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200, gap = 0 } = {}) {
   const key = (x, y, z) => ((x + 524288) * 1048576 + (z + 524288)) * 4096 + (y + 2048); // число, не строка: меньше мусора
-  const opts = { height, maxStep, maxDrop };
+  const opts = { height, maxStep, maxDrop, gap };
   const open = new Heap();
   const nodes = new Map(); // ключ клетки -> { x, y, z, g, parent, closed }
   const first = { x: start[0], y: start[1], z: start[2], g: 0, parent: null, closed: false };
@@ -241,12 +259,13 @@ export class Navigator {
   // тогда путь сразу пересчитывается, а не когда существо упрётся в новый блок
   // cellTop(x, y, z) — высота верха клетки (1 / 0.5 полублок / 0): на полублок не прыгают (шагают) и не
   // застревают у него (ноги на y − 0.5). Нет — как раньше (всё целое)
-  constructor({ isSolid, cellTop = null, version = null, height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200, repath = 0.6, reach = 0.35 } = {}) {
+  // gap — через сколько клеток ямы перепрыгивает (на ту же высоту или на блок выше; 0 — не прыгает через ямы)
+  constructor({ isSolid, cellTop = null, version = null, height = 2, maxStep = 1, maxDrop = 4, maxNodes = 1200, repath = 0.6, reach = 0.35, gap = 1 } = {}) {
     this.isSolid = isSolid;
     this.cellTop = cellTop;
     this.version = version;
     this.seenVersion = version?.();
-    this.opts = { height, maxStep, maxDrop, maxNodes };
+    this.opts = { height, maxStep, maxDrop, maxNodes, gap };
     this.repath = repath; // как часто (сек) пересчитывать путь, если цель движется
     this.reach = reach; //   насколько близко подойти к точке пути, чтобы взять следующую
     this.path = null; //     точки пути [[x, y, z], ...]; index — к какой идём сейчас
@@ -326,10 +345,15 @@ export class Navigator {
     const dist = Math.hypot(tx - p.x, tz - p.z);
     // Следующая точка выше ног и мы уже рядом — прыгаем
     // (полблока и меньше — шагнёт сам: физика autoStep)
-    const jump = floorY(x, y, z) > p.y + 0.55 && dist < 1.4;
+    let jump = floorY(x, y, z) > p.y + 0.55 && dist < 1.4;
+    // Следующая точка — за ямой (от предыдущей на 2+ клетки по прямой): дошли до края — прыжок с разбега (leap)
+    const prev = this.index > 0 ? path[this.index - 1] : null;
+    const span = prev ? Math.max(Math.abs(x - prev[0]), Math.abs(z - prev[2])) : 0;
+    const leap = span >= 2 && !this.isSolid(prev[0] + Math.sign(x - prev[0]), prev[1] - 1, prev[2] + Math.sign(z - prev[2])) && dist <= span - 0.25 && dist > 0.6;
+    if (leap) jump = true;
     const done = last && dist < this.reach;
     if (done) this.stuck = 0; // стоим, потому что пришли, — это не «застряли»
-    return { x: tx, z: tz, jump, done, complete: this.complete };
+    return { x: tx, z: tz, jump, leap, done, complete: this.complete };
   }
 
   reset() {
