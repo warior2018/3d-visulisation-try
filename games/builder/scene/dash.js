@@ -63,7 +63,7 @@ export class DashPart {
   // Shift: рывок, если есть деление
   tryDash() {
     const p = this.player;
-    if (!p?.alive || this.downed || p.mount || p.dash || this.pull) return;
+    if (!p?.alive || this.downed || p.mount || p.dash?.left > 0 || this.pull) return; // рывок кончился — объект dash остаётся (left ≤ 0)
     if (p.speedMultiplier < 0.2 || p.stunned) return; // в капкане / оглушён — никуда
     if ((this.dashCd || 0) > 0) return; //               пауза между рывками
     if ((this.pips ?? this.staminaMax) < 1) return this.noStamina?.();
