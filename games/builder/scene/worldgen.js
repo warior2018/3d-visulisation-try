@@ -5,7 +5,7 @@
 // ============================================================
 
 import { WORLDGEN, PALETTE, LIGHTS } from "../config.js";
-import { randomInt, Terrain, scatter, flattenArea, buildHouse, buildBigHouse, buildRuins, buildCastle, buildTower, buildCratePile, buildTree , HALF, QUARTER, THREE_Q } from "../../../engine/index.js";
+import { randomInt, Terrain, scatter, flattenArea, buildHouse, buildBigHouse, buildRuins, buildCastle, buildTower, buildCratePile, HALF, QUARTER, THREE_Q } from "../../../engine/index.js";
 import { DEFAULT_SPAWNS, RESIDENTS } from "../creatures.js";
 import { ITEMS, isWeapon, isArmor, itemName, isUsable } from "../items.js";
 
@@ -62,6 +62,7 @@ export class WorldgenPart {
     this.terrain = new Terrain({ ...W.terrain, seed: 1 + Math.floor(rnd() * 1e9) });
     this.terrainParams = W.terrain; // в сохранение: рельеф пересчитывается по ним (а не по текущему config)
     const terrainBlocks = this.terrain.build(this.world, { ...W.colors, shapes: { quarter: QUARTER, half: HALF, threeQ: THREE_Q } }); // склоны — неполными блоками
+    this.makeBiomes(rnd, W); // пятна биомов: зима, осень, пустыня, вулкан (scene/biomes.js)
     this.engine.log(`острова: ${this.terrain.discs.length - 1} маленьких, гор ${this.terrain.mountains.length}, логов боссов ${this.terrain.lairs.length}` +
       this.terrain.lairs.map((l) => ` (${l.x}, ${l.z})`).join(""));
 
@@ -87,6 +88,7 @@ export class WorldgenPart {
     const bridgeAvoid = (this.bridgeEnds || []).map((p) => ({ x: p.x, z: p.z, r: 5 }));
     // Озёра — на ровных местах (scene/water.js); вокруг них тоже не строим
     this.generateLakes(rnd, W);
+    this.biomeLakes(); // в зиме — лёд, в вулкане — лава (scene/biomes.js)
     const lakeAvoid = (this.lakes || []).map((o) => ({ x: o.x, z: o.z, r: o.r + 2 }));
     const blockedAll = [...avoid, ...bridgeAvoid, ...lakeAvoid];
     // Вся постройка (с запасом в клетку) — на суше острова (не на краевом склоне, не над пропастью) и ровно
@@ -190,7 +192,7 @@ export class WorldgenPart {
       if ([-1, 1].some((dx) => this.onStructure(x + dx, z) || this.onStructure(x, z + dx))) continue; // не вплотную к стенам
       if (this.nearLairTunnel(x, z)) continue; // не загораживать проход к логову
       if (!Number.isInteger(this.world.surfaceY(x, z))) continue; // не на полублоке
-      buildTree(this.world, { x, y: Math.ceil(this.world.surfaceY(x, z)), z, height: range(W.tree.height), crown: range(W.tree.crown), random: rnd });
+      this.biomeTree(this.world, { x, y: Math.ceil(this.world.surfaceY(x, z)), z, height: range(W.tree.height), crown: range(W.tree.crown) }, rnd);
       trees++;
     }
     // Деревья на маленьких островах — тоже на свободной земле, не у края и не на скалах горки
@@ -205,7 +207,7 @@ export class WorldgenPart {
         if (this.nearLairTunnel(x, z)) continue; //                                               не у прохода к логову
         if (arenaAvoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue; //              не на площадке лича
         if (!Number.isInteger(this.world.surfaceY(x, z))) continue; // не на полублоке
-        buildTree(this.world, { x, y: Math.ceil(this.world.surfaceY(x, z)), z, height: range(W.tree.height), crown: range(W.tree.crown), random: rnd });
+        this.biomeTree(this.world, { x, y: Math.ceil(this.world.surfaceY(x, z)), z, height: range(W.tree.height), crown: range(W.tree.crown) }, rnd);
         trees++;
         n++;
       }
@@ -213,6 +215,7 @@ export class WorldgenPart {
     this.generateCaves(rnd); // пещеры: комнаты, туннели, проходы наверх (scene/caves.js)
     this.buildSpawnLights(); //  столбы с факелами у места появления (scene/islands.js)
     this.generateSky(rnd, spots); // небесные острова и порталы к ним (scene/sky.js)
+    this.applyBiomes(rnd); // биомы: перекраска, снег сверху, кратеры (scene/biomes.js)
     const count = (k) => spots.filter((s) => s.kind === k).length;
     this.engine.log(`новый мир: размер ${W.size || "?"}, радиус ${W.terrain.radius}, замков ${count("castle")}, больших домов ${count("big")}, руин ${count("ruin")}; рельеф ${terrainBlocks} кубиков (зерно ${this.terrain.seed}), ${count("house")} домиков, ${count("tower")} башен, ${count("pile")} куч, ${trees} деревьев; всего ${this.world.blocks.size} блоков`);
   }

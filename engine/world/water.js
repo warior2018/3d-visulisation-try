@@ -20,9 +20,11 @@ const key = (x, y, z) => `${x},${y},${z}`;
 const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 export class Water {
-  // world — VoxelWorld (его isSolid)
-  constructor(world) {
+  // world — VoxelWorld (его isSolid). step / maxLevel — свои для другой жидкости (лава: медленнее и ближе)
+  constructor(world, { step = WATER.step, maxLevel = WATER.maxLevel } = {}) {
     this.world = world;
+    this.step = step;
+    this.maxLevel = maxLevel;
     this.cells = new Map(); // key -> { x, y, z, level, fall, source }
     this.pending = new Set(); // клетки, которые надо пересчитать на следующем шаге
     this.acc = 0;
@@ -45,7 +47,7 @@ export class Water {
   height(c) {
     if (!c) return 0;
     if (c.source || c.fall) return 0.9;
-    return Math.max(0.12, 0.9 * (1 - c.level / (WATER.maxLevel + 1)));
+    return Math.max(0.12, 0.9 * (1 - c.level / (this.maxLevel + 1)));
   }
 
   free(x, y, z) {
@@ -107,7 +109,7 @@ export class Water {
       const lv = n.source || n.fall ? 0 : n.level;
       if (lv < best) best = lv;
     }
-    if (best + 1 > WATER.maxLevel) return null;
+    if (best + 1 > this.maxLevel) return null;
     return { level: best + 1, fall: false };
   }
 
@@ -115,7 +117,7 @@ export class Water {
   tick(dt) {
     if (!this.pending.size) return;
     this.acc += dt;
-    if (this.acc < WATER.step) return;
+    if (this.acc < this.step) return;
     this.acc = 0;
     const list = [...this.pending].slice(0, WATER.perStep);
     for (const k of list) this.pending.delete(k);
@@ -151,7 +153,7 @@ export class Water {
       if (!this.at(x, y - 1, z)?.source) return;
     }
     const lv = c.source || c.fall ? 0 : c.level;
-    if (lv + 1 > WATER.maxLevel) return;
+    if (lv + 1 > this.maxLevel) return;
     for (const [dx, dz] of SIDES) {
       const nx = x + dx, nz = z + dz;
       if (!this.free(nx, y, nz)) continue;

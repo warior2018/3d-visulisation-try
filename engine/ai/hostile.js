@@ -42,8 +42,10 @@ export class HostileBrain extends Brain {
   // wander: { radius, pause } — бродить без цели (null — стоять на месте); huntRadius — докуда идти на охоту
   // chase — с территорией: цель ушла из логова — не стоит, а идёт за ней (быстрее на chase.speed, прыгает
   // chase.jump м/с), по пути игра ломает блоки перед ним (ctx.dig); успокаивается, только если цель дальше leash
-  constructor({ aggroRadius = 12, leash = 45, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5, herd = null, wander = null, huntRadius = 150, ranged = null, territory = null, sightHeight = Infinity, chase = null, windupSlow = 0.3 } = {}) {
+  constructor({ aggroRadius = 12, leash = 45, stopDistance = 1.1, turnSpeed = 4, jumpSpeed = 7.5, herd = null, wander = null, huntRadius = 150, ranged = null, territory = null, sightHeight = Infinity, chase = null, windupSlow = 0.3, breakAura = 0 } = {}) {
     super();
+    // зол на стража (аура провокации, фракция town), а герой подошёл ближе breakAura м — бросает стража и идёт на героя
+    this.breakAura = breakAura;
     this.windupSlow = windupSlow; // во время замаха удара идёт с этой долей скорости (0 — стоит, 1 — как обычно)
     this.chase = chase;
     this.sightHeight = sightHeight; // замечает врага, только если тот не выше / ниже этого (тролль в пещере не видит тех, кто ходит по горе)
@@ -167,8 +169,11 @@ export class HostileBrain extends Brain {
     const T = this.territory;
     const fromHome = (o) => Math.hypot(o.position.x - T.x, o.position.z - T.z);
     const hunt = T ? null : this.huntTarget(e, ctx.hunt, dt); // нашествие: ближайший герой (кроме сидящих в логове)
-    const aura = !hunt && !taunted ? auraTarget(e, entities) : null; //      зашёл в зону стража — злится на него
-    force(taunted || hunt || aura);
+    const aura0 = !hunt && !taunted ? auraTarget(e, entities) : null; //     зашёл в зону стража — злится на него
+    const onWarden = aura0 || (e.aggro?.alive && e.aggro.faction === "town");
+    const close = this.breakAura && onWarden ? this.nearestEnemy(e, entities, this.breakAura, (o) => o.type === "player") : null;
+    const aura = close ? null : aura0;
+    force(taunted || hunt || aura || close);
     if (e.aggro && e.aggro !== hunt && e.aggro !== taunted && e.aggro !== aura && (!e.aggro.alive || dist2d(e, e.aggro) > this.leash)) e.aggro = null;
     // Злится на героя, а рядом другой герой гораздо ближе — на него (сетевая игра: не все мобы на одного)
     if (e.aggro?.type === "player" && e.aggro !== hunt && e.aggro !== taunted && e.aggro !== aura && this.retargetDue(e, dt)) {

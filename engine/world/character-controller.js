@@ -133,6 +133,8 @@ export class CharacterController {
     const walk = Math.max(0.1, this.speed) * Math.max(1, entity.speedMultiplier);
     if (entity.speedMultiplier < 0.2) { v.x = 0; v.z = 0; return; }
     let s = Math.hypot(v.x, v.z);
+    // лёд (entity.onIce — доля трения 0…1, ставит игра): на земле и тормозит, и разгоняется слабее
+    const ice = !air && entity.onIce > 0 ? entity.onIce : 1;
     // трение
     if (s > 0.001) {
       let drop = 0;
@@ -140,6 +142,7 @@ export class CharacterController {
       else if (!air && !jumping && !(entity.noFriction > 0)) drop = (s > walk + 0.05 ? a.boostGround : Math.max(s, a.stopSpeed) * (wishspeed > 0 ? a.friction : a.stopFriction ?? a.friction)) * dt; // отпустил клавиши — тормозит резко (stopFriction)
       else if (air && s > walk) drop = a.boostAir * dt;
       if (!air && wishspeed > 0 && (v.x * wx + v.z * wz) < 0 && s > walk) drop += a.brake * dt; // против движения — тормоз
+      drop *= ice;
       const ns = Math.max(0, s - drop);
       v.x *= ns / s;
       v.z *= ns / s;
@@ -164,7 +167,7 @@ export class CharacterController {
       const add = cap - cur;
       if (add > 0) {
         const before = Math.hypot(v.x, v.z);
-        const acc = Math.min(add, (air ? a.airAccel : a.groundAccel) * wishspeed * dt);
+        const acc = Math.min(add, (air ? a.airAccel : a.groundAccel * Math.min(1, ice * 2)) * wishspeed * dt);
         v.x += wx * acc;
         v.z += wz * acc;
         // на земле клавиши разгоняют только до шага: смена направления (WASD по кругу) не набирает скорость

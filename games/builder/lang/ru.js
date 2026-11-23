@@ -1318,6 +1318,7 @@ export const RU = {
   "TROLL HIDES: ${w.hides}": "ШКУРЫ ТРОЛЛЯ: ${w.hides}",
   "TROPHIES": "ТРОФЕИ",
   "TRP": "КАП",
+  "TUMBLEWEED": "ПЕРЕКАТИ-ПОЛЕ",
   "TURN IN": "СДАТЬ",
   "TURN IN 10 QUESTS TO THE WARDEN": "СДАЙ СТРАЖУ 10 ЗАДАНИЙ",
   "TURRET FROM ${n} MUSHROOMS: ${t.stats.maxHp} HP, ${t.attack.damage} DMG": "ТУРЕЛЬ ИЗ ${n} ГРИБОВ: ${t.stats.maxHp} HP, ${t.attack.damage} УРОНА",

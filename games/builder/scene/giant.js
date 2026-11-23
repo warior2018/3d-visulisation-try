@@ -1,7 +1,7 @@
 // ============================================================
 //  Гигант-скример (GIANT): безвредный (здоровье не трогает). Случайно раз в GIANT.every секунд — если герой
 //  в главном мире на острове радиусом не меньше GIANT.minIsland (главном или дополнительном) — со спины,
-//  из слепой зоны, к нему бежит великан в 10 блоков: снося всё перед собой, тяжёлые шаги — чем ближе, тем
+//  из слепой зоны, к нему бежит великан в 10 блоков: сквозь постройки (блоки не ломает), тяжёлые шаги — чем ближе, тем
 //  громче и сильнее трясёт экран. Добежал — останавливается вплотную и стоит, пока на него не посмотрят:
 //  посмотрел — исчез. Герой в пещере — гигант бежит к точке над ним, потом к ближайшему выходу из пещер
 //  и садится лицом к выходу (ждёт). Видят все (существо «giant» идёт по сети как обычное: позу — флагами).
@@ -99,7 +99,6 @@ export class GiantPart {
         e.position.x += (dx / d) * step;
         e.position.z += (dz / d) * step;
         e.yaw = Math.atan2(dx, dz);
-        this.giantSmash(e, dx / d, dz / d);
       }
     }
     e.position.y = this.giantGround(e.position.x, e.position.z, e.position.y);
@@ -138,17 +137,6 @@ export class GiantPart {
     const dx = body.x - eye.x, dy = body.y - eye.y, dz = body.z - eye.z, d = Math.hypot(dx, dy, dz);
     const hit = this.world.raycast(eye, { x: dx / d, y: dy / d, z: dz / d }, d);
     return !hit || hit.t >= d - GIANT.radius - 1;
-  }
-
-  // Сносит всё перед собой выше земли острова (постройки, деревья, блоки героев): полоса шириной с него
-  giantSmash(e, fx, fz) {
-    const cells = [], r = GIANT.radius, ground = Math.floor(e.position.y);
-    for (const ahead of [r, r + 1]) for (let side = -r; side <= r; side += 0.8) {
-      const x = Math.floor(e.position.x + fx * ahead - fz * side), z = Math.floor(e.position.z + fz * ahead + fx * side);
-      const floor = Math.max(ground, Math.ceil(this.groundHeight(x, z)));
-      for (let y = floor; y < ground + GIANT.height; y++) if (this.world.has(x, y, z)) cells.push([x, y, z]);
-    }
-    if (cells.length) this.bossBreak(cells);
   }
 
   removeGiant(e, seen = false) {

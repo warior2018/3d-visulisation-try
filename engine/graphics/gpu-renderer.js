@@ -61,7 +61,7 @@ fn sil_alert_fs(in: SkinOut) -> @location(0) vec4f {
 
 const DEPTH_FORMAT = "depth24plus";
 import { PARTICLE_SHADER, FLOATS_PER_PARTICLE } from "./particles.js";
-import { WATER_SHADER, FLOATS_PER_WATER, buildWater } from "./water-mesh.js";
+import { WATER_SHADER, FLOATS_PER_WATER, WATER_LOOK, LAVA_LOOK, buildWater } from "./water-mesh.js";
 // FLOATS_PER_CUBE — x, y, z, r, g, b на кубик
 import { FLOATS_PER_CUBE, LIGHT, exposedFaces, facesFacing, viewOf, chunkInView } from "./chunk-mesh.js";
 import { CHUNK } from "../world/voxel-world.js";
@@ -494,7 +494,6 @@ export class GPURenderer {
       if (err) throw new Error(err.message || String(err));
       this.waterPipeline = pipeline;
       this.waterBind = bind;
-      this.waterCapacity = 0;
     } catch (e) {
       this.waterPipeline = null;
       this.waterError = e.message;
@@ -502,30 +501,37 @@ export class GPURenderer {
     }
   }
 
-  // Вода вокруг камеры: список коробок пересобираем, когда вода поменялась или камера ушла на 8 м
+  // Вода и лава вокруг камеры (лава — раньше: почти непрозрачная, вода поверх неё видна)
   drawWater(pass, camera, world) {
-    const W = world?.water;
-    if (!camera || !W?.size || !this.waterPipeline) return;
+    this.worldStats.lava = this.drawFluid(pass, camera, world?.lava, (this.lavaSlot ||= { capacity: 0 }), LAVA_LOOK);
+    this.worldStats.water = this.drawFluid(pass, camera, world?.water, (this.waterSlot ||= { capacity: 0 }), WATER_LOOK);
+  }
+
+  // Один слой жидкости (engine/world/water.js): список коробок пересобираем, когда он поменялся или камера ушла
+  // на 8 м. slot — свой буфер у слоя. Вернёт, сколько коробок нарисовали
+  drawFluid(pass, camera, W, slot, look) {
+    if (!camera || !W?.size || !this.waterPipeline) return 0;
     const key = `${W.version}|${Math.floor(camera.position.x / 8)}|${Math.floor(camera.position.z / 8)}`;
-    if (key !== this.waterKey) {
-      this.waterKey = key;
-      const b = buildWater(W, camera.position.x, camera.position.z, this.waterData);
-      this.waterData = b.data;
-      this.waterCount = b.count;
-      if (b.count > this.waterCapacity) {
-        if (this.waterBuffer) this.retire(this.waterBuffer);
-        this.waterCapacity = Math.ceil(b.count * 1.5);
-        this.waterBuffer = this.device.createBuffer({ size: this.waterCapacity * FLOATS_PER_WATER * 4, usage: gpu.GPUBufferUsage.VERTEX | gpu.GPUBufferUsage.COPY_DST });
+    if (key !== slot.key || W !== slot.layer) {
+      slot.key = key;
+      slot.layer = W;
+      const b = buildWater(W, camera.position.x, camera.position.z, slot.data, look);
+      slot.data = b.data;
+      slot.count = b.count;
+      if (b.count > slot.capacity) {
+        if (slot.buffer) this.retire(slot.buffer);
+        slot.capacity = Math.ceil(b.count * 1.5);
+        slot.buffer = this.device.createBuffer({ size: slot.capacity * FLOATS_PER_WATER * 4, usage: gpu.GPUBufferUsage.VERTEX | gpu.GPUBufferUsage.COPY_DST });
       }
-      if (b.count) this.device.queue.writeBuffer(this.waterBuffer, 0, b.data.buffer, b.data.byteOffset, b.count * FLOATS_PER_WATER * 4);
+      if (b.count) this.device.queue.writeBuffer(slot.buffer, 0, b.data.buffer, b.data.byteOffset, b.count * FLOATS_PER_WATER * 4);
     }
-    if (!this.waterCount) return;
+    if (!slot.count) return 0;
     pass.setPipeline(this.waterPipeline);
     pass.setBindGroup(0, this.waterBind);
     pass.setVertexBuffer(0, this.cubeVertexBuffer);
-    pass.setVertexBuffer(1, this.waterBuffer);
-    pass.draw(this.cubeVertexCount, this.waterCount);
-    this.worldStats.water = this.waterCount;
+    pass.setVertexBuffer(1, slot.buffer);
+    pass.draw(this.cubeVertexCount, slot.count);
+    return slot.count;
   }
 
   // Полупрозрачные коробки игры (облака): boxes = { data, count } — как у воды (water-mesh.js: FLOATS_PER_WATER

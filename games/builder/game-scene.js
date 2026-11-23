@@ -36,6 +36,8 @@ import { DashPart } from "./scene/dash.js";
 import { TrainingPart } from "./scene/training.js";
 import { SlidePart } from "./scene/slide.js";
 import { WindPart } from "./scene/wind.js";
+import { BiomesPart } from "./scene/biomes.js";
+import { WeatherPart } from "./scene/weather.js";
 import { MagicPart } from "./scene/magic.js";
 import { AmmoPart } from "./scene/ammo.js";
 import { ProgressionPart } from "./scene/progression.js";
@@ -419,6 +421,7 @@ export class GameScene extends Scene {
     this.updateDash(dt); // выносливость: деления копятся (scene/dash.js)
     this.updateSlide(dt); // скольжение на присед (scene/slide.js)
     this.updateWind(dt); // ветер от приёмов движения (scene/wind.js)
+    this.updateWeather(dt); // дождь / снег, порывы ветра осенью, перекати-поле (scene/weather.js)
     this.updateTraining(); // полигон: манекены целы, счёт урона (scene/training.js)
     if (this.pull) this.updatePull(dt); //  портал закрывается — затягивает к выходу (вместо управления)
     else if (!this.downed && !frozen) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
@@ -535,6 +538,7 @@ export class GameScene extends Scene {
     player.speedBonuses.weapon = this.abilities.current?.moveSpeed || 0; // оружие в руках
     player.speedBonuses.aim = this.aiming ? AIM.moveSpeed : 0; //            прицеливание
     this.updateBreath(dt); // в воде: медленнее, дыхание и утопление (scene/water.js)
+    this.updateBiomes(dt); // лёд, лава, кактусы; лава течёт и булькает (scene/biomes.js)
     if (this.killStacks?.length) this.killStacks = this.killStacks.map((t) => t - dt).filter((t) => t > 0); // KILL BUFF: стопки гаснут
     this.actionLock.update(dt);
     player.speedBonuses.lock = this.actionLock.moveSpeed;
@@ -667,6 +671,7 @@ export class GameScene extends Scene {
       hunt: this.invasion.active ? this.heroes() : null, // нашествие: каждый моб — на ближайшего героя (свой + гости)
       dig: (e, target, dt) => this.bossDig(e, target, dt), // босс в погоне ломает блоки перед собой (bosses.js)
       batDive: (e, target) => this.batDive(e, target), // пике летучей мыши (scene/mob-kinds.js)
+      shun: (e, x, z) => this.sunShun(e, x, z), // ночные мобы днём без цели не выходят на солнце (scene/mob-kinds.js)
       shoot: (e, target, attack) => (e.ranged.hitscan ? this.mobGunshot(e, target, attack) : this.mobThrow(e, target, attack)), // стрелок (HostileBrain ranged)
       // Контекст атак — один на существо (не новый объект каждый кадр); стена между ним и целью — луч не чаще
       // раза в 0.25 с (стрелки проверяют это каждый кадр)
@@ -745,7 +750,7 @@ export class GameScene extends Scene {
       if (alerted.includes(e)) engine.sound.play("growl", { at: e.position, volume: 0.8 }); // рык того, кто разозлился
       this.applyKnock(e, dt); // отбросило ударом (scene/feel.js)
       profiler.begin(PROF.physics);
-      if (!e.firefly) this.physics.step(e, dt); // стены, ступеньки, падение (светлячок висит сам)
+      if (!e.firefly && !e.tumble) this.physics.step(e, dt); // стены, ступеньки, падение (светлячок висит сам, перекати-поле катится само)
       profiler.end(PROF.physics);
       // Шаги: пока идёт — раз в полшага (быстрее — чаще); слышно, кто и откуда подходит
       if (going && e.onGround) {
@@ -949,6 +954,7 @@ export class GameScene extends Scene {
     this.hud.draw(ui, this);
     this.drawCloudVeil(ui); // внутри облака — белая пелена (scene/clouds.js)
     this.drawWater(ui); // под водой — пелена и пузырьки воздуха (scene/water.js)
+    this.drawLava(ui); //  в лаве — оранжевая пелена (scene/biomes.js)
     this.drawWind(ui); // ветер по краям экрана (scene/wind.js)
     this.drawDummyMeters(ui); // полигон: урон над манекенами (scene/training.js)
     if (this.engine.scene === this) this.drawStaminaPips(ui); // выносливость под прицелом (scene/dash.js)
@@ -1005,4 +1011,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart, GiantPart, DashPart, TrainingPart, SlidePart, WindPart]);
+mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart, GiantPart, DashPart, TrainingPart, SlidePart, WindPart, BiomesPart, WeatherPart]);

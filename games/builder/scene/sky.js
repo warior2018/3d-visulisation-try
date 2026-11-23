@@ -6,7 +6,6 @@
 // ============================================================
 
 import { SKY_ISLANDS, PORTALS } from "../config.js";
-import { buildTree } from "../../../engine/index.js";
 
 const GATE = [90, 210, 255]; // врата — голубые (временные порталы — фиолетовые)
 
@@ -26,7 +25,7 @@ export class SkyPart {
         const x = Math.floor(d.x + Math.sin(a) * r), z = Math.floor(d.z + Math.cos(a) * r);
         const sy = v.surfaceY(x, z), y = Math.ceil(sy);
         if (y < d.lift || !Number.isInteger(sy)) continue; // не на полублоке
-        buildTree(v, { x, y, z, height: 3 + Math.floor(rnd() * 3), crown: 2, random: rnd });
+        this.biomeTree(v, { x, y, z, height: 3 + Math.floor(rnd() * 3), crown: 2 }, rnd); // в биоме — кактус / своя листва (scene/biomes.js)
         n++;
       }
       // врата на острове — посередине (без дерева)

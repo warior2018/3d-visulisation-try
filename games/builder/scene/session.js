@@ -51,6 +51,8 @@ export class SessionPart {
     }
     this.caves = saved?.worldgen?.caves || null; // пещеры: комнаты и что в них уже было (scene/caves.js)
     if (saved?.worldgen?.water) this.world.water.loadSources(saved.worldgen.water); // вода: источники (текучая растечётся)
+    if (saved?.worldgen?.lava) this.world.lava.loadSources(saved.worldgen.lava); //   лава (вулкан) — так же
+    this.biomes = Array.isArray(saved?.worldgen?.biomes) ? saved.worldgen.biomes : null; // пятна биомов (scene/biomes.js); старые миры — без них
     this.gates = saved?.worldgen?.gates || []; // врата небесных островов (scene/sky.js)
     this.bossDown = !!saved?.worldgen?.bossDown; //   повержен ли босс (порталы — scene/portals.js)
     this.portalTime = saved?.worldgen?.portalTime || 0; // сколько с прожито в мире (первый портал — не раньше)
@@ -205,7 +207,15 @@ export class SessionPart {
         // Стрелок: оружие (камень / нож / пистолет) — по весам MOB_RANGED; в дальнем нашествии — каждый второй
         const kind = this.invasion?.active ? this.invasionKind : null;
         const ranged = Math.random() < (kind?.rangedShare ?? MOB_RANGED.chance);
-        const e = this.spawn(type, { x, y: this.world.surfaceY(x, z), z, yaw: Math.random() * Math.PI * 2, ...growth, ranged }); // на земле (на холме — на вершине столбика)
+        // биом: в зиме — кабаны (обычные мобы не появляются, на снегу — тоже), в пустыне — чаще мумии (scene/biomes.js)
+        const kindHere = this.invasion?.active ? type : this.biomeMobType(type, x, z);
+        if (!kindHere) return;
+        if (kindHere === "boar") {
+          const b = this.spawn("boar", { x, y: this.world.surfaceY(x, z), z, yaw: Math.random() * Math.PI * 2 });
+          this.scaleBoars();
+          return void this.engine.log(`зима: появился кабан ${x.toFixed(1)}, ${z.toFixed(1)}, ${b?.stats.maxHp} HP`);
+        }
+        const e = this.spawn(kindHere, { x, y: this.world.surfaceY(x, z), z, yaw: Math.random() * Math.PI * 2, ...growth, ranged }); // на земле (на холме — на вершине столбика)
         if (!e) return; // такого моба нет (например, игра обновилась, а модули — старые): пропускаем
         if (kind?.speed) e.speedBonuses.invasion = kind.speed; // быстрое нашествие: +30 % скорости
         this.maybeElite(e, index); // редкая элита с аурой и добычей (scene/elites.js)
@@ -381,7 +391,7 @@ export class SessionPart {
       if (toast) this.engine.toast(ok ? "PROGRESS SAVED" : "NO OWN SAVE - PROGRESS NOT SAVED");
       return;
     }
-    const r = saveGame({ background, world: this.world, player: this.player, look: this.look, creatures, progression, spawned: this.spawner.spawned, pickups: this.pickups.toJSON(), traps: this.traps.toJSON(), fog: this.fog.toJSON(), worldgen: this.terrain ? { seed: this.terrain.seed, terrain: this.terrainParams || TERRAIN_V1, ...(this.arena ? { arena: this.arena } : {}), ...(this.treasure ? { treasure: this.treasure } : {}), ...(this.bossDown ? { bossDown: true } : {}), ...(this.gates?.length ? { gates: this.gates } : {}), ...(this.world.water.size ? { water: this.world.water.sourcesJSON() } : {}), portalTime: Math.round(this.portalTime || 0), ...(this.houseChests?.length ? { houseChests: this.houseChestsJSON() } : {}), ...(this.caves ? { caves: this.cavesJSON() } : {}) } : null });
+    const r = saveGame({ background, world: this.world, player: this.player, look: this.look, creatures, progression, spawned: this.spawner.spawned, pickups: this.pickups.toJSON(), traps: this.traps.toJSON(), fog: this.fog.toJSON(), worldgen: this.terrain ? { seed: this.terrain.seed, terrain: this.terrainParams || TERRAIN_V1, ...(this.arena ? { arena: this.arena } : {}), ...(this.treasure ? { treasure: this.treasure } : {}), ...(this.bossDown ? { bossDown: true } : {}), ...(this.gates?.length ? { gates: this.gates } : {}), ...(this.world.water.size ? { water: this.world.water.sourcesJSON() } : {}), ...(this.world.lava.size ? { lava: this.world.lava.sourcesJSON() } : {}), ...(this.biomes?.length ? { biomes: this.biomes } : {}), portalTime: Math.round(this.portalTime || 0), ...(this.houseChests?.length ? { houseChests: this.houseChestsJSON() } : {}), ...(this.caves ? { caves: this.cavesJSON() } : {}) } : null });
     const what = `${r.blocks} блоков, записано кусков ${r.chunks} (${(r.bytes / 1024).toFixed(0)} КБ)${r.removed ? `, убрано ${r.removed}` : ""}${background ? ", в фоне" : ""}`;
     if (!background) console.log(`Сохранено: ${what} -> ${SAVE_DIR}`);
     this.engine.log(`сохранено${background ? " (авто)" : ""}: ${what}, уровень ${this.experience.level}, ${this.talentsSummary()}`);

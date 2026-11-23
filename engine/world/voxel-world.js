@@ -44,6 +44,9 @@ export const isHalf = (b) => !!b && !!shapeOf(b.surface);
 
 import { Water } from "./water.js";
 
+// Лава (world.lava): шаг растекания — раз в step с (вода — 0.25), дальше maxLevel клеток по ровному не течёт
+export const LAVA_FLOW = { step: 1, maxLevel: 3 };
+
 // Блоки куска — для перебора (for…of: { x, y, z, color, surface? }) и счёта (size)
 class ChunkBlocks {
   constructor(chunk) {
@@ -157,6 +160,8 @@ export class VoxelWorld {
     this.lightCount = 0;
     this.minY = 0; //  самый низкий блок (не выше 0): поиск верхнего блока столбика идёт до него
     this.water = new Water(this); // вода — свой слой поверх блоков (engine/world/water.js)
+    // лава — такой же слой (вулкан): течёт медленнее (шаг LAVA_FLOW.step с) и недалеко (maxLevel клеток)
+    this.lava = new Water(this, LAVA_FLOW);
     this.maxY = 0; //  самый высокий блок (миникарте — откуда искать верхний блок столбика)
   }
 
@@ -372,6 +377,7 @@ export class VoxelWorld {
     if (y > this.maxY) this.maxY = y;
     if (this.onChange && !this.quiet) this.onChange(x, y, z, b);
     if (this.water.size) this.water.blockChanged(x, y, z); // в клетке блока воды нет
+    if (this.lava.size) this.lava.blockChanged(x, y, z);
     const k = colKey(x, z), top = this.tops.get(k);
     if (top !== undefined && (!top || y > top.y)) this.tops.set(k, b || makeBlock(x, y, z, p)); // стал верхним (не знали — узнаем при спросе)
     this.version++;
@@ -391,6 +397,7 @@ export class VoxelWorld {
     this.touch(x, y, z);
     if (this.onChange && !this.quiet) this.onChange(x, y, z, null);
     if (this.water.size) this.water.blockChanged(x, y, z); // убрали — вода потечёт в дыру
+    if (this.lava.size) this.lava.blockChanged(x, y, z);
     this.version++;
     const k = colKey(x, z);
     if (this.tops.get(k)?.y === y) this.tops.delete(k); // сломали верхний — найдём новый при спросе
@@ -424,6 +431,7 @@ export class VoxelWorld {
     this.surfaces = 0;
     this.tops.clear();
     this.water.clear();
+    this.lava.clear();
     this.version++;
   }
 

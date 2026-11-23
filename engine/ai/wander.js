@@ -73,8 +73,20 @@ export class WanderBrain extends Brain {
       const r = this.random() * this.radius;
       s.goal = { alive: true, position: { x: s.home.x + Math.sin(a) * r, y: e.position.y, z: s.home.z + Math.cos(a) * r } };
       e.nav.reset();
+      // туда нельзя (ctx.shun: ночной моб днём не выходит из тени на солнце) — постоять и выбрать другую
+      if (ctx.shun?.(e, s.goal.position.x, s.goal.position.z)) {
+        s.goal = null;
+        s.wait = 0.5;
+        return { walking: false, alerted: [] };
+      }
     }
-    const walking = pursue(e, s.goal, dt, { navigator: e.nav, radius: this.radius * 3, speed: e.speed, stopDistance: 0.5, turnSpeed: this.turnSpeed });
+    let walking = pursue(e, s.goal, dt, { navigator: e.nav, radius: this.radius * 3, speed: e.speed, stopDistance: 0.5, turnSpeed: this.turnSpeed });
+    // путь сам вывел к запретному месту (на шаг вперёд — солнце) — стоп, другая точка
+    if (walking && ctx.shun?.(e, e.position.x + e.velocity.x * 0.4, e.position.z + e.velocity.z * 0.4)) {
+      e.velocity.x = 0;
+      e.velocity.z = 0;
+      walking = false;
+    }
     if (!walking) {
       // Пришли (или туда не пройти) — постоим
       s.goal = null;

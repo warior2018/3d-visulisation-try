@@ -50,6 +50,13 @@ export class CoopPart {
     p.downed = true;
     p.stats.hp = 0;
     p.velocity.x = p.velocity.y = p.velocity.z = 0;
+    // погиб в лаве — урна на ближайшем берегу (scene/biomes.js)
+    const dry = this.lavaSafeSpot?.(p.position);
+    if (dry) {
+      p.position.x = dry.x;
+      p.position.y = dry.y;
+      p.position.z = dry.z;
+    }
     this.reviving = null;
     this.dismountSteed?.(null);
     this.engine.sound.play("death");

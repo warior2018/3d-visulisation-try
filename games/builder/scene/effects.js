@@ -49,6 +49,7 @@ export class EffectsPart {
       list.push({ x: p.position.x, y: p.position.y, z: p.position.z, radius: P.radius, power: P.power, color: c.map((v) => (v > 1 ? v / 255 : v)) });
     }
     list.push(...(this.portalLights?.() || [])); // порталы светятся
+    list.push(...(this.lavaLights?.() || [])); //   лава светится (scene/biomes.js)
     // факелы других игроков (сеть: e.netTorch) — светят и у нас
     const T = TORCH, tc = [1, 0.85, 0.6];
     for (const e of this.entities?.list || []) {

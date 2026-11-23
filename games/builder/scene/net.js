@@ -68,13 +68,14 @@ class FxRelay {
     wrap(g.slashes, "add", "slash", ([o]) => (o.local ? null : [{ ...o, origin: pt(o.origin) }]));
     // anchor — функция (едет за героем): по сети — точка, где он сейчас
     wrap(g.crescents, "add", "crescent", ([o]) => (o.local ? null : [{ ...o, anchor: pt(typeof o.anchor === "function" ? o.anchor() : o.anchor) }]));
-    wrap(g.beams, "add", "beam", ([o]) => [{ ...o, from: pt(o.from), to: pt(o.to) }]);
+    wrap(g.beams, "add", "beam", ([o]) => (o.local ? null : [{ ...o, from: pt(o.from), to: pt(o.to) }])); // local — у каждого свой (погода)
     wrap(g.beams, "ring", "ring", ([c, r, o]) => [pt(c), r, o]);
     wrap(g.beams, "mark", "mark", ([p, o]) => [pt(p), o]);
     // вспышки света (выстрел, взрыв) — видны всем игрокам
-    if (g.flash) wrap(g, "flash", "flash", ([at, o]) => [pt(at), o]);
+    if (g.flash) wrap(g, "flash", "flash", ([at, o]) => (o?.local ? null : [pt(at), o])); // local — у каждого свой (лава булькает у всех сама)
     const sound = g.engine.sound;
     wrap(sound, "play", "sound", ([name, o]) => {
+      if (o?.local) return null; // свой звук (лава, погода) — у каждого играет сам
       if (o?.at) return [name, { at: pt(o.at), volume: o.volume }];
       if (SHARED_SOUNDS.has(name)) return [name, { at: pt(g.player.position), volume: o?.volume }];
       return null;
@@ -193,7 +194,7 @@ function hurtLocal(g, n, source, kind, shot, part = null) {
 function worldMeta(g) {
   if (!g.terrain) return null;
   return {
-    seed: g.terrain.seed, terrain: g.terrainParams || null, treasure: g.treasure || null, arena: g.arena || null, lakes: g.lakes || null,
+    seed: g.terrain.seed, terrain: g.terrainParams || null, treasure: g.treasure || null, arena: g.arena || null, lakes: g.lakes || null, biomes: g.biomes || null,
     houseChests: g.houseChestsJSON?.() || [], caves: g.cavesJSON?.() || null,
   };
 }
@@ -208,6 +209,7 @@ function applyWorldMeta(g, m) {
   g.chestEnt = null; // модель сундука дальнего острова — заново, на месте хоста
   g.arena = m.arena || null;
   g.lakes = m.lakes || null;
+  g.biomes = Array.isArray(m.biomes) ? m.biomes : null;
   g.houseChests = Array.isArray(m.houseChests) ? m.houseChests : [];
   g.caves = m.caves || null;
 }
@@ -315,7 +317,7 @@ export class HostNet {
       }
       const bb = q.lagB ? [...q.lagB, ...(b || [])] : b;
       q.lagB = null;
-      this.server.send(q.peer, { t: "snap", k: this.ticks, e: rows.get(w) || [], b: bb, p: main ? p : undefined, h, inv, fx, tab, pt, pz: g.teamPaused ? 1 : 0, du: duelSnap(g) });
+      this.server.send(q.peer, { t: "snap", k: this.ticks, e: rows.get(w) || [], b: bb, p: main ? p : undefined, h, inv, fx, tab, pt, pz: g.teamPaused ? 1 : 0, du: duelSnap(g), wr: g.rainLeft > 0 ? Math.ceil(g.rainLeft) : 0 });
     }
   }
 
@@ -428,7 +430,7 @@ export class HostNet {
         const surfaces = [];
         const chunks = [];
         for (const c of g.world.chunks.values()) if (c.blocks.size) chunks.push([c.cx, c.cz, encodeChunk(c, surfaces).toString("base64")]);
-        this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn, water: (g.worlds?.get("main")?.voxels || g.world).water.sourcesJSON(), gates: g.gates || [], wg: worldMeta(g) });
+        this.server.send(peer, { t: "welcome", id: netId(hero), you: peer.id, surfaces, chunks, spawn, water: (g.worlds?.get("main")?.voxels || g.world).water.sourcesJSON(), lava: (g.worlds?.get("main")?.voxels || g.world).lava.sourcesJSON(), gates: g.gates || [], wg: worldMeta(g) });
         g.engine.log(`сеть: ${ghost ? "вернулся" : "подключился"} ${hero.name} (${peer.address}), отправлено кусков мира ${chunks.length}`);
         const said = `${hero.name} ${ghost ? "RECONNECTED" : "JOINED"}`;
         g.engine.toast(said, 3000);
@@ -718,6 +720,7 @@ export class ClientNet {
         const surfaces = Array.isArray(msg.surfaces) ? msg.surfaces : [];
         for (const [cx, cz, data] of msg.chunks || []) decodeChunk(Buffer.from(data, "base64"), cx, cz, w, surfaces);
         w.water.loadSources(msg.water); // вода хоста: источники, текучая растечётся сама
+        w.lava.loadSources(msg.lava || []); // лава (вулкан) — так же
         g.gates = Array.isArray(msg.gates) ? msg.gates : []; // врата небесных островов
         applyWorldMeta(g, msg.wg); // рельеф, сундуки (дом, пещеры, дальний остров), площадка лича, озёра — как у хоста
         w.quiet = false;
@@ -765,6 +768,7 @@ export class ClientNet {
           }
         }
         if (msg.tab) this.table = msg.tab;
+        g.setRain?.(+msg.wr || 0); // погода — как у хоста (scene/weather.js)
         if (g.match && !g.duel) g.teamPaused = !!msg.pz; // кто-то выбирает класс / оружие — стоим
         if (msg.du) g.duelRemote = { phase: msg.du[0], round: msg.du[1], time: msg.du[2], winner: msg.du[3], wins: Object.fromEntries(msg.du[4] || []) };
         if (msg.inv) {

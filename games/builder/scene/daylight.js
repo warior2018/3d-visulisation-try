@@ -168,7 +168,7 @@ export class DaylightPart {
     const fx = this.fx;
     if (!fx?.pack || !camera) return; // сетевой гость: эффекты идут через FxRelay — без неба
     if (this.settings.general.dayNight === false) {
-      fx.sprites = this.fireflySprites?.() || []; // светлячки комнаты портала
+      fx.sprites = [...(this.fireflySprites?.() || []), ...(this.tumbleSprites?.() || [])]; // светлячки комнаты портала, перекати-поле
       fx.pack();
       return;
     }
@@ -182,6 +182,7 @@ export class DaylightPart {
     if (sun[1] > -0.08) list.push(at(sun, B.sun, k));
     if (-sun[1] > -0.08) list.push(at(sun.map((v) => -v), B.moon, k));
     list.push(...(this.fireflySprites?.() || [])); // светлячки комнаты портала
+    list.push(...(this.tumbleSprites?.() || [])); //   перекати-поле в пустыне (scene/weather.js)
     fx.sprites = list;
     fx.pack();
   }

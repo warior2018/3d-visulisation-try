@@ -100,6 +100,16 @@ export class MobKindsPart {
     e.sunBurnT = S.every + 0.15; // горит на солнце — огонь и дым (scene/effects.js → statusFx)
   }
 
+  // Ночной моб днём без цели не выходит из тени на солнце (ИИ: ctx.shun → WanderBrain). Уже стоит на солнце —
+  // не мешаем (пусть уходит куда угодно). Точка (x, z) — на высоте его головы
+  sunShun(e, x, z) {
+    const S = SUN_BURN;
+    if (!S.types.includes(e.type) || this.settings.general.dayNight === false || this.isNight()) return false;
+    const y = Math.floor(e.position.y + e.height * 0.8);
+    if (lightAt(this.world, Math.floor(e.position.x), y, Math.floor(e.position.z)).sky >= S.sky) return false;
+    return lightAt(this.world, Math.floor(x), y, Math.floor(z)).sky >= S.sky;
+  }
+
   shamanTick(e, dt, S) {
     e.healTimer = (e.healTimer ?? S.heal.every) - dt;
     if (e.healTimer > 0) return;

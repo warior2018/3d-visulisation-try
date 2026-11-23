@@ -6,7 +6,7 @@
 // ============================================================
 
 import { Vec3, Inventory, Player, Mob, NPC, MeleeAttack, SlamAttack, ThrowAttack, HostileBrain, KamikazeBrain, WanderBrain, GuardBrain, FollowBrain, Taming, Rideable, grow, growth } from "../../engine/index.js";
-import { GROWTH_SOFTCAP, SKELETON_AI, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER, MOB_SIZE, MOB_DAMAGE_SCALE } from "./config.js";
+import { GROWTH_SOFTCAP, SKELETON_AI, SHAMAN_BREAK_AURA, SKELETON_GROWTH, HERD, ATTACKS, MOB_WANDER, MOB_RANGED, BOSS, BLOATER, MOB_HELMET, MOB_REGEN, HERO_SCALE, PLAYER, MOB_SIZE, MOB_DAMAGE_SCALE } from "./config.js";
 import { maxStack } from "./items.js";
 import { BatBrain } from "./bat-brain.js";
 
@@ -200,7 +200,7 @@ CREATURES.shaman = {
   kindResist: { ranged: 0.33, melee: -0.25 },
   loot: [["bone", [1, 2]], ["shaman-skull", 1], ["coin", 9]],
   rangedWeapon: { attack: "shamanHex", item: "lichbolt", scale: 0.8, range: 15, minRange: 4, straight: true, spread: 25 },
-  brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.3, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
+  brain: (w) => new HostileBrain({ ...SKELETON_AI, aggroRadius: SKELETON_AI.radius * 1.3, breakAura: SHAMAN_BREAK_AURA, leash: HERD.leash, herd: HERD, wander: MOB_WANDER, ranged: rangedAI(w) }),
 };
 
 // ГОБЛИН-ТРАППЕР (MOB_KINDS.goblin): мелкий, ставит капканы, уворачивается от выстрелов, раненый убегает
