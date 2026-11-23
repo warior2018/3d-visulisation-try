@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.113.0",
+    "date": "2026-11-23",
+    "title": "Source-style movement",
+    "changes": [
+      "Movement works like in Source: friction on the ground, acceleration limited only along your keys",
+      "Air strafing: hold a side key and turn the mouse the same way to gain speed in the air; jumping right on landing keeps your speed (bunny hop)",
+      "Speed above walking fades slowly in the air; too steep slopes make you slide down by yourself"
+    ]
+  },
+  {
     "version": "0.112.0",
     "date": "2026-11-23",
     "title": "Slide",

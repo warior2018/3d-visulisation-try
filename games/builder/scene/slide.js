@@ -4,7 +4,7 @@
 //  разгоняет, в горку тормозит (SLIDE.gravity × уклон), клавиши поворачивают чуть-чуть (SLIDE.steer). Стоишь или
 //  идёшь на склоне (уклон ≥ SLIDE.slope) — присед тоже скольжение: вниз по склону, куда бы ни смотрел (хоть
 //  спиной). Кончается: отпустил присед, оторвался от земли (прыжок из скольжения — разгон остаётся), скорость
-//  упала ниже SLIDE.endSpeed не на склоне. Пока скользишь — патроны не тратятся (freeAmmo: attacks.js).
+//  упала ниже SLIDE.endSpeed не на склоне. Склон круче SLIDE.steep — съезжаешь сам, без приседа (как в Source). Пока скользишь — патроны не тратятся (freeAmmo: attacks.js).
 //  Движение считает CharacterController (entity.slide), здесь — когда начать / кончить и уклон под ногами.
 // ============================================================
 
@@ -41,12 +41,13 @@ export class SlidePart {
     const speed = Math.hypot(p.velocity.x, p.velocity.z);
     const slope = this.slopeUnder(p);
     const onSlope = p.onGround && slope.m >= SLIDE.slope;
+    const steep = p.onGround && slope.m >= SLIDE.steep; // слишком круто — не устоять (как в Source: съезжаешь сам)
     if (!this.sliding) {
-      // присед с разгоном — скольжение; присед на склоне (хоть стоя) — тоже
-      if (want && p.onGround && ((pressed && speed >= SLIDE.minSpeed) || onSlope)) this.startSlide(p, slope, speed);
+      // присед с разгоном — скольжение; присед на склоне (хоть стоя) — тоже; крутой склон — всегда
+      if (steep || (want && p.onGround && ((pressed && speed >= SLIDE.minSpeed) || onSlope))) this.startSlide(p, slope, speed);
     } else {
       this.slideAir = p.onGround ? 0 : (this.slideAir || 0) + dt;
-      if (!want || this.slideAir > 0.15 || (speed < SLIDE.endSpeed && !onSlope)) return this.stopSlide();
+      if ((!want && !steep) || this.slideAir > 0.15 || (speed < SLIDE.endSpeed && !onSlope)) return this.stopSlide();
     }
     if (!this.sliding) return;
     // разгон под горку / торможение в горку: вдоль уклона (на земле)

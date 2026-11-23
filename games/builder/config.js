@@ -251,7 +251,12 @@ export const GAMEPAD_ENABLED = false;
 // Инерция (сверх шага: рывок, взрыв, отдача) — boostGround / boostAir / boostWater: на сколько м/с гаснет за
 // секунду по земле / в воздухе / в воде; steer — как быстро клавиши поворачивают разгон (рад/с); brake — сколько
 // ещё гасит, если жмёшь против (и половину — если отпустил на земле); maxMult — больше скольких шагов не бывает
-export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18, boostGround: 10, boostAir: 2.5, boostWater: 20, steer: 2.4, brake: 16, maxMult: 6 };
+// source — движение как в Source (CharacterController.sourceMove): friction — трение до шага (во сколько раз
+// скорости за секунду), stopSpeed — ниже неё трение как от этой скорости (останавливаешься, а не ползёшь);
+// groundAccel — разгон до шага на земле (×шаг в секунду: 20 — за 0.05 с без трения); airAccel / airCap — в воздухе: ускорение
+// (×шаг в секунду) и сколько м/с можно набрать ВДОЛЬ клавиш (повороты в полёте: air strafe)
+export const MOVEMENT = { ground: 0.1, stop: 0.05, air: 0.15, airStop: 0.4, over: 0.18, boostGround: 10, boostAir: 0.6, boostWater: 20, steer: 2.4, brake: 16, maxMult: 6,
+  source: true, friction: 10, stopSpeed: 2, groundAccel: 20, airAccel: 25, airCap: 1.6 };
 // Маунт разгоняется дольше (тяжёлый зверь)
 export const MOUNT_MOVEMENT = { ground: 0.55, stop: 0.35, air: 1.2, airStop: 2, over: 0.5 };
 
@@ -1219,7 +1224,8 @@ export const DASH = { pips: 3, recharge: 4, impulse: 10, cooldown: 0.8, stick: 0
 // уклона); friction — трение (м/с за секунду); steer — поворот клавишами (рад/с); endSpeed — ниже (не на склоне)
 // скольжение кончается; push — толчок, если стоял на склоне; maxMult — больше скольких шагов не разгоняет;
 // sample — на каком расстоянии мерить уклон под ногами
-export const SLIDE = { minSpeed: 5.5, slope: 0.2, gravity: 16, friction: 2.2, steer: 1.1, endSpeed: 2.5, push: 2, maxMult: 6, sample: 0.9 };
+// steep — склон круче (перепад на метр) — не устоять: съезжаешь и без приседа
+export const SLIDE = { minSpeed: 5.5, slope: 0.2, steep: 1.3, gravity: 16, friction: 2.2, steer: 1.1, endSpeed: 2.5, push: 2, maxMult: 6, sample: 0.9 };
 export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
 // Прыжок с мачете (Q): нож — обратным хватом (лезвием вниз), прыжок вперёд на distance м с замахом. Хитбокс — там,
 // где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся

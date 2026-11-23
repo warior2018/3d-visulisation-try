@@ -119,6 +119,47 @@ export class CharacterController {
 
   // Горизонтальная скорость → к цели (tx, tz), не быстрее, чем позволяет разгон (вектором: смена направления
   // тоже требует времени — как у машины «0–100», только за доли секунды)
+  // Движение как в Source (accel.source = true): трение (только на земле) + ускорение по ПРОЕКЦИИ — ограничена
+  // только скорость вдоль клавиш, а не вся. Отсюда сами собой: инерция, повороты в воздухе (air strafe: жмёшь вбок
+  // и ведёшь мышью — набираешь скорость по дуге), прыжки подряд без потери скорости (в кадр прыжка трения нет).
+  //   трение: до шага — как в Source (max(скорость, stop) × friction за секунду: останавливаешься быстро);
+  //           сверх шага — линейно boostGround м/с за секунду (разгон от рывка живёт ~секунду), в воде — boostWater;
+  //   ускорение: на земле — до шага за groundAccel⁻¹ с; в воздухе — вдоль клавиш не больше airCap м/с
+  //              (ускорение airAccel × шаг), в воздухе лишняя скорость гаснет на boostAir м/с за секунду;
+  //   жмёшь против движения на земле — ещё brake; больше maxMult × шага не бывает; в капкане — стоп
+  sourceMove(entity, wx, wz, wishspeed, dt, jumping) {
+    const a = this.accel, v = entity.velocity, air = !entity.onGround;
+    const walk = Math.max(0.1, this.speed) * Math.max(1, entity.speedMultiplier);
+    if (entity.speedMultiplier < 0.2) { v.x = 0; v.z = 0; return; }
+    let s = Math.hypot(v.x, v.z);
+    // трение
+    if (s > 0.001) {
+      let drop = 0;
+      if (entity.inWater) drop = (s > walk ? a.boostWater : Math.max(s, a.stopSpeed) * a.friction) * dt;
+      else if (!air && !jumping) drop = (s > walk + 0.05 ? a.boostGround : Math.max(s, a.stopSpeed) * a.friction) * dt;
+      else if (air && s > walk) drop = a.boostAir * dt;
+      if (!air && wishspeed > 0 && (v.x * wx + v.z * wz) < 0 && s > walk) drop += a.brake * dt; // против движения — тормоз
+      const ns = Math.max(0, s - drop);
+      v.x *= ns / s;
+      v.z *= ns / s;
+      s = ns;
+    }
+    // ускорение по проекции (Source: Accelerate / AirAccelerate)
+    if (wishspeed > 0) {
+      const cap = air ? Math.min(wishspeed, a.airCap) : wishspeed;
+      const cur = v.x * wx + v.z * wz;
+      const add = cap - cur;
+      if (add > 0) {
+        const acc = Math.min(add, (air ? a.airAccel : a.groundAccel) * wishspeed * dt);
+        v.x += wx * acc;
+        v.z += wz * acc;
+      }
+    }
+    // предел
+    const capAll = walk * (a.maxMult ?? 6), ns = Math.hypot(v.x, v.z);
+    if (ns > capAll) { v.x *= capAll / ns; v.z *= capAll / ns; }
+  }
+
   approach(entity, tx, tz, dt) {
     const a = this.accel, v = entity.velocity;
     const air = !entity.onGround;
@@ -202,7 +243,12 @@ export class CharacterController {
     const cos = Math.cos(yaw);
     const k = moving ? speed / len : 0;
     const tx = (sin * fwd + cos * side) * k, tz = (cos * fwd - sin * side) * k;
-    if (this.accel) this.approach(entity, tx, tz, dt);
+    if (this.accel?.source && !entity.slide) {
+      // Source: направление клавиш (единичное) и желаемая скорость; в кадр прыжка — без трения (bunny hop)
+      const want = Math.hypot(tx, tz);
+      const jumping = entity.onGround && (input.isDown("jump") || this.jumpBuffer > 0) && !this.jumpBlocked;
+      this.sourceMove(entity, want ? tx / want : 0, want ? tz / want : 0, want, dt, jumping);
+    } else if (this.accel) this.approach(entity, tx, tz, dt);
     else {
       entity.velocity.x = tx;
       entity.velocity.z = tz;
