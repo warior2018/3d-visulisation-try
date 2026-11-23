@@ -1226,7 +1226,7 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // меньше этой (impulse больше не используется)
 // distance / time — рывок: столько метров за столько секунд с постоянной скоростью (потом — обычный шаг)
 export const DASH = { pips: 3, recharge: 4, distance: 5, time: 0.3, jumpSpeed: 15, cooldown: 0.8, stick: 0.4, jump: [0.3, 0.25], airDashes: 1,
-  wall: { push: 7, up: 0.9, cooldown: 0.4, max: 2, minHeight: 1.6, reach: 1.2, angle: 30 }, fall: { double: 0.3, speed: 26 } };
+  wall: { push: 7, up: 0.9, cooldown: 0.4, max: 2, minHeight: 1.6, reach: 1.2, angle: 50 }, fall: { double: 0.3, speed: 26 } };
 // Скольжение (scene/slide.js), как в Deadlock: minSpeed — с какой скорости (м/с) присед становится скольжением;
 // slope — с какого уклона (перепад на метр) скользишь и без разгона; gravity — разгон под горку (м/с² на единицу
 // уклона); friction — трение (м/с за секунду); steer — поворот клавишами (рад/с); endSpeed — ниже (не на склоне)
