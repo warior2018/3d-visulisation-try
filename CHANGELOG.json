@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.3",
+    "date": "2026-11-23",
+    "title": "Sharp stop",
+    "changes": [
+      "Releasing the movement keys stops you almost at once (0.05 s) instead of sliding on"
+    ]
+  },
+  {
     "version": "0.114.2",
     "date": "2026-11-23",
     "title": "Dash rebalance",
