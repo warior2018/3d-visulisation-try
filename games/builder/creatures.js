@@ -143,6 +143,11 @@ CREATURES.troll = {
   brain: (w) => new HostileBrain({ aggroRadius: BOSS.aggroRadius, sightHeight: 2, leash: 250, stopDistance: 2.2, turnSpeed: 3, jumpSpeed: 7.5, ranged: rangedAI(w), chase: BOSS.chase, windupSlow: SKELETON_AI.windupSlow }),
 };
 
+// Манекен полигона (scene/training.js): скелет, стоит, не дерётся и не умирает (здоровье — сразу обратно)
+CREATURES.dummy = {
+  kind: "mob", name: "TRAINING DUMMY", maxHp: 1000000, speed: 0, model: "skeleton", hostileTo: [], xp: 0, loot: [],
+};
+
 // Гигант-скример (scene/giant.js, GIANT): безвредный, неуязвимый, ни с кем не враждует; двигает игра (без мозгов)
 CREATURES.giant = {
   kind: "npc", name: "???", maxHp: 1, speed: 9, radius: 1.6, height: 10, scale: 4, inventorySize: 0,

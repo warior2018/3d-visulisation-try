@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.111.0",
+    "date": "2026-11-23",
+    "title": "Training polygon",
+    "changes": [
+      "Main menu - TRAINING: a small flat island with skeleton training dummies; damage over the last 10 s and DPS above each dummy",
+      "No mobs, no warden, no giant; console cheats on; nothing is saved; dying puts you back in the middle",
+      "Fix: the giant was added to the world twice"
+    ]
+  },
+  {
     "version": "0.110.2",
     "date": "2026-11-23",
     "title": "Dash jump",

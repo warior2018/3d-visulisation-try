@@ -33,6 +33,7 @@ import { CombatPart } from "./scene/combat.js";
 import { ThrowersPart, lighter } from "./scene/throwers.js";
 import { GiantPart } from "./scene/giant.js";
 import { DashPart } from "./scene/dash.js";
+import { TrainingPart } from "./scene/training.js";
 import { MagicPart } from "./scene/magic.js";
 import { AmmoPart } from "./scene/ammo.js";
 import { ProgressionPart } from "./scene/progression.js";
@@ -84,6 +85,7 @@ export class GameScene extends Scene {
     this.role = game.net?.role || "solo";
     // Матч из лобби (lobby.js): новый мир на один раз — без сохранений, класс выбирают все, опыт общий ×0.5
     this.match = !!game.net?.match;
+    this.training = !game.net && !!game.training; // полигон (scene/training.js): свой остров, мир не сохраняется
     this.duel = this.match && game.net?.mode === "duel"; // дуэль: каждый сам за себя на арене (scene/duel.js)
     // Выделенный сервер (tools/server.mjs): хост без своего героя — только мир и рассылка; его «герой» стоит
     // в стороне, неуязвим и ни в чём не участвует (heroes, дуэль, таблица, снимки)
@@ -413,6 +415,7 @@ export class GameScene extends Scene {
     this.updateGates(dt); // врата небесных островов: встал — перенос (scene/sky.js)
     this.updateGiant(dt); // гигант-скример: таймер, бег (scene/giant.js)
     this.updateDash(dt); // выносливость: деления копятся (scene/dash.js)
+    this.updateTraining(); // полигон: манекены целы, счёт урона (scene/training.js)
     if (this.pull) this.updatePull(dt); //  портал закрывается — затягивает к выходу (вместо управления)
     else if (!this.downed && !frozen) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
     // 2. Мир: существа, предметы, снаряды, ловушки, события. Клиент сетевой игры мир не считает —
@@ -611,7 +614,7 @@ export class GameScene extends Scene {
     }
     // 3. Существа: появляются, думают, ходят, бьют; павшие исчезают
     profiler.begin(PROF.spawn);
-    if (full) {
+    if (full && !this.training) { // на полигоне — никого
       this.spawner.interval = this.spawnInterval(); // уровень героя и сколько мобов уже есть (scene/session.js)
       this.spawner.update(dt);
       this.boarSpawner.update(dt);
@@ -682,7 +685,7 @@ export class GameScene extends Scene {
     };
     profiler.begin(PROF.creatures);
     for (const e of [...this.entities.list]) {
-      if (e === player || e.type === "giant") continue; // гиганта двигает scene/giant.js
+      if (e === player || e.type === "giant" || e.dummy) continue; // манекен полигона стоит сам // гиганта двигает scene/giant.js
       // гость сетевой игры: его двигает сеть (scene/net.js), не мозги и не физика
       if (e.remote) {
         e.view?.animator.setBase(baseClip(e.netWalk, e.netLow), 1); // присед / стойка — клипы стойки
@@ -940,6 +943,7 @@ export class GameScene extends Scene {
     this.hud.draw(ui, this);
     this.drawCloudVeil(ui); // внутри облака — белая пелена (scene/clouds.js)
     this.drawWater(ui); // под водой — пелена и пузырьки воздуха (scene/water.js)
+    this.drawDummyMeters(ui); // полигон: урон над манекенами (scene/training.js)
     if (this.engine.scene === this) this.drawStaminaPips(ui); // выносливость под прицелом (scene/dash.js)
     const fade = this.fadeAlpha?.() || 0; // переход через портал — затемнение
     if (fade > 0) ui.rect(0, 0, ui.width, ui.height, [0, 0, 0], Math.round(fade * 255));
@@ -993,4 +997,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart, GiantPart, DashPart]);
+mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart, GiantPart, DashPart, TrainingPart]);

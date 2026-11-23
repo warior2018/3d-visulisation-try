@@ -242,6 +242,7 @@ const game = {
   openSettings: () => engine.push(new SettingsScene({ tabs: [generalTab()] })),
   toMenu: () => {
     game.net = null; // сетевая игра кончилась (сцена мира закроет связь при выходе)
+    game.training = false; // и полигон
     engine.setScene(mainMenu());
   },
   net: null, // сетевая игра: { role: "host", server } или { role: "client", client, name } — scene/net.js
@@ -360,7 +361,9 @@ function mainMenu() {
     game,
     updater: up,
     actions: {
-      play: () => enterWorld(), // мир уже выбран (touchWorld)
+      play: () => { game.training = false; enterWorld(); }, // мир уже выбран (touchWorld)
+      // полигон: свой маленький остров с манекенами, читы, не сохраняется (scene/training.js)
+      training: () => { game.net = null; game.training = true; engine.setScene(new LoadingScene({ text: "LOADING TRAINING", load: () => engine.setScene(new GameScene(game)) })); },
       news: () => engine.push(new ChangelogScene({ entries: up ? up.entries : [] })),
       settings: () => game.openSettings(),
       quit: () => engine.quit(),

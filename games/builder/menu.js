@@ -444,6 +444,7 @@ export class MainMenu extends Scene {
     // не здесь (будут в другом месте)
     const c = this.center;
     ui.button("play", !c ? "CREATE" : c.saved ? "PLAY" : "START", ui.width / 2, playY(ui), 300, 56, 3, true);
+    ui.button("training", "TRAINING", 24 + 110, playY(ui), 220, 48, 2); // полигон: манекены, мир не сохраняется (scene/training.js)
     // герой (3D: окошко прозрачное) и статы показанного мира
     const w = this.shown();
     if (w) {
@@ -586,6 +587,7 @@ export class MainMenu extends Scene {
   }
 
   onButton(id) {
+    if (id === "training") return this.actions.training?.();
     const [kind, arg] = id.split(":");
     if (kind === "ptab") return void (this.profileTab = arg, this.achScroll = 0);
     if (kind === "tab") {

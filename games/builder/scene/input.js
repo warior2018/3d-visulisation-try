@@ -80,7 +80,7 @@ export class InputPart {
       overlay: true,
       items: [
         { id: "resume", label: "RESUME" },
-        ...(this.match ? [] : [{ id: "save", label: "SAVE" }]), // матч не сохраняется
+        ...(this.match || this.training ? [] : [{ id: "save", label: "SAVE" }]), // матч не сохраняется
         { id: "settings", label: "SETTINGS" },
         { id: "profile", label: "PROFILE" }, // ачивки и счётчики (profile-view.js)
         { id: "menu", label: this.match ? "LEAVE MATCH" : "MAIN MENU" },
@@ -106,6 +106,7 @@ export class InputPart {
       if (!this.downed) this.duelDown();
       return;
     }
+    if (this.training) return this.trainingRespawn(); // полигон: встаёшь посередине (мир не стираем!)
     if (this.match) { // матч: не конец — урна, ждём, пока оживят (scene/coop.js)
       if (!this.downed) this.goDown();
       return;

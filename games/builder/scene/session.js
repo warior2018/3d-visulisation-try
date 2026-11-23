@@ -26,7 +26,7 @@ export class SessionPart {
     this.game.models.lightAt = (p, e) => this.lightHere(p, e); // свет на моделях: под крышей темнее (scene/daylight.js)
     // Мир из слота: размер и летающие острова (info.json; старые миры — с полом, большие)
     // матч: свой мир не трогаем — новый, летающие острова среднего размера, без читов, не сохраняется
-    const info = this.match ? { floating: true, size: this.game.net?.size || 2, cheats: false } : this.role === "client" ? {} : worldInfo();
+    const info = this.training ? { floating: true, size: 1, cheats: true } : this.match ? { floating: true, size: this.game.net?.size || 2, cheats: false } : this.role === "client" ? {} : worldInfo();
     this.world.floor = !info.floating;
     this.setupLights(); // светящиеся блоки (LIGHTS) — до загрузки: лампы из сохранения сразу светят (scene/daylight.js)
     this.cheats = info.cheats !== false; // читы консоли (галочка при создании мира; у старых миров — включены)
@@ -38,7 +38,7 @@ export class SessionPart {
     this.spawnMaxR = WS?.spawn[1] || VIEW_DISTANCE;
     this.despawnDist = WS?.despawn || SPAWN.despawnDistance;
     this.huntDespawn = Math.max(SPAWN.huntDespawn, this.despawnDist + 25);
-    const saved = this.match ? null : loadGame(this.world); // блоки — сразу в мир; null — нового мира ещё нет
+    const saved = this.match || this.training ? null : loadGame(this.world); // блоки — сразу в мир; null — нового мира ещё нет
     // Рельеф: по зерну из сохранения (кубики уже в blocks — только высота земли для расчётов)
     // Параметры рельефа — из сохранения (старые миры — TERRAIN_V1: тогда остров был меньше)
     this.terrainParams = saved?.worldgen?.terrain || TERRAIN_V1;
@@ -57,7 +57,7 @@ export class SessionPart {
     this.treasure = saved?.worldgen?.treasure || null; // сундук на дальнем острове (scene/islands.js)
     this.houseChests = saved?.worldgen?.houseChests || []; // сундуки в домах (scene/islands.js)
     // дуэль: вместо обычного мира — арена-коробка и комнаты подготовки (scene/duel.js; гостю мир придёт от хоста)
-    if (this.duel) { if (this.role !== "client") this.buildDuelWorld((this.game.net?.roster || [1, 2]).length); } else if (!saved) this.generateWorld(); // новый мир: рельеф, постройки, деревья
+    if (this.duel) { if (this.role !== "client") this.buildDuelWorld((this.game.net?.roster || [1, 2]).length); } else if (this.training) this.buildTrainingWorld(); else if (!saved) this.generateWorld(); // новый мир: рельеф, постройки, деревья
     // Камни и прочее на земле. В сохранениях до камней их нет — разбрасываем, чтобы было из чего строить
     if (Array.isArray(saved?.pickups)) this.pickups.loadFrom(saved.pickups);
 
@@ -163,11 +163,12 @@ export class SessionPart {
     if (this.playerClass === "ranged") this.giveAmmoOnce(); // стрелок из старого сохранения — без патронов не останется
 
     // В старых сохранениях существ нет — расставляем заново
-    const creatures = this.duel ? [] : Array.isArray(saved?.entities) ? saved.entities : DEFAULT_SPAWNS; // в дуэли — никого
+    const creatures = this.duel || this.training ? [] : Array.isArray(saved?.entities) ? saved.entities : DEFAULT_SPAWNS; // в дуэли — никого
     for (const d of creatures) this.spawn(d.type, d); // неизвестные типы (убрали из игры) spawn пропускает
     this.dropUnknownItems(); //                         и предметы, которых больше нет, — из их добычи тоже
     // Жители (НПС) — всегда в мире, даже в старых сохранениях
-    if (!this.duel) for (const d of RESIDENTS) if (!this.entities.list.some((e) => e.type === d.type)) this.spawn(d.type, d);
+    if (this.training) this.spawnDummies(); // полигон: манекены вместо жителей
+    if (!this.duel && !this.training) for (const d of RESIDENTS) if (!this.entities.list.some((e) => e.type === d.type)) this.spawn(d.type, d);
 
     // Мобы появляются сами вокруг героя, в пределах прорисовки (правила — в config.js → SPAWN, MOB_MIX)
     const view = this.spawnMaxR; // где появляются мобы — от размера мира, не от настройки графики (DRAW DISTANCE), у всех одинаково
@@ -214,7 +215,7 @@ export class SessionPart {
     // Поставленные ловушки (атаки собираем заново по виду)
     for (const t of Array.isArray(saved?.traps) ? saved.traps : []) if (TRAPS[t.type]) if (!t.tilt) this.placeTrapAt(t.type, t, { yaw: t.yaw, age: t.age }); // ловушек на стенах больше нет
     // Новый мир: сразу SPAWN.start мобов вокруг (обычные виды, не ближе minPlayerDistance)
-    if (!saved && !this.duel && this.role !== "client") for (let i = 0; i < SPAWN.start; i++) this.spawner.spawnNow();
+    if (!saved && !this.duel && !this.training && this.role !== "client") for (let i = 0; i < SPAWN.start; i++) this.spawner.spawnNow();
     // Кабаны — редко (BOARS.chance), и не больше BOARS.max диких
     this.boarSpawner = new Spawner({
       ...BOARS,
@@ -362,7 +363,7 @@ export class SessionPart {
 
   saveNow(toast = true, { background = false } = {}) {
     if (this.dead) return; // погибли — мир уже удалён, сохранять нечего
-    if (this.match) return; // матч — мир на один раз, ничего не пишем
+    if (this.match || this.training) return; // матч и полигон — мир на один раз, ничего не пишем
     const creatures = this.entities.list.filter((e) => e !== this.player && e.alive && !e.boss && !e.elite && e.type !== "steed" && e.type !== "giant"); // элиту не сохраняем // маунт не сохраняем // боссов не сохраняем (босс появится в логове заново)
     const progression = { class: this.playerClass, subclass: this.subclass || null, upgrades: { ...(this.upgrades || {}) }, run: this.runStatsJSON(), quests: this.questsJSON(), mount: !!this.hasMount, dayTime: this.dayTime ?? null, ammoGiven: !!this.ammoGiven, experience: this.experience.toJSON(), talents: this.talents.toJSON(), trophies: { hp: TROPHY.hp, pct: { ...TROPHY.pct } }, shop: this.shop.toJSON(), trollHides: this.trollHides, boneCrowns: this.boneCrowns, ultimate: this.ultimate.charge, bosses: this.lairTimers, invasion: { active: this.invasion.active, left: this.invasion.timeLeft, rest: this.invasion.rest, count: this.invasion.count, kind: this.invasionKind?.id || null, wait: this.invasionWait || 0 } };
     this.autosaveIn = AUTOSAVE.every; // только что сохранились — следующее автосохранение отсчитываем заново

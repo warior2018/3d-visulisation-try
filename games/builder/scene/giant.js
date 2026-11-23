@@ -17,7 +17,7 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 export class GiantPart {
   // ---------- Хост / соло: таймер, появление, бег ----------
   updateGiant(dt) {
-    if (this.net?.role === "client" || this.duel || this.dedicated && !this.allHeroes().length) return;
+    if (this.net?.role === "client" || this.duel || this.training) return;
     const g = this.giant;
     if (g) return this.moveGiant(g, dt);
     if (this.inMain && !this.inMain()) return; // пока герой в комнате портала — таймер стоит
@@ -64,7 +64,6 @@ export class GiantPart {
     if (!at) return;
     const e = this.spawn("giant", { x: at.x, y: this.groundHeight(at.x, at.z), z: at.z, yaw: angleTo(at, h.position) });
     if (!e) return;
-    this.entities.add(e);
     e.noSave = true;
     e.target = h;
     e.cave = this.inCave(h);
