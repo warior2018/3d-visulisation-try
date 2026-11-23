@@ -34,6 +34,7 @@ import { ThrowersPart, lighter } from "./scene/throwers.js";
 import { GiantPart } from "./scene/giant.js";
 import { DashPart } from "./scene/dash.js";
 import { TrainingPart } from "./scene/training.js";
+import { SlidePart } from "./scene/slide.js";
 import { MagicPart } from "./scene/magic.js";
 import { AmmoPart } from "./scene/ammo.js";
 import { ProgressionPart } from "./scene/progression.js";
@@ -415,6 +416,7 @@ export class GameScene extends Scene {
     this.updateGates(dt); // врата небесных островов: встал — перенос (scene/sky.js)
     this.updateGiant(dt); // гигант-скример: таймер, бег (scene/giant.js)
     this.updateDash(dt); // выносливость: деления копятся (scene/dash.js)
+    this.updateSlide(dt); // скольжение на присед (scene/slide.js)
     this.updateTraining(); // полигон: манекены целы, счёт урона (scene/training.js)
     if (this.pull) this.updatePull(dt); //  портал закрывается — затягивает к выходу (вместо управления)
     else if (!this.downed && !frozen) this.tickPlayer(dt, input); // 1. свой герой: оружие, движение (погиб в матче — стоит урной)
@@ -998,4 +1000,4 @@ export class GameScene extends Scene {
 }
 
 // Части сцены по темам (scene/*.js) — их методы становятся методами GameScene
-mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart, GiantPart, DashPart, TrainingPart]);
+mixParts(GameScene, [PortalsPart, WaterPart, SkyPart, CloudsPart, SessionPart, InputPart, BuildingPart, WorldgenPart, CombatPart, ThrowersPart, MagicPart, AmmoPart, ProgressionPart, ShopPart, PetsPart, BuffsPart, BossesPart, MobKindsPart, AchievementsPart, CavesPart, InteractPart, LootPart, MountPart, AudioPart, EffectsPart, DaylightPart, OutOfCombatPart, FeelPart, RunStatsPart, ElitesPart, QuestsPart, IslandsPart, CoopPart, DuelPart, GiantPart, DashPart, TrainingPart, SlidePart]);

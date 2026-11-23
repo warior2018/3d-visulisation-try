@@ -432,7 +432,7 @@ export class RangedAttack extends Attack {
       return null;
     }
     const result = super.use(owner, ctx);
-    if (result && result.used !== false && this.magazine > 0) {
+    if (result && result.used !== false && this.magazine > 0 && !owner?.freeAmmo) { // freeAmmo — патроны не тратятся (скольжение)
       this.ammo--;
       if (this.ammo === 0) this.reload(ctx); // последний патрон — сразу перезарядка
     }

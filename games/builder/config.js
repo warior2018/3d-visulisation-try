@@ -1214,6 +1214,12 @@ export const SHOTGUN_BLAST = { cooldown: 9, stun: 0.6, push: 17, pushTime: 0.3, 
 // jump — прыжок из рывка: через jump[0] с после рывка на jump[1] с шкала загорается синим — нажал прыжок в это
 // окно: ещё одно деление, ещё такой же толчок (туда же, куда рывок) и прыжок
 export const DASH = { pips: 3, recharge: 4, impulse: 10, cooldown: 0.8, stick: 0.4, jump: [0.3, 0.25] };
+// Скольжение (scene/slide.js), как в Deadlock: minSpeed — с какой скорости (м/с) присед становится скольжением;
+// slope — с какого уклона (перепад на метр) скользишь и без разгона; gravity — разгон под горку (м/с² на единицу
+// уклона); friction — трение (м/с за секунду); steer — поворот клавишами (рад/с); endSpeed — ниже (не на склоне)
+// скольжение кончается; push — толчок, если стоял на склоне; maxMult — больше скольких шагов не разгоняет;
+// sample — на каком расстоянии мерить уклон под ногами
+export const SLIDE = { minSpeed: 5.5, slope: 0.2, gravity: 16, friction: 2.2, steer: 1.1, endSpeed: 2.5, push: 2, maxMult: 6, sample: 0.9 };
 export const DASH_SLIDE = { stopAngle: 30, keep: 0.9, stepUp: 0.5, stepDown: 0.25, corner: 0.25 };
 // Прыжок с мачете (Q): нож — обратным хватом (лезвием вниз), прыжок вперёд на distance м с замахом. Хитбокс — там,
 // где сам клинок (впереди героя на forward м, на высоте height, радиус radius — чуть больше клинка): коснулся

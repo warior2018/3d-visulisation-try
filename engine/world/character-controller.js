@@ -124,6 +124,27 @@ export class CharacterController {
     const air = !entity.onGround;
     const want = Math.hypot(tx, tz), have = Math.hypot(v.x, v.z);
     const base = Math.max(0.1, this.speed);
+    // Скольжение (entity.slide = { friction, steer, ax, az, cap } — ставит игра): трение маленькое, ускорение
+    // по склону (ax, az), клавиши только чуть поворачивают; больше cap × шага не бывает
+    const sl = entity.slide;
+    if (sl) {
+      v.x += (sl.ax || 0) * dt;
+      v.z += (sl.az || 0) * dt;
+      let s = Math.hypot(v.x, v.z);
+      if (s > 0.01) {
+        let dx = v.x / s, dz = v.z / s;
+        if (want > 0.01) {
+          const ix = tx / want, iz = tz / want;
+          const ang = Math.atan2(dx * iz - dz * ix, dx * ix + dz * iz), turn = Math.max(-sl.steer * dt, Math.min(sl.steer * dt, ang));
+          const c = Math.cos(turn), sn = Math.sin(turn);
+          [dx, dz] = [dx * c - dz * sn, dx * sn + dz * c];
+        }
+        s = Math.min(base * (sl.cap ?? 6), Math.max(0, s - sl.friction * dt));
+        v.x = dx * s;
+        v.z = dz * s;
+      }
+      return;
+    }
     // Инерция (accel.boostGround задан): скорость сверх шага (рывок, взрыв, отдача) гаснет сама — по земле
     // boostGround м/с за секунду, в воздухе boostAir, в воде boostWater; клавиши её поворачивают (steer рад/с) и
     // тормозят, если жмёшь против (brake); больше maxMult × шага не бывает; в капкане — сразу шаг

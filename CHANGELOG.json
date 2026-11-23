@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.112.0",
+    "date": "2026-11-23",
+    "title": "Slide",
+    "changes": [
+      "Crouch (Ctrl) with enough speed (after a dash or a blast) slides instead: low friction, downhill speeds you up, uphill slows you down, keys steer a little",
+      "On a slope crouching always slides downhill, whichever way you face - even standing still",
+      "Jumping out of a slide keeps the speed; while sliding your guns don't use ammo"
+    ]
+  },
+  {
     "version": "0.111.3",
     "date": "2026-11-23",
     "title": "Smoother slopes and bridges",
