@@ -301,7 +301,13 @@ export class CharacterController {
     const want = jumpPressed || this.jumpBuffer > 0;
     // «Койот»: только что сошёл с края (не прыжком) — это ещё обычный прыжок, двойной не тратится
     const coyote = !entity.onGround && !this.jumped && this.sinceGround < COYOTE_TIME;
-    if (entity.inWater && !entity.noGravity) {
+    // Игра может перехватить нажатие прыжка (jumpOverride → true): прыжок из рывка, от стены — тогда обычного
+    // прыжка и прыжка в воздухе на это нажатие нет (раньше прыжок от стены тратил ещё и прыжок в воздухе)
+    if (want && !this.jumpBlocked && !(entity.inWater && !entity.noGravity) && this.jumpOverride?.()) {
+      this.jumpBuffer = 0;
+      this.jumped = true;
+      entity.swimUp = false;
+    } else if (entity.inWater && !entity.noGravity) {
       // В воде: прыжок — всплывать (с разгоном, engine/world/physics.js → WATER_PHYS); у берега (упёрся) — выпрыгнуть
       entity.swimUp = jumpDown;
       if (jumpDown && entity.blocked && !entity.headInWater) entity.velocity.y = Math.max(entity.velocity.y, jumpV * 0.8);

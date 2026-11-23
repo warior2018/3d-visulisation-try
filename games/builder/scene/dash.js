@@ -109,7 +109,6 @@ export class DashPart {
     const p = this.player;
     if (!this.dashJumpOpen || !p?.alive || p.mount || (this.pips ?? 0) < 1) return false;
     if (p.speedMultiplier < 0.2 || p.stunned) return false;
-    this.engine.input.wasPressed?.("jump"); // нажатие — наше: управление героем его уже не увидит (не будет второго прыжка)
     this.dashSince = undefined;
     this.pips--;
     // скорость вдоль рывка — не меньше DASH.jumpSpeed (не прибавляет сверху: быстрее уже — остаётся)
@@ -133,7 +132,7 @@ export class DashPart {
     if (!p?.alive || p.onGround || p.mount || p.inWater || (this.wallJumpCd || 0) > 0) return false;
     if (p.speedMultiplier < 0.2 || p.stunned) return false;
     // стены рядом: клетки сбоку на высоте ног и пояса — нормаль от стены
-    const P = p.position, r = (p.radius || 0.3) + 0.35, w = this.world;
+    const P = p.position, r = ((p.radius || 0.3) + 0.35) * DASH.wall.reach;
     let nx = 0, nz = 0;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const cx = Math.floor(P.x + dx * r), cz = Math.floor(P.z + dz * r);
@@ -147,7 +146,6 @@ export class DashPart {
       this.spendPip();
     }
     this.wallJumps = (this.wallJumps || 0) + 1;
-    this.engine.input.wasPressed?.("jump"); // нажатие — наше (не прыжок в воздухе)
     const W = DASH.wall, jumpV = Math.sqrt(2 * (this.physics?.gravity ?? 22) * (this.controller?.jumpHeight ?? 1.2));
     // от стены: скорость в стену убираем, от стены — не меньше W.push (в стену не прыгнуть, только от неё)
     const ux = nx / nl, uz = nz / nl, out = p.velocity.x * ux + p.velocity.z * uz;

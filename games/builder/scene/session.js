@@ -99,6 +99,8 @@ export class SessionPart {
     // прыжок в воздухе (талант DOUBLE JUMP) стоит деление выносливости (scene/dash.js); нет — не прыгнуть
     this.controller.canAirJump = () => (this.pips ?? this.staminaMax) >= 1;
     this.controller.onAirJump = () => this.spendPip();
+    // нажатие прыжка: сначала прыжок из рывка (в окно), в воздухе у стены — от стены (scene/dash.js); иначе — обычный
+    this.controller.jumpOverride = () => this.dashJump() || (!this.player.onGround && this.wallJump());
     // Блок отбил удар (движок: статус parry → entity.onBlock) — «дзынь» и надпись
     // Попали в голову — шлем срезает часть урона (до брони; ARMOR: headshot)
     this.player.onIncoming = (d) => {

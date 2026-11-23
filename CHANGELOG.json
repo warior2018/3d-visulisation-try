@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.114.6",
+    "date": "2026-11-23",
+    "title": "Wall jump fixes",
+    "changes": [
+      "A wall jump no longer also uses your air jump (and its stamina); dash jumps the same",
+      "Walls are caught from 20% further away"
+    ]
+  },
+  {
     "version": "0.114.5",
     "date": "2026-11-23",
     "title": "Wall jumps from tall walls only",

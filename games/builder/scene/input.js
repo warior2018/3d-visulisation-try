@@ -30,7 +30,6 @@ export class InputPart {
     if (has("ultimate")) this.useUltimate();
     if (has("mount")) this.toggleMount(); // Z — маунт (scene/mount.js)
     if (has("mountMode")) this.toggleMountMode(); // Alt — верхом: поводья / оружие
-    if (has("jump") && !this.dashJump()) this.wallJump(); // прыжок из рывка в окно; иначе в воздухе у стены — от стены (scene/dash.js)
     if (has("crouch")) this.crouchPressed(); // дважды в воздухе — быстрое падение (scene/dash.js)
     if (has("skill3")) {
       this.tryDash(); // Shift — рывок (scene/dash.js)
