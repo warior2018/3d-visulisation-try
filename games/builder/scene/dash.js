@@ -71,7 +71,10 @@ export class DashPart {
     if (input.isDown("back")) fwd -= 1;
     if (input.isDown("right")) side += 1;
     if (input.isDown("left")) side -= 1;
-    if (!fwd && !side) fwd = 1;
+    if (!fwd && !side) {
+      if (p.onGround) return; // на земле без клавиш движения рывка нет (в воздухе — вперёд)
+      fwd = 1;
+    }
     const yaw = this.look.yaw, s = Math.sin(yaw), c = Math.cos(yaw);
     const dx = s * fwd + c * side, dz = c * fwd - s * side;
     // бросок (как в Deadlock): скорость вдоль рывка — не меньше DASH.burst (быстрее уже летишь — не прибавляет:
