@@ -64,9 +64,10 @@ class FxRelay {
       this[kind] = (args) => orig.apply(obj, args);
     };
     const pt = (p) => (p ? { x: r2(p.x), y: r2(p.y), z: r2(p.z) } : p);
-    wrap(g.slashes, "add", "slash", ([o]) => [{ ...o, origin: pt(o.origin) }]);
+    // local — экранный след от 1-го лица: только себе (другим — разрез в мире: worldSlash → beam)
+    wrap(g.slashes, "add", "slash", ([o]) => (o.local ? null : [{ ...o, origin: pt(o.origin) }]));
     // anchor — функция (едет за героем): по сети — точка, где он сейчас
-    wrap(g.crescents, "add", "crescent", ([o]) => [{ ...o, anchor: pt(typeof o.anchor === "function" ? o.anchor() : o.anchor) }]);
+    wrap(g.crescents, "add", "crescent", ([o]) => (o.local ? null : [{ ...o, anchor: pt(typeof o.anchor === "function" ? o.anchor() : o.anchor) }]));
     wrap(g.beams, "add", "beam", ([o]) => [{ ...o, from: pt(o.from), to: pt(o.to) }]);
     wrap(g.beams, "ring", "ring", ([c, r, o]) => [pt(c), r, o]);
     wrap(g.beams, "mark", "mark", ([p, o]) => [pt(p), o]);

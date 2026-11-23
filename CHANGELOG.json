@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.114.23",
+    "date": "2026-11-23",
+    "title": "Slash effects in the world",
+    "changes": [
+      "Melee slashes: in third person (and for other players) a slash arc is drawn in the world in front of the hero; the first-person screen trail is now shown only to you and only in first person"
+    ]
+  },
+  {
     "version": "0.114.22",
     "date": "2026-11-23",
     "title": "Stamina talents",

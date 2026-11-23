@@ -92,9 +92,32 @@ export class AmmoPart {
   // цвет — скин оружия (fx)
   slashCrescent(attack, item, dir = 1) {
     const fx = skinFx(this.settings, item);
-    const size = attack.reachFor(this.player) / 1.8; // форма серпа ~1.8 м вперёд при size 1
-    this.crescents.add({ anchor: () => this.look.position, yaw: this.look.yaw, pitch: this.look.pitch, dir, size, life: 0.18,
+    const reach = attack.reachFor(this.player);
+    this.worldSlash({ reach, arc: attack.arc || 90, dir, color: fx ? lighter(fx) : null });
+    if (this.settings.general.cameraMode === "third") return; // от 3-го лица — только разрез в мире
+    const size = reach / 1.8; // форма серпа ~1.8 м вперёд при size 1
+    this.crescents.add({ anchor: () => this.look.position, yaw: this.look.yaw, pitch: this.look.pitch, dir, size, life: 0.18, local: true,
       ...(fx ? { color: lighter(fx), edge: fx } : {}) });
+  }
+
+  // Разрез в мире (видно от 3-го лица и другим игрокам): дуга перед героем на высоте груди, по сектору удара —
+  // отрезки лучей, по ходу взмаха живут дольше (как след клинка). roll ≈ π/2 — дуга вертикальная (сверху вниз).
+  // От 1-го лица себе не рисуем (там — экранный след), только шлём по сети
+  worldSlash({ reach, arc = 90, dir = 1, color = null, roll = 0 }) {
+    const p = this.player.position, yaw = this.look.yaw, n = 12, r = reach * 0.85, base = p.y + 1.1;
+    const fx = Math.sin(yaw), fz = Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    const vertical = Math.abs(roll) > 1;
+    const at = (t) => {
+      const a = ((t - 0.5) * arc * Math.PI) / 180 * dir;
+      if (vertical) return { x: p.x + fx * r * Math.cos(a), y: base + r * Math.sin(-a) * 0.8, z: p.z + fz * r * Math.cos(a) };
+      return { x: p.x + (fx * Math.cos(a) + rx * Math.sin(a)) * r, y: base + (t - 0.5) * 0.5, z: p.z + (fz * Math.cos(a) + rz * Math.sin(a)) * r };
+    };
+    const first = this.settings.general.cameraMode !== "third";
+    for (let i = 0; i < n; i++) {
+      const seg = { from: at(i / n), to: at((i + 1) / n), color: color || [225, 232, 245], core: [255, 255, 255], life: 0.1 + (i / n) * 0.12, width: 7 };
+      if (first) this.net?.fx?.queue.push(["beam", [seg]]); // себе — нет (экранный след), другим — да
+      else this.beams.add(seg);
+    }
   }
 
   slashTrail(attack, { from = -0.55, to = -0.25, dir = 1, delay = 0.06, sweep = 0.17, instant = false, roll = 0, arc = attack.arc, reach = attack.reachFor(this.player) } = {}) {
@@ -102,8 +125,10 @@ export class AmmoPart {
     // straight — на экране прямая линия слева снизу направо, чуть поднимаясь (как рез клинка)
     // От 1-го лица след вылетает из левого нижнего угла камеры (как будто клинок выхвачен у самых глаз),
     // от 3-го лица — только по сектору хитбокса. Сам хитбокс одинаковый
-    const corner = this.settings.general.cameraMode === "third" || instant ? null : [-0.5 * dir, -0.4, 0.3];
-    this.slashes.add({ origin: eye, yaw: this.player.yaw, pitch: this.look.pitch, roll: (this.look.roll || 0) + roll, arc, reach, from, to, dir, delay, sweep, straight: true, corner, instant });
+    this.worldSlash({ reach, arc: arc || 100, dir, roll });
+    if (this.settings.general.cameraMode === "third") return; // от 3-го лица — только разрез в мире
+    const corner = instant ? null : [-0.5 * dir, -0.4, 0.3];
+    this.slashes.add({ origin: eye, yaw: this.player.yaw, pitch: this.look.pitch, roll: (this.look.roll || 0) + roll, arc, reach, from, to, dir, delay, sweep, straight: true, corner, instant, local: true });
   }
 
   // Что показать на карте (миникарта и большая на M): мир, где игрок, метки
